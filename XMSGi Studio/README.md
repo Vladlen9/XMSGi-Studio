@@ -65,18 +65,20 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 <p align="center">
   <img src="website/screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
   <img src="website/screenshots/02.png" alt="Telegram chat selection" width="32%" />
-  <img src="website/screenshots/03.png" alt="Message composition and preview" width="32%" />
+  <img src="website/screenshots/04.png" alt="Message composition and preview" width="32%" />
 </p>
 
 ## 📥 Download
 
-| Platform | Format | Notes |
+| Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | No installation required. Runs from anywhere. |
-| Linux | AppImage | Build target available via `npm run dist` on Linux. |
-| macOS | `.dmg` | Build target available via `npm run dist` on macOS. |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.1.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.1.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.1.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb) |
+| macOS | `.dmg` (Intel) | [XMSGi.Studio-1.1.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg) |
+| macOS | `.dmg` (Apple Silicon) | [XMSGi.Studio-1.1.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg) |
 
-Grab the latest build from [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases).
+All builds for v1.1.0 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.1.0) page.
 
 ## 🚀 Quick start
 

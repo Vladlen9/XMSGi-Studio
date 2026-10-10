@@ -229,6 +229,21 @@
     .ending-actions {
       display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
     }
+    .dl-row {
+      display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .btn-dl {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 42px; padding: 0 18px;
+      border: 1px solid var(--line);
+      font-size: 13px; font-weight: 600; color: var(--text);
+      border-radius: 8px;
+      transition: border-color .15s, background .15s;
+      background: var(--near);
+      white-space: nowrap;
+    }
+    .btn-dl:hover { border-color: var(--line-glow); background: #0b0b0e; }
     .btn-w {
       display: inline-flex; align-items: center; justify-content: center; gap: 7px;
       height: 42px; padding: 0 18px;
@@ -307,7 +322,7 @@
   <div class="wrap">
     <h1 data-i18n="h1">Отложенные посты в Telegram<br><em>с вашего аккаунта.</em></h1>
     <p data-i18n="sub">Пишите текст, добавляйте медиа и inline-кнопки — и отправляйте в чаты, группы и каналы точно в срок. Черновики, очередь и статусы доставки. Никаких ботов, всё хранится только локально.</p>
-    <a class="hero-cta" href="https://github.com/molodoy01/XMSGi-Studio/releases">
+    <a class="hero-cta" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span data-i18n="cta">Скачать v1.1.0</span>
     </a>
@@ -369,8 +384,15 @@
     <h2 data-i18n="end">Просто. Локально. Надёжно.</h2>
     <p data-i18n="endd">Скачайте и запустите — без установки и облака.</p>
     <div class="ending-actions">
-      <a class="btn-w" href="https://github.com/molodoy01/XMSGi-Studio/releases" data-i18n="cta">Скачать v1.1.0</a>
+      <a class="btn-w" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe" data-i18n="cta">Скачать v1.1.0</a>
       <a class="btn-g" href="https://github.com/molodoy01/XMSGi-Studio" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <div class="dl-row">
+      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">Windows · .exe</a>
+      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage">Linux · AppImage</a>
+      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb">Linux · .deb</a>
+      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg">macOS · .dmg (Intel)</a>
+      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg">macOS · .dmg (ARM)</a>
     </div>
     <div class="plats">Windows · Linux · macOS</div>
   </div>
