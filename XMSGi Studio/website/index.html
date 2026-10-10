@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="description" content="XMSGi Studio делает планирование встреч и создание сообщений в Telegram простым, локальным и надежным процессом." />
+  <meta name="description" content="Создавайте посты для Telegram со своего аккаунта и отправляйте их точно в срок — даже если компьютер выключен. Черновики, очередь и статусы доставки. Без ботов, всё локально." />
   <meta name="theme-color" content="#000000" />
-  <title>XMSGi Studio</title>
+  <title>XMSGi Studio — отложенные посты в Telegram с вашего аккаунта</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -115,7 +115,7 @@
     }
     .hero p {
       font-size: 15px; color: var(--dim); max-width: 420px;
-      margin: 0 auto 28px; line-height: 1.6;
+      margin: 28px auto 0; line-height: 1.6;
     }
     .hero-cta {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -130,7 +130,7 @@
 
     /* ——— shot ——— */
     .shot {
-      margin: 0 auto 56px;
+      margin: 0 auto;
       max-width: 880px;
     }
     .shot-frame {
@@ -142,17 +142,37 @@
         0 0 60px -20px rgba(140,120,255,0.2),
         0 32px 64px -24px rgba(0,0,0,0.9);
     }
-    .shot-frame img { width: 100%; }
+    .shot-frame img { width: 100%; display: block; }
 
     /* ——— neon divider ——— */
     .line {
-      height: 1px; border: none; width: 160px; max-width: 40%; margin: 0 auto;
-      background: linear-gradient(90deg, transparent, var(--neon-soft), transparent);
-      box-shadow: 0 0 12px rgba(168,144,255,0.25);
+      height: 1px; border: none; width: 100%; margin: 20px 0 0;
+      background: linear-gradient(90deg, transparent, var(--neon-soft) 15%, var(--neon) 50%, var(--neon-soft) 85%, transparent);
+      box-shadow: 0 0 12px rgba(168,144,255,0.35);
     }
 
     /* ——— grid ——— */
     .points-wrap { padding: 56px 0 0; }
+    .section-head { text-align: center; margin-bottom: 34px; }
+    .section-head .kicker {
+      display: inline-block; margin-bottom: 12px;
+      color: var(--neon); font-size: 11px; font-weight: 700;
+      letter-spacing: 0.16em; text-transform: uppercase;
+    }
+    .section-head h2 {
+      font-size: clamp(22px, 4.5vw, 34px);
+      font-weight: 800; letter-spacing: -0.035em; line-height: 1.15;
+      max-width: 620px; margin: 0 auto;
+    }
+    .section-head h2 em {
+      font-style: normal;
+      background: linear-gradient(105deg, #fff 20%, var(--neon) 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .section-head p {
+      margin: 12px auto 0; max-width: 460px;
+      font-size: 14px; color: var(--dim); line-height: 1.6;
+    }
     .points {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -182,8 +202,8 @@
     .gallery { padding: 56px 0 0; }
     .gallery-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      grid-template-columns: 1fr;
+      gap: 20px;
       align-items: center;
     }
     .gallery-item {
@@ -210,60 +230,77 @@
 
     /* ——— ending ——— */
     .ending {
-      padding: 64px 0 72px;
+      padding: 56px 0 80px;
       text-align: center;
     }
     .ending h2 {
-      font-size: clamp(22px, 4.5vw, 32px);
-      font-weight: 800; letter-spacing: -0.035em; line-height: 1.2;
-      margin-bottom: 10px;
-      max-width: 480px;
-      margin-left: auto; margin-right: auto;
+      font-size: clamp(24px, 5vw, 40px);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1.12;
+      margin-bottom: 12px;
+      background: linear-gradient(105deg, #fff 30%, #cfc6ff 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
     }
     .ending p {
-      font-size: 14px; color: var(--dim);
-      margin-bottom: 28px;
-      max-width: 360px;
-      margin-left: auto; margin-right: auto;
+      font-size: 15px; color: var(--dim);
+      margin-bottom: 30px;
+      max-width: 400px;
+      margin-left: auto; margin-right: auto; line-height: 1.6;
     }
     .ending-actions {
-      display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+      display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 26px;
     }
     .dl-row {
       display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
+    .btn-w {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 46px; padding: 0 24px;
+      background: #e8e8ef; color: #000;
+      font-size: 14px; font-weight: 700;
+      border-radius: 10px;
+      transition: transform .18s, opacity .18s, box-shadow .18s;
+    }
+    .btn-w svg { width: 16px; height: 16px; }
+    .btn-w:hover { transform: translateY(-2px); box-shadow: 0 10px 28px -12px rgba(140,120,255,0.5); }
+    .btn-g {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 46px; padding: 0 24px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 14px; font-weight: 600; color: var(--text);
+      border-radius: 10px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: border-color .15s, color .15s, background .15s, transform .15s;
+    }
+    .btn-g svg { width: 16px; height: 16px; }
+    .btn-g:hover { border-color: rgba(168,144,255,0.4); background: rgba(255,255,255,0.07); transform: translateY(-2px); box-shadow: 0 10px 28px -12px rgba(140,120,255,0.5); }
     .btn-dl {
-      display: inline-flex; align-items: center; justify-content: center;
-      height: 42px; padding: 0 18px;
-      border: 1px solid var(--line);
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      min-height: 44px; padding: 0 18px;
+      border: 1px solid rgba(255,255,255,0.09);
       font-size: 13px; font-weight: 600; color: var(--text);
-      border-radius: 8px;
-      transition: border-color .15s, background .15s;
-      background: var(--near);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: border-color .18s, background .18s, transform .18s, box-shadow .18s;
       white-space: nowrap;
     }
-    .btn-dl:hover { border-color: var(--line-glow); background: #0b0b0e; }
-    .btn-w {
-      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-      height: 42px; padding: 0 18px;
-      background: #fff; color: #000;
-      font-size: 13px; font-weight: 700;
-      border-radius: 8px;
+    .btn-dl svg { width: 15px; height: 15px; color: var(--neon); flex-shrink: 0; }
+    .btn-dl:hover {
+      border-color: rgba(168,144,255,0.4);
+      background: rgba(168,144,255,0.08);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px -12px rgba(140,120,255,0.5);
     }
-    .btn-w:hover { opacity: 0.88; }
-    .btn-g {
-      display: inline-flex; align-items: center; justify-content: center;
-      height: 42px; padding: 0 18px;
-      border: 1px solid var(--line);
-      font-size: 13px; font-weight: 600; color: var(--dim);
-      border-radius: 8px;
-      transition: border-color .15s, color .15s;
-    }
-    .btn-g:hover { border-color: var(--line-glow); color: var(--text); }
     .plats {
-      margin-top: 18px;
+      position: relative;
+      margin-top: 20px;
       font-size: 12px; color: var(--faint);
+      letter-spacing: 0.04em;
     }
 
     /* ——— footer ——— */
@@ -288,9 +325,6 @@
       }
       .points-wrap { padding-top: 48px; }
       .gallery { padding-top: 48px; }
-      .gallery-grid {
-        grid-template-columns: 1fr;
-      }
       .ending { padding: 48px 0 56px; }
       .top-right a:not(.dl) { display: none; }
       .top-right { gap: 12px; }
@@ -320,24 +354,23 @@
 
 <section class="hero">
   <div class="wrap">
-    <h1 data-i18n="h1">Отложенные посты в Telegram<br><em>с вашего аккаунта.</em></h1>
-    <p data-i18n="sub">Пишите текст, добавляйте медиа и inline-кнопки — и отправляйте в чаты, группы и каналы точно в срок. Черновики, очередь и статусы доставки. Никаких ботов, всё хранится только локально.</p>
+    <h1 data-i18n="h1">Посты в Telegram<br><em>по расписанию.</em></h1>
     <a class="hero-cta" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span data-i18n="cta">Скачать v1.1.0</span>
     </a>
+    <p data-i18n="sub">Составляйте пост в удобное время — XMSGi Studio отправит его по расписанию, даже если компьютер выключен. Без ботов и облака — только ваш аккаунт.</p>
   </div>
 </section>
 
 <div class="wrap">
   <div class="shot">
     <div class="shot-frame">
-      <img src="screenshots/01.png" alt="XMSGi Studio" width="880" height="auto" />
+      <img src="screenshots/01.png" alt="Рабочее пространство XMSGi Studio" data-i18n-alt="altMain" width="880" height="auto" />
     </div>
+    <hr class="line" />
   </div>
 </div>
-
-<hr class="line" />
 
 <div class="wrap points-wrap">
   <div class="points">
@@ -351,7 +384,7 @@
     </div>
     <div class="point">
       <strong data-i18n="p3t">Полноценный пост</strong>
-      <span data-i18n="p3d">Медиа, форматирование, inline-кнопки.</span>
+      <span data-i18n="p3d">Медиа, форматирование, живой предпросмотр.</span>
     </div>
     <div class="point">
       <strong data-i18n="p4t">Вся история</strong>
@@ -368,13 +401,47 @@
   </div>
 </div>
 
+<div class="wrap points-wrap">
+  <div class="section-head">
+    <span class="kicker" data-i18n="mgmtKicker">Контроль</span>
+    <h2 data-i18n="mgmtTitle">Запланировали — <em>а что дальше?</em></h2>
+    <p data-i18n="mgmtSub">Полный контроль над каждой публикацией в очереди — прямо до момента отправки.</p>
+  </div>
+  <div class="points">
+    <div class="point">
+      <strong data-i18n="c1t">Правка перед отправкой</strong>
+      <span data-i18n="c1d">Меняйте текст и медиа уже запланированного поста — он уйдёт в новой версии.</span>
+    </div>
+    <div class="point">
+      <strong data-i18n="c2t">Перенос и отмена</strong>
+      <span data-i18n="c2d">Сдвиньте дату и время или отмените отправку в один клик.</span>
+    </div>
+    <div class="point">
+      <strong data-i18n="c3t">Повторы</strong>
+      <span data-i18n="c3d">Ежедневно, по дням недели или ежемесячно — до 15 повторов.</span>
+    </div>
+    <div class="point">
+      <strong data-i18n="c4t">Шаблоны</strong>
+      <span data-i18n="c4d">Частые формулировки — в один клик. Хранятся локально.</span>
+    </div>
+    <div class="point">
+      <strong data-i18n="c5t">Черновики с цветами</strong>
+      <span data-i18n="c5d">Организуйте идеи по цветам. Возвращайте в редактор в любой момент.</span>
+    </div>
+    <div class="point">
+      <strong data-i18n="c6t">Автоповтор</strong>
+      <span data-i18n="c6d">При флуд-лимите Telegram отправка встаёт на паузу и повторяется сама.</span>
+    </div>
+  </div>
+</div>
+
 <div class="wrap gallery">
   <div class="gallery-grid">
     <div class="gallery-item">
-      <img src="screenshots/02.png" alt="Chats" width="460" height="auto" loading="lazy" />
+      <img src="screenshots/02.png" alt="Выбор чатов и каналов Telegram" data-i18n-alt="altChats" height="auto" loading="lazy" />
     </div>
     <div class="gallery-item">
-      <img src="screenshots/04.png" alt="Sign in" width="460" height="auto" loading="lazy" />
+      <img src="screenshots/04.png" alt="Экран входа в приложение" data-i18n-alt="altSign" height="auto" loading="lazy" />
     </div>
   </div>
 </div>
@@ -383,18 +450,39 @@
   <div class="wrap">
     <h2 data-i18n="end">Просто. Локально. Надёжно.</h2>
     <p data-i18n="endd">Скачайте и запустите — без установки и облака.</p>
-    <div class="ending-actions">
-      <a class="btn-w" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe" data-i18n="cta">Скачать v1.1.0</a>
-      <a class="btn-g" href="https://github.com/molodoy01/XMSGi-Studio" target="_blank" rel="noopener">GitHub</a>
-    </div>
-    <div class="dl-row">
-      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">Windows · .exe</a>
-      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage">Linux · AppImage</a>
-      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb">Linux · .deb</a>
-      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg">macOS · .dmg (Intel)</a>
-      <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg">macOS · .dmg (ARM)</a>
-    </div>
-    <div class="plats">Windows · Linux · macOS</div>
+      <div class="ending-actions">
+        <a class="btn-w" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i18n="cta">Скачать v1.1.0</span>
+        </a>
+        <a class="btn-g" href="https://github.com/molodoy01/XMSGi-Studio" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 015.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14 0 1.54-.01 2.79-.01 3.17 0 .31.21.67.8.55A11.51 11.51 0 0023.5 12C23.5 5.73 18.27.5 12 .5z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="dl-row">
+        <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span data-i18n="win">Windows</span> · .exe
+        </a>
+        <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span data-i18n="lin">Linux</span> · AppImage
+        </a>
+        <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span data-i18n="lin">Linux</span> · .deb
+        </a>
+        <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c-.03-2.89 2.36-4.27 2.47-4.34-1.35-1.97-3.44-2.24-4.18-2.27-1.78-.18-3.47 1.05-4.37 1.05-.9 0-2.29-1.02-3.77-1-1.94.03-3.73 1.13-4.73 2.87-2.02 3.5-.52 8.68 1.45 11.52.96 1.39 2.1 2.95 3.6 2.89 1.45-.06 2-.93 3.75-.93s2.25.93 3.78.9c1.56-.03 2.55-1.41 3.5-2.8 1.1-1.61 1.55-3.17 1.58-3.25-.03-.01-3.03-1.16-3.08-4.63zM14.16 4.06c.8-.97 1.34-2.32 1.19-3.66-1.15.05-2.55.77-3.38 1.74-.74.86-1.39 2.23-1.22 3.55 1.29.1 2.6-.65 3.41-1.63z"/></svg>
+          <span data-i18n="mac">macOS</span> · .dmg (Intel)
+        </a>
+        <a class="btn-dl" href="https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 12.54c-.03-2.89 2.36-4.27 2.47-4.34-1.35-1.97-3.44-2.24-4.18-2.27-1.78-.18-3.47 1.05-4.37 1.05-.9 0-2.29-1.02-3.77-1-1.94.03-3.73 1.13-4.73 2.87-2.02 3.5-.52 8.68 1.45 11.52.96 1.39 2.1 2.95 3.6 2.89 1.45-.06 2-.93 3.75-.93s2.25.93 3.78.9c1.56-.03 2.55-1.41 3.5-2.8 1.1-1.61 1.55-3.17 1.58-3.25-.03-.01-3.03-1.16-3.08-4.63zM14.16 4.06c.8-.97 1.34-2.32 1.19-3.66-1.15.05-2.55.77-3.38 1.74-.74.86-1.39 2.23-1.22 3.55 1.29.1 2.6-.65 3.41-1.63z"/></svg>
+          <span data-i18n="mac">macOS</span> · .dmg (ARM)
+        </a>
+      </div>
+      <div class="plats" data-i18n="plats">Windows · Linux · macOS</div>
   </div>
 </section>
 
@@ -412,43 +500,80 @@
 <script>
   const T = {
     ru: {
+      title: "XMSGi Studio — отложенные посты в Telegram с вашего аккаунта",
+      desc: "Создавайте посты для Telegram со своего аккаунта и отправляйте их точно в срок — даже если компьютер выключен. Черновики, очередь и статусы доставки. Без ботов, всё локально.",
       dl: "Скачать",
-      h1: "Отложенные посты в Telegram<br><em>с вашего аккаунта.</em>",
-      sub: "Пишите текст, добавляйте медиа и inline-кнопки — и отправляйте в чаты, группы и каналы точно в срок. Черновики, очередь и статусы доставки. Никаких ботов, всё хранится только локально.",
+      h1: "Посты в Telegram<br><em>по расписанию.</em>",
+      sub: "Составляйте пост в удобное время — XMSGi Studio отправит его по расписанию, даже если компьютер выключен. Без ботов и облака — только ваш аккаунт.",
       cta: "Скачать v1.1.0",
-      p1t: "Свой аккаунт", p1d: "Чаты, группы, каналы — напрямую. Никаких ботов.",
+      p1t: "Ваш аккаунт", p1d: "Чаты, группы и каналы — напрямую. Никаких ботов.",
       p2t: "Точное время", p2d: "Сейчас или позже. Дата и час — на ваш выбор.",
-      p3t: "Полноценный пост", p3d: "Медиа, форматирование, inline-кнопки.",
-      p4t: "Вся история", p4d: "Черновики, очередь, статусы доставки.",
+      p3t: "Полноценный пост", p3d: "Медиа, форматирование, живой предпросмотр.",
+      p4t: "Вся история", p4d: "Черновики, очередь отправки и статусы доставки.",
       p5t: "Только локально", p5d: "Сессия хранится на устройстве. Защита Electron safeStorage.",
-      p6t: "Portable", p6d: "Скачали — запустили. Без установки.",
+      p6t: "Portable", p6d: "Скачали — и сразу запустили. Без установки.",
       end: "Просто. Локально. Надёжно.",
       endd: "Скачайте и запустите — без установки и облака.",
-      rel: "Релизы"
+      rel: "Релизы",
+      win: "Windows", lin: "Linux", mac: "macOS", plats: "Windows · Linux · macOS",
+      altMain: "Рабочее пространство XMSGi Studio",
+      altChats: "Выбор чатов и каналов Telegram",
+      altSign: "Экран входа в приложение",
+      mgmtKicker: "Контроль",
+      mgmtTitle: "Запланировали — <em>а что дальше?</em>",
+      mgmtSub: "Полный контроль над каждой публикацией в очереди — прямо до момента отправки.",
+      c1t: "Правка перед отправкой", c1d: "Меняйте текст и медиа уже запланированного поста — он уйдёт в новой версии.",
+      c2t: "Перенос и отмена", c2d: "Сдвиньте дату и время или отмените отправку в один клик.",
+      c3t: "Повторы", c3d: "Ежедневно, по дням недели или ежемесячно — до 15 повторов.",
+      c4t: "Шаблоны", c4d: "Частые формулировки — в один клик. Хранятся локально.",
+      c5t: "Черновики с цветами", c5d: "Организуйте идеи по цветам. Возвращайте в редактор в любой момент.",
+      c6t: "Автоповтор", c6d: "При флуд-лимите Telegram отправка встаёт на паузу и повторяется сама."
     },
     en: {
+      title: "XMSGi Studio — scheduled Telegram posts from your own account",
+      desc: "Compose Telegram posts from your own account and send them exactly on time — even with your computer off. Drafts, queue and delivery statuses. No bots, everything stays local.",
       dl: "Download",
-      h1: "Scheduled Telegram posts<br><em>from your own account.</em>",
-      sub: "Write text, add media and inline buttons — and send to chats, groups and channels right on time. Drafts, queue and delivery statuses. No bots, everything stored locally only.",
+      h1: "Telegram posts,<br><em>on schedule.</em>",
+      sub: "Compose a post whenever it suits you — XMSGi Studio sends it on schedule, even with your computer off. No bots, no cloud — just your account.",
       cta: "Download v1.1.0",
-      p1t: "Your account", p1d: "Chats, groups, channels — direct. No bots.",
-      p2t: "Exact timing", p2d: "Now or later. Date and hour — your call.",
-      p3t: "Full posts", p3d: "Media, formatting, inline buttons.",
-      p4t: "One history", p4d: "Drafts, queue, delivery outcomes.",
-      p5t: "Local only", p5d: "Session on device. Electron safeStorage.",
-      p6t: "Portable", p6d: "Download and run. No install.",
+      p1t: "Your account", p1d: "Chats, groups and channels — direct. No bots.",
+      p2t: "Exact timing", p2d: "Now or later. Pick the date and time you need.",
+      p3t: "Full posts", p3d: "Media, formatting, live preview.",
+      p4t: "One history", p4d: "Drafts, the send queue and delivery statuses.",
+      p5t: "Local only", p5d: "Session stays on device. Protected by Electron safeStorage.",
+      p6t: "Portable", p6d: "Download it and run it right away. No install.",
       end: "Simple. Local. Reliable.",
-      endd: "Download and run — no install, no cloud.",
-      rel: "Releases"
+      endd: "Download and run — no installation, no cloud.",
+      rel: "Releases",
+      win: "Windows", lin: "Linux", mac: "macOS", plats: "Windows · Linux · macOS",
+      altMain: "XMSGi Studio workspace",
+      altChats: "Telegram chat and channel selection",
+      altSign: "App sign-in screen",
+      mgmtKicker: "Control",
+      mgmtTitle: "Scheduled — <em>now what?</em>",
+      mgmtSub: "Full control over every post in the queue — right up to the moment it's sent.",
+      c1t: "Edit before sending", c1d: "Change the text and media of an already scheduled post — it goes out in its new version.",
+      c2t: "Reschedule & cancel", c2d: "Shift the date and time, or cancel the send in one click.",
+      c3t: "Repeats", c3d: "Daily, on chosen weekdays or monthly — up to 15 repeats.",
+      c4t: "Templates", c4d: "Frequent phrasings in one click. Stored locally.",
+      c5t: "Colour-coded drafts", c5d: "Organise ideas by colour. Bring any of them back to the editor anytime.",
+      c6t: "Auto-retry", c6d: "On a Telegram flood limit, the send pauses and retries on its own."
     }
   };
 
   function setLang(l) {
     const t = T[l] || T.ru;
     document.documentElement.lang = l;
+    document.title = t.title;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc && t.desc) metaDesc.setAttribute("content", t.desc);
     document.querySelectorAll("[data-i18n]").forEach(el => {
       const k = el.dataset.i18n;
-      if (t[k]) el.innerHTML = t[k];
+      if (t[k] != null) el.innerHTML = t[k];
+    });
+    document.querySelectorAll("[data-i18n-alt]").forEach(el => {
+      const k = el.dataset.i18nAlt;
+      if (t[k] != null) el.setAttribute("alt", t[k]);
     });
     document.querySelectorAll(".lang button").forEach(b => {
       b.classList.toggle("on", b.dataset.lang === l);
@@ -459,7 +584,10 @@
   document.querySelectorAll(".lang button").forEach(b => {
     b.addEventListener("click", () => setLang(b.dataset.lang));
   });
-  setLang(localStorage.getItem("xmsgi-lang") || "ru");
+
+  const saved = localStorage.getItem("xmsgi-lang");
+  const browserIsRu = (navigator.language || "ru").toLowerCase().indexOf("ru") === 0;
+  setLang(saved || (browserIsRu ? "ru" : "en"));
 </script>
 </body>
 </html>
