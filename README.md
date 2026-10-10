@@ -65,7 +65,7 @@
 <p align="center">
   <img src="XMSGi%20Studio/website/screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
   <img src="XMSGi%20Studio/website/screenshots/02.png" alt="Telegram chat selection" width="32%" />
-  <img src="XMSGi%20Studio/website/screenshots/03.png" alt="Message composition and preview" width="32%" />
+  <img src="XMSGi%20Studio/website/screenshots/04.png" alt="Message composition and preview" width="32%" />
 </p>
 
 ## 📥 Download
