@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
-import type { Chat, RichTextEntity } from '@/types';
+import type { Chat, PreviewChatHistory, RichTextEntity } from '@/types';
 import { ChatPreviewStand } from './ChatPreviewStand';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,6 +14,7 @@ function renderChatPreviewStand(
   attachments: { name: string; path: string; previewUrl?: string }[] = [],
   draftText = '',
   draftEntities: RichTextEntity[] = [],
+  previewHistory: PreviewChatHistory | null = null,
 ) {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -27,7 +28,7 @@ function renderChatPreviewStand(
         <ChatPreviewStand
           chats={[chat]}
           selectedChat={chat}
-          previewHistory={null}
+          previewHistory={previewHistory}
           previewHistoryLoading={false}
           previewFeedRef={previewFeedRef}
           draftText={draftText}
@@ -78,6 +79,63 @@ describe('ChatPreviewStand wallpaper picker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.localStorage.clear();
+  });
+
+  it('opens history photos at original size and closes with the button or Escape', () => {
+    const original = 'data:image/jpeg;base64,original';
+    const thumbnail = 'data:image/jpeg;base64,thumbnail';
+    const previewHistory: PreviewChatHistory = {
+      chat: { id: chat.id, title: chat.name },
+      messages: [{
+        id: 'photo-1',
+        text: '',
+        date: '2026-10-11T12:00:00.000Z',
+        outgoing: false,
+        media: { kind: 'photo', name: 'photo.jpg', dataUrl: original, thumbnailDataUrl: thumbnail },
+      }],
+    };
+    const { container, unmount } = renderChatPreviewStand([], '', [], previewHistory);
+
+    try {
+      const photoButton = container.querySelector('.chat-preview-history-photo-trigger') as HTMLButtonElement;
+      expect(photoButton).not.toBeNull();
+      expect(photoButton.querySelector('img')?.getAttribute('src')).toBe(original);
+
+      act(() => photoButton.click());
+      expect(document.body.querySelector('.chat-preview-image-viewer img')?.getAttribute('src')).toBe(original);
+
+      const closeButton = document.body.querySelector('.chat-preview-image-viewer-close') as HTMLButtonElement;
+      expect(closeButton.getAttribute('aria-label')).toBe('Close photo preview');
+      act(() => closeButton.click());
+      expect(document.body.querySelector('.chat-preview-image-viewer')).toBeNull();
+
+      act(() => photoButton.click());
+      act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })));
+      expect(document.body.querySelector('.chat-preview-image-viewer')).toBeNull();
+    } finally {
+      unmount();
+    }
+  });
+
+  it('opens an attached draft photo at full size when tapped', () => {
+    const original = 'data:image/jpeg;base64,draft-original';
+    const { container, unmount } = renderChatPreviewStand([
+      { name: 'draft-photo.jpg', path: '/photos/draft-photo.jpg', previewUrl: original },
+    ]);
+
+    try {
+      const photoButton = container.querySelector('.chat-preview-attachment-photo-trigger') as HTMLButtonElement;
+      expect(photoButton).not.toBeNull();
+      expect(photoButton.getAttribute('aria-label')).toBe('View photo full size');
+
+      act(() => photoButton.click());
+      expect(document.body.querySelector('.chat-preview-image-viewer img')?.getAttribute('src')).toBe(original);
+
+      act(() => (document.body.querySelector('.chat-preview-image-viewer-close') as HTMLButtonElement).click());
+      expect(document.body.querySelector('.chat-preview-image-viewer')).toBeNull();
+    } finally {
+      unmount();
+    }
   });
 
   it('renders sanitized text and keeps formatting in the live preview', () => {

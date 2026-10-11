@@ -1,8 +1,13 @@
+function getStableChatId(requestedId, entityId) {
+  const id = requestedId ?? entityId;
+  return id == null ? '' : String(id);
+}
+
 function normalizeDialogChats(dialogs, getChatType, getDisplayName) {
   const chatsById = new Map();
 
   for (const dialog of dialogs || []) {
-    const id = dialog?.id?.toString();
+    const id = getStableChatId(dialog?.id);
     if (!id) continue;
 
     const entity = dialog.entity || null;
@@ -17,4 +22,4 @@ function normalizeDialogChats(dialogs, getChatType, getDisplayName) {
   return [...chatsById.values()];
 }
 
-module.exports = { normalizeDialogChats };
+module.exports = { getStableChatId, normalizeDialogChats };

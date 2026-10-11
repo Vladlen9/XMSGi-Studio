@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XMSGi Studio Preview</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import DevPreviewHarness from './src/DevPreviewHarness.tsx';
+      import { LocaleProvider } from './src/lib/i18n';
+      import './src/index.css';
+
+      createRoot(document.getElementById('root')).render(
+        React.createElement(LocaleProvider, null, React.createElement(DevPreviewHarness)),
+      );
+    </script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 import { ArrowLeft, BatteryFull, ImagePlus, MessageCircle, Mic, Monitor, Paperclip, Search, Send, Signal, SlidersHorizontal, Smartphone, Smile, Wifi, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CSSProperties, MutableRefObject } from 'react';
 import { ChatAvatar } from './ChatAvatar';
 import type { Chat, PreviewChatHistory, RichTextEntity } from '@/types';
@@ -154,23 +155,46 @@ function isImageAttachment(attachment: PreviewAttachment) {
   return Boolean(attachment.path || attachment.previewUrl) && /\.(?:avif|gif|jpe?g|png|webp)$/i.test(attachment.name);
 }
 
-function renderHistoryMedia(message: PreviewChatHistory['messages'][number]) {
+function renderHistoryMedia(
+  message: PreviewChatHistory['messages'][number],
+  onOpenPhoto: (photo: { src: string; name: string }) => void,
+  viewPhotoLabel: string,
+) {
   const media = message.media;
   if (!media) return null;
 
   if (media.kind === 'photo' || media.kind === 'video') {
-    return media.dataUrl || media.thumbnailDataUrl ? (
-      <div className="chat-preview-history-media-frame">
-        <img loading="lazy" src={media.thumbnailDataUrl || media.dataUrl} alt={media.name || 'Telegram media'} />
+    const src = media.dataUrl || media.thumbnailDataUrl;
+    if (!src) {
+      return (
+      <div className="chat-preview-media-placeholder">
+        {media.kind === 'video' ? 'Video preview unavailable' : 'Photo preview unavailable'}
+      </div>
+      );
+    }
+
+    const frameContent = (
+      <>
+        <img loading="lazy" src={src} alt={media.name || 'Telegram media'} />
         {media.kind === 'video' && <span className="chat-preview-play">▶</span>}
         {media.kind === 'video' && media.duration && (
           <span className="chat-preview-duration">{formatDuration(media.duration)}</span>
         )}
-      </div>
+      </>
+    );
+
+    return media.kind === 'photo' ? (
+      <button
+        type="button"
+        className="chat-preview-history-media-frame chat-preview-history-photo-trigger"
+        onClick={() => onOpenPhoto({ src, name: media.name || '' })}
+        aria-label={viewPhotoLabel}
+        title={viewPhotoLabel}
+      >
+        {frameContent}
+      </button>
     ) : (
-      <div className="chat-preview-media-placeholder">
-        {media.kind === 'video' ? 'Video preview unavailable' : 'Photo preview unavailable'}
-      </div>
+      <div className="chat-preview-history-media-frame">{frameContent}</div>
     );
   }
 
@@ -249,11 +273,28 @@ export function ChatPreviewStand({
   const [previewOptionsOpen, setPreviewOptionsOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [previewScrollDragging, setPreviewScrollDragging] = useState(false);
+  const [expandedHistoryPhoto, setExpandedHistoryPhoto] = useState<{ src: string; name: string } | null>(null);
   const [previewScrollMetrics, setPreviewScrollMetrics] = useState<PreviewScrollMetrics>({
     scrollTop: 0,
     scrollHeight: 0,
     clientHeight: 0,
   });
+
+  useEffect(() => {
+    if (!expandedHistoryPhoto) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedHistoryPhoto(null);
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [expandedHistoryPhoto]);
 
   useEffect(() => {
     try {
@@ -706,7 +747,15 @@ export function ChatPreviewStand({
                     )}
                     {hasMedia && (
                       <div className={`chat-preview-history-grid ${group.messages.length > 1 ? 'is-album' : ''}`}>
-                        {group.messages.map((message) => <div key={message.id}>{renderHistoryMedia(message)}</div>)}
+                        {group.messages.map((message) => (
+                          <div key={message.id}>
+                            {renderHistoryMedia(
+                              message,
+                              setExpandedHistoryPhoto,
+                              t('studio.viewPhotoFullSize'),
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                     {group.messages.filter((message) => message.text).map((message) => (
@@ -731,9 +780,21 @@ export function ChatPreviewStand({
                 >
                   {imageAttachments.length > 0 && (
                     <div className={`chat-preview-attachment-grid ${imageAttachments.length > 1 ? 'is-album' : ''}`}>
-                      {imageAttachments.map((attachment, index) => (
-                        <img key={`${attachment.path}:${index}`} src={attachment.previewUrl || toFileUrl(attachment.path)} alt={attachment.name} />
-                      ))}
+                      {imageAttachments.map((attachment, index) => {
+                        const src = attachment.previewUrl || toFileUrl(attachment.path);
+                        return (
+                          <button
+                            key={`${attachment.path}:${index}`}
+                            type="button"
+                            className="chat-preview-attachment-photo-trigger"
+                            onClick={() => setExpandedHistoryPhoto({ src, name: attachment.name })}
+                            aria-label={t('studio.viewPhotoFullSize')}
+                            title={t('studio.viewPhotoFullSize')}
+                          >
+                            <img src={src} alt={attachment.name} />
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                   {documentAttachments.length > 0 && (
@@ -809,6 +870,29 @@ export function ChatPreviewStand({
         )}
       </div>
       </div>
+      {expandedHistoryPhoto && createPortal(
+        <div
+          className="chat-preview-image-viewer"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('studio.previewFile', { name: expandedHistoryPhoto.name || t('studio.photo') })}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setExpandedHistoryPhoto(null);
+          }}
+        >
+          <button
+            type="button"
+            className="chat-preview-image-viewer-close"
+            onClick={() => setExpandedHistoryPhoto(null)}
+            aria-label={t('studio.closePhotoPreview')}
+            title={t('studio.closePhotoPreview')}
+          >
+            <X size={22} strokeWidth={2} aria-hidden="true" />
+          </button>
+          <img src={expandedHistoryPhoto.src} alt={expandedHistoryPhoto.name || t('studio.photo')} />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

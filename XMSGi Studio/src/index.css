@@ -1739,6 +1739,32 @@ body:has(.product-shell.studio-shell) {
   text-shadow: 0 1px 12px rgba(194, 218, 239, 0.16);
 }
 
+@media (max-width: 1100px) {
+  .product-section-title-detached {
+    top: 72px;
+    left: 16px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 760px) {
+  .topbar .brand {
+    font-size: 16px;
+    letter-spacing: 0.12em;
+  }
+
+  .topbar-actions {
+    gap: 4px;
+  }
+
+  .topbar-actions .settings-action,
+  .topbar-actions .account-action {
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 11px;
+  }
+}
+
 .topbar::before {
   content: "";
   position: absolute;

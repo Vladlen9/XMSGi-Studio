@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const { TelegramClient, Api } = require('teleproto');
 const { StringSession } = require('teleproto/sessions');
 const { normalizeTelegramMessage } = require('./packages/shared/telegramText.cjs');
-const { normalizeDialogChats } = require('./telegram-dialogs.cjs');
+const { getStableChatId, normalizeDialogChats } = require('./telegram-dialogs.cjs');
 const { fromTelegramInlineKeyboard, prepareInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
 const {
   classifyTelegramError,
@@ -1531,7 +1531,7 @@ async function getChatHistoryInternal(chatId, limit = 50) {
 
   return {
     chat: {
-      id: String(entity.id || chatId),
+      id: getStableChatId(chatId, entity.id),
       title: getEntityDisplayName(entity),
       username: entity.username || '',
       type: getPublicChatType(entity) || 'private',

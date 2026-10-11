@@ -16,7 +16,7 @@ describe('Electron tray lifecycle contract', () => {
   });
 
   it('keeps the main window above the ergonomic minimum size', () => {
-    expect(mainSource).toContain('minWidth: 1000');
+    expect(mainSource).toContain('minWidth: 960');
     expect(mainSource).toContain('minHeight: 700');
   });
 
