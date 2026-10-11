@@ -159,9 +159,10 @@ CI описан в `.github/workflows/` (дерево репозитория —
   typecheck, тесты) на push в `main`, на PR и вручную. Артефакты не собирает.
 - `.github/workflows/release.yml` — авто-релиз desktop-приложения. Срабатывает
   **только по тегу вида `v*`** (или вручную через `workflow_dispatch`), собирает
-  артефакты для Windows/Linux/macOS через electron-builder и прикрепляет их к
-  существующему GitHub Release (`softprops/action-gh-release`). Сам тег создаётся
-  и пушится локально: `git tag v1.2.0 && git push origin v1.2.0`.
+  артефакты для Windows/Linux/macOS через electron-builder и публикует их в
+  GitHub Release для этого тега — Release создаётся автоматически, если его ещё
+  нет (`softprops/action-gh-release`). Сам тег создаётся и пушится локально:
+  `git tag v1.2.0 && git push origin v1.2.0`.
 - `.github/workflows/static.yml` — деплой статического сайта на GitHub Pages
   (ветка `main`, каталог `XMSGi Studio/website`).
 
