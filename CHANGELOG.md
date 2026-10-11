@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Renumbered website gallery screenshots to a continuous sequence (`01.png`, `02.png`, `03.png`).
+- Removed local debug helpers and preview artifacts from version control.
+- Added `.env.example` and extended `.gitignore` coverage for local artifacts and build outputs.
+
+### Notes
+
+- Version `1.1.0` follows the legacy `2.1.7` line: the desktop product was renamed
+  to XMSGi Studio, so the version was reset for the new product name.
+  History under `2.1.7` below refers to the previous XMSGi releases.
+
 ## 1.1.0 - 2026-10-07
 
 ### Highlights

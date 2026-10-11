@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 .env
 .env.*
@@ -8,6 +8,13 @@ release-working-*/
 *.session
 *session*
 *.log
-/t
 desktop.ini
 vitest-*.json
+
+readme-preview.html
+topics-out.json
+*.exe
+*.AppImage
+*.dmg
+*.deb
+personal-website/

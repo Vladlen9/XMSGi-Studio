@@ -104,7 +104,7 @@ Full control over every post in the queue — right up to the moment it's sent.
 <p align="center">
   <img src="website/screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
   <img src="website/screenshots/02.png" alt="Telegram chat selection" width="32%" />
-  <img src="website/screenshots/04.png" alt="Message composition and preview" width="32%" />
+  <img src="website/screenshots/03.png" alt="Message composition and preview" width="32%" />
 </p>
 
 ## 📥 Download
