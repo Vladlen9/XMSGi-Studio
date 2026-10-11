@@ -3,6 +3,7 @@ const MAX_FLOOD_WAIT_SECONDS = 31_536_000;
 const MAX_FLOOD_WAIT_SECONDS_BIGINT = BigInt(MAX_FLOOD_WAIT_SECONDS);
 const MAX_SAFE_INTEGER_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
 const MAX_TIMER_DELAY_BIGINT = BigInt(MAX_TIMER_DELAY_MS);
+const MAX_AUTOMATIC_FLOOD_RETRIES = 1;
 
 function parsePositiveInteger(value) {
   if (typeof value === 'bigint') return value > 0n ? value : null;
@@ -151,11 +152,31 @@ function createTelegramRateLimitInterceptor(timerApi = {}) {
   const setTimer = timerApi.setTimeout || setTimeout;
   const clearTimer = timerApi.clearTimeout || clearTimeout;
   const pauses = new Map();
+  const operationQueues = new Map();
 
   function getAccountKey(accountId) {
     const key = String(accountId ?? '').trim();
     if (!key) throw new Error('A Telegram account/session key is required.');
     return key;
+  }
+
+  function enqueue(queue, accountId, operation) {
+    const key = getAccountKey(accountId);
+    const previous = queue.get(key) ?? Promise.resolve();
+    let release;
+    const turn = new Promise((resolve) => { release = resolve; });
+    const tail = previous.catch(() => undefined).then(() => turn);
+    queue.set(key, tail);
+
+    return (async () => {
+      await previous.catch(() => undefined);
+      try {
+        return await operation();
+      } finally {
+        release();
+        if (queue.get(key) === tail) queue.delete(key);
+      }
+    })();
   }
 
   function finishPause(accountId, pause) {
@@ -256,8 +277,9 @@ function createTelegramRateLimitInterceptor(timerApi = {}) {
     return waitUntilAvailable(key);
   }
 
-  async function run(accountId, operation) {
+  async function runRequest(accountId, operation) {
     const key = getAccountKey(accountId);
+    let retries = 0;
 
     while (true) {
       await waitUntilAvailable(key);
@@ -276,8 +298,22 @@ function createTelegramRateLimitInterceptor(timerApi = {}) {
           throw classification.error;
         }
         pauseAccount(key, classification.error);
+        if (retries >= MAX_AUTOMATIC_FLOOD_RETRIES) {
+          classification.error.category = classification.category;
+          classification.error.retryable = classification.retryable;
+          throw classification.error;
+        }
+        retries += 1;
       }
     }
+  }
+
+  function run(accountId, operation) {
+    return runRequest(accountId, operation);
+  }
+
+  function enqueueOperation(accountId, operation) {
+    return enqueue(operationQueues, accountId, operation);
   }
 
   function getSnapshot() {
@@ -300,6 +336,7 @@ function createTelegramRateLimitInterceptor(timerApi = {}) {
 
   return {
     run,
+    enqueue: enqueueOperation,
     pauseAccount,
     waitUntilAvailable,
     getState,

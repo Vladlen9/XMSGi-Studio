@@ -49,9 +49,22 @@ function studioAwareAliasPlugin() {
   };
 }
 
+function sharedTelegramTextBrowserPlugin() {
+  return {
+    name: 'shared-telegram-text-browser',
+    transform(code, id) {
+      if (!id.replace(/\\/g, '/').endsWith('/packages/shared/telegramText.cjs')) return null;
+      return code.replace(
+        'module.exports = { markdownToRichText, normalizeTelegramMessage, normalizeTelegramText };',
+        'export { markdownToRichText, normalizeTelegramMessage, normalizeTelegramText };',
+      );
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [react(), studioAwareAliasPlugin()],
+  plugins: [react(), sharedTelegramTextBrowserPlugin(), studioAwareAliasPlugin()],
   resolve: {
     alias: [{ find: /^lucide-react$/, replacement: lucideReactRoot }],
     dedupe: ['react', 'react-dom', 'lucide-react'],

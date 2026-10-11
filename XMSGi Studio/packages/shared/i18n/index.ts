@@ -8,6 +8,8 @@ export type TranslationKey = keyof typeof translations.en;
 const LOCALE_STORAGE_KEY = 'awaitmsg_locale';
 
 const russianEditorialOverrides: Partial<Record<TranslationKey, string>> = {
+  'schedule.massWarningTitle': 'Массовое планирование',
+  'schedule.massWarningMessage': '{count} сообщений · риск FloodWait',
   'auth.continueTelegram': 'Продолжить через Telegram',
   'auth.telegram': 'ТЕЛЕГРАМ',
   'auth.verifyConnect': 'Подтвердить и подключиться',
@@ -339,6 +341,8 @@ const translations = {
     'schedule.invalidRepeatCount': 'Invalid repeat count',
     'schedule.validWeekdays': 'Choose valid weekdays.',
     'schedule.invalidRepeatDays': 'Invalid repeat days',
+    'schedule.massWarningTitle': 'Mass scheduling warning',
+    'schedule.massWarningMessage': '{count} messages · FloodWait risk',
     'schedule.duplicate': 'An identical message is already scheduled for this chat and time.',
     'schedule.duplicateTitle': 'Duplicate schedule',
     'schedule.pendingFailed': 'Pending message could not be scheduled.',

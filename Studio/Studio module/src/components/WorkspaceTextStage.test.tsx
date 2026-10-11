@@ -67,6 +67,8 @@ function renderStage(overrides: Partial<React.ComponentProps<typeof WorkspaceTex
     time: '09:00',
     setDate: vi.fn(),
     setTime: vi.fn(),
+    followCurrentTime: false,
+    setFollowCurrentTime: vi.fn(),
     scheduling: false,
     canSchedule: true,
     onSchedule: vi.fn(),
@@ -612,6 +614,74 @@ describe('WorkspaceTextStage editor flows', () => {
     }
   });
 
+  it('restores automatic time updates when the Now preset is selected', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 3, 23, 59, 30));
+    const setDate = vi.fn();
+    const setTime = vi.fn();
+    const setFollowCurrentTime = vi.fn();
+    const { unmount } = renderStage({
+      mode: 'schedule',
+      scheduleFocus: 'time',
+      date: '2026-10-03',
+      time: '09:00',
+      followCurrentTime: false,
+      setDate,
+      setTime,
+      setFollowCurrentTime,
+    });
+
+    try {
+      act(() => (document.querySelector('[aria-label="Set time: Now"]') as HTMLButtonElement).click());
+      expect(setFollowCurrentTime).toHaveBeenCalledWith(true);
+      expect(setDate).toHaveBeenCalledWith('2026-10-04');
+      expect(setTime).toHaveBeenCalledWith('00:00');
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops automatic time updates when the user selects a quick date', () => {
+    const setFollowCurrentTime = vi.fn();
+    const { unmount } = renderStage({
+      mode: 'schedule',
+      scheduleFocus: 'time',
+      followCurrentTime: true,
+      setFollowCurrentTime,
+    });
+
+    try {
+      act(() => (document.querySelector('[aria-label="Set date: Today"]') as HTMLButtonElement).click());
+      expect(setFollowCurrentTime).toHaveBeenCalledWith(false);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('disables time picker options that are already in the past', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 3, 15, 30, 30));
+    const { unmount } = renderStage({
+      mode: 'schedule',
+      scheduleFocus: 'time',
+      date: '2026-10-03',
+      time: '16:00',
+    });
+
+    try {
+      act(() => (document.querySelector('[aria-label="Open time picker"]') as HTMLButtonElement).click());
+      const options = [...document.querySelectorAll('[role="option"]')] as HTMLButtonElement[];
+      const pastOption = options.find((option) => option.textContent === '15:15');
+      const futureOption = options.find((option) => option.textContent === '15:45');
+      expect(pastOption?.disabled).toBe(true);
+      expect(futureOption?.disabled).toBe(false);
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it('sets quick dates relative to the selected date and clamps month-end dates', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 3, 12, 0));
@@ -649,23 +719,23 @@ describe('WorkspaceTextStage editor flows', () => {
 
   it('renders the time picker outside the schedule field and aligns it to the clock button', () => {
     const setTime = vi.fn();
-    const { unmount } = renderStage({ mode: 'schedule', scheduleFocus: 'time', time: '09:00', setTime });
+    const { unmount } = renderStage({ mode: 'schedule', scheduleFocus: 'time', date: '2099-01-10', time: '09:00', setTime });
     const timeField = document.querySelector('.workspace-page-schedule-inline-time') as HTMLElement;
     const clockButton = document.querySelector('[aria-label="Open time picker"]') as HTMLButtonElement;
     vi.spyOn(clockButton, 'getBoundingClientRect').mockReturnValue({
-      top: 182,
-      bottom: 200,
+      top: 360,
+      bottom: 378,
       left: 120,
       right: 138,
       width: 18,
       height: 18,
       x: 120,
-      y: 182,
+      y: 360,
       toJSON: () => ({}),
     });
 
     expect(timeField).toBeTruthy();
-    expect(timeField.querySelector('input[type="time"]')).toBeTruthy();
+    expect(timeField.querySelector('[aria-label="Hours"]')).toBeTruthy();
     expect(document.querySelector('[role="listbox"][aria-label="Available times"]')).toBeNull();
 
     act(() => {
@@ -675,8 +745,9 @@ describe('WorkspaceTextStage editor flows', () => {
     const timePicker = document.querySelector('[role="listbox"][aria-label="Available times"]') as HTMLElement;
     expect(timePicker).toBeTruthy();
     expect(timePicker.parentElement).toBe(document.body);
-    expect(timePicker.style.top).toBe('208px');
+    expect(timePicker.style.top).toBe('132px');
     expect(timePicker.style.left).toBe('120px');
+    expect(timePicker.style.height).toBe('220px');
     expect(clockButton.getAttribute('aria-expanded')).toBe('true');
     expect(timePicker.querySelectorAll('[role="option"]')).toHaveLength(96);
     expect(timePicker.querySelector('[aria-selected="true"]')?.textContent).toBe('09:00');

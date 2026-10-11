@@ -773,13 +773,18 @@ ipcMain.handle('draft-store:import', async (event) => {
   return normalizeDraftStoreResult(result);
 });
 
-ipcMain.handle('editor-text:export', async (event, text) => {
+ipcMain.handle('editor-text:export', async (event, payload) => {
   assertDraftStorageRenderer(event);
   const owner = BrowserWindow.fromWebContents(event.sender);
+  const isStructured = payload !== null && typeof payload === 'object';
+  const text = isStructured ? payload.text : payload;
+  const format = isStructured && payload.format === 'json' ? 'json' : 'txt';
   const result = await dialog.showSaveDialog(owner, {
     title: 'Export editor text',
-    defaultPath: 'message.txt',
-    filters: [{ name: 'Text document', extensions: ['txt'] }],
+    defaultPath: format === 'json' ? 'message.json' : 'message.txt',
+    filters: format === 'json'
+      ? [{ name: 'JSON document', extensions: ['json'] }]
+      : [{ name: 'Text document', extensions: ['txt'] }],
   });
   if (result.canceled || !result.filePath) return { success: false, cancelled: true };
   return draftStore.exportTextTo(result.filePath, text);

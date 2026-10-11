@@ -178,6 +178,7 @@ export function SchedulePage(props: SchedulePageProps) {
   const { locale, setLocale, t } = useLocale();
 
   const datePickerRef = useRef<HTMLInputElement>(null);
+  const messageWrapRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const pendingPasteCaretRef = useRef<number | null>(null);
   const pendingEmojiFocusRef = useRef(false);
@@ -230,6 +231,7 @@ export function SchedulePage(props: SchedulePageProps) {
   const messageMaxLength = getMessageMaxLength(attachments.length > 0);
   const hasPlannerNotification = connected && notification.visible && notification.message.trim().length > 0;
   const isShortPlannerNotification = notification.message.trim().length <= 32;
+  const isMassWarningNotification = notification.visible && notification.title === t('schedule.massWarningTitle');
 
   const startSelfReminder = () => {
     setMessageOptionsOpen(false);
@@ -253,6 +255,34 @@ export function SchedulePage(props: SchedulePageProps) {
     }
     messageInputRef.current?.setSelectionRange(caretPosition, caretPosition);
   }, [message, emojiPickerOpen]);
+
+  // The orange frame is drawn as a fixed overlay so it can extend past the
+  // column edge that overflow:hidden ancestors would otherwise clip.
+  useLayoutEffect(() => {
+    const wrap = messageWrapRef.current;
+    if (!wrap) return;
+
+    const RIGHT_EXTRA = 28;
+
+    const syncFrame = () => {
+      const rect = wrap.getBoundingClientRect();
+      wrap.style.setProperty('--frame-top', `${rect.top}px`);
+      wrap.style.setProperty('--frame-left', `${rect.left}px`);
+      wrap.style.setProperty('--frame-width', `${rect.width + RIGHT_EXTRA}px`);
+      wrap.style.setProperty('--frame-height', `${rect.height}px`);
+    };
+
+    syncFrame();
+    const observer = new ResizeObserver(syncFrame);
+    observer.observe(wrap);
+    window.addEventListener('resize', syncFrame);
+    window.addEventListener('scroll', syncFrame, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', syncFrame);
+      window.removeEventListener('scroll', syncFrame, true);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -840,11 +870,11 @@ export function SchedulePage(props: SchedulePageProps) {
                   )}
                 </div>
 
-                <div className="message-input-wrap">
-                  {!message && <span className="message-placeholder" aria-hidden="true">{t('composer.messagePlaceholder')}</span>}
+                <div className="message-input-wrap" ref={messageWrapRef}>
                   <textarea
                     ref={messageInputRef}
                     value={message}
+                    placeholder={t('composer.messagePlaceholder')}
                     disabled={selectedChatPermissions?.canSend === false}
                     title={selectedChatPermissions?.canSend === false ? t('chat.cannotSendReason') : undefined}
                     onChange={(event) => handleComposerMessageChange(event.target.value)}
@@ -1382,14 +1412,19 @@ export function SchedulePage(props: SchedulePageProps) {
 
             <div className="messages-panel-wrapper" aria-hidden={!hasPlannerNotification}>
               {hasPlannerNotification && (
-                <span
+                <div
                   key={notification.revision}
-                  className={`planner-inline-notification ${isShortPlannerNotification ? 'is-short' : 'is-long'} is-${notification.type}`}
+                  className={`planner-inline-notification ${isShortPlannerNotification ? 'is-short' : 'is-long'} is-${notification.type}${isMassWarningNotification ? ' is-mass-warning' : ''}`}
                   role={notification.type === 'error' ? 'alert' : 'status'}
                   aria-live={notification.type === 'error' ? 'assertive' : 'polite'}
                 >
-                  {notification.message}
-                </span>
+                  {isMassWarningNotification ? (
+                    <>
+                      <span className="planner-notification-message">{notification.message}</span>
+                      <button type="button" className="planner-inline-notification-close" onClick={closeNotification} aria-label={t('notification.close')}>×</button>
+                    </>
+                  ) : notification.message}
+                </div>
               )}
             </div>
 

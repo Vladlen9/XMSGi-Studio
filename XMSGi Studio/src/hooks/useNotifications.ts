@@ -14,10 +14,17 @@ export function useNotifications() {
   const notificationRevisionRef = useRef(0);
 
   const showNotification = useCallback(
-    (message: string, type: NotificationType, title: string, errorDetails?: BridgeErrorDetails) => {
+    (
+      message: string,
+      type: NotificationType,
+      title: string,
+      errorDetails?: BridgeErrorDetails,
+      durationMs = 4500,
+    ) => {
       if (notificationTimeoutRef.current) {
         clearTimeout(notificationTimeoutRef.current);
       }
+      notificationTimeoutRef.current = null;
 
       setNotification({
         message,
@@ -29,11 +36,12 @@ export function useNotifications() {
       });
 
       notificationTimeoutRef.current = window.setTimeout(() => {
+        notificationTimeoutRef.current = null;
         setNotification((prev) => ({
           ...prev,
           visible: false,
         }));
-      }, 4500);
+      }, durationMs);
     },
     []
   );
@@ -42,6 +50,7 @@ export function useNotifications() {
     if (notificationTimeoutRef.current) {
       clearTimeout(notificationTimeoutRef.current);
     }
+    notificationTimeoutRef.current = null;
 
     setNotification((prev) => ({
       ...prev,

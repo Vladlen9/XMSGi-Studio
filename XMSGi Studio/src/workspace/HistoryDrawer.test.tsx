@@ -112,6 +112,68 @@ function searchHistory(query: string) {
   });
 }
 
+describe('history filter glass indicators', () => {
+  it('tracks the selected source and status filters', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
+    const sourceFilters = container.querySelector('.history-source-filters') as HTMLDivElement;
+    const statusFilters = container.querySelector('.history-status-filters') as HTMLDivElement;
+    const sourceIndicator = sourceFilters.querySelector<HTMLElement>('.history-glass-indicator');
+    const statusIndicator = statusFilters.querySelector<HTMLElement>('.history-glass-indicator');
+
+    expect(sourceIndicator?.dataset.activeFilter).toBe('all');
+    expect(statusIndicator?.dataset.activeFilter).toBe('scheduled');
+
+    fireEvent.click(sourceFilters.querySelector('[data-history-filter="workspace"]')!);
+    fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
+
+    expect(sourceIndicator?.dataset.activeFilter).toBe('workspace');
+    expect(statusIndicator?.dataset.activeFilter).toBe('sent');
+  });
+
+  it('bounces the selected status in place when clicked again', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
+    const selectedTab = container.querySelector<HTMLElement>('.history-status-tab[aria-selected="true"]')!;
+    const surface = container.querySelector<HTMLElement>('.history-status-filters .history-glass-surface')!;
+    const animate = vi.fn();
+    Object.defineProperty(surface, 'animate', { configurable: true, value: animate });
+
+    fireEvent.click(selectedTab);
+
+    expect(animate).toHaveBeenCalledOnce();
+    const [frames, timing] = animate.mock.calls[0];
+    expect(frames).toEqual(expect.arrayContaining([
+      expect.objectContaining({ transform: 'scale(1.075)', offset: 0.42 }),
+      expect.objectContaining({ transform: 'scale(1.01)', offset: 0.72 }),
+      expect.objectContaining({ transform: 'scale(1.02)', offset: 0.86 }),
+      expect.objectContaining({ transform: 'scale(1)' }),
+    ]));
+    expect(frames.every((frame: Keyframe) => !String(frame.transform).includes('translate'))).toBe(true);
+    expect(timing.duration).toBe(780);
+    expect(timing.easing).toBe('cubic-bezier(0.33, 0, 0.67, 1)');
+  });
+
+  it('uses the same in-place bounce when the selected source is clicked again', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
+    const selectedTab = container.querySelector<HTMLElement>('.history-filter[aria-pressed="true"]')!;
+    const surface = container.querySelector<HTMLElement>('.history-source-filters .history-glass-surface')!;
+    const animate = vi.fn();
+    Object.defineProperty(surface, 'animate', { configurable: true, value: animate });
+
+    fireEvent.click(selectedTab);
+
+    expect(animate).toHaveBeenCalledOnce();
+    const [frames] = animate.mock.calls[0];
+    expect(frames).toEqual(expect.arrayContaining([
+      expect.objectContaining({ transform: 'scale(1.075)', offset: 0.42 }),
+      expect.objectContaining({ transform: 'scale(1.01)', offset: 0.72 }),
+    ]));
+    expect(frames.every((frame: Keyframe) => !String(frame.transform).includes('translate'))).toBe(true);
+  });
+});
+
 function mockHistoryRecordScroll(container: HTMLElement, recordBounds = { top: 350, height: 100 }) {
   const list = container.querySelector('.history-record-list') as HTMLDivElement;
   const record = list.querySelector('.history-record') as HTMLElement;

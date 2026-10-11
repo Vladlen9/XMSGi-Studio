@@ -1350,6 +1350,131 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  async function typeEditorText(value: string) {
+    const editor = document.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => {
+      editor.textContent = value;
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    });
+  }
+
+  async function openExportMenu() {
+    const exportTrigger = document.querySelector('.workspace-page-editor-export-trigger') as HTMLButtonElement;
+    await act(async () => {
+      exportTrigger.click();
+    });
+    return document.querySelector('.workspace-page-editor-export-menu') as HTMLDivElement;
+  }
+
+  function pickExportFormat(menu: HTMLDivElement, extension: '.txt' | '.json') {
+    return Array.from(menu.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes(extension)) as HTMLButtonElement;
+  }
+
+  it('exports the current editor text as a .txt file through the format menu', async () => {
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('Hello export');
+
+    const exportTrigger = document.querySelector('.workspace-page-editor-export-trigger') as HTMLButtonElement;
+    expect(exportTrigger).toBeTruthy();
+    expect(exportTrigger.getAttribute('aria-label')).toBe('Export editor text');
+    const menu = await openExportMenu();
+    const txtOption = pickExportFormat(menu, '.txt');
+    await act(async () => {
+      txtOption.click();
+      await Promise.resolve();
+    });
+
+    expect(window.draftStorage.exportText).toHaveBeenCalledWith('Hello export', 'txt');
+    expect(document.querySelector('.workspace-page-editor-export-menu')).toBeNull();
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Text exported to file.');
+    unmount();
+  });
+
+  it('exports the current editor text as a JSON file through the format menu', async () => {
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('Structured body');
+
+    const menu = await openExportMenu();
+    const jsonOption = pickExportFormat(menu, '.json');
+    await act(async () => {
+      jsonOption.click();
+      await Promise.resolve();
+    });
+
+    const call = vi.mocked(window.draftStorage.exportText).mock.calls[
+      vi.mocked(window.draftStorage.exportText).mock.calls.length - 1
+    ];
+    expect(call?.[1]).toBe('json');
+    expect(JSON.parse(String(call?.[0])).text).toBe('Structured body');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Text exported to file.');
+    unmount();
+  });
+
+  it('blocks editor text export when there is no text and shows a warning', async () => {
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('');
+
+    const menu = await openExportMenu();
+    const txtOption = pickExportFormat(menu, '.txt');
+    await act(async () => {
+      txtOption.click();
+      await Promise.resolve();
+    });
+
+    expect(window.draftStorage.exportText).not.toHaveBeenCalled();
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent).toBe('There is no text to export.');
+    unmount();
+  });
+
+  it('stays silent when the editor text export dialog is cancelled', async () => {
+    vi.mocked(window.draftStorage.exportText).mockResolvedValueOnce({ success: false, cancelled: true });
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('Cancel me');
+
+    const menu = await openExportMenu();
+    const txtOption = pickExportFormat(menu, '.txt');
+    await act(async () => {
+      txtOption.click();
+      await Promise.resolve();
+    });
+
+    expect(window.draftStorage.exportText).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toBeNull();
+    unmount();
+  });
+
+  it('surfaces editor text export failures in the shared footer status', async () => {
+    vi.mocked(window.draftStorage.exportText).mockResolvedValueOnce({ success: false, error: 'Disk is full.' });
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('Body to fail');
+
+    const menu = await openExportMenu();
+    const txtOption = pickExportFormat(menu, '.txt');
+    await act(async () => {
+      txtOption.click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent).toContain('Disk is full.');
+    unmount();
+  });
+
+  it('closes the editor export format menu when clicking outside', async () => {
+    const { unmount } = await renderWorkspacePage();
+    await typeEditorText('Outside click');
+
+    await openExportMenu();
+    expect(document.querySelector('.workspace-page-editor-export-menu')).toBeTruthy();
+
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(document.querySelector('.workspace-page-editor-export-menu')).toBeNull();
+    expect(window.draftStorage.exportText).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('duplicates chat lookup errors in the shared footer status', async () => {
     vi.mocked(window.telegram.findChat).mockResolvedValueOnce({ success: false, error: 'Chat not found.' });
     const { unmount } = await renderWorkspacePage();

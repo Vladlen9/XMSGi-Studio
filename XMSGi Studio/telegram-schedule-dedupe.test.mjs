@@ -190,6 +190,12 @@ async function schedule(core, { message = 'Same text', targetTimestamp, attachme
   );
 }
 
+function createDeferred() {
+  let resolve;
+  const promise = new Promise((res) => { resolve = res; });
+  return { promise, resolve };
+}
+
 afterEach(async () => {
   await Promise.all(activeCores.splice(0).map((core) => core.shutdownTelegram()));
   nodeModule._load = originalLoad;
@@ -208,6 +214,38 @@ describe('Telegram scheduled operation deduplication', () => {
     expect(retry.telegramMessageId).toBe(first.telegramMessageId);
     expect(client.scheduled).toHaveLength(1);
     expect(client.sendCalls).toBe(0);
+  });
+
+  it('serializes Send Now and schedule through the same account publish queue', async () => {
+    const { core, client } = await createCoreHarness();
+    const requestGate = createDeferred();
+    const requestStarted = createDeferred();
+    const originalInvoke = client.invoke.bind(client);
+    let heldFirstRequest = false;
+    client.invoke = async (request) => {
+      if (!heldFirstRequest && request.className === 'messages.SendMessage') {
+        heldFirstRequest = true;
+        requestStarted.resolve();
+        await requestGate.promise;
+      }
+      return originalInvoke(request);
+    };
+
+    const sendPromise = core.sendMessage('me', 'Send Now first', [], [], undefined, false, undefined, 'send-now-key');
+    await requestStarted.promise;
+    const schedulePromise = schedule(core, {
+      message: 'Schedule second',
+      targetTimestamp: Math.floor(Date.now() / 1000) + 7200,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(client.scheduledListCalls).toBe(0);
+
+    requestGate.resolve();
+    await expect(sendPromise).resolves.toBe(true);
+    await expect(schedulePromise).resolves.toMatchObject({ confirmed: true });
+    expect(client.scheduledListCalls).toBeGreaterThan(0);
   });
 
   it('keeps schedules with the same text but a different second separate', async () => {

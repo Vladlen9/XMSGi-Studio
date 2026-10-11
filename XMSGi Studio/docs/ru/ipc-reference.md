@@ -92,7 +92,7 @@ network/retrying | error`.
 | `draft-store:export` | draft | экспорт бэкапа (системный диалог) |
 | `draft-store:import` | draft | импорт бэкапа (системный диалог) |
 | `draft-store:flush` | sendSync | **синхронная** запись при закрытии окна |
-| `editor-text:export` | draft | экспорт текста редактора в файл |
+| `editor-text:export` | draft | экспорт текста редактора в файл; payload `{ text, format }`, `format: 'txt' \| 'json'` (по умолчанию `txt`) |
 | `editor-text:import` | draft | импорт текста из файла |
 
 ---

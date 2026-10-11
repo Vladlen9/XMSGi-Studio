@@ -50,7 +50,7 @@ declare global {
       restoreBackup: (index: number) => Promise<DraftStorageResult>;
       exportBackup: () => Promise<DraftStorageResult>;
       importBackup: () => Promise<DraftStorageResult>;
-      exportText: (text: string) => Promise<DraftStorageResult>;
+      exportText: (text: string, format?: 'txt' | 'json') => Promise<DraftStorageResult>;
       importText: () => Promise<DraftStorageResult>;
       copyAttachment: (file: File) => Promise<DraftStorageResult>;
     };

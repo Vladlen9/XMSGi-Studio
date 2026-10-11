@@ -49,10 +49,10 @@ input,
 }
 
 textarea {
-  height: 112px;
+  height: 220px;
   padding: 22px 16px 12px;
   resize: none;
-  min-height: 112px;
+  min-height: 220px;
   line-height: 1.45;
   background: transparent;
   color: #edf4fb;

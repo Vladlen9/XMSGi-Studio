@@ -20,9 +20,10 @@ interface Props {
   stageContent?: ReactNode;
   stageMode?: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons';
   maxLength: number;
+  onExportText?: (text: string, format: 'txt' | 'json') => void;
 }
 
-export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength }: Props) {
+export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onExportText }: Props) {
   const { t } = useLocale();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -427,6 +428,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
             });
           }
         }}
+        onExportText={onExportText ? (format) => onExportText(text, format) : undefined}
       />
     </div>
   );

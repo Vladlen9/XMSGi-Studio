@@ -29,7 +29,7 @@ import { toInlineKeyboardMarkup } from '../lib/inlineKeyboard';
 import { useLocale } from '@/lib/i18n';
 import type { InlineButtonRow } from '../lib/inlineKeyboard';
 import { loadTemplates, saveTemplates } from '../lib/storage';
-import { formatScheduleSummary, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '../lib/scheduling';
+import { formatScheduleSummary, getScheduleDateTimeAfter, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '../lib/scheduling';
 import type {
   Chat,
   DraftAttachment,
@@ -87,6 +87,14 @@ type WorkspacePageProps = {
 };
 
 type PublishAction = 'send' | 'schedule' | 'draft';
+type PublishFooterStatus = {
+  message: string;
+  kind: 'error' | 'progress' | 'warning' | 'success' | 'notice';
+  transient: boolean;
+  dismissible: boolean;
+  duration: number | null;
+  massWarning?: boolean;
+};
 type IconRimMotion = {
   currentAngle: number;
   targetAngle: number;
@@ -584,6 +592,8 @@ export function WorkspacePage({
   const [scheduleFocus, setScheduleFocus] = useState<'repeat' | 'time' | null>(() => {
     return isLivePreviewSurface() ? 'time' : null;
   });
+  const [followCurrentTime, setFollowCurrentTime] = useState(true);
+  const [scheduleClockNow, setScheduleClockNow] = useState(() => Date.now());
   const [scheduleSelectionConfirmed, setScheduleSelectionConfirmed] = useState(false);
   const [, setStageTab] = useState<'editor' | 'templates' | 'drafts' | 'buttons'>('editor');
   const [workspaceSelectedChats, setWorkspaceSelectedChats] = useState<Chat[]>([]);
@@ -615,6 +625,24 @@ export function WorkspacePage({
   const [publishFeedback, setPublishFeedback] = useState('');
   const [publishFeedbackKind, setPublishFeedbackKind] = useState<'warning' | 'success'>('warning');
   const [publishFeedbackInstance, setPublishFeedbackInstance] = useState(0);
+
+  useEffect(() => {
+    if (stageMode !== 'schedule' || scheduleFocus === 'repeat') return undefined;
+
+    let timeoutId = 0;
+    const refreshScheduleClock = () => {
+      setScheduleClockNow(Date.now());
+      if (followCurrentTime) {
+        const nextSchedule = getScheduleDateTimeAfter(0);
+        setDate((current) => current === nextSchedule.date ? current : nextSchedule.date);
+        setTime((current) => current === nextSchedule.time ? current : nextSchedule.time);
+      }
+      timeoutId = window.setTimeout(refreshScheduleClock, 60_000 - (Date.now() % 60_000) + 25);
+    };
+
+    refreshScheduleClock();
+    return () => window.clearTimeout(timeoutId);
+  }, [followCurrentTime, scheduleFocus, setDate, setTime, stageMode]);
   const publishFeedbackTimerRef = useRef<number | null>(null);
   const sendInFlightRef = useRef(false);
   const [publishAction, setPublishAction] = useState<PublishAction>('send');
@@ -642,6 +670,7 @@ export function WorkspacePage({
       setDraftEntities(normalizeRichTextEntities(workspaceDraft.entities, workspaceDraft.body?.length ?? 0));
       replaceAttachments(normalizeAttachments(workspaceDraft.attachments));
       setInlineButtons(workspaceDraft.inlineButtons ?? []);
+      if (workspaceDraft.date || workspaceDraft.time) setFollowCurrentTime(false);
       if (workspaceDraft.date) setDate(workspaceDraft.date);
       if (workspaceDraft.time) setTime(workspaceDraft.time);
       if (workspaceDraft.repeatMode) setRepeatMode(workspaceDraft.repeatMode);
@@ -1018,7 +1047,7 @@ export function WorkspacePage({
   const hasSelectedTarget = Boolean(selectedChat);
   const hasValidScheduleDate = Boolean(date && !Number.isNaN(new Date(`${date}T12:00:00`).getTime()));
   const hasValidScheduleTime = Boolean(time && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time));
-  const hasFutureSchedule = isFutureSchedule(date, time);
+  const hasFutureSchedule = isFutureSchedule(date, time, new Date(scheduleClockNow));
   const hasValidRepeatConfig = repeatMode === 'none'
     || ((repeatMode === 'weekly' || repeatMode === 'biweekly') ? repeatDays.length > 0 : true)
     && repeatOccurrences > 0
@@ -1070,7 +1099,16 @@ export function WorkspacePage({
         : selectedChat
           ? t('studio.sendToChatSummary', { chat: localizeChatName(selectedChat.name) })
           : t('studio.sendChooseChatSummary');
-  const publishFooterStatus = sendError
+  const publishFooterStatus: PublishFooterStatus | null = notification.visible && notification.title === t('schedule.massWarningTitle')
+    ? {
+      message: notification.message,
+      kind: 'warning',
+      transient: false,
+      dismissible: true,
+      duration: 5000,
+      massWarning: true,
+    }
+    : sendError
     ? { message: sendError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
     : sendInFlight || publishingDraft
       ? { message: t('studio.sentProgress'), kind: 'progress', transient: false, dismissible: false, duration: null }
@@ -1367,6 +1405,7 @@ export function WorkspacePage({
     setDraftEntities(draft.entities ?? []);
     replaceAttachments(normalizeAttachments(draft.attachments));
     setInlineButtons(draft.inlineButtons ?? []);
+    if (draft.date || draft.time) setFollowCurrentTime(false);
     if (draft.date) setDate(draft.date);
     if (draft.time) setTime(draft.time);
     setRepeatMode(draft.repeatMode ?? 'none');
@@ -1407,6 +1446,7 @@ export function WorkspacePage({
     }))));
     setDate(nextDate);
     setTime(nextTime);
+    setFollowCurrentTime(false);
     setRepeatMode('none');
     setRepeatDays([]);
     setRepeatOccurrences(1);
@@ -1549,6 +1589,7 @@ export function WorkspacePage({
     replaceAttachments(normalizeAttachments(draft.attachments));
     setInlineButtons(draft.inlineButtons ?? []);
     if (draft.selectedChat) setSelectedChat(draft.selectedChat);
+    if (draft.date || draft.time) setFollowCurrentTime(false);
     if (draft.date) setDate(draft.date);
     if (draft.time) setTime(draft.time);
     setRepeatMode(draft.repeatMode ?? 'none');
@@ -1727,6 +1768,36 @@ export function WorkspacePage({
     setAttachmentPreview({ src, name, left, top, width, height });
   };
 
+  const handleExportEditorText = async (editorText: string, format: 'txt' | 'json') => {
+    if (!editorText.trim()) {
+      showPublishFeedback(t('studio.textExportEmpty'));
+      return;
+    }
+
+    const draftStorage = getDraftStorageApi();
+    if (!draftStorage || typeof draftStorage.exportText !== 'function') {
+      setTextFileError(t('studio.textExportFailed'));
+      return;
+    }
+
+    const payload = format === 'json'
+      ? JSON.stringify({ exportedAt: new Date().toISOString(), text: editorText }, null, 2)
+      : editorText;
+
+    try {
+      const result = await draftStorage.exportText(payload, format);
+      if (result.cancelled) return;
+      if (!result.success) {
+        setTextFileError(result.error || t('studio.textExportFailed'));
+        return;
+      }
+      setTextFileError('');
+      showPublishFeedback(t('studio.textExported'), 'success');
+    } catch (error) {
+      setTextFileError(error instanceof Error ? error.message : t('studio.textExportFailed'));
+    }
+  };
+
   const handleImportEditorText = async () => {
     setTextFileError('');
     try {
@@ -1837,6 +1908,7 @@ export function WorkspacePage({
                     maxLength={maxDraftLength}
                     stageMode={stageMode}
                     onAddFiles={(files, position) => void handleAddFiles(files, position)}
+                    onExportText={(editorText, format) => void handleExportEditorText(editorText, format)}
                     onChange={(nextText, nextEntities) => {
                       const limited = nextText.length > maxDraftLength
                         ? sliceRichText(nextText, nextEntities, 0, maxDraftLength)
@@ -1866,6 +1938,8 @@ export function WorkspacePage({
                         time={time}
                         setDate={setDate}
                         setTime={setTime}
+                        followCurrentTime={followCurrentTime}
+                        setFollowCurrentTime={setFollowCurrentTime}
                         scheduling={scheduling}
                         canSchedule={canSchedule}
                         onSchedule={(entities, repeat) => {
@@ -2220,7 +2294,7 @@ export function WorkspacePage({
 
               </div>
 
-              <div className="workspace-page-action-row workspace-page-draft-footer">
+              <div className={`workspace-page-action-row workspace-page-draft-footer${publishFooterStatus?.massWarning ? ' has-mass-warning' : ''}`}>
                 <div className="workspace-page-draft-meta">{savedAt ? t('studio.draftSaved', { time: savedAt }) : t('studio.draftNotSaved')}</div>
                 <div className={`workspace-page-schedule-summary ${publishAction === 'draft' ? 'has-draft-color-picker' : ''}`}>
                   <div
@@ -2237,7 +2311,7 @@ export function WorkspacePage({
                 {publishFooterStatus && (
                   <div
                     key={`${publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
-                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${'transient' in publishFooterStatus && publishFooterStatus.transient ? ' is-notice' : ''}`}
+                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}`}
                     style={publishFooterStatus.duration === null
                       ? undefined
                       : { '--status-duration': `${publishFooterStatus.duration}ms` } as React.CSSProperties}

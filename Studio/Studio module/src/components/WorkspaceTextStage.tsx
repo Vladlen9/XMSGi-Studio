@@ -29,6 +29,8 @@ interface Props {
   time: string;
   setDate: Dispatch<SetStateAction<string>>;
   setTime: Dispatch<SetStateAction<string>>;
+  followCurrentTime: boolean;
+  setFollowCurrentTime: Dispatch<SetStateAction<boolean>>;
   scheduling: boolean;
   canSchedule: boolean;
   onSchedule: (entities: RichTextEntity[], repeat: ScheduleRepeatOptions) => void;
@@ -88,6 +90,8 @@ export function WorkspaceTextStage({
   time,
   setDate,
   setTime,
+  followCurrentTime,
+  setFollowCurrentTime,
   repeatMode,
   setRepeatMode,
   repeatDays,
@@ -137,6 +141,8 @@ export function WorkspaceTextStage({
         time={time}
         setDate={setDate}
         setTime={setTime}
+        followCurrentTime={followCurrentTime}
+        setFollowCurrentTime={setFollowCurrentTime}
         repeatMode={repeatMode}
         setRepeatMode={setRepeatMode}
         repeatDays={repeatDays}

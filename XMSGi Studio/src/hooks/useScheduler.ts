@@ -28,6 +28,8 @@ import {
 import { useLocale } from '@/lib/i18n';
 
 const REPEAT_SCHEDULE_DELAY_MS = 1500;
+const MASS_SCHEDULE_WARNING_THRESHOLD = 10;
+const MASS_SCHEDULE_WARNING_DURATION_MS = 5000;
 const MAX_SCHEDULE_FUTURE_DAYS = 367;
 
 function wait(milliseconds: number) {
@@ -82,7 +84,13 @@ export type UseSchedulerOptions = {
   selectedChat: Chat | null;
   chats: Chat[];
   message: string;
-  showNotification: (message: string, type: NotificationType, title: string, errorDetails?: BridgeErrorDetails) => void;
+  showNotification: (
+    message: string,
+    type: NotificationType,
+    title: string,
+    errorDetails?: BridgeErrorDetails,
+    durationMs?: number,
+  ) => void;
   setMessage: Dispatch<SetStateAction<string>>;
   setAssistantPrompt: Dispatch<SetStateAction<string>>;
   setAssistantResponse: Dispatch<SetStateAction<string>>;
@@ -133,6 +141,8 @@ export function useScheduler({
   const mountedRef = useRef(true);
   const activePublishIdsRef = useRef(new Set<string>());
   const cancelingIdsRef = useRef(new Set<string>());
+  const publishingDraftLockRef = useRef(false);
+  const draftSendAttemptRef = useRef<{ fingerprint: string; id: string } | null>(null);
   const [publishingDraft, setPublishingDraft] = useState(false);
   const openPickerRef = useRef<'date' | 'time' | null>(null);
   const loadUpcoming = useCallback(() => loadUpcomingFromStorage(historyScope), [historyScope]);
@@ -497,6 +507,17 @@ export function useScheduler({
       silent,
       effect,
     }));
+
+    if (occurrenceDates.length >= MASS_SCHEDULE_WARNING_THRESHOLD) {
+      showNotification(
+        t('schedule.massWarningMessage', { count: occurrenceDates.length }),
+        'warning',
+        t('schedule.massWarningTitle'),
+        undefined,
+        MASS_SCHEDULE_WARNING_DURATION_MS,
+      );
+    }
+
     const candidateTimestamps = new Set(candidateOperations.map((operation) => operation.targetTimestamp));
     const comparableUpcoming = upcoming.filter((scheduledMessage) => {
       const scheduledTimestamp = Math.floor(new Date(scheduledMessage.when).getTime() / 1000);
@@ -1246,14 +1267,20 @@ export function useScheduler({
     silent = false,
     effect?: string,
   ) {
-    if (!historyReady || publishingDraft || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
+    if (!historyReady || publishingDraftLockRef.current || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
 
+    publishingDraftLockRef.current = true;
     setPublishingDraft(true);
+    const fingerprint = JSON.stringify([chat.id, text, attachments, entities, replyMarkup, silent, effect]);
+    if (!draftSendAttemptRef.current || draftSendAttemptRef.current.fingerprint !== fingerprint) {
+      draftSendAttemptRef.current = { fingerprint, id: `${Date.now()}:${uid()}` };
+    }
+    const sendAttemptId = draftSendAttemptRef.current.id;
 
     let sendErrorDetails: ReturnType<typeof normalizeTelegramBridgeError> | undefined;
     try {
       await waitForTelegramAccount();
-      const result = await window.telegram.send(chat.id, text, attachments, entities, replyMarkup, silent, effect, accountId);
+      const result = await window.telegram.send(chat.id, text, attachments, entities, replyMarkup, silent, effect, accountId, sendAttemptId);
 
       if (!result.success) {
         sendErrorDetails = normalizeTelegramBridgeError(result, 'publish', t('schedule.sendFailed'));
@@ -1281,6 +1308,7 @@ export function useScheduler({
         return updated;
       });
       setMessage('');
+      draftSendAttemptRef.current = null;
       setSuccessPulse(true);
       setLastAction('sent');
       showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
@@ -1298,6 +1326,7 @@ export function useScheduler({
       );
       return false;
     } finally {
+      publishingDraftLockRef.current = false;
       setPublishingDraft(false);
     }
   }

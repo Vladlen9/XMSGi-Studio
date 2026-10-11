@@ -137,7 +137,7 @@ contextBridge.exposeInMainWorld('draftStorage', {
   restoreBackup: (index) => ipcRenderer.invoke('draft-store:restore-backup', index),
   exportBackup: () => ipcRenderer.invoke('draft-store:export'),
   importBackup: () => ipcRenderer.invoke('draft-store:import'),
-  exportText: (text) => ipcRenderer.invoke('editor-text:export', text),
+  exportText: (text, format) => ipcRenderer.invoke('editor-text:export', { text, format }),
   importText: () => ipcRenderer.invoke('editor-text:import'),
   copyAttachment: (file) => {
     const sourcePath = webUtils.getPathForFile(file);

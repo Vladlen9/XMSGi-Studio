@@ -91,6 +91,7 @@ export interface DraftStorageApi {
     error?: string;
   }>;
   importText: () => Promise<{ success: boolean; cancelled?: boolean; text?: string; error?: string }>;
+  exportText: (text: string, format?: 'txt' | 'json') => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
 }
 
 export function hasDraftContent(body: string, attachments: DraftAttachment[] = []): boolean {

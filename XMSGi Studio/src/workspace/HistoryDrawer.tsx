@@ -173,6 +173,70 @@ function formatDraftCount(count: number, locale: Locale) {
   return `${count} ${label}`;
 }
 
+function positionHistoryGlassIndicator(container: HTMLDivElement | null) {
+  if (!container) return;
+
+  const indicator = container.querySelector<HTMLElement>('.history-glass-indicator');
+  const active = container.querySelector<HTMLElement>('[aria-pressed="true"], [aria-selected="true"]');
+  if (!indicator || !active) return;
+
+  const containerBounds = container.getBoundingClientRect();
+  const activeBounds = active.getBoundingClientRect();
+  const nextFilter = active.dataset.historyFilter || '';
+  const previousFilter = indicator.dataset.activeFilter;
+  const reduceMotion = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const surface = indicator.querySelector<HTMLElement>('.history-glass-surface');
+  const sheen = indicator.querySelector<HTMLElement>('.history-glass-sheen');
+
+  if (previousFilter && previousFilter !== nextFilter && !reduceMotion) {
+    if (surface && typeof surface.animate === 'function') {
+      surface.animate([
+        { transform: 'scaleX(0.9) scaleY(0.92)', borderRadius: '15px' },
+        { transform: 'scaleX(1.08) scaleY(1.08)', borderRadius: '12px', offset: 0.54 },
+        { transform: 'scale(1)', borderRadius: '10px' },
+      ], { duration: 640, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' });
+    }
+
+    if (sheen && typeof sheen.animate === 'function') {
+      sheen.animate([
+        { transform: 'translateX(0) skewX(-18deg)', opacity: 0 },
+        { transform: 'translateX(145%) skewX(-18deg)', opacity: 0.4, offset: 0.55 },
+        { transform: 'translateX(290%) skewX(-18deg)', opacity: 0 },
+      ], { duration: 720, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)' });
+    }
+  }
+
+  indicator.dataset.activeFilter = nextFilter;
+  indicator.style.setProperty('--history-glass-x', `${activeBounds.left - containerBounds.left - container.clientLeft}px`);
+  indicator.style.setProperty('--history-glass-y', `${activeBounds.top - containerBounds.top - container.clientTop}px`);
+  indicator.style.width = `${activeBounds.width}px`;
+  indicator.style.height = `${activeBounds.height}px`;
+  indicator.style.opacity = '1';
+}
+
+function bounceHistoryGlassIndicator(container: HTMLDivElement | null, filter: HistoryStatusFilter | HistorySourceFilter) {
+  if (!container) return;
+
+  const indicator = container.querySelector<HTMLElement>('.history-glass-indicator');
+  const surface = indicator?.querySelector<HTMLElement>('.history-glass-surface');
+  const reduceMotion = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!surface || indicator?.dataset.activeFilter !== filter || reduceMotion || typeof surface.animate !== 'function') return;
+
+  const currentTransform = getComputedStyle(surface).transform;
+  if (typeof surface.getAnimations === 'function') {
+    surface.getAnimations().forEach((animation) => animation.cancel());
+  }
+  surface.animate([
+    { transform: currentTransform === 'none' ? 'scale(1)' : currentTransform },
+    { transform: 'scale(1.075)', offset: 0.42 },
+    { transform: 'scale(1.01)', offset: 0.72 },
+    { transform: 'scale(1.02)', offset: 0.86 },
+    { transform: 'scale(1)', offset: 1 },
+  ], { duration: 780, easing: 'cubic-bezier(0.33, 0, 0.67, 1)', fill: 'none' });
+}
+
 function scrollHistoryRecordIntoView(list: HTMLDivElement, record: HTMLElement) {
   const listBounds = list.getBoundingClientRect();
   const recordBounds = record.getBoundingClientRect();
@@ -413,11 +477,36 @@ export function HistoryDrawer({
   const [previewImagePath, setPreviewImagePath] = useState<string | null>(null);
   const [previewImagePosition, setPreviewImagePosition] = useState<{ left: number; top: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceFiltersRef = useRef<HTMLDivElement | null>(null);
+  const statusFiltersRef = useRef<HTMLDivElement | null>(null);
   const historyRecordListRef = useRef<HTMLDivElement | null>(null);
   const expandedRecordRef = useRef<HTMLElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const preExpansionScrollTopRef = useRef<number | null>(null);
   const imageHoverTimerRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const containers = [sourceFiltersRef.current, statusFiltersRef.current]
+      .filter((container): container is HTMLDivElement => container !== null);
+    const updateIndicators = () => {
+      containers.forEach(positionHistoryGlassIndicator);
+    };
+    updateIndicators();
+
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateIndicators);
+    containers.forEach((container) => {
+      resizeObserver?.observe(container);
+      container.querySelectorAll('button').forEach((button) => resizeObserver?.observe(button));
+    });
+    window.addEventListener('resize', updateIndicators);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateIndicators);
+    };
+  }, [isOpen, locale, sourceFilter, statusFilter]);
 
   useEffect(() => {
     try {
@@ -950,13 +1039,23 @@ export function HistoryDrawer({
         </header>
 
         <div className="history-drawer-controls">
-          <div className="history-source-filters" role="group" aria-label={t('history.sources')}>
+          <div className="history-source-filters" ref={sourceFiltersRef} role="group" aria-label={t('history.sources')}>
+            <span className="history-glass-indicator" aria-hidden="true">
+              <span className="history-glass-surface">
+                <span className="history-glass-sheen" />
+              </span>
+            </span>
             {(['all', 'workspace', 'personal'] as const).map((item) => (
               <button
                 key={item}
                 type="button"
+                data-history-filter={item}
                 onClick={() => {
-                  setSourceFilter(item);
+                  if (sourceFilter === item) {
+                    bounceHistoryGlassIndicator(sourceFiltersRef.current, item);
+                  } else {
+                    setSourceFilter(item);
+                  }
                   if (item === 'personal' && statusFilter === 'drafts'
                     || item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
                   setBulkDeleteCategory(null);
@@ -1283,7 +1382,12 @@ export function HistoryDrawer({
 
           <div className="history-drawer-footer" aria-label={t('history.actionsPanel')}>
             <div className="history-status-row">
-            <div className="history-status-filters" role="tablist" aria-label={t('history.statuses')}>
+            <div className="history-status-filters" ref={statusFiltersRef} role="tablist" aria-label={t('history.statuses')}>
+              <span className="history-glass-indicator" aria-hidden="true">
+                <span className="history-glass-surface">
+                  <span className="history-glass-sheen" />
+                </span>
+              </span>
               {visibleStatusFilters.map((item) => {
                 const labelKey = item === 'scheduled'
                   ? 'history.categoryScheduled'
@@ -1304,8 +1408,13 @@ export function HistoryDrawer({
                   <button
                     key={item}
                     type="button"
+                    data-history-filter={item}
                     onClick={() => {
-                      setStatusFilter(item);
+                      if (statusFilter === item) {
+                        bounceHistoryGlassIndicator(statusFiltersRef.current, item);
+                      } else {
+                        setStatusFilter(item);
+                      }
                       setBulkDeleteCategory(null);
                       setBulkDeleteRecordId(null);
                       setBulkDeleteError('');

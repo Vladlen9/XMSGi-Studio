@@ -773,7 +773,6 @@ describe('useScheduler native history', () => {
       expect(sent).toBe(true);
     });
 
-
     expect(send).toHaveBeenCalledWith(
       chat.id,
       '',
@@ -783,7 +782,59 @@ describe('useScheduler native history', () => {
       false,
       undefined,
       'account-1',
+      expect.stringMatching(/^\d+:[a-z0-9]+$/i),
     );
+  });
+
+  it('reuses the same Telegram idempotency key after an uncertain draft-send failure', async () => {
+    const chat = { id: 'draft-retry', name: 'Draft retry chat' };
+    const send = vi.fn()
+      .mockResolvedValueOnce({ success: false, error: 'Network response was lost.', code: 'ETIMEDOUT', category: 'network', retryable: true })
+      .mockResolvedValueOnce({ success: true, messageId: 'draft-retry-sent' });
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(chat, 'Retry same payload')).resolves.toBe(false);
+    });
+    const firstAttemptKey = send.mock.calls[0][8];
+
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(chat, 'Retry same payload')).resolves.toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][8]).toBe(firstAttemptKey);
+    expect(result.current.sent).toHaveLength(1);
+  });
+
+  it('ignores a duplicate immediate draft-send while the first request is in flight', async () => {
+    const chat = { id: 'draft-send-once', name: 'Draft send chat' };
+    let resolveSend!: (result: { success: boolean; messageId?: string }) => void;
+    const send = vi.fn(() => new Promise<{ success: boolean; messageId?: string }>((resolve) => { resolveSend = resolve; }));
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    let firstAttempt!: Promise<boolean>;
+    let duplicateResult = true;
+    await act(async () => {
+      firstAttempt = result.current.handleSendDraftNow(chat, 'Send once');
+      await Promise.resolve();
+      duplicateResult = await result.current.handleSendDraftNow(chat, 'Send once');
+    });
+
+    expect(duplicateResult).toBe(false);
+    expect(send).toHaveBeenCalledOnce();
+    const idempotencyKey = (send.mock.calls[0] as unknown[])[8];
+    expect(idempotencyKey).toEqual(expect.stringMatching(/^\d+:[a-z0-9]+$/i));
+
+    await act(async () => {
+      resolveSend({ success: true, messageId: 'draft-send-once-message' });
+      await expect(firstAttempt).resolves.toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(result.current.sent).toHaveLength(1);
   });
 
   it('cancels the original schedule only after the replacement is confirmed', async () => {
@@ -1232,7 +1283,8 @@ describe('useScheduler native history', () => {
       }
       return { success: true };
     });
-    const { result } = renderWorkspaceHistory([message], [], { cancel, send, saveScheduleHistory });
+    const showNotification = vi.fn();
+    const { result } = renderWorkspaceHistory([message], [], { cancel, send, saveScheduleHistory }, showNotification);
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));
     await act(async () => {
@@ -1261,6 +1313,7 @@ describe('useScheduler native history', () => {
     );
     expect(events.indexOf('cancel')).toBeLessThan(events.indexOf('persist-cleared-id'));
     expect(events.indexOf('persist-cleared-id')).toBeLessThan(events.indexOf('send'));
+    expect(showNotification.mock.calls.some(([, , , , actions]) => actions)).toBe(false);
   });
 
   it('records Telegram reconciliation as Sent without sending a duplicate', async () => {
@@ -1381,6 +1434,43 @@ describe('useScheduler native history', () => {
       await firstAttempt;
     });
     expect(result.current.sent).toHaveLength(1);
+  });
+
+  it('keeps Send Now behind the account FloodWait gate', async () => {
+    const message: ScheduledMessage = {
+      id: 'send-now-rate-limited',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Wait until account is available',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+    };
+    let resumeRateLimit!: (result: { success: boolean }) => void;
+    const rateLimitGate = new Promise<{ success: boolean }>((resolve) => { resumeRateLimit = resolve; });
+    const waitForRateLimit = vi.fn(() => rateLimitGate);
+    const send = vi.fn().mockResolvedValue({ success: true, messageId: 'send-now-after-pause' });
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([message], [], { waitForRateLimit, send });
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([message]));
+    let attempt!: Promise<void>;
+    await act(async () => {
+      attempt = result.current.handleSendNow(message);
+      await Promise.resolve();
+    });
+
+    expect(waitForRateLimit).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
+    expect(result.current.upcoming[0]).toMatchObject({ status: 'sending' });
+
+    await act(async () => {
+      resumeRateLimit({ success: true });
+      await attempt;
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(result.current.sent).toHaveLength(1);
+    expect(loadScheduleHistory).toHaveBeenCalledWith('workspace');
   });
 
   it('keeps the scheduled record and reports cancellation errors', async () => {
@@ -1612,5 +1702,91 @@ describe('useScheduler native history', () => {
     await waitFor(() => expect(result.current.upcoming).toHaveLength(0));
     expect(confirm).not.toHaveBeenCalled();
     expect(saveScheduleHistory).toHaveBeenCalledWith({ scope: 'workspace', field: 'upcoming', messages: [] });
+  });
+
+  it('does not warn below the bulk scheduling threshold', async () => {
+    const chat = { id: 'bulk-9', name: 'Bulk chat' };
+    const { date, time } = getFutureReplacementTimes().replacementDateTime;
+    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true });
+    const showNotification = vi.fn();
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { schedule }, showNotification, 'workspace', chat);
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    vi.useFakeTimers();
+    await act(async () => {
+      await result.current.handleSchedule(
+        { chatId: chat.id, message: 'Nine messages', date, time },
+        { mode: 'daily', occurrences: 9 },
+      );
+      await vi.runAllTimersAsync();
+    });
+    vi.useRealTimers();
+
+    expect(schedule).toHaveBeenCalledTimes(9);
+    expect(showNotification.mock.calls.some(([, type, title]) => type === 'warning' && title === 'Mass scheduling warning')).toBe(false);
+  });
+
+  it('warns at ten messages for five seconds and continues scheduling once', async () => {
+    const chat = { id: 'bulk-10', name: 'Bulk chat' };
+    const { date, time } = getFutureReplacementTimes().replacementDateTime;
+    const schedule = vi.fn(async () => ({ success: true, confirmed: true }));
+    const getScheduleIdentities = vi.fn(async (operations: Array<Record<string, unknown>>) => createScheduleIdentityResult(operations));
+    const showNotification = vi.fn();
+    const { result, loadScheduleHistory } = renderWorkspaceHistory(
+      [],
+      [],
+      { schedule, getScheduleIdentities },
+      showNotification,
+      'workspace',
+      chat,
+    );
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    vi.useFakeTimers();
+    await act(async () => {
+      const firstRequest = result.current.handleSchedule(
+        { chatId: chat.id, message: 'Ten messages', date, time },
+        { mode: 'daily', occurrences: 10 },
+      );
+      const duplicateRequest = result.current.handleSchedule(
+        { chatId: chat.id, message: 'Ten messages', date, time },
+        { mode: 'daily', occurrences: 10 },
+      );
+      await Promise.all([firstRequest, duplicateRequest]);
+      await vi.runAllTimersAsync();
+    });
+    vi.useRealTimers();
+
+    const warningCall = showNotification.mock.calls.find(([, type, title]) => type === 'warning' && title === 'Mass scheduling warning');
+    expect(warningCall?.[0]).toBe('10 messages · FloodWait risk');
+    expect(warningCall?.[1]).toBe('warning');
+    expect(warningCall?.[4]).toBe(5000);
+    expect(getScheduleIdentities).toHaveBeenCalledOnce();
+    expect(schedule).toHaveBeenCalledTimes(10);
+    expect(showNotification.mock.invocationCallOrder[0]).toBeLessThan(getScheduleIdentities.mock.invocationCallOrder[0]);
+  });
+
+  it('shows the correct count for the maximum repeat count', async () => {
+    const chat = { id: 'bulk-15', name: 'Bulk chat' };
+    const { date, time } = getFutureReplacementTimes().replacementDateTime;
+    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true });
+    const showNotification = vi.fn();
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { schedule }, showNotification, 'workspace', chat);
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    vi.useFakeTimers();
+    await act(async () => {
+      await result.current.handleSchedule(
+        { chatId: chat.id, message: 'Fifteen messages', date, time },
+        { mode: 'daily', occurrences: 15 },
+      );
+      await vi.runAllTimersAsync();
+    });
+    vi.useRealTimers();
+
+    const warningCall = showNotification.mock.calls.find(([, type, title]) => type === 'warning' && title === 'Mass scheduling warning');
+    expect(warningCall?.[0]).toBe('15 messages · FloodWait risk');
+    expect(warningCall?.[4]).toBe(5000);
+    expect(schedule).toHaveBeenCalledTimes(15);
   });
 });

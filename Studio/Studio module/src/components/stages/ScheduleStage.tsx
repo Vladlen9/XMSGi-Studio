@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarDays, Clock } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
-import { getScheduleDateTimeAfter, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '@/lib/scheduling';
+import { getScheduleDateTimeAfter, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '@/lib/scheduling';
 import { useLocale } from '@/lib/i18n';
 import type { StageMode } from './types';
 
@@ -46,6 +46,8 @@ interface Props {
   time: string;
   setDate: Dispatch<SetStateAction<string>>;
   setTime: Dispatch<SetStateAction<string>>;
+  followCurrentTime: boolean;
+  setFollowCurrentTime: Dispatch<SetStateAction<boolean>>;
   repeatMode: ScheduleRepeatOptions['mode'];
   setRepeatMode: Dispatch<SetStateAction<ScheduleRepeatOptions['mode']>>;
   repeatDays: string[];
@@ -53,7 +55,6 @@ interface Props {
   repeatOccurrences: number;
   setRepeatOccurrences: Dispatch<SetStateAction<number>>;
 }
-
 export function ScheduleStage({
   mode,
   scheduleFocus = null,
@@ -63,6 +64,8 @@ export function ScheduleStage({
   time,
   setDate,
   setTime,
+  followCurrentTime,
+  setFollowCurrentTime,
   repeatMode,
   setRepeatMode,
   repeatDays,
@@ -72,20 +75,23 @@ export function ScheduleStage({
 }: Props) {
   const { locale, t } = useLocale();
   const [scheduleDateDraft, setScheduleDateDraft] = useState<{ year: string; month: string; day: string } | null>(null);
+  const [scheduleTimeDraft, setScheduleTimeDraft] = useState<{ hours: string; minutes: string } | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const [timePickerPosition, setTimePickerPosition] = useState({ top: 0, left: 0 });
+  const [timePickerPosition, setTimePickerPosition] = useState({ top: 0, left: 0, height: 220 });
   const timePickerRef = useRef<HTMLDivElement | null>(null);
   const scheduleDateInputRef = useRef<HTMLInputElement | null>(null);
   const scheduleDayInputRef = useRef<HTMLInputElement | null>(null);
   const scheduleMonthInputRef = useRef<HTMLInputElement | null>(null);
   const scheduleYearInputRef = useRef<HTMLInputElement | null>(null);
-  const scheduleTimeInputRef = useRef<HTMLInputElement | null>(null);
+  const scheduleHoursInputRef = useRef<HTMLInputElement | null>(null);
+  const scheduleMinutesInputRef = useRef<HTMLInputElement | null>(null);
   const timePickerButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setScheduleDateDraft(null);
-  }, [date, mode]);
+    setScheduleTimeDraft(null);
+  }, [date, time, mode]);
 
   useEffect(() => {
     setDatePickerOpen(false);
@@ -123,13 +129,13 @@ export function ScheduleStage({
       if (!button) return;
 
       const bounds = button.getBoundingClientRect();
-      const pickerHeight = Math.min(220, window.innerHeight - 16);
-      const spaceBelow = window.innerHeight - bounds.bottom - 8;
-      const top = spaceBelow >= pickerHeight
-        ? bounds.bottom + 8
-        : Math.max(8, bounds.top - pickerHeight - 8);
+      const pickerHeight = Math.min(220, Math.max(0, window.innerHeight - 16));
+      const preferredTop = Math.max(8, bounds.top - pickerHeight - 8);
+      const maxTop = Math.max(8, window.innerHeight - pickerHeight - 8);
+      const top = Math.min(preferredTop, maxTop);
       setTimePickerPosition({
         top,
+        height: pickerHeight,
         left: Math.min(
           Math.max(8, bounds.left),
           Math.max(8, window.innerWidth - 188),
@@ -223,6 +229,7 @@ export function ScheduleStage({
       && candidate.getDate() === day;
   };
   const updateScheduleDateSegment = (segment: 'day' | 'month' | 'year', value: string) => {
+    setFollowCurrentTime(false);
     const digits = value.replace(/\D/g, '').slice(0, segment === 'year' ? 4 : 2);
     const nextSegments = { ...currentDateSegments, [segment]: digits };
     setScheduleDateDraft(nextSegments);
@@ -238,6 +245,36 @@ export function ScheduleStage({
       setDate(`${scheduleDateDraft.year}-${String(Number(scheduleDateDraft.month)).padStart(2, '0')}-${String(Number(scheduleDateDraft.day)).padStart(2, '0')}`);
     } else if (scheduleDateDraft) {
       setScheduleDateDraft(null);
+    }
+  };
+  const [committedHours, committedMinutes] = time ? time.split(':') : ['', ''];
+  const currentTimeSegments = scheduleTimeDraft ?? {
+    hours: committedHours || '',
+    minutes: committedMinutes || '',
+  };
+  const isValidTimeSegments = (segments: typeof currentTimeSegments) => {
+    if (!/^\d{2}$/.test(segments.hours) || !/^\d{2}$/.test(segments.minutes)) return false;
+    const hours = Number(segments.hours);
+    const minutes = Number(segments.minutes);
+    return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+  };
+  const updateScheduleTimeSegment = (segment: 'hours' | 'minutes', value: string) => {
+    setFollowCurrentTime(false);
+    const digits = value.replace(/\D/g, '').slice(0, 2);
+    const nextSegments = { ...currentTimeSegments, [segment]: digits };
+    setScheduleTimeDraft(nextSegments);
+
+    const segmentIsComplete = digits.length === 2;
+    if (segmentIsComplete && isValidTimeSegments(nextSegments)) {
+      setTime(`${nextSegments.hours}:${nextSegments.minutes}`);
+      setScheduleTimeDraft(null);
+    }
+  };
+  const commitScheduleTime = () => {
+    if (scheduleTimeDraft && isValidTimeSegments(scheduleTimeDraft)) {
+      setTime(`${scheduleTimeDraft.hours}:${scheduleTimeDraft.minutes}`);
+    } else if (scheduleTimeDraft) {
+      setScheduleTimeDraft(null);
     }
   };
   const selectRepeatMode = (nextMode: ScheduleRepeatOptions['mode']) => {
@@ -274,7 +311,9 @@ export function ScheduleStage({
                   className="workspace-page-schedule-date-native-input"
                   type="date"
                   value={date || ''}
+                  min={formatLocalDate(new Date())}
                   onChange={(event) => {
+                    setFollowCurrentTime(false);
                     setDate(event.target.value || date);
                     setDatePickerOpen(false);
                   }}
@@ -331,7 +370,7 @@ export function ScheduleStage({
                     onKeyDown={(event) => {
                       if (event.key !== ' ') return;
                       event.preventDefault();
-                      scheduleTimeInputRef.current?.focus();
+                      scheduleHoursInputRef.current?.focus();
                     }}
                   />
                 </div>
@@ -350,7 +389,7 @@ export function ScheduleStage({
                     className="workspace-page-schedule-time-picker"
                     role="listbox"
                     aria-label={t('studio.availableTimes')}
-                    style={{ top: timePickerPosition.top, left: timePickerPosition.left }}
+                    style={{ top: timePickerPosition.top, left: timePickerPosition.left, height: timePickerPosition.height }}
                   >
                     {timeOptions.map((option) => (
                       <button
@@ -359,7 +398,9 @@ export function ScheduleStage({
                         role="option"
                         aria-selected={time === option}
                         className={time === option ? 'is-selected' : ''}
+                        disabled={!isFutureSchedule(date, option)}
                         onClick={() => {
+                          setFollowCurrentTime(false);
                           setTime(option);
                           setTimePickerOpen(false);
                         }}
@@ -370,16 +411,36 @@ export function ScheduleStage({
                   </div>,
                   document.body,
                 )}
-                <input
-                  ref={scheduleTimeInputRef}
-                  aria-label={t('studio.scheduleTime')}
-                  type="time"
-                  value={time || ''}
-                  onChange={(event) => {
-                    setTime(event.target.value);
-                    setTimePickerOpen(false);
-                  }}
-                />
+                <div className="workspace-page-schedule-inline-value workspace-page-schedule-time-value">
+                  <input
+                    ref={scheduleHoursInputRef}
+                    aria-label={t('composer.hours')}
+                    className="workspace-page-schedule-segment"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    value={currentTimeSegments.hours}
+                    onChange={(event) => updateScheduleTimeSegment('hours', event.target.value)}
+                    onBlur={commitScheduleTime}
+                    onKeyDown={(event) => {
+                      if (event.key !== ' ') return;
+                      event.preventDefault();
+                      scheduleMinutesInputRef.current?.focus();
+                    }}
+                  />
+                  <span className="workspace-page-schedule-separator">:</span>
+                  <input
+                    ref={scheduleMinutesInputRef}
+                    aria-label={t('composer.minutes')}
+                    className="workspace-page-schedule-segment"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    value={currentTimeSegments.minutes}
+                    onChange={(event) => updateScheduleTimeSegment('minutes', event.target.value)}
+                    onBlur={commitScheduleTime}
+                  />
+                </div>
               </label>
             </div>
           </>
@@ -392,6 +453,7 @@ export function ScheduleStage({
               <div className="workspace-page-schedule-quick-row">
                 {quickDatePresets.map((preset) => (
                   <button key={preset.id} type="button" aria-label={t('studio.setDate', { date: preset.label })} onClick={() => {
+                    setFollowCurrentTime(false);
                     const selectedDate = preset.days === 0
                       ? new Date()
                       : date ? new Date(`${date}T12:00:00`) : new Date();
@@ -420,11 +482,22 @@ export function ScheduleStage({
                 {quickTimePresets.map((preset) => (
                   <button key={preset.id} type="button" aria-label={t('studio.setTime', { time: preset.label })} onClick={() => {
                     if (preset.id === 'now') {
+                      setFollowCurrentTime(true);
                       const scheduledAt = getScheduleDateTimeAfter(0);
                       setDate(scheduledAt.date);
                       setTime(scheduledAt.time);
                       return;
                     }
+
+                    if (followCurrentTime) {
+                      setFollowCurrentTime(false);
+                      const scheduledAt = getScheduleDateTimeAfter(preset.minutes);
+                      setDate(scheduledAt.date);
+                      setTime(scheduledAt.time);
+                      return;
+                    }
+
+                    setFollowCurrentTime(false);
 
                     const selectedSchedule = new Date(`${date}T${time}:00`);
                     if (!date || !time || Number.isNaN(selectedSchedule.getTime())) {

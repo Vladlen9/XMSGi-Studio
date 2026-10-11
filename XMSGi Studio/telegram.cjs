@@ -698,6 +698,23 @@ async function waitForTelegramRateLimit() {
   return { success: true, state };
 }
 
+function enqueueTelegramPublish(type, operation) {
+  const accountId = getTelegramRateLimitAccountId();
+  const loginGeneration = lifecycleState.loginGeneration;
+  return trackTelegramOperation(type, () => rateLimitInterceptor.enqueue(accountId, async () => {
+    assertTelegramRunning();
+    if (
+      loginGeneration !== lifecycleState.loginGeneration
+      || accountId !== getTelegramRateLimitAccountId()
+    ) {
+      const cancelledError = new Error('Telegram operation was cancelled after the account changed.');
+      cancelledError.code = 'TELEGRAM_REQUEST_CANCELLED';
+      throw cancelledError;
+    }
+    return operation();
+  }));
+}
+
 async function telegramRequest(request) {
   assertTelegramRunning();
   const accountId = getTelegramRateLimitAccountId();
@@ -2321,7 +2338,16 @@ async function sendMessageInternal(
 }
 
 function sendMessage(chatId, message, attachments, entities, replyMarkup, silent, effect, idempotencyKey) {
-  return trackTelegramOperation('send', () => sendMessageInternal(chatId, message, attachments, entities, replyMarkup, silent, effect, idempotencyKey));
+  return enqueueTelegramPublish('send', () => sendMessageInternal(
+    chatId,
+    message,
+    attachments,
+    entities,
+    replyMarkup,
+    silent,
+    effect,
+    idempotencyKey,
+  ));
 }
 
 // =========================================================
@@ -2632,24 +2658,18 @@ async function scheduleMessageInternal(
 }
 
 function scheduleMessage(chatId, message, date, time, targetTimestamp, attachments, entities, replyMarkup, silent, effect) {
-  return trackTelegramOperation('schedule', async () => {
-    try {
-      return await scheduleMessageInternal(
-        chatId,
-        message,
-        date,
-        time,
-        targetTimestamp,
-        attachments,
-        entities,
-        replyMarkup,
-        silent,
-        effect
-      );
-    } catch (error) {
-      throw error;
-    }
-  });
+  return enqueueTelegramPublish('schedule', () => scheduleMessageInternal(
+    chatId,
+    message,
+    date,
+    time,
+    targetTimestamp,
+    attachments,
+    entities,
+    replyMarkup,
+    silent,
+    effect,
+  ));
 }
 
 // =========================================================

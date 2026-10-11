@@ -16,6 +16,8 @@ describe('i18n', () => {
     const { result } = renderHook(() => useLocale(), { wrapper });
     expect(result.current.locale).toBe('en');
     expect(result.current.t('schedule.repeatRange', { count: 15 })).toBe('Choose between 1 and 15 runs.');
+    expect(result.current.t('schedule.massWarningTitle')).toBe('Mass scheduling warning');
+    expect(result.current.t('schedule.massWarningMessage', { count: 10 })).toBe('10 messages · FloodWait risk');
     expect(result.current.t('settings.aboutDescription')).toBe('XMSGi Studio — Create messages, save ideas, schedule posts, and keep everything under control in one convenient workspace.');
   });
 
@@ -30,6 +32,8 @@ describe('i18n', () => {
     act(() => result.current.setLocale('ru'));
     expect(result.current.locale).toBe('ru');
     expect(result.current.t('settings.title')).toBe('Настройки');
+    expect(result.current.t('schedule.massWarningTitle')).toBe('Массовое планирование');
+    expect(result.current.t('schedule.massWarningMessage', { count: 10 })).toBe('10 сообщений · риск FloodWait');
     expect(result.current.t('settings.aboutDescription')).toBe('XMSGi Studio — Создавайте сообщения, храните идеи, планируйте отправку и держите всё под контролем — в одном удобном рабочем пространстве.');
     expect(window.localStorage.getItem('awaitmsg_locale')).toBe('ru');
   });

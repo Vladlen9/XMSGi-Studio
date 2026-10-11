@@ -18,6 +18,12 @@ async function flushPromises() {
   await Promise.resolve();
 }
 
+function createDeferred() {
+  let resolve;
+  const promise = new Promise((res) => { resolve = res; });
+  return { promise, resolve };
+}
+
 describe('Telegram account rate-limit interceptor', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -103,7 +109,7 @@ describe('Telegram account rate-limit interceptor', () => {
     expect(interceptor.getState('account-a').paused).toBe(false);
   });
 
-  it('extends repeated FloodWait errors and uses one timer for the account', async () => {
+  it('bounds repeated FloodWait retries, extends the pause, and uses one timer', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     const interceptor = createTelegramRateLimitInterceptor();
@@ -116,6 +122,12 @@ describe('Telegram account rate-limit interceptor', () => {
     });
 
     const result = interceptor.run('account-a', operation);
+    const rejected = expect(result).rejects.toMatchObject({
+      code: 'TELEGRAM_FLOOD_WAIT',
+      waitSeconds: 60,
+      category: 'flood',
+      retryable: true,
+    });
     await flushPromises();
     expect(operation).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(1);
@@ -124,11 +136,12 @@ describe('Telegram account rate-limit interceptor', () => {
     expect(operation).toHaveBeenCalledTimes(2);
     expect(interceptor.getState('account-a').pausedUntil).toBe(70_000);
     expect(vi.getTimerCount()).toBe(1);
+    await rejected;
 
     await vi.advanceTimersByTimeAsync(59_999);
     expect(operation).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(1);
-    await expect(result).resolves.toBe('completed');
+    expect(operation).toHaveBeenCalledTimes(2);
     expect(interceptor.getState('account-a').paused).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -157,6 +170,67 @@ describe('Telegram account rate-limit interceptor', () => {
     expect(firstJob).toHaveBeenCalledTimes(2);
     expect(secondJob).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('queues whole send and schedule jobs through a FloodWait pause', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const interceptor = createTelegramRateLimitInterceptor();
+    const events = [];
+    const sendRequest = vi.fn()
+      .mockImplementationOnce(() => {
+        events.push('send-flood');
+        throw createFloodError('FLOOD_WAIT_10');
+      })
+      .mockImplementationOnce(() => {
+        events.push('send-retry');
+        return 'sent';
+      });
+    const scheduleRequest = vi.fn(() => {
+      events.push('schedule');
+      return 'scheduled';
+    });
+    const sendJob = interceptor.enqueue('account-a', () => interceptor.run('account-a', sendRequest));
+    await flushPromises();
+    const scheduleJob = interceptor.enqueue('account-a', () => interceptor.run('account-a', scheduleRequest));
+    await flushPromises();
+
+    expect(events).toEqual(['send-flood']);
+    expect(scheduleRequest).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(sendJob).resolves.toBe('sent');
+    await expect(scheduleJob).resolves.toBe('scheduled');
+    expect(events).toEqual(['send-flood', 'send-retry', 'schedule']);
+    expect(scheduleRequest).toHaveBeenCalledOnce();
+  });
+
+  it('releases the publish queue after cancellation or another operation error', async () => {
+    const interceptor = createTelegramRateLimitInterceptor();
+    const cancelled = Object.assign(new Error('Telegram request was cancelled.'), { code: 'TELEGRAM_REQUEST_CANCELLED' });
+    const firstJob = vi.fn(() => { throw cancelled; });
+    const secondJob = vi.fn().mockResolvedValue('next job');
+    const firstResult = interceptor.enqueue('account-a', firstJob);
+    const secondResult = interceptor.enqueue('account-a', secondJob);
+
+    await expect(firstResult).rejects.toMatchObject({ code: 'TELEGRAM_REQUEST_CANCELLED' });
+    await expect(secondResult).resolves.toBe('next job');
+    expect(firstJob).toHaveBeenCalledOnce();
+    expect(secondJob).toHaveBeenCalledOnce();
+  });
+
+  it('keeps send queues independent between Telegram accounts', async () => {
+    const interceptor = createTelegramRateLimitInterceptor();
+    const firstGate = createDeferred();
+    const accountAJob = vi.fn(() => firstGate.promise);
+    const accountBJob = vi.fn().mockResolvedValue('account-b');
+    const accountA = interceptor.enqueue('account-a', accountAJob);
+    const accountB = interceptor.enqueue('account-b', accountBJob);
+
+    await expect(accountB).resolves.toBe('account-b');
+    expect(accountAJob).toHaveBeenCalledOnce();
+    firstGate.resolve('account-a');
+    await expect(accountA).resolves.toBe('account-a');
   });
 
   it('keeps pauses independent between Telegram accounts', async () => {
