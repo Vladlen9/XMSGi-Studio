@@ -152,10 +152,21 @@ npm run build
 
 ## 7. CI
 
-- `.github/workflows/static.yml` — деплой статического сайта
-  на GitHub Pages (ветка `master`, каталог `./website`).
-- Сборки desktop-релизов сопровождаются electron-builder-таргетами
-  из `package.json` (см. [Архитектура §7](architecture.md#7-сборка-и-упаковка)).
+CI описан в `.github/workflows/` (дерево репозитория — оболочка, приложение в
+подкаталоге `XMSGi Studio/`).
+
+- `.github/workflows/release-check.yml` — быстрые проверки кода (lint,
+  typecheck, тесты) на push в `main`, на PR и вручную. Артефакты не собирает.
+- `.github/workflows/release.yml` — авто-релиз desktop-приложения. Срабатывает
+  **только по тегу вида `v*`** (или вручную через `workflow_dispatch`), собирает
+  артефакты для Windows/Linux/macOS через electron-builder и прикрепляет их к
+  существующему GitHub Release (`softprops/action-gh-release`). Сам тег создаётся
+  и пушится локально: `git tag v1.2.0 && git push origin v1.2.0`.
+- `.github/workflows/static.yml` — деплой статического сайта на GitHub Pages
+  (ветка `main`, каталог `XMSGi Studio/website`).
+
+Сборки desktop-релизов используют electron-builder-таргеты из `package.json`
+(см. [Архитектура §7](architecture.md#7-сборка-и-упаковка)).
 
 ---
 
