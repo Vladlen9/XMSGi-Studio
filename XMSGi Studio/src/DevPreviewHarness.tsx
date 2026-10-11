@@ -3,6 +3,7 @@ import type { Chat, NotificationState, ScheduledMessage } from '@/types';
 import type { SavedDraft, StudioScheduledMessage, StudioSchedulerRuntime } from '$studio';
 import { BRIDGE_PROTOCOL_VERSION } from '@shared/bridge';
 import { AppShell, StudioMount } from './workspace';
+import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { normalizeSavedDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem } from './workspace/historyModel';
 
@@ -93,6 +94,7 @@ const demoHistoryRecords = [
   }),
 ];
 const showHistoryPreview = new URLSearchParams(window.location.search).get('historyPreview') === '1';
+const showPlannerPreview = new URLSearchParams(window.location.search).get('devPreview') === 'planner';
 
 const DEV_DRAFT_STORE_KEY = 'xmsgi-draft-store-fallback';
 const emptyNotification: NotificationState = { message: '', title: '', type: 'info', visible: false };
@@ -135,6 +137,7 @@ const demoScheduler: StudioSchedulerRuntime = {
 };
 
 export default function DevPreviewHarness() {
+  const [view, setView] = useState<'studio' | 'planner'>(showPlannerPreview ? 'planner' : 'studio');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const [, setShowAuthForm] = useState(false);
   const historyDraftOpenerRef = useRef<((draft: SavedDraft) => void) | null>(null);
@@ -158,8 +161,8 @@ export default function DevPreviewHarness() {
 
   return (
     <AppShell
-      view="studio"
-      onViewChange={noOperation}
+      view={view}
+      onViewChange={setView}
       connected={true}
       authBusy={false}
       isConfirmingLogout={isConfirmingLogout}
@@ -177,18 +180,22 @@ export default function DevPreviewHarness() {
       onHistoryUseDraft={handleHistoryUseDraft}
       onHistoryClearSent={noOperation}
     >
-      <div className="product-view is-active">
-        <StudioMount
-          connected={false}
-          activeAccountId="account-1"
-          chats={demoChats}
-          scheduler={demoScheduler}
-          onRegisterHistoryDraftOpener={(handler) => { historyDraftOpenerRef.current = handler; }}
-          onRegisterHistoryDraftUseHandler={(handler) => { historyDraftUseRef.current = handler; }}
-          onRegisterHistoryDraftDeleteHandler={(handler) => { historyDraftDeleterRef.current = handler; }}
-          onRegisterHistoryRescheduleHandler={(handler) => { historyReschedulerRef.current = handler; }}
-        />
-      </div>
+      {view === 'planner' ? (
+        <QuickPlannerPage />
+      ) : (
+        <div className="product-view is-active">
+          <StudioMount
+            connected={false}
+            activeAccountId="account-1"
+            chats={demoChats}
+            scheduler={demoScheduler}
+            onRegisterHistoryDraftOpener={(handler) => { historyDraftOpenerRef.current = handler; }}
+            onRegisterHistoryDraftUseHandler={(handler) => { historyDraftUseRef.current = handler; }}
+            onRegisterHistoryDraftDeleteHandler={(handler) => { historyDraftDeleterRef.current = handler; }}
+            onRegisterHistoryRescheduleHandler={(handler) => { historyReschedulerRef.current = handler; }}
+          />
+        </div>
+      )}
     </AppShell>
   );
 }

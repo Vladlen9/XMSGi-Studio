@@ -7,6 +7,7 @@ import { AppShell, StudioMount } from './workspace';
 import { preloadStudioApp } from './workspace/studioLoader';
 import { normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
+import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { SchedulePage } from './pages/SchedulePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { readPlannerDraft, writePlannerDraft } from './lib/plannerDraft';
@@ -569,7 +570,9 @@ function App() {
       </div>
       <div className={`product-view ${productView === 'planner' ? 'is-active' : ''}`} aria-hidden={productView !== 'planner'}>
         {route === '/settings' ? renderSettingsPage() : (
-          <SchedulePage
+          connected && !signedOut ? (
+            <QuickPlannerPage />
+          ) : <SchedulePage
           message={message}
           setMessage={setMessage}
           isSettingsOpen={isSettingsOpen}

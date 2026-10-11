@@ -168,7 +168,7 @@ export function AppShell({
           </div>
         </header>
       )}
-      {connected && !settingsOpen && (
+      {connected && !settingsOpen && view !== 'planner' && (
         <span className="product-section-title product-section-title-detached" aria-current="page">
           {sectionLabel}
         </span>

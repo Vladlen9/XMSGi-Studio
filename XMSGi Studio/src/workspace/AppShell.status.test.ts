@@ -82,6 +82,32 @@ describe('shared History Drawer entry point', () => {
     view.unmount();
   });
 
+  it('leaves the Planner heading to the page layout', () => {
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'planner',
+      onViewChange: vi.fn(),
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement('div', null, 'Quick Planner'))));
+
+    expect(view.container.querySelector('.product-section-title')).not.toBeInTheDocument();
+    expect(view.container.querySelector('.quick-planner-page')).not.toBeInTheDocument();
+    expect(screen.getByText('Quick Planner')).toBeInTheDocument();
+  });
+
   it('shows only Done in the topbar while Settings is open', () => {
     const onCloseSettings = vi.fn();
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, {

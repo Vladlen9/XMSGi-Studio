@@ -12,8 +12,8 @@ window.scrollTo(0, 0);
 const DevPreviewHarness = import.meta.env.DEV
   ? lazy(() => import('./DevPreviewHarness.tsx'))
   : null;
-const useDevPreview = import.meta.env.DEV
-  && new URLSearchParams(window.location.search).get('devPreview') === '1';
+const devPreviewMode = new URLSearchParams(window.location.search).get('devPreview');
+const useDevPreview = import.meta.env.DEV && (devPreviewMode === '1' || devPreviewMode === 'planner');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
