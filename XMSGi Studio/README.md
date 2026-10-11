@@ -27,40 +27,31 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <b>💬 Telegram, your way</b><br>
-      Pick chats, groups and channels straight from your own account — no bot.
-    </td>
-    <td width="50%" valign="top">
-      <b>⏰ Send now or later</b><br>
-      One-time and future messages scheduled for a chosen date and time.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>✍️ Compose fully</b><br>
-      Attachments, rich text formatting and inline buttons.
-    </td>
-    <td valign="top">
-      <b>🗂️ Stay on top of it</b><br>
-      Drafts, the scheduled queue and delivery outcomes in a single history.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>🔒 Private by design</b><br>
-      Sessions stay on the device, protected with Electron <code>safeStorage</code>.
-    </td>
-    <td valign="top">
-      <b>📦 Portable Windows build</b><br>
-      No installation, no setup — runs from anywhere.
-    </td>
-  </tr>
-</table>
+### 📱 Telegram Integration
+- Pick chats, groups, and channels directly from your account — no bots needed.
+- Send messages to any Telegram entity (private, group, channel) with full control over content and timing.
+
+### ⏰ Scheduling & Repeats
+- **One-time or future sends**: Schedule messages for any date/time.
+- **Repeat options**: Daily, weekly, or monthly repeats (up to 15 times).
+- **Reschedule/cancel**: Easily adjust or cancel messages in the queue.
+
+### 🖋️ Message Composition
+- **Rich formatting**: Use bold, italic, links, and more.
+- **Inline buttons**: Add interactive buttons to your messages.
+- **Attachments**: Support for images, documents, and other media.
+
+### 🗂️ Organization & History
+- **Color-coded drafts**: Organize ideas visually with color tags.
+- **Unified history**: Track drafts, scheduled messages, and delivery outcomes in one place.
+- **Templates**: Save frequent phrases for quick access.
+
+### 🔒 Security & Privacy
+- **Local storage**: All data is stored on your device, never uploaded.
+- **No bot dependency**: Avoid third-party intermediaries for message delivery.
+- **Secure session handling**: Leverage platform-specific secure storage where available.
 
 ## 🎛️ Control
 

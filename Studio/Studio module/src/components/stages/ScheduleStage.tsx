@@ -334,7 +334,7 @@ export function ScheduleStage({
                     onChange={(event) => updateScheduleDateSegment('day', event.target.value)}
                     onBlur={commitScheduleDate}
                     onKeyDown={(event) => {
-                      if (event.key !== ' ') return;
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
                       event.preventDefault();
                       scheduleMonthInputRef.current?.focus();
                     }}
@@ -351,7 +351,7 @@ export function ScheduleStage({
                     onChange={(event) => updateScheduleDateSegment('month', event.target.value)}
                     onBlur={commitScheduleDate}
                     onKeyDown={(event) => {
-                      if (event.key !== ' ') return;
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
                       event.preventDefault();
                       scheduleYearInputRef.current?.focus();
                     }}
@@ -368,7 +368,7 @@ export function ScheduleStage({
                     onChange={(event) => updateScheduleDateSegment('year', event.target.value)}
                     onBlur={commitScheduleDate}
                     onKeyDown={(event) => {
-                      if (event.key !== ' ') return;
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
                       event.preventDefault();
                       scheduleHoursInputRef.current?.focus();
                     }}
@@ -423,7 +423,7 @@ export function ScheduleStage({
                     onChange={(event) => updateScheduleTimeSegment('hours', event.target.value)}
                     onBlur={commitScheduleTime}
                     onKeyDown={(event) => {
-                      if (event.key !== ' ') return;
+                      if (event.key !== ' ' && event.key !== 'Enter') return;
                       event.preventDefault();
                       scheduleMinutesInputRef.current?.focus();
                     }}

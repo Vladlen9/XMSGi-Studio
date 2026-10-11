@@ -347,7 +347,8 @@ describe('WorkspaceTextStage editor flows', () => {
 
     const title = document.querySelector('.workspace-page-schedule-header strong') as HTMLElement;
     const timezone = document.querySelector('.workspace-page-schedule-timezone') as HTMLElement;
-    const timeInput = document.querySelector('input[type="time"]') as HTMLInputElement | null;
+    const hoursInput = document.querySelector<HTMLInputElement>('[aria-label="Hours"]');
+    const minutesInput = document.querySelector<HTMLInputElement>('[aria-label="Minutes"]');
     const headerTime = document.querySelector('.workspace-page-schedule-header-time') as HTMLElement;
     const quickTime = document.querySelector('.workspace-page-schedule-quick-panel') as HTMLElement;
     const backButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Back')) as HTMLButtonElement;
@@ -356,8 +357,8 @@ describe('WorkspaceTextStage editor flows', () => {
     expect(title).toBeTruthy();
     expect(title.textContent).toBe('Schedule');
     expect(timezone).toBeTruthy();
-    expect(timeInput).toBeTruthy();
-    expect(timeInput?.value).toBe('09:30');
+    expect(hoursInput?.value).toBe('09');
+    expect(minutesInput?.value).toBe('30');
     expect(headerTime).toBeTruthy();
     expect(headerTime.textContent).toContain('09:30');
     expect(document.querySelector('.workspace-page-schedule-summary')).toBeNull();
@@ -389,13 +390,14 @@ describe('WorkspaceTextStage editor flows', () => {
     const { unmount } = renderStage({ mode: 'schedule', date: '2026-01-10', time: '09:00' });
 
     expect(document.querySelector('input[type="date"]')).toBeTruthy();
-    expect(document.querySelector('input[type="time"]')).toBeTruthy();
+    expect(document.querySelector<HTMLInputElement>('[aria-label="Hours"]')?.value).toBe('09');
+    expect(document.querySelector<HTMLInputElement>('[aria-label="Minutes"]')?.value).toBe('00');
     expect(document.querySelector('.workspace-page-schedule-header-time')).toBeTruthy();
     expect(document.querySelector('.workspace-page-schedule-summary')).toBeNull();
     expect(document.querySelector('.workspace-page-schedule-quick-panel')).toBeTruthy();
     expect(document.querySelector('.workspace-page-schedule-more')).toBeNull();
     expect(document.querySelector('.workspace-page-schedule-empty-panel')).toBeTruthy();
-    expect(document.querySelectorAll('.workspace-page-schedule-segment')).toHaveLength(3);
+    expect(document.querySelectorAll('.workspace-page-schedule-segment')).toHaveLength(5);
     expect(document.querySelector('[aria-label="Day"]')).toBeTruthy();
     expect(document.querySelector('[aria-label="Month"]')).toBeTruthy();
     expect(document.querySelector('[aria-label="Year"]')).toBeTruthy();
@@ -466,24 +468,27 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
-  it('moves through date and time inputs when Space is pressed', () => {
+  it('moves through date and time inputs when Space or Enter is pressed', () => {
     const { unmount } = renderStage({ mode: 'schedule', date: '2026-01-10', time: '09:00' });
     const dayInput = document.querySelector('[aria-label="Day"]') as HTMLInputElement;
     const monthInput = document.querySelector('[aria-label="Month"]') as HTMLInputElement;
     const yearInput = document.querySelector('[aria-label="Year"]') as HTMLInputElement;
-    const timeInput = document.querySelector('[aria-label="Schedule time"]') as HTMLInputElement;
+    const hoursInput = document.querySelector('[aria-label="Hours"]') as HTMLInputElement;
+    const minutesInput = document.querySelector('[aria-label="Minutes"]') as HTMLInputElement;
 
-    act(() => {
-      dayInput.focus();
-      dayInput.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    });
-    expect(document.activeElement).toBe(monthInput);
+    const fields = [dayInput, monthInput, yearInput, hoursInput, minutesInput];
+    for (const key of [' ', 'Enter']) {
+      for (let index = 0; index < fields.length - 1; index += 1) {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        act(() => {
+          fields[index].focus();
+          fields[index].dispatchEvent(event);
+        });
+        expect(document.activeElement).toBe(fields[index + 1]);
+        expect(event.defaultPrevented).toBe(true);
+      }
+    }
 
-    act(() => monthInput.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })));
-    expect(document.activeElement).toBe(yearInput);
-
-    act(() => yearInput.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true })));
-    expect(document.activeElement).toBe(timeInput);
     expect(dayInput.value).toBe('10');
     expect(monthInput.value).toBe('01');
     expect(yearInput.value).toBe('2026');
@@ -524,11 +529,13 @@ describe('WorkspaceTextStage editor flows', () => {
     const timeButton = document.querySelector('[data-time-trigger="true"]') as HTMLButtonElement | null;
     const dayInput = document.querySelector('[aria-label="Day"]') as HTMLInputElement | null;
     const hourInput = document.querySelector('[aria-label="Hours"]') as HTMLInputElement | null;
+    const minuteInput = document.querySelector('[aria-label="Minutes"]') as HTMLInputElement | null;
 
     expect(dateButton).toBeNull();
     expect(timeButton).toBeNull();
     expect(dayInput).toBeTruthy();
-    expect(hourInput).toBeNull();
+    expect(hourInput?.value).toBe('09');
+    expect(minuteInput?.value).toBe('00');
     expect(document.querySelector('.workspace-page-schedule-empty-panel')).toBeTruthy();
 
     unmount();

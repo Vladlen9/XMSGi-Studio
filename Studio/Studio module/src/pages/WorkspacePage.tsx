@@ -1199,6 +1199,9 @@ export function WorkspacePage({
       return;
     }
 
+    const workspaceMain = workspaceRef.current?.querySelector<HTMLElement>('.workspace-page-main');
+    if (workspaceMain) workspaceMain.scrollTop = 0;
+
     setScheduleFocus(focus);
     changeStageMode('schedule');
   };

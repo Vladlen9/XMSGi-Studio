@@ -112,6 +112,32 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('keeps time and repeat stages at the workspace top after scrolling', async () => {
+    localStorage.setItem('awaitmsg_locale', 'en');
+    const { unmount } = await renderWorkspacePage();
+
+    try {
+      const workspaceMain = document.querySelector('.workspace-page-main') as HTMLElement;
+      workspaceMain.scrollTop = 431;
+
+      await act(async () => {
+        (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
+      });
+      const scheduleOption = document.querySelector('.workspace-page-publish-option.is-scheduled') as HTMLButtonElement;
+      await act(async () => scheduleOption.click());
+
+      const scheduleControls = document.querySelectorAll('.workspace-page-schedule-compact-button');
+      await act(async () => (scheduleControls[0] as HTMLButtonElement).click());
+      expect(workspaceMain.scrollTop).toBe(0);
+
+      workspaceMain.scrollTop = 431;
+      await act(async () => (scheduleControls[1] as HTMLButtonElement).click());
+      expect(workspaceMain.scrollTop).toBe(0);
+    } finally {
+      unmount();
+    }
+  });
+
   it('falls back to localStorage when the Electron bridge is unavailable', async () => {
     const store = {
       schemaVersion: 2,
@@ -501,7 +527,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector<HTMLInputElement>('[aria-label="Day"]')?.value).toBe(String(scheduledAt.getDate()));
     expect(document.querySelector<HTMLInputElement>('[aria-label="Month"]')?.value).toBe(String(scheduledAt.getMonth() + 1).padStart(2, '0'));
     expect(document.querySelector<HTMLInputElement>('[aria-label="Year"]')?.value).toBe(String(scheduledAt.getFullYear()));
-    expect(document.querySelector<HTMLInputElement>('[aria-label="Schedule time"]')?.value).toBe(expectedTime);
+    expect(document.querySelector<HTMLInputElement>('[aria-label="Hours"]')?.value).toBe(expectedTime.slice(0, 2));
+    expect(document.querySelector<HTMLInputElement>('[aria-label="Minutes"]')?.value).toBe(expectedTime.slice(3));
 
     unmount();
   });
@@ -571,8 +598,10 @@ describe('WorkspacePage main-screen flows', () => {
       expect(editor?.textContent).not.toContain('An older workspace draft');
       expect(document.body.textContent).toContain('brief.pdf');
       expect(document.body.textContent).toContain('photo.png');
-      expect(document.querySelector<HTMLInputElement>('[aria-label="Schedule time"]')?.value)
-        .toBe(expectedTime);
+      expect(document.querySelector<HTMLInputElement>('[aria-label="Hours"]')?.value)
+        .toBe(expectedTime.slice(0, 2));
+      expect(document.querySelector<HTMLInputElement>('[aria-label="Minutes"]')?.value)
+        .toBe(expectedTime.slice(3));
       expect(setDate).toHaveBeenCalledWith(expectedDate);
       expect(setDate).not.toHaveBeenCalledWith('2026-01-10');
       expect(setTime).toHaveBeenCalledWith(expectedTime);
