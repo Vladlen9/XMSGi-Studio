@@ -25,4 +25,15 @@ We aim to review and triage reports quickly. If the issue is valid, we will work
 - avoid sharing session or cache files publicly
 - review any third-party dependencies before release builds
 
+## Bundled Telegram API defaults
+
+The app ships with default `apiId`/`apiHash` values (see `xmsgiApi` in
+`XMSGi Studio/package.json`) so it works out of the box on first launch.
+These identify the application to Telegram, not your account:
+
+- you can override them at any time with your own credentials from
+  https://my.telegram.org via Settings or `API_ID` / `API_HASH` env vars
+- do not treat the bundled defaults as private; session strings and saved
+  account data stay local and must never be shared or committed
+
 We do not encourage public disclosure before a fix is ready.
