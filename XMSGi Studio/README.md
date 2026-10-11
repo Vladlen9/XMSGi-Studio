@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://github.com/molodoy01/XMSGi-Studio/releases"><img alt="Release" src="https://img.shields.io/github/v/release/molodoy01/XMSGi-Studio?style=flat-square"></a>
-  <a href="https://github.com/molodoy01/XMSGi-Studio/actions"><img alt="Build" src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square"></a>
+  <a href="https://github.com/molodoy01/XMSGi-Studio/actions/workflows/release-check.yml"><img alt="Build" src="https://github.com/molodoy01/XMSGi-Studio/actions/workflows/release-check.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square"></a>
   <a href="https://github.com/molodoy01/XMSGi-Studio/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/molodoy01/XMSGi-Studio?style=flat-square"></a>
 </p>
@@ -18,6 +18,8 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 <br>
 
 <a href="https://github.com/molodoy01/XMSGi-Studio/releases"><img alt="Download" src="https://img.shields.io/badge/⬇%20Download-v1.1.0-6c7cff?style=for-the-badge"></a>
+&nbsp;
+<a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
 &nbsp;
 <a href="https://github.com/molodoy01/XMSGi-Studio"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github"></a>
 
@@ -56,6 +58,43 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
     <td valign="top">
       <b>📦 Portable Windows build</b><br>
       No installation, no setup — runs from anywhere.
+    </td>
+  </tr>
+</table>
+
+## 🎛️ Control
+
+Full control over every post in the queue — right up to the moment it's sent.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>✏️ Edit before sending</b><br>
+      Change the text and media of an already scheduled post — it goes out in the new version.
+    </td>
+    <td width="50%" valign="top">
+      <b>🗓️ Reschedule or cancel</b><br>
+      Shift the date and time or cancel delivery in one click.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <b>🔁 Repeats</b><br>
+      Daily, by weekdays or monthly — up to 15 repeats.
+    </td>
+    <td valign="top">
+      <b>📝 Templates</b><br>
+      Frequent phrases in one click. Stored locally.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <b>🎨 Colored drafts</b><br>
+      Organize ideas by color. Bring them back to the editor any time.
+    </td>
+    <td valign="top">
+      <b>🚦 FloodWait auto-retry</b><br>
+      On a Telegram flood limit the send pauses and retries by itself.
     </td>
   </tr>
 </table>
@@ -163,17 +202,8 @@ Please report vulnerabilities privately through the repository security process.
 
 ## 📦 Repository
 
-GitHub repository:
-
-- https://github.com/molodoy01/XMSGi-Studio.git
-
-To connect this project to the remote repository manually:
-
-```bash
-git remote add origin https://github.com/molodoy01/XMSGi-Studio.git
-git branch -M main
-git push -u origin main
-```
+- Source code: https://github.com/molodoy01/XMSGi-Studio
+- Website: https://molodoy01.github.io/XMSGi-Studio/
 
 ## 📄 License
 
