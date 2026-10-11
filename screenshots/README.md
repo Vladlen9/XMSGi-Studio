@@ -1,9 +1,22 @@
-# Website screenshots
+# Screenshots
 
-These captures back the gallery on `website/index.html`:
+Product screenshots of the **XMSGi Studio** desktop application.
 
-- `01.png` — Studio workspace: hero shot (main screen).
-- `02.png` — Telegram chat/channel selection.
-- `03.png` — Sign-in / app screen (gallery).
+| File | What it shows |
+| --- | --- |
+| `01.png` | Main workspace — the primary screen. |
+| `02.png` | Selecting Telegram chats and channels. |
+| `03.png` | Sign-in / authentication screen. |
 
-When adding or replacing screenshots, update the `<img src="screenshots/...">` tags in `website/index.html`. Use optimized PNG or WebP files and descriptive `alt` text.
+These images back the hero shot in the project `README.md`.
+
+---
+
+### Preview
+
+![XMSGi Studio — main workspace](01.png)
+
+![Selecting Telegram chats and channels](02.png)
+
+![Sign-in screen](03.png)
+
