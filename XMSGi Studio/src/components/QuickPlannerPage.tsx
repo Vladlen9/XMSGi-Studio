@@ -13,8 +13,10 @@ import {
   Lightbulb,
   MoreHorizontal,
   Paperclip,
+  Plus,
   Send,
   Smile,
+  X,
   Zap,
 } from 'lucide-react';
 import './QuickPlannerPage.css';
@@ -45,6 +47,7 @@ const upcomingReminders = [
 export function QuickPlannerPage() {
   const [publishMode, setPublishMode] = useState<QuickPlannerMode>('send');
   const [reminderType, setReminderType] = useState<ReminderType>('task');
+  const [isReminderTypePanelOpen, setIsReminderTypePanelOpen] = useState(false);
   const [reminderText, setReminderText] = useState('');
   const selectedReminderType = reminderTypes.find(({ id }) => id === reminderType) ?? reminderTypes[0];
   const SelectedReminderTypeIcon = selectedReminderType.icon;
@@ -145,9 +148,39 @@ export function QuickPlannerPage() {
                 </div>
               </div>
             </div>
-            <div className="quick-planner-selected-type" aria-live="polite">
-              <SelectedReminderTypeIcon size={14} aria-hidden="true" />
-              <span>{selectedReminderType.label}</span>
+            <div className={`quick-planner-type-controls ${isReminderTypePanelOpen ? 'is-open' : ''}`}>
+              <div className="quick-planner-selected-type" aria-live="polite">
+                <SelectedReminderTypeIcon size={14} aria-hidden="true" />
+                <span>{selectedReminderType.label}</span>
+              </div>
+              {isReminderTypePanelOpen && (
+                <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label="Reminder type">
+                  {reminderTypes.filter(({ id }) => id !== reminderType).map(({ id, label, icon: TypeIcon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        setReminderType(id);
+                        setIsReminderTypePanelOpen(false);
+                      }}
+                    >
+                      <TypeIcon size={12} aria-hidden="true" />
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                className="quick-planner-type-toggle"
+                type="button"
+                aria-label={isReminderTypePanelOpen ? 'Close reminder types' : 'Open reminder types'}
+                aria-expanded={isReminderTypePanelOpen}
+                aria-controls="quick-planner-reminder-types"
+                title={isReminderTypePanelOpen ? 'Close reminder types' : 'Change reminder type'}
+                onClick={() => setIsReminderTypePanelOpen((isOpen) => !isOpen)}
+              >
+                {isReminderTypePanelOpen ? <X size={12} aria-hidden="true" /> : <Plus size={12} aria-hidden="true" />}
+              </button>
             </div>
             <section className="quick-planner-compose" aria-label="New reminder">
               <div className="quick-planner-compose-input-row">
@@ -180,24 +213,15 @@ export function QuickPlannerPage() {
                   <button className="quick-planner-format" type="button" aria-label="Text options" title="Text options">
                     <List size={18} aria-hidden="true" />
                   </button>
-                  <div className="quick-planner-reminder-types" role="group" aria-label="Reminder type">
-                    {reminderTypes.map(({ id, label, icon: TypeIcon }) => (
-                      <button
-                        key={id}
-                        className={reminderType === id ? 'is-selected' : ''}
-                        type="button"
-                        aria-pressed={reminderType === id}
-                        onClick={() => setReminderType(id)}
-                      >
-                        <TypeIcon size={12} aria-hidden="true" />
-                        <span>{label}</span>
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 <span id="quick-planner-counter" className="quick-planner-counter">{reminderText.length} / 500</span>
-                <button className="quick-planner-send" type="button" aria-label="Send reminder" title="Send reminder">
-                  <Send size={21} strokeWidth={2.2} aria-hidden="true" />
+                <button
+                  className="quick-planner-send"
+                  type="button"
+                  aria-label={publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft'}
+                  title={publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft'}
+                >
+                  {publishMode === 'send' ? <Send size={21} strokeWidth={2.2} aria-hidden="true" /> : publishMode === 'schedule' ? <CalendarDays size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
                 </button>
               </div>
             </section>

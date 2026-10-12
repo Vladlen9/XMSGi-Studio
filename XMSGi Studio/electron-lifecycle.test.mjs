@@ -15,8 +15,9 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain("tray.on('double-click', showMainWindow)");
   });
 
-  it('keeps the main window above the ergonomic minimum size', () => {
-    expect(mainSource).toContain('minWidth: 960');
+  it('opens at a compact planner width and allows the responsive layout', () => {
+    expect(mainSource).toContain('width: 900');
+    expect(mainSource).toContain('minWidth: 800');
     expect(mainSource).toContain('minHeight: 700');
   });
 

@@ -337,9 +337,9 @@ function createWindow() {
    mainWindow = new BrowserWindow({
     title: 'XMSGi Studio',
     icon: path.join(__dirname, 'build', 'icon.ico'),
-    width: 1200,
+    width: 900,
     height: 800,
-    minWidth: 960,
+    minWidth: 800,
     minHeight: 700,
     backgroundColor: '#11110f',
     autoHideMenuBar: true,

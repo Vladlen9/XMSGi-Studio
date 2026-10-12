@@ -108,9 +108,10 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  height: 260px;
+  height: 230px;
+  overflow: hidden;
   transform: translate(-28px, 30px);
-  padding: 18px 16px;
+  padding: 14px 16px;
 }
 
 .quick-planner-overview {
@@ -251,8 +252,11 @@
   transition: border-color 180ms ease, box-shadow 180ms ease;
   transform: translateX(-35px);
   width: calc(min(100%, 760px) + 40px);
+  height: 449px;
+  min-height: 0;
+  overflow: visible;
   margin-top: 43px;
-  margin-bottom: -11px;
+  margin-bottom: -24px;
   gap: 18px;
   padding: 22px 22px 18px;
   background: linear-gradient(180deg, rgba(10, 15, 20, 0.98), rgba(9, 13, 18, 0.94));
@@ -332,7 +336,7 @@
 
 .quick-planner-compose {
   position: absolute;
-  top: 50%;
+  top: calc(50% + 28.5px);
   left: 50%;
   display: flex;
   flex-direction: column;
@@ -366,12 +370,25 @@
   color: #8aa0ae;
 }
 
-.quick-planner-selected-type {
+.quick-planner-type-controls {
   position: absolute;
-  top: calc(50% - 55px);
+  bottom: calc(50% + 26.5px);
   left: calc(4% + 10px);
   z-index: 2;
-  display: inline-flex;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  width: 92%;
+  max-width: 92%;
+}
+
+.quick-planner-selected-type {
+  display: flex;
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 0;
+  max-width: calc(100% - 32px);
   height: 26px;
   align-items: center;
   gap: 5px;
@@ -381,7 +398,33 @@
   background: var(--quick-planner-accent-soft);
   font-size: 11px;
   line-height: 26px;
-  transform: translateY(-100%);
+}
+
+.quick-planner-selected-type > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-planner-type-toggle {
+  display: grid;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  color: #8a9aa7;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.quick-planner-type-toggle:hover,
+.quick-planner-type-toggle:focus-visible {
+  color: rgb(var(--quick-planner-accent));
+  background: rgba(var(--quick-planner-accent), 0.1);
+  box-shadow: 0 0 8px rgba(var(--quick-planner-accent), 0.22);
 }
 
 .quick-planner-compose-clear-rail {
@@ -394,10 +437,14 @@
 
 .quick-planner-reminder-types {
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   align-items: center;
   gap: 3px;
   min-height: 20px;
+  min-width: 0;
+  width: max-content;
+  max-width: calc(100% - 124px);
+  flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -409,6 +456,8 @@
 .quick-planner-reminder-types button {
   display: inline-flex;
   flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
   align-items: center;
   gap: 3px;
   height: 24px;
@@ -461,20 +510,96 @@
   padding-top: 2px;
 }
 
-@media (min-width: 861px) and (max-width: 980px) {
-  .quick-planner-compose {
-    left: calc(50% + 30px);
-    width: calc(92% - 5px);
-  }
-
-  .quick-planner-editor > .quick-planner-selected-type {
-    left: calc(4% + 43px);
-  }
-}
-
 @media (min-width: 861px) and (max-width: 1460px) {
   .quick-planner-editor > .quick-planner-today {
     left: 69px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .quick-planner-page {
+    padding-inline: 16px;
+  }
+
+  .quick-planner-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    gap: 18px;
+  }
+
+  .quick-planner-sidebar,
+  .quick-planner-upcoming {
+    transform: none;
+  }
+
+  .quick-planner-editor {
+    justify-self: stretch;
+    width: 100%;
+    height: 449px;
+    transform: none;
+    margin-top: 43px;
+    margin-bottom: -24px;
+  }
+
+  .quick-planner-editor > .quick-planner-today {
+    left: 14px;
+  }
+
+  .quick-planner-editor > .quick-planner-type-controls {
+    left: calc(4% + 10px);
+  }
+
+  .quick-planner-compose {
+    left: 50%;
+    width: 92%;
+    top: calc(50% + 28.5px);
+  }
+
+  .quick-planner-type-controls {
+    bottom: calc(50% + 26.5px);
+  }
+
+  .quick-planner-mode-switch {
+    gap: 6px;
+  }
+
+  .quick-planner-mode-switch button {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 860px) {
+  .quick-planner-heading h1 {
+    font-size: 17px;
+  }
+
+  .quick-planner-heading > div > span {
+    font-size: 10px;
+  }
+
+  .quick-planner-editor-heading {
+    gap: 6px;
+  }
+
+  .quick-planner-editor-heading > .quick-planner-section-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  .quick-planner-mode-switch {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .quick-planner-mode-caption {
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .quick-planner-mode-switch button {
+    gap: 3px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 }
 
@@ -512,7 +637,7 @@
   background: var(--quick-planner-accent-soft);
 }
 
-.quick-planner-tools .quick-planner-reminder-types button {
+.quick-planner-reminder-types button {
   display: inline-flex;
   width: auto;
   min-width: 0;
@@ -584,6 +709,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: 220px;
+  min-height: 0;
+  overflow: hidden;
   transform: translate(-28px, 24px);
   padding: 18px 16px 16px;
 }
@@ -697,7 +825,7 @@
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 700px) {
   .quick-planner-page {
     padding-inline: 22px;
   }
@@ -707,7 +835,7 @@
   }
 
   .quick-planner-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas: none;
   }
 
@@ -718,8 +846,14 @@
     margin: 0;
   }
 
+  .quick-planner-upcoming {
+    height: auto;
+    overflow: visible;
+  }
+
   .quick-planner-sidebar {
     height: auto;
+    overflow: visible;
   }
 
   .quick-planner-sidebar,
@@ -729,7 +863,12 @@
 
   .quick-planner-editor {
     justify-self: stretch;
-    width: calc(100% - 10px);
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    transform: none;
     margin-top: 0;
     margin-bottom: 0;
   }
@@ -740,11 +879,12 @@
     margin-bottom: 8px;
   }
 
-  .quick-planner-editor > .quick-planner-selected-type {
+  .quick-planner-editor > .quick-planner-type-controls {
     position: static;
-    align-self: flex-start;
-    margin: 0 0 4px 10px;
-    transform: none;
+    align-self: stretch;
+    margin: 0 0 4px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .quick-planner-editor-heading {
@@ -758,6 +898,8 @@
   .quick-planner-compose {
     position: static;
     flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
     height: auto;
     min-height: 110px;
     transform: none;
@@ -789,5 +931,11 @@
 
   .quick-planner-shortcuts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .quick-planner-upcoming {
+    transform: none;
   }
 }
