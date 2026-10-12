@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react';
-import type { Chat, NotificationState, ScheduledMessage } from '@/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Chat, NotificationState, RichTextEntity, ScheduledMessage } from '@/types';
 import type { SavedDraft, StudioScheduledMessage, StudioSchedulerRuntime } from '$studio';
 import { BRIDGE_PROTOCOL_VERSION } from '@shared/bridge';
+import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { AppShell, StudioMount } from './workspace';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
+import { writePlannerDraft } from './lib/plannerDraft';
 import { normalizeSavedDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem } from './workspace/historyModel';
 
@@ -138,6 +140,24 @@ const demoScheduler: StudioSchedulerRuntime = {
 
 export default function DevPreviewHarness() {
   const [view, setView] = useState<'studio' | 'planner'>(showPlannerPreview ? 'planner' : 'studio');
+  const [plannerMessage, setPlannerMessage] = useState('');
+  const [plannerEntities, setPlannerEntities] = useState<RichTextEntity[]>([]);
+  const [plannerAttachments, setPlannerAttachments] = useState<string[]>([]);
+  const [plannerChats, setPlannerChats] = useState(demoChats);
+  const [plannerSelectedChat, setPlannerSelectedChat] = useState<Chat | null>(demoChats[0]);
+  const [plannerUpcoming, setPlannerUpcoming] = useState(demoHistoryMessages);
+  const plannerTextOpenerRef = useRef<((payload: StudioPlannerTextPayload) => Promise<boolean>) | null>(null);
+  const pendingPlannerTextRef = useRef<StudioPlannerTextPayload | null>(null);
+  const [plannerTextOpenerVersion, setPlannerTextOpenerVersion] = useState(0);
+  const registerPlannerTextOpener = useCallback((opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => {
+    plannerTextOpenerRef.current = opener;
+    setPlannerTextOpenerVersion((version) => version + 1);
+  }, []);
+  const handlePlannerOpenInStudio = (payload: StudioPlannerTextPayload) => {
+    if (!payload.text.trim() || pendingPlannerTextRef.current !== null) return;
+    pendingPlannerTextRef.current = payload;
+    setView('studio');
+  };
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const [, setShowAuthForm] = useState(false);
   const historyDraftOpenerRef = useRef<((draft: SavedDraft) => void) | null>(null);
@@ -158,6 +178,15 @@ export default function DevPreviewHarness() {
       historyReschedulerRef.current?.({ ...record.original.message, status: 'scheduled' });
     }
   };
+
+  useEffect(() => {
+    if (view !== 'studio' || pendingPlannerTextRef.current === null) return;
+    const opener = plannerTextOpenerRef.current;
+    if (!opener) return;
+    const text = pendingPlannerTextRef.current;
+    pendingPlannerTextRef.current = null;
+    void opener(text);
+  }, [plannerTextOpenerVersion, view]);
 
   return (
     <AppShell
@@ -181,7 +210,69 @@ export default function DevPreviewHarness() {
       onHistoryClearSent={noOperation}
     >
       {view === 'planner' ? (
-        <QuickPlannerPage />
+        <QuickPlannerPage
+          chats={plannerChats}
+          selectedChat={plannerSelectedChat}
+          selectedChatPermissions={null}
+          onSelectChat={setPlannerSelectedChat}
+          onAddChat={(chat) => setPlannerChats((current) => (
+            current.some((existing) => existing.id === chat.id) ? current : [...current, chat]
+          ))}
+          onRemoveChat={(chat) => setPlannerChats((current) => current.filter((item) => item.id !== chat.id))}
+          message={plannerMessage}
+          entities={plannerEntities}
+          attachments={plannerAttachments}
+          onMessageChange={(text) => {
+            setPlannerMessage(text);
+            writePlannerDraft(text, plannerEntities, plannerAttachments);
+          }}
+          onEntitiesChange={(entities) => {
+            setPlannerEntities(entities);
+            writePlannerDraft(plannerMessage, entities, plannerAttachments);
+          }}
+          onAttachmentsChange={(attachments) => {
+            setPlannerAttachments(attachments);
+            writePlannerDraft(plannerMessage, plannerEntities, attachments);
+          }}
+          upcoming={plannerUpcoming}
+          isSending={false}
+          isScheduling={false}
+          onSendNow={async (text, attachments, _entities) => {
+            if (!plannerSelectedChat || (!text.trim() && attachments.length === 0)) return false;
+            setPlannerMessage('');
+            setPlannerEntities([]);
+            setPlannerAttachments([]);
+            writePlannerDraft('', [], []);
+            return true;
+          }}
+          onSchedule={async ({ chatId, message, date, time, attachments, entities }) => {
+            const chat = demoChats.find((item) => item.id === chatId);
+            if (!chat) return;
+            setPlannerUpcoming((current) => [{
+              id: `planner-preview-${Date.now()}`,
+              chatId,
+              chatName: chat.name,
+              text: message,
+              attachments,
+              entities,
+              when: new Date(`${date}T${time}`).toISOString(),
+              createdAt: new Date().toISOString(),
+              status: 'scheduled',
+            }, ...current]);
+            setPlannerMessage('');
+            setPlannerEntities([]);
+            setPlannerAttachments([]);
+            writePlannerDraft('', [], []);
+          }}
+          onSaveDraft={(text, attachments, entities) => {
+            setPlannerMessage(text);
+            setPlannerEntities(entities);
+            setPlannerAttachments(attachments);
+            writePlannerDraft(text, entities, attachments);
+          }}
+          onOpenInStudio={handlePlannerOpenInStudio}
+          onCancelScheduled={(scheduledMessage) => setPlannerUpcoming((current) => current.filter((item) => item.id !== scheduledMessage.id))}
+        />
       ) : (
         <div className="product-view is-active">
           <StudioMount
@@ -189,6 +280,7 @@ export default function DevPreviewHarness() {
             activeAccountId="account-1"
             chats={demoChats}
             scheduler={demoScheduler}
+            onRegisterPlannerTextOpener={registerPlannerTextOpener}
             onRegisterHistoryDraftOpener={(handler) => { historyDraftOpenerRef.current = handler; }}
             onRegisterHistoryDraftUseHandler={(handler) => { historyDraftUseRef.current = handler; }}
             onRegisterHistoryDraftDeleteHandler={(handler) => { historyDraftDeleterRef.current = handler; }}

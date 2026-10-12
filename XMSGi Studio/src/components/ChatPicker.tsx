@@ -9,6 +9,9 @@ interface Props {
   onRemoveChat: (chat: Chat) => void;
   onError?: (message: string, title: string) => void;
   permissionWarning?: string;
+  warningPulse?: boolean;
+  showRecentGroups?: boolean;
+  showRemoveControl?: boolean;
 }
 
 type ChatScrollMetrics = {
@@ -18,6 +21,9 @@ type ChatScrollMetrics = {
 };
 
 import { useLocale } from '@/lib/i18n';
+
+const RECENT_CHAT_IDS_STORAGE_KEY = 'xmsgi:planner:recent-chat-ids';
+const MAX_RECENT_CHAT_IDS = 5;
 
 function ChatAvatar({
   name,
@@ -50,6 +56,9 @@ export function ChatPicker({
   onRemoveChat,
   onError,
   permissionWarning,
+  warningPulse = false,
+  showRecentGroups = false,
+  showRemoveControl = true,
 }: Props) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
@@ -62,6 +71,17 @@ export function ChatPicker({
     scrollTop: 0,
     scrollHeight: 0,
     clientHeight: 0,
+  });
+  const [recentChatIds, setRecentChatIds] = useState<string[]>(() => {
+    if (!showRecentGroups) return [];
+    try {
+      const storedIds: unknown = JSON.parse(window.localStorage.getItem(RECENT_CHAT_IDS_STORAGE_KEY) || '[]');
+      return Array.isArray(storedIds)
+        ? storedIds.filter((id): id is string => typeof id === 'string').slice(0, MAX_RECENT_CHAT_IDS)
+        : [];
+    } catch {
+      return [];
+    }
   });
 
   const syncScrollMetrics = () => {
@@ -98,6 +118,84 @@ export function ChatPicker({
   const scrollbarThumbTop = scrollRange > 0 && scrollbarTrackHeight > scrollbarThumbHeight
     ? scrollMetrics.scrollTop / scrollRange * (scrollbarTrackHeight - scrollbarThumbHeight)
     : 0;
+  const searchValue = addQuery.trim().toLowerCase();
+  const searchText = searchValue.replace(/^@/, '');
+  const searchDigits = searchValue.replace(/\D/g, '');
+  const matchesSearch = (chat: Chat) => {
+    if (!searchValue) return true;
+    const searchableText = `${chat.name} ${chat.username ?? ''}`.toLowerCase();
+    const searchablePhone = (chat.phone ?? '').replace(/\D/g, '');
+    return searchableText.includes(searchText) || Boolean(searchDigits && searchablePhone.includes(searchDigits));
+  };
+  const recentChatIdSet = new Set(recentChatIds);
+  const frequentChats = showRecentGroups
+    ? recentChatIds.flatMap((id) => {
+        const chat = chats.find((item) => item.id === id);
+        return chat && matchesSearch(chat) ? [chat] : [];
+      })
+    : [];
+  const allChats = chats.filter((chat) => (
+    (!showRecentGroups || !recentChatIdSet.has(chat.id)) && matchesSearch(chat)
+  ));
+
+  const rememberRecentChat = (chat: Chat) => {
+    if (!showRecentGroups) return;
+    const nextRecentChatIds = [chat.id, ...recentChatIds.filter((id) => id !== chat.id)].slice(0, MAX_RECENT_CHAT_IDS);
+    setRecentChatIds(nextRecentChatIds);
+    try {
+      window.localStorage.setItem(RECENT_CHAT_IDS_STORAGE_KEY, JSON.stringify(nextRecentChatIds));
+    } catch {
+      // Recent chats remain available for this session if storage is unavailable.
+    }
+  };
+
+  const renderChatOption = (chat: Chat) => (
+    <div
+      key={chat.id}
+      className={`chat-option ${selectedChat?.id === chat.id ? 'selected' : ''}`}
+      onClick={() => {
+        rememberRecentChat(chat);
+        onSelect(chat);
+        setOpen(false);
+      }}
+    >
+      <ChatAvatar
+        name={chat.name}
+        src={chat.avatarDataUrl}
+        className="chat-option-avatar"
+      />
+      <span className="chat-option-copy">
+        <strong className="chat-option-name">
+          {chat.name === 'Saved Messages' ? t('chat.savedMessages') : chat.name}
+        </strong>
+        {chat.name !== 'Saved Messages' && (
+          <span className="chat-option-type">
+            {chat.type === 'private'
+              ? t('chat.private')
+              : chat.type === 'group'
+                ? t('chat.group')
+                : chat.type === 'channel'
+                  ? t('chat.channel')
+                  : chat.type || t('chat.type')}
+          </span>
+        )}
+      </span>
+      {showRemoveControl && (
+        <button
+          type="button"
+          className="chat-option-remove"
+          aria-label={`${t('common.remove')} ${chat.name}`}
+          title={t('common.remove')}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemoveChat(chat);
+          }}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
 
   const handleScrollbarPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const viewport = scrollViewportRef.current;
@@ -146,13 +244,14 @@ export function ChatPicker({
   };
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
@@ -194,7 +293,15 @@ export function ChatPicker({
     <div className={`chat-picker ${open ? 'is-open' : ''}`} ref={containerRef}>
       <div
         className={`chat-picker-current ${open ? 'is-open' : ''}`}
-        onClick={() => setOpen(!open)}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
         tabIndex={0}
         role="button"
       >
@@ -212,7 +319,10 @@ export function ChatPicker({
               : t('chat.choose')}
           </span>
           {permissionWarning && (
-            <span className="chat-picker-current-warning" role="status">
+            <span
+              className={`chat-picker-current-warning${warningPulse ? ' is-flashing' : ''}`}
+              role="status"
+            >
               {permissionWarning}
             </span>
           )}
@@ -225,6 +335,7 @@ export function ChatPicker({
             <input
               type="text"
               value={addQuery}
+              aria-label={t('studio.searchChats')}
               onChange={(e) => setAddQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('chat.addPlaceholder')}
@@ -240,50 +351,20 @@ export function ChatPicker({
             </button>
           </div>
 
-          {chats.map((chat) => (
-            <div
-              key={chat.id}
-              className={`chat-option ${selectedChat?.id === chat.id ? 'selected' : ''}`}
-              onClick={() => {
-                onSelect(chat);
-                setOpen(false);
-              }}
-            >
-              <ChatAvatar
-                name={chat.name}
-                src={chat.avatarDataUrl}
-                className="chat-option-avatar"
-              />
-              <span className="chat-option-copy">
-                <strong className="chat-option-name">
-                  {chat.name === 'Saved Messages' ? t('chat.savedMessages') : chat.name}
-                </strong>
-                {chat.name !== 'Saved Messages' && (
-                  <span className="chat-option-type">
-                    {chat.type === 'private'
-                      ? t('chat.private')
-                      : chat.type === 'group'
-                        ? t('chat.group')
-                        : chat.type === 'channel'
-                          ? t('chat.channel')
-                          : chat.type || t('chat.type')}
-                  </span>
-                )}
-              </span>
-              <button
-                type="button"
-                className="chat-option-remove"
-                aria-label={`${t('common.remove')} ${chat.name}`}
-                title={t('common.remove')}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveChat(chat);
-                }}
-              >
-                ×
-              </button>
+          {showRecentGroups ? (
+            <div className="chat-picker-groups">
+              {frequentChats.length > 0 && (
+                <section className="chat-picker-group" aria-label="Frequent chats">
+                  <div className="chat-picker-group-title">Frequent chats</div>
+                  {frequentChats.map(renderChatOption)}
+                </section>
+              )}
+              <section className="chat-picker-group" aria-label="All chats">
+                <div className="chat-picker-group-title">All chats</div>
+                {allChats.map(renderChatOption)}
+              </section>
             </div>
-          ))}
+          ) : allChats.map(renderChatOption)}
         </div>
         {scrollRange > 0 && (
           <div

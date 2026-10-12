@@ -84,11 +84,11 @@ network/retrying | error`.
 
 | Канал | Guard | Payload / заметки |
 |---|---|---|
-| `draft-store:load` | draft | чтение стора (schemaVersion, savedDrafts, workspaceDraft, backups) |
-| `draft-store:save` | draft | запись стора (нормализация + версия схемы) |
+| `draft-store:load` | draft | чтение стора (schemaVersion, savedDrafts, workspaceDraft, documentHistories) |
+| `draft-store:save` | draft | запись стора (schema 3, нормализация + per-document version history) |
 | `draft-store:migrate` | draft | миграция legacy-данных рендера |
 | `draft-store:restore-backup` | draft | восстановление по индексу бэкапа |
-| `draft-store:copy-attachment` | draft | копирование файла вложения в каталог черновиков |
+| `draft-store:copy-attachment` | draft | копирование или проверка persistent файла в каталоге черновиков; вызывается как `copyAttachment(file)`/`copyAttachmentPath(path)` |
 | `draft-store:export` | draft | экспорт бэкапа (системный диалог) |
 | `draft-store:import` | draft | импорт бэкапа (системный диалог) |
 | `draft-store:flush` | sendSync | **синхронная** запись при закрытии окна |
@@ -134,7 +134,7 @@ window.telegram       // getConfig, login, connect, getChats, send,
                       // schedule, cancel, onStatus, …
 window.draftStorage   // load, save, flush, migrate, restoreBackup,
                       // exportBackup, importBackup, exportText,
-                      // importText, copyAttachment, getFilePath
+                      // importText, copyAttachment, copyAttachmentPath, getFilePath
 window.gemini         // generate, getSettings, saveKey, removeKey,
                       // setEnabled
 ```

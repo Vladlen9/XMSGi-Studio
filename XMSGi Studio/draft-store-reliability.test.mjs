@@ -135,4 +135,98 @@ describe('draft store reliability', () => {
     expect(fs.readFileSync(firstCopy.path, 'utf8')).toBe('first image content');
     expect(fs.readFileSync(secondCopy.path, 'utf8')).toBe('second image content');
   });
+
+  it('reuses an attachment already inside the persistent draft directory', () => {
+    const root = createDirectory();
+    const sourcePath = path.join(root, 'source.pdf');
+    const storeDirectory = path.join(root, 'drafts');
+    fs.writeFileSync(sourcePath, 'persistent attachment bytes');
+    const store = createDraftStore({ directory: storeDirectory });
+    const copied = store.copyAttachment(sourcePath);
+    if (!copied.attachment) throw new Error('Initial attachment copy failed.');
+
+    const verified = store.copyAttachment(copied.attachment.path);
+
+    expect(verified.attachment?.path).toBe(copied.attachment.path);
+    expect(fs.readdirSync(storeDirectory).filter((name) => name.startsWith('source'))).toEqual(['source.pdf']);
+    expect(fs.readFileSync(copied.attachment.path, 'utf8')).toBe('persistent attachment bytes');
+  });
+
+  it('persists document histories across reload and never deletes their attachment copies', () => {
+    const root = createDirectory();
+    const sourcePath = path.join(root, 'original.png');
+    const storeDirectory = path.join(root, 'drafts');
+    fs.writeFileSync(sourcePath, 'image history bytes');
+    const store = createDraftStore({ directory: storeDirectory });
+    const copied = store.copyAttachment(sourcePath);
+    if (!copied.attachment) throw new Error('Attachment copy failed.');
+    const version = {
+      id: 'version-1',
+      documentId: 'document-1',
+      createdAt: '2026-10-01T12:00:00.000Z',
+      reason: 'edit',
+      snapshot: {
+        documentId: 'document-1',
+        body: 'Post with image',
+        entities: [],
+        attachments: [{ name: 'original.png', path: copied.attachment.path, position: 0 }],
+      },
+    };
+    store.saveSync({
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: null,
+      documentHistories: { 'document-1': [version] },
+    });
+
+    const reloadedStore = createDraftStore({ directory: storeDirectory });
+    expect(reloadedStore.load().documentHistories['document-1']).toEqual([version]);
+    reloadedStore.saveSync({
+      ...reloadedStore.load(),
+      documentHistories: { 'document-1': [] },
+    });
+
+    expect(fs.existsSync(copied.attachment.path)).toBe(true);
+    expect(fs.readFileSync(copied.attachment.path, 'utf8')).toBe('image history bytes');
+  });
+
+  it('merges imported document histories without replacing other document IDs', () => {
+    const root = createDirectory();
+    const store = createDraftStore({ directory: path.join(root, 'drafts') });
+    const version = (id, documentId, body, createdAt) => ({
+      id,
+      documentId,
+      createdAt,
+      reason: 'edit',
+      snapshot: { documentId, body, attachments: [] },
+    });
+    store.saveSync({
+      schemaVersion: 3,
+      migrationVersion: 1,
+      drafts: [],
+      backups: [],
+      documentHistories: {
+        first: [version('first-1', 'first', 'Local first', '2026-10-01T10:00:00.000Z')],
+        second: [version('second-1', 'second', 'Local second', '2026-10-01T11:00:00.000Z')],
+      },
+    });
+    const backupPath = path.join(root, 'history-backup.json');
+    fs.writeFileSync(backupPath, JSON.stringify({
+      schemaVersion: 3,
+      migrationVersion: 1,
+      drafts: [],
+      backups: [],
+      documentHistories: {
+        first: [version('first-2', 'first', 'Imported first', '2026-10-01T12:00:00.000Z')],
+        third: [version('third-1', 'third', 'Imported third', '2026-10-01T13:00:00.000Z')],
+      },
+    }));
+
+    const imported = store.importFrom(backupPath, 'merge');
+
+    expect(imported.store.documentHistories.first.map(({ id }) => id)).toEqual(['first-1', 'first-2']);
+    expect(imported.store.documentHistories.second.map(({ id }) => id)).toEqual(['second-1']);
+    expect(imported.store.documentHistories.third.map(({ id }) => id)).toEqual(['third-1']);
+  });
 });

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { HistoryDrawer } from './HistoryDrawer';
-import { normalizeSavedDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
+import { normalizePlannerDraft, normalizeSavedDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
 
 const scheduledMessage: ScheduledMessage = {
   id: 'scheduled-studio-1',
@@ -67,6 +67,25 @@ describe('App-owned history mapping', () => {
       { type: 'bold', offset: 0, length: 8 },
       { type: 'bold', offset: 9, length: 10 },
     ]);
+  });
+
+  it('strips attachments from planner draft history so restore keeps only text', () => {
+    const record = normalizePlannerDraft(
+      'Проверяем откат текста',
+      channel,
+      '2026-09-29T18:00:00.000Z',
+      [{ type: 'bold', offset: 0, length: 9 }],
+      ['C:\\files\\photo.png', 'C:\\files\\brief.pdf'],
+    );
+
+    expect(record).not.toBeNull();
+    expect(record?.text).toBe('Проверяем откат текста');
+    expect(record?.attachments).toEqual([]);
+    expect(record?.original).toMatchObject({
+      kind: 'planner-draft',
+      text: 'Проверяем откат текста',
+      attachments: [],
+    });
   });
 
 });
@@ -254,47 +273,24 @@ describe('HistoryDrawer search', () => {
     expect(screen.getByRole('tab', { name: 'Scheduled' })).toBeInTheDocument();
   });
 
-  it('does not import unrelated Telegram Saved Messages into Posts', () => {
-    const getChatHistory = vi.fn();
-    vi.stubGlobal('telegram', { getChatHistory });
+  it('hides the reminders category in Personal posts', () => {
     renderHistory([]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
-    fireEvent.click(screen.getByRole('tab', { name: /Напоминания/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
 
-    expect(screen.getByText('Здесь будут отображаться напоминания, созданные приложением для чата «Сохранённые сообщения».')).toBeInTheDocument();
-    expect(getChatHistory).not.toHaveBeenCalled();
+    expect(screen.queryByRole('tab', { name: /Напоминания/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Запланирован/ })).toBeInTheDocument();
   });
 
-  it('cancels queued Saved Messages reminders from the common Notes trash action', async () => {
-    const reminder = normalizeScheduledMessages([{
-      ...scheduledMessage,
-      id: 'saved-reminder-queue',
-      chatName: 'Saved Messages',
-      telegramMessageId: 'telegram-queue-reminder',
-    }], 'personal', 'upcoming', [])[0];
-    const onDelete = vi.fn().mockResolvedValue(true);
-    const onCancelQueue = vi.fn().mockResolvedValue(true);
-    renderHistory([reminder], undefined, onDelete, undefined, undefined, undefined, undefined, undefined, onCancelQueue);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
-    fireEvent.click(screen.getByRole('tab', { name: /Напоминания/ }));
-    await screen.findByText(scheduledMessage.text);
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить заметки' }));
-    fireEvent.click(within(screen.getByRole('alertdialog', { name: 'Подтвердить удаление заметок' }))
-      .getByRole('button', { name: 'Удалить 1 запись из заметок' }));
-
-    await waitFor(() => expect(onCancelQueue).toHaveBeenCalledWith([reminder]));
-    expect(onDelete).not.toHaveBeenCalled();
-  });
-
-  it('shows app-owned reminder guidance when the Notes category is empty', () => {
+  it('resets a previously selected reminders category when opening Posts', () => {
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
+      sourceFilter: 'personal',
+      statusFilter: 'notes',
+    }));
     renderHistory([]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
-    fireEvent.click(screen.getByRole('tab', { name: /Напоминания/ }));
-
-    expect(screen.getByText('Здесь будут отображаться напоминания, созданные приложением для чата «Сохранённые сообщения».')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Напоминания/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Запланирован/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('restores the source and status tabs after remounting', () => {
@@ -563,7 +559,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
-  it('filters the single list across All, Studio, and Personal sources', () => {
+  it('filters the single Posts list across All, Studio, and Planner sources', () => {
     renderHistory([upcomingRecord, personalUpcomingRecord]);
 
     expect(screen.getAllByRole('article')).toHaveLength(2);
@@ -571,7 +567,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
     expect(screen.getByText('XMSGi Updates')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
     expect(screen.getAllByRole('article')).toHaveLength(1);
     expect(screen.getByRole('article')).toHaveTextContent('Подтвердить встречу');
 
@@ -579,11 +575,11 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
-  it('shows the most recently created scheduled record first across Personal and Studio in All', () => {
+  it('shows the most recently created scheduled record first across Planner and Studio in All', () => {
     const olderPersonalRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'older-personal',
-      chatName: 'Personal older',
+      chatName: 'Planner older',
       createdAt: '2026-10-05T10:00:00.000Z',
       when: '2026-10-13T23:17:00.000Z',
     }], 'personal', 'upcoming', [])[0];
@@ -600,28 +596,30 @@ describe('HistoryDrawer search', () => {
     const titles = screen.getAllByRole('article').map((article) => (
       article.querySelector('.history-record-heading strong')?.textContent
     ));
-    expect(titles).toEqual(['Studio newer', 'Personal older']);
+    expect(titles).toEqual(['Studio newer', 'Planner older']);
   });
 
-  it('hides Drafts in Personal and switches away from a previously selected Drafts tab', () => {
-    renderHistory([upcomingRecord, personalUpcomingRecord]);
+  it('shows Planner drafts beside Studio posts in the shared Posts history', () => {
+    const plannerDraft = normalizePlannerDraft('A saved Planner draft', null, '2026-10-06T10:00:00.000Z');
+    renderHistory([upcomingRecord, personalUpcomingRecord, ...(plannerDraft ? [plannerDraft] : [])]);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
-
-    expect(screen.queryByRole('tab', { name: 'Черновики' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Запланировано' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getAllByRole('article')).toHaveLength(1);
-    expect(screen.getByRole('article')).toHaveTextContent('Подтвердить встречу');
+    expect(screen.getByRole('article')).toHaveTextContent('A saved Planner draft');
+    fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
+
+    expect(screen.getByRole('tab', { name: 'Черновики' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Черновики' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByRole('article')).toHaveTextContent('A saved Planner draft');
   });
 
-  it('does not mention drafts in the empty Personal state', () => {
+  it('mentions drafts in the empty Planner state', () => {
     renderHistory([upcomingRecord]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
 
-    expect(screen.getByText('Здесь появятся ваши сообщения.')).toBeInTheDocument();
-    expect(screen.queryByText(/черновик/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Публикации и черновики планера появятся здесь.')).toBeInTheDocument();
   });
 
   it('places a personal scheduled send action in More and asks for confirmation', () => {
@@ -1014,7 +1012,7 @@ describe('HistoryDrawer search', () => {
 
     try {
       renderHistory([upcomingRecord, personalUpcomingRecord, completedRecord]);
-      fireEvent.click(screen.getByRole('button', { name: 'Личное' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
       fireEvent.click(screen.getByRole('tab', { name: 'Отправлено' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
         target: { value: 'подтвердить' },

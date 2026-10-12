@@ -962,8 +962,9 @@ describe('useScheduler native history', () => {
     );
 
     await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+    await waitFor(() => expect(result.current.upcoming).toEqual([original]));
     await act(async () => {
-      result.current.handleSchedule({
+      await result.current.handleSchedule({
         chatId: chat.id,
         message: 'Replacement text',
         ...replacementDateTime,
@@ -971,7 +972,19 @@ describe('useScheduler native history', () => {
       });
     });
 
-    await waitFor(() => expect(result.current.upcoming).toHaveLength(2));
+    await waitFor(() => {
+      expect(result.current.upcoming).toHaveLength(2);
+      expect(result.current.upcoming).toContainEqual(expect.objectContaining({
+        id: original.id,
+        status: 'failed',
+        retryAction: 'cancel',
+      }));
+      expect(result.current.upcoming).toContainEqual(expect.objectContaining({
+        text: 'Replacement text',
+        status: 'scheduled',
+        telegramMessageId: 'telegram-replacement-failed-cancel',
+      }));
+    });
     expect(result.current.upcoming).toContainEqual(expect.objectContaining({
       id: original.id,
       status: 'failed',

@@ -1,19 +1,33 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAssistant, useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
-import type { Chat } from '@/types';
-import type { SavedDraft, StudioScheduledMessage } from '$studio';
+import type { Chat, RichTextEntity } from '@/types';
+import type { PersistedDraftStore, SavedDraft, StudioScheduledMessage } from '$studio';
 import { createStudioSchedulerRuntime } from '@shared/bridge';
+import type { StudioPlannerTextPayload } from '@shared/bridge';
+
 import { AppShell, StudioMount } from './workspace';
 import { preloadStudioApp } from './workspace/studioLoader';
-import { normalizeScheduledMessages } from './workspace/historyModel';
+import { normalizePlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { SchedulePage } from './pages/SchedulePage';
 import { SettingsPage } from './pages/SettingsPage';
-import { readPlannerDraft, writePlannerDraft } from './lib/plannerDraft';
+import {
+  readPlannerDraft,
+  readPlannerDraftAttachments,
+  readPlannerDraftEntities,
+  readPlannerDraftUpdatedAt,
+  writePlannerDraft,
+} from './lib/plannerDraft';
 import { readLastProductView, writeLastProductView, type ProductView } from './lib/productView';
 
 type AppRoute = '/' | '/settings';
+type DraftStorageWindow = Window & {
+  draftStorage?: {
+    load: () => Promise<{ success: boolean; store?: PersistedDraftStore }>;
+    save: (store: PersistedDraftStore) => Promise<{ success: boolean }>;
+  };
+};
 
 function getCurrentHashPath(): AppRoute {
   const hash = window.location.hash.replace(/^#/, '').trim();
@@ -30,13 +44,29 @@ function App() {
   const [message, setMessageState] = useState(readPlannerDraft);
   const messageRef = useRef(message);
   messageRef.current = message;
+  const [messageEntities, setMessageEntitiesState] = useState(readPlannerDraftEntities);
+  const messageEntitiesRef = useRef(messageEntities);
+  messageEntitiesRef.current = messageEntities;
+  const [plannerAttachments, setPlannerAttachmentsState] = useState(readPlannerDraftAttachments);
+  const plannerAttachmentsRef = useRef(plannerAttachments);
+  plannerAttachmentsRef.current = plannerAttachments;
   const setMessage = useCallback((nextMessage: React.SetStateAction<string>) => {
     const resolvedMessage = typeof nextMessage === 'function'
       ? nextMessage(messageRef.current)
       : nextMessage;
     messageRef.current = resolvedMessage;
-    writePlannerDraft(resolvedMessage);
+    writePlannerDraft(resolvedMessage, messageEntitiesRef.current, plannerAttachmentsRef.current);
     setMessageState(resolvedMessage);
+  }, []);
+  const setMessageEntities = useCallback((nextEntities: RichTextEntity[]) => {
+    messageEntitiesRef.current = nextEntities;
+    writePlannerDraft(messageRef.current, nextEntities, plannerAttachmentsRef.current);
+    setMessageEntitiesState(nextEntities);
+  }, []);
+  const setPlannerAttachments = useCallback((nextAttachments: string[]) => {
+    plannerAttachmentsRef.current = nextAttachments;
+    writePlannerDraft(messageRef.current, messageEntitiesRef.current, nextAttachments);
+    setPlannerAttachmentsState(nextAttachments);
   }, []);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [route, setRoute] = useState<AppRoute>(getCurrentHashPath());
@@ -70,6 +100,13 @@ function App() {
   const studioDraftClearerRef = useRef<(() => Promise<boolean>) | null>(null);
   const studioDraftDeleterRef = useRef<((draftId: string) => Promise<boolean>) | null>(null);
   const studioHistoryReschedulerRef = useRef<((message: StudioScheduledMessage) => void) | null>(null);
+  const studioPlannerTextOpenerRef = useRef<((payload: StudioPlannerTextPayload) => Promise<boolean>) | null>(null);
+  const pendingPlannerTextRef = useRef<StudioPlannerTextPayload | null>(null);
+  const [studioPlannerTextOpenerVersion, setStudioPlannerTextOpenerVersion] = useState(0);
+  const registerPlannerTextOpener = useCallback((opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => {
+    studioPlannerTextOpenerRef.current = opener;
+    setStudioPlannerTextOpenerVersion((version) => version + 1);
+  }, []);
   const registerHistoryDraftOpener = useCallback((opener: ((draft: SavedDraft) => void) | null) => {
     studioDraftOpenerRef.current = opener;
   }, []);
@@ -82,6 +119,7 @@ function App() {
   const registerHistoryDraftClearHandler = useCallback((handler: (() => Promise<boolean>) | null) => {
     studioDraftClearerRef.current = handler;
   }, []);
+
   const registerHistoryDraftDeleteHandler = useCallback((handler: ((draftId: string) => Promise<boolean>) | null) => {
     studioDraftDeleterRef.current = handler;
   }, []);
@@ -185,6 +223,7 @@ function App() {
     upcoming: personalUpcoming,
     sent: personalSent,
     scheduling: personalScheduling,
+    publishingDraft: personalPublishingDraft,
     successPulse: personalSuccessPulse,
     dateEditedRef: personalDateEditedRef,
     timeEditedRef: personalTimeEditedRef,
@@ -193,6 +232,7 @@ function App() {
     handleCancelMessage: handlePersonalCancelMessage,
     handleCancelMessages: handlePersonalCancelMessages,
     handleSendNow: handlePersonalSendNow,
+    handleSendDraftNow: handlePersonalSendDraftNow,
     handleDeleteMessage: handlePersonalDeleteMessage,
     handleClearSent: handlePersonalClearSent,
     setDate: setPersonalDate,
@@ -232,11 +272,59 @@ function App() {
     studioNotifications.closeNotification,
   );
 
+  const openPlannerTextInStudio = async (payload: StudioPlannerTextPayload) => {
+    if (!payload.text.trim()) {
+      showNotification('Enter some text before opening Studio.', 'warning', 'Nothing to open');
+      return;
+    }
+    if (pendingPlannerTextRef.current !== null) return;
+
+    pendingPlannerTextRef.current = {
+      text: payload.text,
+      attachments: [...payload.attachments],
+      entities: payload.entities.map((entity) => ({ ...entity })),
+    };
+    setProductView('studio');
+  };
+
+  useEffect(() => {
+    if (productView !== 'studio' || pendingPlannerTextRef.current === null) return;
+    const pendingText = pendingPlannerTextRef.current;
+    const opener = studioPlannerTextOpenerRef.current;
+    if (!opener) {
+      const timeout = window.setTimeout(() => {
+        if (pendingPlannerTextRef.current !== pendingText) return;
+        pendingPlannerTextRef.current = null;
+        showNotification('Studio did not finish loading. Planner text is unchanged.', 'error', 'Could not open Studio');
+      }, 10000);
+      return () => window.clearTimeout(timeout);
+    }
+
+    pendingPlannerTextRef.current = null;
+    try {
+      void opener(pendingText).then((opened) => {
+        if (!opened) {
+          showNotification(
+            'Studio could not preserve its current document. Planner text was not opened.',
+            'warning',
+            'Document not replaced',
+          );
+        }
+      }).catch(() => {
+        showNotification('Studio could not open the Planner text. Your Planner text is unchanged.', 'error', 'Could not open Studio');
+      });
+    } catch {
+      showNotification('Studio could not open the Planner text. Your Planner text is unchanged.', 'error', 'Could not open Studio');
+    }
+  }, [productView, showNotification, studioPlannerTextOpenerVersion]);
+
+  const plannerDraftRecord = normalizePlannerDraft(message, selectedChat, readPlannerDraftUpdatedAt(), messageEntities, plannerAttachments);
   const historyRecords = [
     ...normalizeScheduledMessages(personalUpcoming, 'personal', 'upcoming', chats),
     ...normalizeScheduledMessages(personalSent, 'personal', 'sent', chats),
     ...normalizeScheduledMessages(studioScheduler.upcoming, 'workspace', 'upcoming', chats),
     ...normalizeScheduledMessages(studioScheduler.sent, 'workspace', 'sent', chats),
+    ...(plannerDraftRecord ? [plannerDraftRecord] : []),
   ];
   const cancelHistoryRecord = (record: HistoryItem) => {
     if (record.original.kind !== 'scheduled' || record.status !== 'scheduled') return;
@@ -272,7 +360,31 @@ function App() {
     else handlePersonalClearSent();
   };
 
-  const clearHistoryDrafts = async () => studioDraftClearerRef.current?.() ?? false;
+  const clearHistoryDrafts = async (source: HistorySource | 'all') => {
+    if (source === 'all' || source === 'workspace') {
+      const studioDraftClearer = studioDraftClearerRef.current;
+      if (studioDraftClearer) {
+        if (!await studioDraftClearer()) return false;
+      } else {
+        const draftStorage = (window as DraftStorageWindow).draftStorage;
+        if (!draftStorage) return false;
+        try {
+          const loaded = await draftStorage.load();
+          if (!loaded.success || !loaded.store) return false;
+          const saved = await draftStorage.save({ ...loaded.store, savedDrafts: [] });
+          if (!saved.success) return false;
+        } catch {
+          return false;
+        }
+      }
+    }
+    if (source === 'all' || source === 'personal') {
+      setMessage('');
+      setMessageEntities([]);
+      setPlannerAttachments([]);
+    }
+    return true;
+  };
 
   const cancelHistoryQueue = async (records: HistoryItem[]) => {
     const personalMessages = records.flatMap((record) => record.source === 'personal' && record.original.kind === 'scheduled' ? [record.original.message] : []);
@@ -286,6 +398,12 @@ function App() {
 
   const deleteHistoryRecord = (record: HistoryItem): void | Promise<boolean> => {
     if (record.original.kind === 'saved-draft') return studioDraftDeleterRef.current?.(record.original.draft.id);
+    if (record.original.kind === 'planner-draft') {
+      setMessage('');
+      setMessageEntities([]);
+      setPlannerAttachments([]);
+      return Promise.resolve(true);
+    }
     const message = record.original.message;
     const normalizedChatName = message.chatName.trim().toLocaleLowerCase();
     const isSavedMessagesChat = normalizedChatName === 'saved messages' || normalizedChatName === 'сохранённые сообщения';
@@ -315,6 +433,10 @@ function App() {
     setProductView(record.source === 'workspace' ? 'studio' : 'planner');
     if (record.original.kind === 'saved-draft') {
       studioDraftOpenerRef.current?.(record.original.draft);
+    } else if (record.original.kind === 'planner-draft') {
+      setMessageEntities(record.original.entities);
+      setMessage(record.original.text);
+      setPlannerAttachments([]);
     }
   };
 
@@ -322,6 +444,10 @@ function App() {
     setProductView(record.source === 'workspace' ? 'studio' : 'planner');
     if (record.original.kind === 'saved-draft') {
       studioDraftUseRef.current?.(record.original.draft);
+    } else if (record.original.kind === 'planner-draft') {
+      setMessageEntities(record.original.entities);
+      setMessage(record.original.text);
+      setPlannerAttachments([]);
     }
   };
 
@@ -517,7 +643,10 @@ function App() {
   return (
     <AppShell
       view={productView}
-      onViewChange={setProductView}
+      onViewChange={(view) => {
+        if (view !== 'studio') pendingPlannerTextRef.current = null;
+        setProductView(view);
+      }}
       settingsOpen={route === '/settings'}
       onCloseSettings={closeSettings}
       connected={connected && !signedOut}
@@ -560,6 +689,7 @@ function App() {
             activeAccountId={activeAccountId}
             chats={studioConnected ? chats : []}
             scheduler={studioBridgeScheduler}
+            onRegisterPlannerTextOpener={registerPlannerTextOpener}
             onRegisterHistoryDraftOpener={registerHistoryDraftOpener}
             onRegisterHistoryDraftUseHandler={registerHistoryDraftUseHandler}
             onRegisterHistoryDraftClearHandler={registerHistoryDraftClearHandler}
@@ -571,7 +701,44 @@ function App() {
       <div className={`product-view ${productView === 'planner' ? 'is-active' : ''}`} aria-hidden={productView !== 'planner'}>
         {route === '/settings' ? renderSettingsPage() : (
           connected && !signedOut ? (
-            <QuickPlannerPage />
+            <QuickPlannerPage
+              chats={chats}
+              selectedChat={selectedChat}
+              selectedChatPermissions={selectedChatPermissions}
+              onSelectChat={setSelectedChat}
+              onAddChat={handleAddChat}
+              onRemoveChat={handleRemoveChat}
+              onChatPickerError={(text, title) => showNotification(text, 'error', title)}
+              message={message}
+              onMessageChange={setMessage}
+              entities={messageEntities}
+              onEntitiesChange={setMessageEntities}
+              attachments={plannerAttachments}
+              onAttachmentsChange={setPlannerAttachments}
+              upcoming={personalUpcoming}
+              isSending={personalPublishingDraft}
+              isScheduling={personalScheduling}
+              onSendNow={async (text, attachments, entities) => {
+                if (!selectedChat) return false;
+                const sent = await handlePersonalSendDraftNow(selectedChat, text, attachments, entities);
+                if (sent) {
+                  setMessageEntities([]);
+                  setPlannerAttachments([]);
+                }
+                return sent;
+              }}
+              onSchedule={handlePersonalSchedule}
+              onSaveDraft={(text, attachments, entities) => {
+                setMessageEntities(entities);
+                setPlannerAttachments(attachments);
+                setMessage(text);
+                showNotification('Draft saved on this device.', 'success', 'Draft saved');
+              }}
+              onOpenInStudio={openPlannerTextInStudio}
+              onCancelScheduled={(scheduledMessage) => { void handlePersonalCancelMessage(scheduledMessage); }}
+              notification={notification}
+              closeNotification={closeNotification}
+            />
           ) : <SchedulePage
           message={message}
           setMessage={setMessage}

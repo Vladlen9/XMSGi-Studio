@@ -164,6 +164,12 @@ XMSGi Studio — настольное приложение на **Electron**.
 - `src/hooks/useStudioScheduler.ts` — fallback-планировщик;
 - `src/repositories/`, `src/services/` — доступ к данным
   и адаптация publishing-операций к Telegram-мосту.
+- `src/hooks/useStudioDrafts.ts` сохраняет `workspaceDraft` и до 30
+  предыдущих `documentHistories` на каждый `documentId` в том же
+  атомарном `drafts.json` (`%LOCALAPPDATA%/XMSGi/drafts/` или
+  `XMSGi-Workspace/drafts/` в dev). Версии не имеют суммарного лимита.
+- Вложения истории ссылаются на постоянные копии в каталоге черновиков;
+  очистка истории удаляет только JSON-метаданные и не удаляет файлы.
 
 Алиасы: `$studio` → `../Studio/Studio module/src/App.tsx`,
 `@/` → `src/` (хоста или Studio — зависит от импортёра),

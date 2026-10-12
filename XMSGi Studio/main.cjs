@@ -542,7 +542,16 @@ function assertDraftStorageRenderer(event) {
   );
 }
 
-const DRAFT_STORE_SCHEMA_VERSION = 2;
+const DRAFT_STORE_SCHEMA_VERSION = 3;
+const DOCUMENT_HISTORY_REASONS = new Set([
+  'edit',
+  'before-clear',
+  'before-delete',
+  'before-replacement',
+  'before-attachment-removal',
+  'restore',
+  'publish',
+]);
 
 function isPersistedSavedDraft(value) {
   return Boolean(value && typeof value === 'object'
@@ -551,6 +560,33 @@ function isPersistedSavedDraft(value) {
     && typeof value.body === 'string'
     && typeof value.createdAt === 'string'
     && typeof value.updatedAt === 'string');
+}
+
+function normalizeDocumentHistories(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const normalized = {};
+  for (const [documentId, rawVersions] of Object.entries(value)) {
+    if (!documentId || !Array.isArray(rawVersions)) continue;
+    const versions = rawVersions.filter((version) => (
+      version
+      && typeof version === 'object'
+      && !Array.isArray(version)
+      && version.documentId === documentId
+      && typeof version.id === 'string'
+      && version.id.length > 0
+      && typeof version.createdAt === 'string'
+      && Number.isFinite(Date.parse(version.createdAt))
+      && DOCUMENT_HISTORY_REASONS.has(version.reason)
+      && version.snapshot
+      && typeof version.snapshot === 'object'
+      && !Array.isArray(version.snapshot)
+      && typeof version.snapshot.body === 'string'
+      && Array.isArray(version.snapshot.attachments)
+      && (!version.snapshot.documentId || version.snapshot.documentId === documentId)
+    ));
+    if (versions.length) normalized[documentId] = versions.slice(-30);
+  }
+  return normalized;
 }
 
 function normalizeDraftStoreResult(value, { migrationVersionFallback = 0, migrated = false } = {}) {
@@ -576,6 +612,7 @@ function normalizeDraftStoreResult(value, { migrationVersionFallback = 0, migrat
     workspaceDraft: raw.workspaceDraft && typeof raw.workspaceDraft === 'object' && !Array.isArray(raw.workspaceDraft)
       ? raw.workspaceDraft
       : null,
+    documentHistories: normalizeDocumentHistories(raw.documentHistories),
   };
 
   return {
@@ -705,7 +742,8 @@ ipcMain.handle('draft-store:migrate', (event, legacy) => {
 ipcMain.handle('draft-store:save', async (event, data) => {
   assertDraftStorageRenderer(event);
   try {
-    return { success: true, store: await draftStore.save(data) };
+    const normalized = normalizeDraftStoreResult(data).store;
+    return { success: true, store: await draftStore.save(normalized) };
   } catch (error) {
     return { success: false, code: 'WRITE_FAILED', error: error instanceof Error ? error.message : 'Drafts could not be saved.' };
   }

@@ -67,7 +67,14 @@ export interface StudioSchedulerRuntime extends StudioSchedulerActions {
 
 export type RegisterHandler<T> = (handler: T | null) => void;
 
+export interface StudioPlannerTextPayload {
+  text: string;
+  attachments: string[];
+  entities: RichTextEntity[];
+}
+
 export interface StudioHistoryBridgeCallbacks {
+  onRegisterPlannerTextOpener?: RegisterHandler<(payload: StudioPlannerTextPayload) => Promise<boolean>>;
   onRegisterHistoryDraftOpener?: RegisterHandler<(draft: SavedDraft) => void>;
   onRegisterHistoryDraftUseHandler?: RegisterHandler<(draft: SavedDraft) => void>;
   onRegisterHistoryDraftClearHandler?: RegisterHandler<() => Promise<boolean>>;

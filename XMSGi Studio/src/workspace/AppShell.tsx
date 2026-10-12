@@ -40,7 +40,7 @@ type AppShellProps = PropsWithChildren<{
   onHistoryOpenDraft: (record: HistoryItem) => void;
   onHistoryUseDraft?: (record: HistoryItem) => void;
   onHistoryClearSent: (source: HistorySource | 'all') => void;
-  onHistoryClearDrafts?: () => Promise<boolean>;
+  onHistoryClearDrafts?: (source: HistorySource | 'all') => Promise<boolean>;
   onHistoryCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
 }>;
 

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import {
+  AlertTriangle,
   Archive,
+  ArrowUpRight,
   Bell,
   CalendarDays,
   Check,
@@ -19,6 +21,12 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import type { Chat, ChatPermissions, NotificationState, NotificationType, RichTextEntity, ScheduledMessage } from '@/types';
+import type { StudioPlannerTextPayload } from '@shared/bridge';
+import { insertMessageText, limitMessageText } from '@/lib/messageLimits';
+import { mergeRichTextEntities } from '@/lib/richText';
+import { load, save } from '@/lib/storage';
+import { ChatPicker } from '@/components/ChatPicker';
 import './QuickPlannerPage.css';
 
 type QuickPlannerMode = 'send' | 'schedule' | 'draft';
@@ -30,6 +38,14 @@ const plannerModes: Array<{ id: QuickPlannerMode; label: string; icon: typeof Se
   { id: 'draft', label: 'Draft', icon: FileText },
 ];
 
+const scheduleQuickOptions = [
+  { group: 'now', label: 'Сейчас', ariaLabel: 'Сейчас', minutes: 0 },
+  { group: 'time', label: '+30 мин', ariaLabel: 'Через 30 минут', minutes: 30 },
+  { group: 'time', label: '+1 ч', ariaLabel: 'Через 1 час', minutes: 60 },
+  { group: 'days', label: '+1 день', ariaLabel: 'Через 1 день', days: 1 },
+  { group: 'days', label: '+1 неделя', ariaLabel: 'Через 1 неделю', days: 7 },
+];
+
 const reminderTypes: Array<{ id: ReminderType; label: string; icon: typeof CheckCircle2 }> = [
   { id: 'task', label: 'Task', icon: CheckCircle2 },
   { id: 'meeting', label: 'Meeting', icon: Clock },
@@ -38,19 +54,500 @@ const reminderTypes: Array<{ id: ReminderType; label: string; icon: typeof Check
   { id: 'idea', label: 'Idea', icon: Lightbulb },
 ];
 
-const upcomingReminders = [
-  { time: '09:30', title: 'Finish project proposal', date: 'Mon, Oct 12, 2026' },
-  { time: '14:00', title: 'Gym', date: 'Mon, Oct 12, 2026' },
-  { time: '20:15', title: 'Call mom ♡', date: 'Mon, Oct 12, 2026', complete: true },
-];
+const plannerEmojis = ['😀', '😂', '🥹', '😍', '😎', '🤔', '😭', '👋', '👍', '🙏', '🔥', '❤️', '✨', '🎉', '✅', '🚀', '☕', '🌸'];
+const MAX_PLANNER_ATTACHMENTS = 7;
+const MAX_VISIBLE_ATTACHMENT_CHIPS = 5;
+const MAX_PLANNER_TEXT = 1023;
+const MAX_COMPOSE_RESIZE = 40;
+const COMPOSE_RESIZE_STORAGE_KEY = 'xmsgi-quick-planner-compose-height';
+function clampComposeResize(value: number, maximum: number) {
+  return Math.min(maximum, Math.max(0, value));
+}
 
-export function QuickPlannerPage() {
+function readSavedComposeHeight() {
+  const value = load<unknown>(COMPOSE_RESIZE_STORAGE_KEY, 0);
+  return typeof value === 'number' && Number.isFinite(value)
+    ? clampComposeResize(value, MAX_COMPOSE_RESIZE)
+    : 0;
+}
+
+type QuickPlannerPageProps = {
+  chats: Chat[];
+  selectedChat: Chat | null;
+  selectedChatPermissions: ChatPermissions | null;
+  onSelectChat: (chat: Chat | null) => void;
+  onAddChat: (chat: Chat) => void;
+  onRemoveChat: (chat: Chat) => void;
+  onChatPickerError?: (message: string, title: string) => void;
+  message: string;
+  onMessageChange: (message: string) => void;
+  entities: RichTextEntity[];
+  onEntitiesChange: (entities: RichTextEntity[]) => void;
+  attachments: string[];
+  onAttachmentsChange: (attachments: string[]) => void;
+  upcoming: ScheduledMessage[];
+  isSending: boolean;
+  isScheduling: boolean;
+  onSendNow: (message: string, attachments: string[], entities: RichTextEntity[]) => Promise<boolean>;
+  onSchedule: (payload: { chatId: string; message: string; date: string; time: string; attachments: string[]; entities: RichTextEntity[] }) => Promise<void>;
+  onSaveDraft: (message: string, attachments: string[], entities: RichTextEntity[]) => void;
+  onOpenInStudio: (payload: StudioPlannerTextPayload) => void;
+  onCancelScheduled: (message: ScheduledMessage) => void;
+  notification?: NotificationState;
+  closeNotification?: () => void;
+};
+
+function toLocalDateTimeValue(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatScheduledDateTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
+function formatToday(value: Date) {
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(value);
+}
+
+function formatCurrentTime(value: Date) {
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(value);
+}
+
+function updateEntitiesForTextChange(entities: RichTextEntity[], previousText: string, nextText: string) {
+  let prefix = 0;
+  while (prefix < previousText.length && prefix < nextText.length && previousText[prefix] === nextText[prefix]) prefix += 1;
+
+  let suffix = 0;
+  while (
+    suffix < previousText.length - prefix
+    && suffix < nextText.length - prefix
+    && previousText[previousText.length - suffix - 1] === nextText[nextText.length - suffix - 1]
+  ) suffix += 1;
+
+  const oldEditEnd = previousText.length - suffix;
+  const newEditEnd = nextText.length - suffix;
+  const offsetDelta = newEditEnd - oldEditEnd;
+
+  return mergeRichTextEntities(entities.flatMap((entity) => {
+    const entityEnd = entity.offset + entity.length;
+    if (entityEnd <= prefix) return [entity];
+    if (entity.offset >= oldEditEnd) return [{ ...entity, offset: entity.offset + offsetDelta }];
+
+    const preserved: RichTextEntity[] = [];
+    if (entity.offset < prefix) {
+      preserved.push({ ...entity, length: prefix - entity.offset });
+    }
+    if (entityEnd > oldEditEnd) {
+      preserved.push({ ...entity, offset: newEditEnd, length: entityEnd - oldEditEnd });
+    }
+    return preserved;
+  }));
+}
+
+export function QuickPlannerPage({
+  chats,
+  selectedChat,
+  selectedChatPermissions,
+  onSelectChat,
+  onAddChat,
+  onRemoveChat,
+  onChatPickerError,
+  message,
+  onMessageChange,
+  entities,
+  onEntitiesChange,
+  attachments,
+  onAttachmentsChange,
+  upcoming,
+  isSending,
+  isScheduling,
+  onSendNow,
+  onSchedule,
+  onSaveDraft,
+  onOpenInStudio,
+  onCancelScheduled,
+  notification,
+  closeNotification,
+}: QuickPlannerPageProps) {
   const [publishMode, setPublishMode] = useState<QuickPlannerMode>('send');
-  const [reminderType, setReminderType] = useState<ReminderType>('task');
+  const [reminderType, setReminderType] = useState<ReminderType | null>(null);
   const [isReminderTypePanelOpen, setIsReminderTypePanelOpen] = useState(false);
-  const [reminderText, setReminderText] = useState('');
-  const selectedReminderType = reminderTypes.find(({ id }) => id === reminderType) ?? reminderTypes[0];
-  const SelectedReminderTypeIcon = selectedReminderType.icon;
+  const [composeResize, setComposeResize] = useState(() => ({ height: readSavedComposeHeight() }));
+  const [isResizingCompose, setIsResizingCompose] = useState(false);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [showAllAttachments, setShowAllAttachments] = useState(false);
+  const [plannerEditorBaseHeight, setPlannerEditorBaseHeight] = useState<number | null>(null);
+  const [scheduleDateTime, setScheduleDateTime] = useState(() => {
+    const defaultDate = new Date();
+    defaultDate.setMinutes(defaultDate.getMinutes() + 1);
+    return toLocalDateTimeValue(defaultDate);
+  });
+  const [scheduleDate, scheduleTime] = scheduleDateTime.split('T');
+  const minimumScheduleDate = new Date(currentTime);
+  minimumScheduleDate.setMinutes(minimumScheduleDate.getMinutes() + 1, 0, 0);
+  const minimumScheduleDateTime = toLocalDateTimeValue(minimumScheduleDate);
+  const isScheduleDateTimeValid = Boolean(
+    scheduleDate
+    && scheduleTime
+    && new Date(scheduleDateTime).getTime() > Date.now(),
+  );
+  const setScheduleDateTimeWithinRange = (date: string, time: string) => {
+    const nextDateTime = `${date}T${time}`;
+    setScheduleDateTime(date && time && nextDateTime < minimumScheduleDateTime
+      ? minimumScheduleDateTime
+      : nextDateTime);
+  };
+  const [sendingNow, setSendingNow] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<'sent' | 'scheduled' | 'saved' | 'failed' | null>(null);
+  const actionFeedbackTimeoutRef = useRef<number | null>(null);
+  const [blockedWarning, setBlockedWarning] = useState<string | null>(null);
+  const blockedWarningTimeoutRef = useRef<number | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [permissionWarningPulse, setPermissionWarningPulse] = useState(false);
+  const plannerEditorRef = useRef<HTMLDivElement | null>(null);
+  const composeResizeHeightRef = useRef(composeResize.height);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const selectionRef = useRef({ start: message.length, end: message.length });
+  const previousMessageRef = useRef(message);
+  const pendingScheduleRef = useRef<{
+    chatId: string;
+    message: string;
+    timestamp: number;
+    attachments: string[];
+    previousIds: Set<string>;
+  } | null>(null);
+  const composeResizeStartRef = useRef<{
+    pointerId: number;
+    y: number;
+    height: number;
+  } | null>(null);
+  const selectedReminderType = reminderTypes.find(({ id }) => id === reminderType);
+  const SelectedReminderTypeIcon = selectedReminderType?.icon;
+  const isPermissionBlocked = (publishMode === 'send' && selectedChatPermissions?.canSend === false)
+    || (publishMode === 'schedule' && selectedChatPermissions?.canSchedule === false);
+  const permissionWarningText = isPermissionBlocked ? 'Нет доступа' : undefined;
+  const hasPlannerNotification = Boolean(notification?.visible && notification.message);
+  const actionInFlight = isSending || isScheduling || sendingNow;
+  const getBlockedActionReason = (): string | null => {
+    if (isPermissionBlocked) return 'This chat does not allow this action.';
+    if (publishMode !== 'draft' && !selectedChat) return 'Choose a chat to send to.';
+    if (!message.trim() && attachments.length === 0) {
+      return publishMode === 'draft'
+        ? 'Add text or an attachment to save a draft.'
+        : 'Add text or an attachment to send.';
+    }
+    if (publishMode === 'schedule' && !isScheduleDateTimeValid) return 'Choose a future date and time.';
+    return null;
+  };
+  const actionButtonLabel = actionFeedback === 'sent'
+    ? 'Message sent'
+    : actionFeedback === 'scheduled'
+      ? 'Scheduled'
+      : actionFeedback === 'saved'
+        ? 'Draft saved'
+        : actionFeedback === 'failed'
+          ? 'Action failed'
+          : null;
+  const actionButtonSucceeded = Boolean(actionFeedback && actionFeedback !== 'failed');
+  const progressStatus = isSending || isScheduling || sendingNow
+    ? { message: publishMode === 'schedule' ? 'Scheduling message…' : 'Sending message…', type: 'info' as const }
+    : null;
+  const actionFeedbackStatus = actionFeedback === 'sent'
+    ? { message: 'Message sent.', type: 'success' as const }
+    : actionFeedback === 'scheduled'
+      ? { message: 'Message scheduled.', type: 'success' as const }
+      : actionFeedback === 'saved'
+        ? { message: 'Draft saved.', type: 'success' as const }
+        : actionFeedback === 'failed'
+          ? { message: 'The action failed. Review the error and try again.', type: 'error' as const }
+          : null;
+  const blockedWarningStatus = blockedWarning
+    ? { message: blockedWarning, type: 'warning' as const }
+    : null;
+  const currentPlannerStatus: { message: string; type: NotificationType } | null = hasPlannerNotification
+    ? { message: notification!.message, type: notification!.type }
+    : blockedWarningStatus ?? actionFeedbackStatus ?? progressStatus;
+  const hasVisiblePlannerStatus = Boolean(currentPlannerStatus?.message);
+  const isShortPlannerNotification = (currentPlannerStatus?.message.length ?? 0) <= 70;
+  const isMassWarningNotification = currentPlannerStatus?.type === 'warning' && (currentPlannerStatus.message.length ?? 0) > 80;
+
+  const showActionFeedback = (feedback: 'sent' | 'scheduled' | 'saved' | 'failed') => {
+    if (actionFeedbackTimeoutRef.current !== null) window.clearTimeout(actionFeedbackTimeoutRef.current);
+    setActionFeedback(feedback);
+    actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setActionFeedback(null);
+      actionFeedbackTimeoutRef.current = null;
+    }, 1500);
+  };
+
+  const showBlockedWarning = (message: string) => {
+    if (blockedWarningTimeoutRef.current !== null) window.clearTimeout(blockedWarningTimeoutRef.current);
+    setBlockedWarning(message);
+    blockedWarningTimeoutRef.current = window.setTimeout(() => {
+      setBlockedWarning(null);
+      blockedWarningTimeoutRef.current = null;
+    }, 2600);
+  };
+
+  const capturePlannerEditorHeight = () => {
+    const height = plannerEditorRef.current?.getBoundingClientRect().height;
+    if (height) setPlannerEditorBaseHeight(height);
+  };
+
+  useLayoutEffect(() => {
+    if (composeResize.height <= 0 || !plannerEditorRef.current) return;
+    const editorHeight = plannerEditorRef.current.getBoundingClientRect().height;
+    if (!editorHeight) return;
+    setPlannerEditorBaseHeight(window.innerWidth <= 700 ? editorHeight - composeResize.height : editorHeight);
+  }, [composeResize.height]);
+
+  const handleComposeResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    capturePlannerEditorHeight();
+    composeResizeStartRef.current = {
+      pointerId: event.pointerId,
+      y: event.clientY,
+      height: composeResize.height,
+    };
+    setIsResizingCompose(true);
+  };
+
+  const handleComposeResizePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = composeResizeStartRef.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const height = clampComposeResize(start.height - (event.clientY - start.y) * 2, MAX_COMPOSE_RESIZE);
+    composeResizeHeightRef.current = height;
+    setComposeResize({ height });
+  };
+
+  const finishComposeResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (composeResizeStartRef.current?.pointerId !== event.pointerId) return;
+    composeResizeStartRef.current = null;
+    setIsResizingCompose(false);
+    save(COMPOSE_RESIZE_STORAGE_KEY, composeResizeHeightRef.current);
+  };
+
+  const handleComposeResizeKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const resizeStep = event.shiftKey ? 2 : 10;
+    if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    if (composeResize.height === 0) capturePlannerEditorHeight();
+    const height = clampComposeResize(composeResize.height + (event.key === 'ArrowUp' ? resizeStep : -resizeStep), MAX_COMPOSE_RESIZE);
+    composeResizeHeightRef.current = height;
+    setComposeResize({ height });
+    save(COMPOSE_RESIZE_STORAGE_KEY, height);
+  };
+
+  const plannerEditorResizeStyle = composeResize.height > 0 && plannerEditorBaseHeight !== null
+    ? { height: `${plannerEditorBaseHeight}px` } as CSSProperties
+    : undefined;
+
+  const composeResizeStyle = {
+    '--quick-planner-resize-height': `${composeResize.height}px`,
+    '--quick-planner-resize-half-height': `${composeResize.height / 2}px`,
+  } as CSSProperties;
+
+  const runPlannerAction = async () => {
+    setActionFeedback(null);
+    setBlockedWarning(null);
+    if (actionInFlight) return;
+    if (publishMode === 'schedule') {
+      const scheduleTimestamp = new Date(scheduleDateTime).getTime();
+      if (!Number.isFinite(scheduleTimestamp) || scheduleTimestamp <= Date.now()) {
+        const nextAvailableDate = new Date();
+        nextAvailableDate.setMinutes(nextAvailableDate.getMinutes() + 1, 0, 0);
+        setScheduleDateTime(toLocalDateTimeValue(nextAvailableDate));
+        showBlockedWarning('Choose a future date and time.');
+        return;
+      }
+    }
+    const blockedReason = getBlockedActionReason();
+    if (blockedReason) {
+      showBlockedWarning(blockedReason);
+      return;
+    }
+    if (publishMode === 'draft') {
+      try {
+        onSaveDraft(message, attachments, entities);
+        showActionFeedback('saved');
+      } catch {
+        showActionFeedback('failed');
+      }
+      return;
+    }
+    if (!selectedChat) return;
+
+    if (publishMode === 'schedule') {
+      const [date, time] = scheduleDateTime.split('T');
+      if (!date || !time) return;
+      pendingScheduleRef.current = {
+        chatId: selectedChat.id,
+        message,
+        timestamp: new Date(`${date}T${time}`).getTime(),
+        attachments: [...attachments],
+        previousIds: new Set(upcoming.map((item) => item.id)),
+      };
+      try {
+        await onSchedule({ chatId: selectedChat.id, message, date, time, attachments, entities });
+      } catch {
+        pendingScheduleRef.current = null;
+        showActionFeedback('failed');
+      }
+      return;
+    }
+
+    setSendingNow(true);
+    try {
+      const sent = await onSendNow(message, attachments, entities);
+      if (sent) {
+        onMessageChange('');
+        onEntitiesChange([]);
+        onAttachmentsChange([]);
+        showActionFeedback('sent');
+      } else {
+        showActionFeedback('failed');
+      }
+    } catch {
+      showActionFeedback('failed');
+    } finally {
+      setSendingNow(false);
+    }
+  };
+
+  useEffect(() => {
+    const pendingSchedule = pendingScheduleRef.current;
+    if (!pendingSchedule) return;
+
+    const record = upcoming.find((item) => (
+      !pendingSchedule.previousIds.has(item.id)
+      && item.chatId === pendingSchedule.chatId
+      && item.text === pendingSchedule.message
+      && Math.abs(new Date(item.when).getTime() - pendingSchedule.timestamp) < 1000
+      && (item.attachments ?? []).length === pendingSchedule.attachments.length
+      && (item.attachments ?? []).every((attachment, index) => attachment === pendingSchedule.attachments[index])
+    ));
+    if (!record) return;
+
+    pendingScheduleRef.current = null;
+    showActionFeedback('scheduled');
+    if (message === pendingSchedule.message && attachments.length === pendingSchedule.attachments.length) {
+      onMessageChange('');
+      onEntitiesChange([]);
+      onAttachmentsChange([]);
+    }
+  }, [attachments, entities, message, onAttachmentsChange, onEntitiesChange, onMessageChange, showActionFeedback, upcoming]);
+
+  useEffect(() => {
+    const tick = () => setCurrentTime(new Date());
+    tick();
+    const timer = window.setInterval(tick, 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => () => {
+    if (actionFeedbackTimeoutRef.current !== null) window.clearTimeout(actionFeedbackTimeoutRef.current);
+    if (blockedWarningTimeoutRef.current !== null) window.clearTimeout(blockedWarningTimeoutRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (scheduleDate && scheduleTime && scheduleDateTime < minimumScheduleDateTime) {
+      setScheduleDateTime(minimumScheduleDateTime);
+    }
+  }, [minimumScheduleDateTime, scheduleDate, scheduleDateTime, scheduleTime]);
+
+  useEffect(() => {
+    if (!permissionWarningPulse) return;
+    const timer = window.setTimeout(() => setPermissionWarningPulse(false), 1000);
+    return () => window.clearTimeout(timer);
+  }, [permissionWarningPulse]);
+
+  useEffect(() => {
+    if (previousMessageRef.current === message) return;
+    const caret = Math.min(selectionRef.current.start, message.length);
+    selectionRef.current = { start: caret, end: caret };
+    previousMessageRef.current = message;
+  }, [message]);
+
+  const handleTextChange = (nextMessage: string) => {
+    onEntitiesChange(updateEntitiesForTextChange(entities, previousMessageRef.current, nextMessage));
+    previousMessageRef.current = nextMessage;
+    onMessageChange(nextMessage);
+  };
+
+  const rememberSelection = (textarea: HTMLTextAreaElement) => {
+    selectionRef.current = { start: textarea.selectionStart, end: textarea.selectionEnd };
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const { start, end } = selectionRef.current;
+    const nextMessage = limitMessageText(insertMessageText(message, emoji, start, end), MAX_PLANNER_TEXT);
+    const nextCaret = Math.min(start + emoji.length, nextMessage.length);
+    handleTextChange(nextMessage);
+    setEmojiPickerOpen(false);
+    window.requestAnimationFrame(() => {
+      const textarea = messageInputRef.current;
+      textarea?.focus();
+      textarea?.setSelectionRange(nextCaret, nextCaret);
+      selectionRef.current = { start: nextCaret, end: nextCaret };
+    });
+  };
+
+  const appendPlannerFiles = (files: File[]) => {
+    const remainingSlots = MAX_PLANNER_ATTACHMENTS - attachments.length;
+    if (remainingSlots <= 0 || files.length === 0) return;
+    const getFilePath = window.telegram?.getFilePath;
+    const paths = files.slice(0, remainingSlots).map((file) => (
+      typeof getFilePath === 'function' ? getFilePath(file) : file.name
+    ));
+    if (paths.length) onAttachmentsChange([...attachments, ...paths]);
+  };
+
+  const handleFileSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    appendPlannerFiles(Array.from(event.target.files ?? []));
+    event.target.value = '';
+  };
+
+  const handleComposeKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      void runPlannerAction();
+      return;
+    }
+    if (event.key === 'Escape') {
+      setEmojiPickerOpen(false);
+      setIsReminderTypePanelOpen(false);
+      setShowAllAttachments(false);
+    }
+  };
+
+  const handleComposePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData?.files ?? []);
+    if (files.length === 0) return;
+    event.preventDefault();
+    appendPlannerFiles(files);
+  };
+
+  const handleComposeDragOver = (event: React.DragEvent<HTMLElement>) => {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    setIsDraggingFiles(true);
+  };
+
+  const handleComposeDrop = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setIsDraggingFiles(false);
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length === 0) return;
+    appendPlannerFiles(files);
+  };
 
   return (
     <section className="quick-planner-page" aria-labelledby="quick-planner-title" data-publish-mode={publishMode}>
@@ -124,12 +621,24 @@ export function QuickPlannerPage() {
                 <p className="quick-planner-sidebar-note">Small steps today build a bigger tomorrow.</p>
               </>
             )}
-          </aside>
+            </aside>
 
-          <div className="quick-planner-editor">
-            <div className="quick-planner-today"><span>Today</span><strong>Sun, Oct 11</strong></div>
-            <div className="quick-planner-editor-heading">
-              <span className="quick-planner-section-label">Create reminder</span>
+            <div ref={plannerEditorRef} className="quick-planner-editor" style={plannerEditorResizeStyle}>
+              <div className="quick-planner-clock">
+                <span className="quick-planner-clock-rule" aria-hidden="true" />
+                <div className="quick-planner-clock-body">
+                  <div className="quick-planner-clock-date">
+                    <span className="quick-planner-clock-label">Today</span>
+                    <time dateTime={currentTime.toISOString()}>{formatToday(currentTime)}</time>
+                  </div>
+                  <div className="quick-planner-clock-time">
+                    <time dateTime={currentTime.toISOString()}>{formatCurrentTime(currentTime)}</time>
+                  </div>
+                </div>
+              </div>
+              <div className="quick-planner-editor-heading">
+                <span className="quick-planner-section-label">Create reminder</span>
+              </div>
               <div className="quick-planner-heading-actions">
                 <div className="quick-planner-mode-switch" role="group" aria-label="Action mode">
                   <span className="quick-planner-mode-caption">Current action</span>
@@ -139,7 +648,10 @@ export function QuickPlannerPage() {
                       type="button"
                       aria-pressed={publishMode === id}
                       className={publishMode === id ? 'is-selected' : ''}
-                      onClick={() => setPublishMode(id)}
+                      onClick={() => {
+                        setPublishMode(id);
+                        if (id !== 'draft') setIsReminderTypePanelOpen(false);
+                      }}
                     >
                       <ModeIcon size={13} aria-hidden="true" />
                       <span>{label}</span>
@@ -147,108 +659,367 @@ export function QuickPlannerPage() {
                   ))}
                 </div>
               </div>
-            </div>
-            <div className={`quick-planner-type-controls ${isReminderTypePanelOpen ? 'is-open' : ''}`}>
-              <div className="quick-planner-selected-type" aria-live="polite">
-                <SelectedReminderTypeIcon size={14} aria-hidden="true" />
-                <span>{selectedReminderType.label}</span>
-              </div>
-              {isReminderTypePanelOpen && (
-                <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label="Reminder type">
-                  {reminderTypes.filter(({ id }) => id !== reminderType).map(({ id, label, icon: TypeIcon }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        setReminderType(id);
-                        setIsReminderTypePanelOpen(false);
-                      }}
-                    >
-                      <TypeIcon size={12} aria-hidden="true" />
-                      <span>{label}</span>
-                    </button>
-                  ))}
+              {publishMode !== 'draft' && (
+                <div className="quick-planner-chat-picker">
+                  <span className="quick-planner-mode-caption">Send to</span>
+                  <ChatPicker
+                    chats={chats}
+                    selectedChat={selectedChat}
+                    onSelect={onSelectChat}
+                    onAddChat={onAddChat}
+                    onRemoveChat={onRemoveChat}
+                    onError={onChatPickerError}
+                    permissionWarning={permissionWarningText}
+                    warningPulse={permissionWarningPulse}
+                    showRecentGroups
+                    showRemoveControl={false}
+                  />
                 </div>
               )}
-              <button
-                className="quick-planner-type-toggle"
-                type="button"
-                aria-label={isReminderTypePanelOpen ? 'Close reminder types' : 'Open reminder types'}
-                aria-expanded={isReminderTypePanelOpen}
-                aria-controls="quick-planner-reminder-types"
-                title={isReminderTypePanelOpen ? 'Close reminder types' : 'Change reminder type'}
-                onClick={() => setIsReminderTypePanelOpen((isOpen) => !isOpen)}
-              >
-                {isReminderTypePanelOpen ? <X size={12} aria-hidden="true" /> : <Plus size={12} aria-hidden="true" />}
-              </button>
-            </div>
-            <section className="quick-planner-compose" aria-label="New reminder">
+            <div className="quick-planner-compose-anchor" style={composeResizeStyle}>
+                <div className="quick-planner-type-controls-spacer" aria-hidden="true" />
+            <section
+              className={`quick-planner-compose${isResizingCompose ? ' is-resizing' : ''}${isDraggingFiles ? ' is-drag-over' : ''}`}
+              aria-label="New reminder"
+              onDragOver={handleComposeDragOver}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setIsDraggingFiles(false);
+              }}
+              onDrop={handleComposeDrop}
+            >
               <div className="quick-planner-compose-input-row">
                 <textarea
+                  ref={messageInputRef}
                   aria-label="Reminder text"
                   aria-describedby="quick-planner-counter"
-                  maxLength={500}
-                  value={reminderText}
-                  onChange={(event) => setReminderText(event.target.value)}
-                  placeholder="What do you want to remember?"
+                  maxLength={MAX_PLANNER_TEXT}
+                  value={message}
+                  readOnly={isPermissionBlocked}
+                  title={isPermissionBlocked ? 'Нет доступа' : undefined}
+                  onClick={() => {
+                    if (isPermissionBlocked) setPermissionWarningPulse(true);
+                  }}
+                  onChange={(event) => {
+                    if (isPermissionBlocked) {
+                      setPermissionWarningPulse(true);
+                      return;
+                    }
+                    rememberSelection(event.currentTarget);
+                    handleTextChange(event.target.value);
+                  }}
+                  onSelect={(event) => {
+                    if (isPermissionBlocked) {
+                      setPermissionWarningPulse(true);
+                      return;
+                    }
+                    rememberSelection(event.currentTarget);
+                  }}
+                  onKeyUp={(event) => rememberSelection(event.currentTarget)}
+                  onMouseUp={(event) => rememberSelection(event.currentTarget)}
+                  onKeyDown={handleComposeKeyDown}
+                  onPaste={handleComposePaste}
+                  placeholder="Capture what matters..."
                 />
                 <div className="quick-planner-compose-clear-rail">
-                  {reminderText && (
+                  {message && (
                     <button
                       className="quick-planner-clear"
                       type="button"
                       aria-label="Clear reminder text"
                       title="Clear text"
-                      onClick={() => setReminderText('')}
+                      onClick={() => onMessageChange('')}
                     >
                       <Eraser size={17} aria-hidden="true" />
                     </button>
                   )}
+                  <span
+                    id="quick-planner-counter"
+                    className={`quick-planner-counter${message.length === 0 ? ' is-empty' : ''}${message.length >= MAX_PLANNER_TEXT ? ' is-limit' : message.length > MAX_PLANNER_TEXT - 50 ? ' is-warning' : ''}`}
+                  >{message.length} / {MAX_PLANNER_TEXT}</span>
                 </div>
               </div>
+              {attachments.length > 0 && (() => {
+                const visibleChips = attachments.slice(0, MAX_VISIBLE_ATTACHMENT_CHIPS);
+                const hiddenChips = attachments.slice(MAX_VISIBLE_ATTACHMENT_CHIPS);
+                const renderChip = (attachment: string, index: number) => {
+                  const name = attachment.split(/[\\/]/).pop() || attachment;
+                  return (
+                    <span className="quick-planner-attachment" key={`${attachment}-${index}`}>
+                      <Paperclip size={11} aria-hidden="true" />
+                      <span title={name}>{name}</span>
+                      <button type="button" aria-label={`Remove ${name}`} onClick={() => onAttachmentsChange(attachments.filter((_, itemIndex) => itemIndex !== index))}>
+                        <X size={11} aria-hidden="true" />
+                      </button>
+                    </span>
+                  );
+                };
+                return (
+                  <div className={`quick-planner-attachments${attachments.length > 4 ? ' has-many' : ''}`} aria-label="Attachments">
+                    <div className="quick-planner-attachments-scroll">
+                      {visibleChips.map(renderChip)}
+                    </div>
+                    {hiddenChips.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          className="quick-planner-attachments-more"
+                          aria-label={showAllAttachments ? 'Hide extra attachments' : `Show ${hiddenChips.length} more attachments`}
+                          aria-expanded={showAllAttachments}
+                          aria-controls="quick-planner-attachments-extra"
+                          title={showAllAttachments ? 'Show less' : 'Show more attachments'}
+                          onClick={() => setShowAllAttachments((isOpen) => !isOpen)}
+                        >
+                          {showAllAttachments ? <X size={11} aria-hidden="true" /> : `+${hiddenChips.length}`}
+                        </button>
+                        {showAllAttachments && (
+                          <div id="quick-planner-attachments-extra" className="quick-planner-attachments-extra" role="group" aria-label="Extra attachments">
+                            {hiddenChips.map((attachment, offset) => renderChip(attachment, offset + MAX_VISIBLE_ATTACHMENT_CHIPS))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+              <input
+                ref={fileInputRef}
+                className="quick-planner-file-input"
+                type="file"
+                multiple
+                aria-label="Planner attachment files"
+                onChange={handleFileSelection}
+              />
               <div className="quick-planner-compose-footer">
                 <div className="quick-planner-tools">
-                  <button type="button" aria-label="Add emoji" title="Emoji"><Smile size={18} aria-hidden="true" /></button>
-                  <button type="button" aria-label="Add attachment" title="Attachment"><Paperclip size={18} aria-hidden="true" /></button>
-                  <button className="quick-planner-format" type="button" aria-label="Text options" title="Text options">
-                    <List size={18} aria-hidden="true" />
+                  <button
+                    type="button"
+                    aria-label="Add emoji"
+                    aria-expanded={emojiPickerOpen}
+                    aria-controls="quick-planner-emoji-picker"
+                    title="Emoji"
+                    onClick={() => setEmojiPickerOpen((open) => !open)}
+                  ><Smile size={18} aria-hidden="true" /></button>
+                  {emojiPickerOpen && (
+                    <div id="quick-planner-emoji-picker" className="quick-planner-emoji-picker" role="group" aria-label="Choose emoji">
+                      {plannerEmojis.map((emoji) => (
+                        <button key={emoji} type="button" aria-label={`Insert ${emoji}`} onClick={() => insertEmoji(emoji)}>{emoji}</button>
+                      ))}
+                    </div>
+                  )}
+                  <button type="button" aria-label="Add attachment" title="Attachment" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} aria-hidden="true" /></button>
+                  {publishMode === 'draft' && (
+                    <div className={`quick-planner-type-controls ${isReminderTypePanelOpen ? 'is-open' : ''}`}>
+                      {isReminderTypePanelOpen && (
+                        <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label="Tags">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReminderType(null);
+                              setIsReminderTypePanelOpen(false);
+                            }}
+                          >
+                            <span>None</span>
+                          </button>
+                          {reminderTypes.map(({ id, label, icon: TypeIcon }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              className={reminderType === id ? 'is-selected' : ''}
+                              onClick={() => {
+                                setReminderType(id);
+                                setIsReminderTypePanelOpen(false);
+                              }}
+                            >
+                              <TypeIcon size={12} aria-hidden="true" />
+                              <span>{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        className={`quick-planner-type-toggle${selectedReminderType && !isReminderTypePanelOpen ? ' is-selected' : ''}${!selectedReminderType && !isReminderTypePanelOpen ? ' is-add-tag' : ''}`}
+                        type="button"
+                        aria-label={isReminderTypePanelOpen ? 'Close tag choices' : selectedReminderType ? `Change tag: ${selectedReminderType.label}` : 'Add tag'}
+                        aria-expanded={isReminderTypePanelOpen}
+                        aria-controls="quick-planner-reminder-types"
+                        title={isReminderTypePanelOpen ? 'Close tag choices' : selectedReminderType ? 'Change tag' : 'Add tag'}
+                        onClick={() => setIsReminderTypePanelOpen((isOpen) => !isOpen)}
+                      >
+                        {isReminderTypePanelOpen ? <X size={12} aria-hidden="true" /> : selectedReminderType && SelectedReminderTypeIcon ? (
+                          <>
+                            <SelectedReminderTypeIcon size={14} aria-hidden="true" />
+                            <span>{selectedReminderType.label}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={14} aria-hidden="true" />
+                            <span>Add tag</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  {publishMode === 'schedule' && (
+                    <div className="quick-planner-schedule-controls" role="group" aria-label="Schedule date and time">
+                      <label className="quick-planner-schedule-date">
+                        <input
+                          aria-label="Schedule date"
+                          type="date"
+                          min={minimumScheduleDateTime.slice(0, 10)}
+                          value={scheduleDate || ''}
+                          onChange={(event) => setScheduleDateTimeWithinRange(event.target.value, scheduleTime || '12:00')}
+                        />
+                      </label>
+                      <label className="quick-planner-schedule-clock">
+                        <input
+                          aria-label="Schedule time"
+                          type="time"
+                          min={scheduleDate === minimumScheduleDateTime.slice(0, 10) ? minimumScheduleDateTime.slice(11, 16) : undefined}
+                          value={scheduleTime || ''}
+                          onChange={(event) => setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateTime.slice(0, 10), event.target.value)}
+                        />
+                      </label>
+                    </div>
+                  )}
+                  {publishMode === 'schedule' && (
+                    <div className="quick-planner-schedule-quick-values" role="group" aria-label="Quick schedule times">
+                      {(['now', 'days', 'time'] as const).map((group) => (
+                        <div
+                          key={group}
+                          className={`quick-planner-schedule-quick-group is-${group}`}
+                          role="group"
+                          aria-label={group === 'now' ? 'Quick now choice' : group === 'time' ? 'Time quick choices' : 'Day quick choices'}
+                        >
+                          {scheduleQuickOptions.filter((option) => option.group === group).map(({ label, ariaLabel, minutes, days }) => (
+                            <button
+                              key={label}
+                              type="button"
+                              aria-label={ariaLabel}
+                              title={ariaLabel}
+                              onClick={() => {
+                                const nextDate = minutes === 0 ? new Date() : new Date(scheduleDateTime);
+                                if (Number.isNaN(nextDate.getTime())) nextDate.setTime(Date.now());
+                                if (minutes === 0) {
+                                  nextDate.setMinutes(nextDate.getMinutes() + 1, 0, 0);
+                                } else if (minutes !== undefined) {
+                                  nextDate.setMinutes(nextDate.getMinutes() + minutes, 0, 0);
+                                } else {
+                                  nextDate.setDate(nextDate.getDate() + (days ?? 0));
+                                  nextDate.setSeconds(0, 0);
+                                }
+                                setScheduleDateTime(toLocalDateTimeValue(nextDate));
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="quick-planner-action-group">
+                  {publishMode === 'draft' && (
+                    <button
+                      className="quick-planner-open-studio"
+                      type="button"
+                      onClick={() => onOpenInStudio({ text: message, attachments, entities })}
+                    >
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                      <span>Open in Studio</span>
+                    </button>
+                  )}
+                  <button
+                    className={`quick-planner-send${actionButtonSucceeded ? ' is-success' : actionFeedback === 'failed' ? ' is-error' : blockedWarning ? ' is-warning' : ''}`}
+                    type="button"
+                    aria-label={actionButtonLabel ?? (publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft')}
+                    aria-live="polite"
+                    aria-describedby={hasVisiblePlannerStatus ? 'quick-planner-action-status' : undefined}
+                    title={actionButtonLabel ?? (publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft')}
+                    disabled={actionInFlight}
+                    onClick={() => void runPlannerAction()}
+                  >
+                    {blockedWarning
+                      ? <AlertTriangle size={18} strokeWidth={2.4} aria-hidden="true" />
+                      : actionFeedback === 'failed'
+                      ? <X size={18} strokeWidth={2.4} aria-hidden="true" />
+                      : actionButtonSucceeded
+                        ? <Check size={18} strokeWidth={2.4} aria-hidden="true" />
+                        : publishMode === 'send'
+                          ? <Send size={21} strokeWidth={2.2} aria-hidden="true" />
+                          : publishMode === 'schedule'
+                            ? <CalendarDays size={18} aria-hidden="true" />
+                            : <FileText size={18} aria-hidden="true" />}
                   </button>
                 </div>
-                <span id="quick-planner-counter" className="quick-planner-counter">{reminderText.length} / 500</span>
-                <button
-                  className="quick-planner-send"
-                  type="button"
-                  aria-label={publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft'}
-                  title={publishMode === 'send' ? 'Send reminder' : publishMode === 'schedule' ? 'Schedule reminder' : 'Save draft'}
-                >
-                  {publishMode === 'send' ? <Send size={21} strokeWidth={2.2} aria-hidden="true" /> : publishMode === 'schedule' ? <CalendarDays size={18} aria-hidden="true" /> : <FileText size={18} aria-hidden="true" />}
-                </button>
               </div>
+              <button
+                className="quick-planner-resize-handle"
+                type="button"
+                aria-label="Resize reminder field height"
+                title="Resize reminder field height"
+                onPointerDown={handleComposeResizePointerDown}
+                onPointerMove={handleComposeResizePointerMove}
+                onPointerUp={finishComposeResize}
+                onPointerCancel={finishComposeResize}
+                onKeyDown={handleComposeResizeKeyDown}
+              >
+                <svg className="quick-planner-resize-grip" viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M10.5 1.5 12.5 3.5" />
+                  <path d="M7 1.5 12.5 7" />
+                  <path d="M2 1.5 12.5 12" />
+                </svg>
+              </button>
             </section>
-
+            </div>
+            <div className="messages-panel-wrapper" aria-hidden={!hasVisiblePlannerStatus}>
+              {currentPlannerStatus && hasVisiblePlannerStatus && (
+                <div
+                  id="quick-planner-action-status"
+                  key={notification?.revision ?? `${currentPlannerStatus.type}:${currentPlannerStatus.message}`}
+                  className={`planner-inline-notification ${isShortPlannerNotification ? 'is-short' : 'is-long'} is-${currentPlannerStatus.type}${isMassWarningNotification ? ' is-mass-warning' : ''}${hasPlannerNotification && closeNotification ? ' is-dismissible' : ''}`}
+                  role={currentPlannerStatus.type === 'error' ? 'alert' : 'status'}
+                  aria-live={currentPlannerStatus.type === 'error' ? 'assertive' : 'polite'}
+                >
+                  <span className={isMassWarningNotification ? 'planner-notification-message' : 'planner-notification-text'}>{currentPlannerStatus.message}</span>
+                  {hasPlannerNotification && closeNotification && (
+                    <button type="button" className="planner-inline-notification-close" onClick={closeNotification} aria-label="Close notification">×</button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <aside className="quick-planner-upcoming">
             <div className="quick-planner-upcoming-heading">
-              <span className="quick-planner-section-label">Upcoming</span>
-              <span>3 reminders</span>
+              <span className="quick-planner-section-label">Space</span>
+              <span>Thoughts & Studio</span>
             </div>
+            <button
+              className="quick-planner-open-studio-full"
+              type="button"
+              onClick={() => onOpenInStudio({ text: message, attachments, entities })}
+              title="Открыть текущий текст в Studio с сохранением предыдущего черновика"
+            >
+              <ArrowUpRight size={18} />
+              <span>Open current note in Studio</span>
+            </button>
             <div className="quick-planner-reminder-list">
-              {upcomingReminders.map((reminder) => (
-                <article className="quick-planner-reminder" key={reminder.title}>
-                  <span className={`quick-planner-check ${reminder.complete ? 'is-complete' : ''}`} aria-hidden="true">
-                    {reminder.complete ? <Check size={12} /> : null}
-                  </span>
+              {upcoming.map((reminder) => (
+                <article className="quick-planner-reminder" key={reminder.id}>
+                  <span className="quick-planner-check" aria-hidden="true" />
                   <div className="quick-planner-reminder-copy">
-                    <strong>{reminder.time}</strong>
-                    <span>{reminder.title}</span>
-                    <small><CalendarDays size={11} aria-hidden="true" />{reminder.date}</small>
+                    <strong>{formatScheduledDateTime(reminder.when)}</strong>
+                    <span>{reminder.text || 'Message with attachment'}</span>
+                    <small><CalendarDays size={11} aria-hidden="true" />{reminder.chatName}</small>
                   </div>
-                  <button type="button" className="quick-planner-more" aria-label={`More options for ${reminder.title}`}>
+                  <button type="button" className="quick-planner-more" aria-label={`Cancel scheduled message to ${reminder.chatName}`} title="Cancel scheduled message" onClick={() => onCancelScheduled(reminder)}>
                     <MoreHorizontal size={16} aria-hidden="true" />
                   </button>
                 </article>
               ))}
+              {upcoming.length === 0 && <p className="quick-planner-empty">No scheduled messages.</p>}
             </div>
             <div className="quick-planner-note">
               <span className="quick-planner-note-icon"><Lightbulb size={17} aria-hidden="true" /></span>

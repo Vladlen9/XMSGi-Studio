@@ -16,6 +16,27 @@ function normalizeStore(data = {}) {
   };
 }
 
+function mergeDocumentHistories(existing = {}, incoming = {}) {
+  const merged = { ...(existing && typeof existing === 'object' ? existing : {}) };
+  if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return merged;
+
+  for (const [documentId, incomingVersions] of Object.entries(incoming)) {
+    if (!documentId || !Array.isArray(incomingVersions)) continue;
+    const currentVersions = Array.isArray(merged[documentId]) ? merged[documentId] : [];
+    const byId = new Map();
+    [...currentVersions, ...incomingVersions].forEach((version) => {
+      if (version && typeof version.id === 'string' && version.documentId === documentId) {
+        byId.set(version.id, version);
+      }
+    });
+    const versions = [...byId.values()].sort((left, right) => (
+      Date.parse(left.createdAt) - Date.parse(right.createdAt)
+    ));
+    merged[documentId] = versions.slice(-30);
+  }
+  return merged;
+}
+
 function ensureDirectory(directory) {
   const target = directory || path.join(process.cwd(), 'drafts');
   fs.mkdirSync(target, { recursive: true });
@@ -131,7 +152,7 @@ function writeStore(directory, payload, fileSystem = fs) {
 }
 
 function createDraftStore({ directory, fileSystem = fs } = {}) {
-  const storeDirectory = ensureDirectory(directory);
+  const storeDirectory = path.resolve(ensureDirectory(directory));
 
   return {
     load() {
@@ -173,6 +194,28 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
 
       if (!fs.existsSync(sourcePath)) {
         return { success: false, error: 'Source file does not exist.' };
+      }
+
+      const resolvedSource = path.resolve(sourcePath);
+      const relativeSource = path.relative(storeDirectory, resolvedSource);
+      if (relativeSource === '' || (!relativeSource.startsWith(`..${path.sep}`) && relativeSource !== '..' && !path.isAbsolute(relativeSource))) {
+        try {
+          const stats = fs.statSync(resolvedSource);
+          if (stats.isFile()) {
+            return {
+              success: true,
+              sourcePath: resolvedSource,
+              destinationPath: resolvedSource,
+              attachment: {
+                name: path.basename(resolvedSource),
+                path: resolvedSource,
+                size: stats.size,
+              },
+            };
+          }
+        } catch {
+          return { success: false, error: 'Source file does not exist.' };
+        }
       }
 
       const sourceName = path.basename(sourcePath);
@@ -223,6 +266,7 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
             ...incoming,
             drafts: Array.isArray(incoming.drafts) && incoming.drafts.length > 0 ? incoming.drafts : current.drafts,
             backups: Array.isArray(incoming.backups) && incoming.backups.length > 0 ? incoming.backups : current.backups,
+            documentHistories: mergeDocumentHistories(current.documentHistories, incoming.documentHistories),
           };
 
       writeStore(storeDirectory, merged, fileSystem);

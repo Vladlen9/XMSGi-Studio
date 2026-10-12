@@ -104,7 +104,7 @@ declare global {
       clearSession: () => Promise<{ success: boolean; cleared?: boolean; config?: { hasCredentials?: boolean; hasSession?: boolean; connected?: boolean }; error?: string }>;
       login: (data: { API_ID?: string | number; API_HASH?: string; phoneNumber?: string; phone?: string; password?: string; phoneCode?: string; apiId?: string | number; apiHash?: string }) => Promise<{ success: boolean; requiresCode?: boolean; requiresPassword?: boolean; nextStep?: string; error?: string; isCodeViaApp?: boolean }>;
       connect: () => Promise<{ success: boolean; error?: string }>;
-      getChats: () => Promise<{ success: boolean; chats?: { id: string; name: string; username?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]; error?: string }>;
+      getChats: () => Promise<{ success: boolean; chats?: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]; error?: string }>;
       getChatPermissions: (chatId: string) => Promise<{ success: boolean; permissions?: { canView: boolean; canSend: boolean | null; canSchedule: boolean | null; error?: string }; error?: string }>;
       getRateLimitState: () => Promise<{
         success: boolean;
@@ -116,8 +116,8 @@ declare global {
         state?: { accountId: string; paused: boolean; pausedUntil: number | null; pausedUntilText?: string; remainingMs: number; remainingMsText?: string; waitSeconds?: number; waitSecondsText?: string; reason?: 'FLOOD_WAIT' };
         error?: string;
       }>;
-      loadSavedChats: () => Promise<{ id: string; name: string; username?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]>;
-      saveSavedChats: (chats: { id: string; name: string; username?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]) => Promise<{ success: boolean }>;
+      loadSavedChats: () => Promise<{ id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]>;
+      saveSavedChats: (chats: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]) => Promise<{ success: boolean }>;
       loadScheduleHistory: (scope: 'personal' | 'workspace') => Promise<{
         success: boolean;
         history?: { upcoming: import('@/types').ScheduledMessage[]; sent: import('@/types').ScheduledMessage[] };
@@ -139,7 +139,7 @@ declare global {
       getChatAvatar: (chatId: string) => Promise<{ success: boolean; avatarDataUrl?: string; error?: string }>;
       findChat: (query: string) => Promise<{
         success: boolean;
-        chat?: { id: string; name: string; username?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string };
+        chat?: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string };
         error?: string;
       }>;
       getContacts: () => Promise<{

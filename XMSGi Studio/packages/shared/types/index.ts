@@ -11,6 +11,7 @@ export interface Chat {
   id: string;
   name: string;
   username?: string;
+  phone?: string;
   type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown';
   avatarDataUrl?: string;
   permissions?: ChatPermissions;
@@ -45,12 +46,14 @@ export interface SavedDraftAttachment {
   mimeType?: string;
   size?: number;
   path?: string;
+  sourcePath?: string;
   previewUrl?: string;
   position?: number;
 }
 
 export interface SavedDraft {
   id: string;
+  documentId?: string;
   name: string;
   body: string;
   color?: DraftColor;
@@ -72,8 +75,19 @@ export interface PersistedDraftStore {
   migrationVersion?: number;
   savedDrafts: SavedDraft[];
   workspaceDraft?: SavedDraft | Record<string, unknown> | null;
+  documentHistories?: PersistedWorkspaceDocumentHistories;
   [key: string]: unknown;
 }
+
+export interface PersistedWorkspaceDocumentVersion {
+  id: string;
+  documentId: string;
+  createdAt: string;
+  reason: 'edit' | 'before-clear' | 'before-delete' | 'before-replacement' | 'before-attachment-removal' | 'restore' | 'publish';
+  snapshot: Record<string, unknown>;
+}
+
+export type PersistedWorkspaceDocumentHistories = Record<string, PersistedWorkspaceDocumentVersion[]>;
 
 export type RichTextEntityType =
   | 'bold'

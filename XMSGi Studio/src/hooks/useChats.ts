@@ -78,6 +78,7 @@ export function useChats({ connected }: { connected: boolean }) {
           id: String(chat.id),
           name: chat.name,
           username: chat.username || '',
+          phone: chat.phone || '',
           type: chat.type || 'unknown',
           avatarDataUrl: chat.avatarDataUrl || '',
         }));

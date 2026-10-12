@@ -31,10 +31,7 @@ function loadSavedHistoryFilters() {
 
     return {
       sourceFilter,
-      statusFilter: sourceFilter === 'personal' && statusFilter === 'drafts'
-        || sourceFilter !== 'personal' && statusFilter === 'notes'
-        ? 'scheduled'
-        : statusFilter,
+      statusFilter: statusFilter === 'notes' ? 'scheduled' : statusFilter,
     };
   } catch {
     return { sourceFilter: 'all' as const, statusFilter: 'scheduled' as const };
@@ -457,7 +454,7 @@ export function HistoryDrawer({
   onOpenDraft: (record: HistoryItem) => void;
   onUseDraft?: (record: HistoryItem) => void;
   onClearSent: (source: HistoryBulkActionSource) => void;
-  onClearDrafts?: () => Promise<boolean>;
+  onClearDrafts?: (source: HistoryBulkActionSource) => Promise<boolean>;
   onCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
 }) {
   const { locale, t } = useLocale();
@@ -731,9 +728,7 @@ export function HistoryDrawer({
 
     return counts;
   }, [draftItems, historyItems, sourceFilter, statusFilter]);
-  const visibleStatusFilters: HistoryStatusFilter[] = sourceFilter === 'personal'
-    ? ['scheduled', 'sent', 'notes']
-    : ['scheduled', 'sent', 'drafts'];
+  const visibleStatusFilters: HistoryStatusFilter[] = ['scheduled', 'sent', 'drafts'];
 
   const selectedRecordIndex = selectedRecord
     ? filteredRecords.findIndex((record) => record.id === selectedRecord.id)
@@ -985,12 +980,12 @@ export function HistoryDrawer({
         return;
       }
 
-      if (!onClearDrafts || !await onClearDrafts()) {
+      if (!onClearDrafts || !await onClearDrafts(sourceFilter)) {
         setBulkDeleteError(t('history.deleteDraftsFailed'));
         return;
       }
 
-      setDraftItems([]);
+      if (sourceFilter !== 'personal') setDraftItems([]);
       setSelectedRecord(null);
       setBulkDeleteRecordId(null);
       setBulkDeleteCategory(null);
@@ -1056,8 +1051,7 @@ export function HistoryDrawer({
                   } else {
                     setSourceFilter(item);
                   }
-                  if (item === 'personal' && statusFilter === 'drafts'
-                    || item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
+                  if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
                   setBulkDeleteCategory(null);
                   setBulkDeleteRecordId(null);
                   setBulkDeleteError('');

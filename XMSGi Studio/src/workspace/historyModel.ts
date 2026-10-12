@@ -7,7 +7,8 @@ export type HistoryStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'draft
 
 export type HistoryOriginal =
   | { kind: 'scheduled'; message: ScheduledMessage }
-  | { kind: 'saved-draft'; draft: SavedDraft };
+  | { kind: 'saved-draft'; draft: SavedDraft }
+  | { kind: 'planner-draft'; text: string; entities: RichTextEntity[]; attachments: string[] };
 
 export interface HistoryItem {
   id: string;
@@ -121,4 +122,32 @@ export function sortHistoryItems(items: HistoryItem[], category: 'scheduled' | '
 
     return rightTime - leftTime;
   });
+}
+
+export function normalizePlannerDraft(
+  text: string,
+  chat: Chat | null,
+  updatedAt: string,
+  entities: RichTextEntity[] = [],
+  attachments: string[] = [],
+): HistoryItem | null {
+  const normalized = normalizeTelegramMessage(text, entities);
+  if (!normalized.message.trim() && attachments.length === 0) return null;
+
+  const rollbackAttachments: string[] = [];
+
+  return {
+    id: 'personal:draft:quick-planner',
+    source: 'personal',
+    status: 'draft',
+    title: 'Quick Planner draft',
+    text: normalized.message,
+    channelName: chat?.name ?? '',
+    channelLabel: chat?.username ? `@${chat.username}` : '',
+    updatedAt: updatedAt || new Date().toISOString(),
+    attachments: rollbackAttachments,
+    entities: normalized.entities,
+    draftColor: 'teal',
+    original: { kind: 'planner-draft', text, entities: normalized.entities, attachments: rollbackAttachments },
+  };
 }

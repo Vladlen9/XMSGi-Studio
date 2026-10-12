@@ -1,0 +1,6 @@
+﻿
+C:\Users\malod\Desktop\Programs\XMSGi.Srudio\XMSGi Studio\XMSGi Studio\src\components\QuickPlannerPage.tsx
+  270:9  warning  The 'showActionFeedback' function makes the dependencies of useEffect Hook (at line 420) change on every render. To fix this, wrap the definition of 'showActionFeedback' in its own useCallback() Hook  react-hooks/exhaustive-deps
+
+тЬЦ 1 problem (0 errors, 1 warning)
+

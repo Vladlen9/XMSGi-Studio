@@ -6,6 +6,7 @@ const StudioApp = lazy(preloadStudioApp);
 
 type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAccountId' | 'chats' | 'scheduler'>>
   & Pick<StudioBridgeProps,
+    | 'onRegisterPlannerTextOpener'
     | 'onRegisterHistoryDraftOpener'
     | 'onRegisterHistoryDraftUseHandler'
     | 'onRegisterHistoryDraftClearHandler'
@@ -13,7 +14,7 @@ type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAc
     | 'onRegisterHistoryRescheduleHandler'
   >;
 
-export function StudioMount({ connected, activeAccountId, chats, scheduler, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
+export function StudioMount({ connected, activeAccountId, chats, scheduler, onRegisterPlannerTextOpener, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
   return (
     <Suspense fallback={null}>
       <StudioApp
@@ -21,6 +22,7 @@ export function StudioMount({ connected, activeAccountId, chats, scheduler, onRe
         activeAccountId={activeAccountId}
         chats={chats}
         scheduler={scheduler}
+        onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
         onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
         onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
         onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}
