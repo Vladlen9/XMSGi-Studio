@@ -1,1 +1,1 @@
-export const DRAFT_STORE_SCHEMA_VERSION = 2;
+export const DRAFT_STORE_SCHEMA_VERSION = 3;

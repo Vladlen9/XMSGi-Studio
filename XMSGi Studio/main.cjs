@@ -107,6 +107,9 @@ function showMainWindow() {
 
 app.on('second-instance', () => {
   showMainWindow();
+  if (!app.isPackaged && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.reload();
+  }
 });
 
 function readSecureConfig() {
@@ -339,8 +342,8 @@ function createWindow() {
     icon: path.join(__dirname, 'build', 'icon.ico'),
     width: 900,
     height: 800,
-    minWidth: 800,
-    minHeight: 700,
+    minWidth: 858,
+    minHeight: 801,
     backgroundColor: '#11110f',
     autoHideMenuBar: true,
     show: false,

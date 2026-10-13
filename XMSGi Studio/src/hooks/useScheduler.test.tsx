@@ -41,7 +41,7 @@ function getFutureReplacementTimes() {
   };
 }
 
-function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMessage[], telegramOverrides: Record<string, unknown>, showNotification = vi.fn(), historyScope: 'personal' | 'workspace' = 'workspace', selectedChat: Chat | null = null) {
+function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMessage[], telegramOverrides: Record<string, unknown>, showNotification = vi.fn(), historyScope: 'personal' | 'workspace' = 'workspace', selectedChat: Chat | null = null, setMessage = vi.fn()) {
   const saveScheduleHistory = vi.fn().mockResolvedValue({ success: true });
   const loadScheduleHistory = vi.fn().mockResolvedValue({
     success: true,
@@ -63,7 +63,7 @@ function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMes
     chats: selectedChat ? [selectedChat] : [],
     message: '',
     showNotification,
-    setMessage: vi.fn(),
+    setMessage,
     setAssistantPrompt: vi.fn(),
     setAssistantResponse: vi.fn(),
     setAssistantIntent: vi.fn(),
@@ -74,6 +74,7 @@ function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMes
     saveScheduleHistory: (telegramOverrides.saveScheduleHistory as typeof saveScheduleHistory | undefined) ?? saveScheduleHistory,
     loadScheduleHistory,
     showNotification,
+    setMessage,
   };
 }
 
@@ -784,6 +785,31 @@ describe('useScheduler native history', () => {
       'account-1',
       expect.stringMatching(/^\d+:[a-z0-9]+$/i),
     );
+  });
+
+  it('lets Quick Planner clear the message only after confirming the draft is unchanged', async () => {
+    const chat = { id: 'chat-1', name: 'Test chat' };
+    const setMessage = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], {
+      send: vi.fn().mockResolvedValue({ success: true, id: 'telegram-send-2' }),
+    }, vi.fn(), 'personal', chat, setMessage);
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    await act(async () => {
+      const sent = await result.current.handleSendDraftNow(
+        chat,
+        'First draft',
+        [],
+        [],
+        undefined,
+        false,
+        undefined,
+        { clearMessageOnSuccess: false },
+      );
+      expect(sent).toBe(true);
+    });
+
+    expect(setMessage).not.toHaveBeenCalled();
   });
 
   it('reuses the same Telegram idempotency key after an uncertain draft-send failure', async () => {

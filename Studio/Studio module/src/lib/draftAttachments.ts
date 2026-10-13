@@ -26,7 +26,8 @@ export function normalizeAttachments(value: unknown): DraftAttachment[] {
       const path = typeof attachment.path === 'string'
         ? attachment.path
         : typeof attachment.previewUrl === 'string' ? attachment.previewUrl : '';
-      if (!path) return [];
+      const unavailable = attachment.unavailable === true;
+      if (!path && !unavailable) return [];
 
       const mimeType = typeof attachment.mimeType === 'string' && attachment.mimeType
         ? attachment.mimeType
@@ -41,11 +42,13 @@ export function normalizeAttachments(value: unknown): DraftAttachment[] {
         name: attachment.name,
         mimeType,
         path,
+        sourcePath: typeof attachment.sourcePath === 'string' ? attachment.sourcePath : undefined,
         size: typeof attachment.size === 'number' && attachment.size >= 0 ? attachment.size : 0,
         previewUrl: typeof attachment.previewUrl === 'string' ? attachment.previewUrl : undefined,
         position: typeof attachment.position === 'number' && Number.isFinite(attachment.position)
           ? Math.max(0, attachment.position)
           : 0,
+        ...(unavailable ? { unavailable: true } : {}),
       }];
     }
 

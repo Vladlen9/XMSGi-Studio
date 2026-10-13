@@ -32,4 +32,5 @@ contextBridge.exposeInMainWorld('draftStorage', {
     const sourcePath = webUtils.getPathForFile(file);
     return ipcRenderer.invoke('draft-store:copy-attachment', sourcePath);
   },
+  copyAttachmentPath: (sourcePath) => ipcRenderer.invoke('draft-store:copy-attachment', sourcePath),
 });

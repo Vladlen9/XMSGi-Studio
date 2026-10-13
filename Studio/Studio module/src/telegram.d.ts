@@ -53,6 +53,7 @@ declare global {
       exportText: (text: string, format?: 'txt' | 'json') => Promise<DraftStorageResult>;
       importText: () => Promise<DraftStorageResult>;
       copyAttachment: (file: File) => Promise<DraftStorageResult>;
+      copyAttachmentPath: (path: string) => Promise<DraftStorageResult>;
     };
     gemini: {
       generate: (prompt: string, context: {

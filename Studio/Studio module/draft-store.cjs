@@ -2,12 +2,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const MIGRATION_VERSION = 1;
 const REPEAT_MODES = new Set(['none', 'daily', 'weekly', 'biweekly', 'monthly']);
 const ENTITY_TYPES = new Set(['bold', 'italic', 'underline', 'strikethrough', 'text_url']);
 const DRAFT_COLORS = new Set(['gray', 'coral', 'amber', 'green', 'teal', 'blue']);
 const MAX_TEXT_DOCUMENT_BYTES = 2 * 1024 * 1024;
+const MAX_DOCUMENT_HISTORY_VERSIONS = 30;
+const DOCUMENT_HISTORY_REASONS = new Set([
+  'edit',
+  'before-clear',
+  'before-delete',
+  'before-replacement',
+  'before-attachment-removal',
+  'restore',
+  'publish',
+]);
 
 function defaultStore() {
   return {
@@ -15,6 +25,7 @@ function defaultStore() {
     migrationVersion: 0,
     savedDrafts: [],
     workspaceDraft: null,
+    documentHistories: {},
   };
 }
 
@@ -26,8 +37,13 @@ function migrateV1ToV2(value) {
   return { ...value, schemaVersion: 2 };
 }
 
+function migrateV2ToV3(value) {
+  return { ...value, schemaVersion: 3 };
+}
+
 const SCHEMA_MIGRATIONS = new Map([
   [1, migrateV1ToV2],
+  [2, migrateV2ToV3],
 ]);
 
 function migrateSchema(value) {
@@ -197,6 +213,50 @@ function normalizeWorkspaceDraft(value) {
   };
 }
 
+function normalizeDocumentHistories(value) {
+  if (!isRecord(value)) return {};
+  const normalized = {};
+  for (const [documentId, rawVersions] of Object.entries(value)) {
+    if (!documentId || !Array.isArray(rawVersions)) continue;
+    const versions = rawVersions.filter((version) => (
+      isRecord(version)
+      && version.documentId === documentId
+      && typeof version.id === 'string'
+      && version.id.length > 0
+      && typeof version.createdAt === 'string'
+      && Number.isFinite(Date.parse(version.createdAt))
+      && DOCUMENT_HISTORY_REASONS.has(version.reason)
+      && isRecord(version.snapshot)
+      && typeof version.snapshot.body === 'string'
+      && Array.isArray(version.snapshot.attachments)
+      && (!version.snapshot.documentId || version.snapshot.documentId === documentId)
+    ));
+    if (versions.length) normalized[documentId] = versions.slice(-MAX_DOCUMENT_HISTORY_VERSIONS);
+  }
+  return normalized;
+}
+
+function mergeDocumentHistories(existing = {}, incoming = {}) {
+  const merged = { ...(isRecord(existing) ? existing : {}) };
+  if (!isRecord(incoming)) return merged;
+
+  for (const [documentId, incomingVersions] of Object.entries(incoming)) {
+    if (!documentId || !Array.isArray(incomingVersions)) continue;
+    const currentVersions = Array.isArray(merged[documentId]) ? merged[documentId] : [];
+    const byId = new Map();
+    [...currentVersions, ...incomingVersions].forEach((version) => {
+      if (version && typeof version.id === 'string' && version.documentId === documentId) {
+        byId.set(version.id, version);
+      }
+    });
+    const versions = [...byId.values()].sort((left, right) => (
+      Date.parse(left.createdAt) - Date.parse(right.createdAt)
+    ));
+    merged[documentId] = versions.slice(-MAX_DOCUMENT_HISTORY_VERSIONS);
+  }
+  return merged;
+}
+
 function validateStore(value) {
   const current = migrateSchema(value);
   if (!Number.isInteger(current.migrationVersion)
@@ -210,6 +270,7 @@ function validateStore(value) {
     migrationVersion: current.migrationVersion,
     savedDrafts: current.savedDrafts.map(normalizeSavedDraft),
     workspaceDraft: normalizeWorkspaceDraft(current.workspaceDraft),
+    documentHistories: normalizeDocumentHistories(current.documentHistories),
   };
 }
 
@@ -530,6 +591,7 @@ function createDraftStore({ directory, fsImpl = fs, pathImpl = path, backupCount
           migrationVersion: Math.max(loaded.store.migrationVersion, imported.migrationVersion),
           savedDrafts: [...byId.values()],
           workspaceDraft: imported.workspaceDraft ?? loaded.store.workspaceDraft,
+          documentHistories: mergeDocumentHistories(loaded.store.documentHistories, imported.documentHistories),
         };
       }
       return { success: true, store: writeStore(nextStore) };

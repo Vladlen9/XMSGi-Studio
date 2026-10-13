@@ -15,10 +15,10 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain("tray.on('double-click', showMainWindow)");
   });
 
-  it('opens at a compact planner width and allows the responsive layout', () => {
+  it('uses the current Electron window size as the minimum for both product views', () => {
     expect(mainSource).toContain('width: 900');
-    expect(mainSource).toContain('minWidth: 800');
-    expect(mainSource).toContain('minHeight: 700');
+    expect(mainSource).toContain('minWidth: 858');
+    expect(mainSource).toContain('minHeight: 801');
   });
 
   it('hides the window on close while preserving the Telegram lifecycle', () => {
@@ -52,5 +52,12 @@ describe('Electron tray lifecycle contract', () => {
   it('focuses the existing window for a second instance', () => {
     expect(mainSource).toContain("app.on('second-instance'");
     expect(mainSource).toContain('showMainWindow();');
+  });
+
+  it('reloads the existing renderer for a rebuilt development instance only', () => {
+    const secondInstanceHandler = mainSource.match(/app\.on\('second-instance',[\s\S]*?\n\}\);/)?.[0];
+
+    expect(secondInstanceHandler).toContain('if (!app.isPackaged && mainWindow && !mainWindow.isDestroyed())');
+    expect(secondInstanceHandler).toContain('mainWindow.webContents.reload();');
   });
 });

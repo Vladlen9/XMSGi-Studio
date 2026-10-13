@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download } from 'lucide-react';
+import { ArrowUpRight, Download, History } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 import type { StageMode } from '@/components/stages/types';
 
@@ -10,9 +10,10 @@ interface Props {
   linkPopoverOpen: boolean;
   onToggleLink: () => void;
   onExportText?: (format: 'txt' | 'json') => void;
+  onOpenVersionHistory?: () => void;
 }
 
-export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, linkPopoverOpen, onToggleLink, onExportText }: Props) {
+export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, linkPopoverOpen, onToggleLink, onExportText, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
@@ -90,6 +91,19 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
       </div>
       <div className="workspace-page-rich-text-toolbar-actions">
         <span className="workspace-page-rich-text-photo-slot" aria-hidden="true" />
+        {stageMode === 'editor' && onOpenVersionHistory && (
+          <button
+            type="button"
+            className="workspace-page-rich-text-link-trigger workspace-page-version-history-trigger"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onOpenVersionHistory}
+            aria-label={t('studio.openVersionHistory')}
+            aria-haspopup="dialog"
+            title={t('studio.openVersionHistory')}
+          >
+            <History size={15} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className={`workspace-page-rich-text-link-trigger ${linkPopoverOpen ? 'is-open' : ''}`}
@@ -99,7 +113,9 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
           aria-expanded={linkPopoverOpen}
           title={t('studio.insertLink')}
         >
-          <span className="workspace-page-rich-text-link-trigger__icon" aria-hidden="true">↗</span>
+          <span className="workspace-page-rich-text-link-trigger__icon" aria-hidden="true">
+            <ArrowUpRight size={16} strokeWidth={1.8} />
+          </span>
         </button>
       </div>
     </div>

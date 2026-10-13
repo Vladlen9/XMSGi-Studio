@@ -64,7 +64,7 @@
   margin-bottom: 5px;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -104,7 +104,7 @@
 .inline-keyboard-section-heading > span {
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .inline-keyboard-preset-grid {
@@ -128,14 +128,14 @@
 .inline-keyboard-preset:hover { border-color: var(--signal); background: rgba(154, 168, 184, 0.09); }
 .inline-keyboard-preset strong,
 .inline-keyboard-preset span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inline-keyboard-preset strong { font-size: 11px; }
-.inline-keyboard-preset span { margin-top: 5px; color: var(--dim); font-size: 9px; }
+.inline-keyboard-preset strong { font-size: 12px; }
+.inline-keyboard-preset span { margin-top: 5px; color: var(--dim); font-size: 12px; }
 .inline-keyboard-preset .inline-keyboard-preset-preview { color: var(--signal); }
 
 .inline-keyboard-presets-empty {
   margin: 14px 0 0;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .inline-keyboard-constructor { padding-top: 20px; }
@@ -146,7 +146,7 @@
 .inline-keyboard-constructor .inline-keyboard-rows { margin-top: 10px; }
 .inline-keyboard-constructor .inline-keyboard-row-editor { padding: 8px; }
 .inline-keyboard-constructor .inline-keyboard-button-fields input,
-.inline-keyboard-constructor .inline-keyboard-button-fields select { height: 32px; font-size: 11px; }
+.inline-keyboard-constructor .inline-keyboard-button-fields select { height: 32px; font-size: 12px; }
 .inline-keyboard-constructor .inline-keyboard-row-toolbar button { height: 24px; }
 
 .inline-keyboard-modal-footer {
@@ -172,11 +172,11 @@
   background: rgba(6, 8, 11, 0.32);
   color: var(--text);
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .inline-keyboard-save-group input:focus { outline: 1px solid var(--signal); border-color: var(--signal); }
-.inline-keyboard-save-status { color: #79c88a; font-size: 9px; white-space: nowrap; }
+.inline-keyboard-save-status { color: #79c88a; font-size: 12px; white-space: nowrap; }
 
 .inline-keyboard-save-preset,
 .inline-keyboard-done {
@@ -188,7 +188,7 @@
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .inline-keyboard-done { border-color: var(--signal); background: var(--signal); color: #101316; font-weight: 700; }
@@ -220,7 +220,7 @@
 .inline-keyboard-builder-toolbar span,
 .inline-keyboard-row-toolbar span {
   color: var(--text);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -253,7 +253,7 @@
   padding: 2px 0;
   background: transparent;
   color: var(--signal);
-  font-size: 10px;
+  font-size: 12px;
   text-align: left;
 }
 
@@ -302,7 +302,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .inline-keyboard-button-fields select {
@@ -318,7 +318,7 @@
   display: block;
   margin-top: 4px;
   color: #e58c8c;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .inline-keyboard-remove-button {
@@ -339,7 +339,7 @@
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .inline-keyboard-clone-button:hover {
@@ -406,14 +406,14 @@
 .inline-keyboard-modal-backdrop,
 .inline-keyboard-modal { display: contents; }
 .inline-keyboard-modal-header { padding: 0; border: 0; }
-.inline-keyboard-modal-eyebrow { color: #8a8a87; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+.inline-keyboard-modal-eyebrow { color: #8a8a87; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
 .inline-keyboard-modal h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: #a4a49e; font-weight: 700; }
 .inline-keyboard-modal-close { border: 0; border-radius: 0; }
 .inline-keyboard-modal-body { display: flex; flex-direction: column; gap: 10px; overflow: visible; padding: 0; }
 .inline-keyboard-constructor { padding: 0; }
 .inline-keyboard-constructor > .inline-keyboard-section-heading { margin-bottom: 7px; }
 .inline-keyboard-section-heading { gap: 10px; }
-.inline-keyboard-section-heading h3 { color: #858580; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.inline-keyboard-section-heading h3 { color: #858580; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
 .inline-keyboard-section-heading > span { color: #777774; }
 .inline-keyboard-constructor .inline-keyboard-builder { display: block; padding: 0; background: transparent; }
 .inline-keyboard-builder-toolbar { min-height: 0; }
@@ -430,11 +430,11 @@
   border-radius: 0;
   background: transparent;
 }
-.inline-keyboard-add-row { min-width: auto; min-height: 0; padding: 0; color: #9a9a96; font-size: 10px; }
+.inline-keyboard-add-row { min-width: auto; min-height: 0; padding: 0; color: #9a9a96; font-size: 12px; }
 .inline-keyboard-rows { gap: 6px; margin-top: 7px; }
 .inline-keyboard-row-editor { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .inline-keyboard-row-toolbar { min-height: 22px; margin-bottom: 3px; }
-.inline-keyboard-row-toolbar span { color: #858581; font-size: 10px; font-weight: 500; }
+.inline-keyboard-row-toolbar span { color: #858581; font-size: 12px; font-weight: 500; }
 .inline-keyboard-row-toolbar button { min-width: 20px; min-height: 20px; padding: 0; color: #777774; }
 .inline-keyboard-button-editors { gap: 6px; }
 .inline-keyboard-button-fields { gap: 8px; }
@@ -447,7 +447,7 @@
   outline: 0;
   background: #1f1f1e;
   color: #d5d5d0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .inline-keyboard-button-fields input:focus,
 .inline-keyboard-button-fields select:focus,
@@ -457,7 +457,7 @@
 .inline-keyboard-button-editor.has-error .inline-keyboard-button-fields select { border: 0; }
 .inline-keyboard-clone-button { height: 26px; padding: 0 3px; color: #777774; }
 .inline-keyboard-remove-button { width: 20px; height: 26px; color: #9a7777; }
-.inline-keyboard-add-button { width: auto; min-height: 0; margin-top: 8px; padding: 0; color: #8e8e89; font-size: 10px; }
+.inline-keyboard-add-button { width: auto; min-height: 0; margin-top: 8px; padding: 0; color: #8e8e89; font-size: 12px; }
 .inline-keyboard-add-row:hover,
 .inline-keyboard-empty-trigger:hover,
 .inline-keyboard-add-button:hover,
@@ -468,7 +468,7 @@
 .inline-keyboard-preset-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
 .inline-keyboard-preset { padding: 5px 9px; border: 0; border-radius: 12px; background: #1f1f1e; color: #b7b7b1; }
 .inline-keyboard-preset:hover { border: 0; background: #292927; color: #f0f0eb; }
-.inline-keyboard-preset strong { font-size: 11px; font-weight: 600; }
+.inline-keyboard-preset strong { font-size: 12px; font-weight: 600; }
 .inline-keyboard-preset span { display: none; }
 .inline-keyboard-modal-footer { gap: 16px; padding: 0; border: 0; }
 .inline-keyboard-back-button,
@@ -479,7 +479,7 @@
   color: #92928d;
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 .inline-keyboard-back-button { margin-right: auto; }
 .inline-keyboard-back-button:hover,
@@ -531,14 +531,14 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.inline-keyboard-section-note { margin-left: 8px; color: var(--dim); font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.inline-keyboard-section-note { margin-left: 8px; color: var(--dim); font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; }
 .inline-keyboard-preset-list { gap: 5px; }
 .inline-keyboard-preset-item { min-height: 40px; padding: 5px 6px; }
 .inline-keyboard-preset-item > button:first-child { min-height: 32px; justify-content: center; }
 .inline-keyboard-preset-item strong { color: var(--text); font-size: 18px; font-weight: 600; line-height: 1.15; }
-.inline-keyboard-preset-item span { color: var(--dim); font-size: 11px; }
+.inline-keyboard-preset-item span { color: var(--dim); font-size: 12px; }
 .inline-keyboard-preset-item > div { display: flex; gap: 6px; }
-.inline-keyboard-preset-item > div button { padding: 3px; border: 0; background: transparent; color: var(--dim); cursor: pointer; font: inherit; font-size: 10px; }
+.inline-keyboard-preset-item > div button { padding: 3px; border: 0; background: transparent; color: var(--dim); cursor: pointer; font: inherit; font-size: 12px; }
 .inline-keyboard-preset-item > div button:hover { color: var(--text); }
 .inline-keyboard-current-list { display: grid; gap: 2px; }
 .inline-keyboard-current-list .inline-keyboard-button-editor { min-height: 40px; padding: 5px 6px; border: 0; border-bottom: 1px solid rgba(154, 168, 184, 0.12); }
@@ -553,8 +553,8 @@
 .inline-keyboard-back-button { margin-right: auto; }
 .inline-keyboard-footer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
 .inline-keyboard-save-group { display: flex; align-items: center; gap: 6px; margin: 0; }
-.inline-keyboard-save-group input { width: 150px; height: 30px; padding: 0 6px; background: transparent; font-size: 11px; }
+.inline-keyboard-save-group input { width: 150px; height: 30px; padding: 0 6px; background: transparent; font-size: 12px; }
 .inline-keyboard-add-footer,
-.inline-keyboard-save-preset { min-height: 30px; padding: 0 9px; border: 1px solid rgba(111, 155, 124, 0.35); border-radius: 6px; background: rgba(111, 155, 124, 0.12); color: var(--text); cursor: pointer; font: inherit; font-size: 10px; }
+.inline-keyboard-save-preset { min-height: 30px; padding: 0 9px; border: 1px solid rgba(111, 155, 124, 0.35); border-radius: 6px; background: rgba(111, 155, 124, 0.12); color: var(--text); cursor: pointer; font: inherit; font-size: 12px; }
 .inline-keyboard-add-footer:hover,
 .inline-keyboard-save-preset:hover { background: rgba(111, 155, 124, 0.2); color: var(--text); }

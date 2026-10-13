@@ -182,10 +182,25 @@ export function useScheduler({
       if (!dateEditedRef.current) setDate(getTodayStr());
     };
 
-    refreshCurrentDateTime();
-    const intervalId = window.setInterval(refreshCurrentDateTime, 1000);
+    let timeoutId = 0;
+    const scheduleTick = () => {
+      refreshCurrentDateTime();
+      timeoutId = window.setTimeout(scheduleTick, 1000 - (Date.now() % 1000) + 10);
+    };
+    const resync = () => {
+      if (document.hidden) return;
+      window.clearTimeout(timeoutId);
+      scheduleTick();
+    };
+    scheduleTick();
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('focus', resync);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('focus', resync);
+    };
   }, [historyScope]);
 
   useEffect(() => {
@@ -1266,6 +1281,7 @@ export function useScheduler({
     replyMarkup?: InlineKeyboardMarkup,
     silent = false,
     effect?: string,
+    options: { clearMessageOnSuccess?: boolean } = {},
   ) {
     if (!historyReady || publishingDraftLockRef.current || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
 
@@ -1307,7 +1323,7 @@ export function useScheduler({
         saveSent(updated);
         return updated;
       });
-      setMessage('');
+      if (options.clearMessageOnSuccess !== false) setMessage('');
       draftSendAttemptRef.current = null;
       setSuccessPulse(true);
       setLastAction('sent');

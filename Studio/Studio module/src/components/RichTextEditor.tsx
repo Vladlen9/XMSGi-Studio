@@ -21,9 +21,11 @@ interface Props {
   stageMode?: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons';
   maxLength: number;
   onExportText?: (text: string, format: 'txt' | 'json') => void;
+  onBeforeClear?: () => Promise<boolean>;
+  onOpenVersionHistory?: () => void;
 }
 
-export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onExportText }: Props) {
+export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onExportText, onBeforeClear, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -182,7 +184,8 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     if (files.length > 0) onAddFiles?.(files, getCaretOffset(text.length));
   };
 
-  const clearEditorText = () => {
+  const clearEditorText = async () => {
+    if (onBeforeClear && !await onBeforeClear()) return;
     const editor = editorRef.current;
     if (!editor) return;
     editor.innerHTML = '';
@@ -309,6 +312,11 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
             if (!text.trim()) placeCaretAtStart();
           }}
           onBeforeInput={handleBeforeInput}
+          onKeyDown={(event) => {
+            if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.key.toLowerCase() !== 'h') return;
+            event.preventDefault();
+            onOpenVersionHistory?.();
+          }}
           onPaste={handlePaste}
           onInput={() => {
             emitChange();
@@ -429,6 +437,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           }
         }}
         onExportText={onExportText ? (format) => onExportText(text, format) : undefined}
+        onOpenVersionHistory={onOpenVersionHistory}
       />
     </div>
   );

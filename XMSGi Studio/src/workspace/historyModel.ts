@@ -4,11 +4,22 @@ import { normalizeTelegramMessage } from '@shared/telegramText.cjs';
 
 export type HistorySource = 'personal' | 'workspace';
 export type HistoryStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'draft' | 'cancelled';
+export type PlannerReminderType = 'task' | 'meeting' | 'reminder' | 'event' | 'idea';
+export type SavedPlannerDraft = {
+  id: string;
+  message: string;
+  attachments: string[];
+  entities: RichTextEntity[];
+  reminderType: PlannerReminderType | null;
+  savedAt: string;
+  pinned?: boolean;
+};
 
 export type HistoryOriginal =
   | { kind: 'scheduled'; message: ScheduledMessage }
   | { kind: 'saved-draft'; draft: SavedDraft }
-  | { kind: 'planner-draft'; text: string; entities: RichTextEntity[]; attachments: string[] };
+  | { kind: 'saved-planner-draft'; draft: SavedPlannerDraft }
+  | { kind: 'planner-draft'; text: string; entities: RichTextEntity[]; attachments: string[]; reminderType: PlannerReminderType | null };
 
 export interface HistoryItem {
   id: string;
@@ -130,11 +141,12 @@ export function normalizePlannerDraft(
   updatedAt: string,
   entities: RichTextEntity[] = [],
   attachments: string[] = [],
+  reminderType: PlannerReminderType | null = null,
 ): HistoryItem | null {
   const normalized = normalizeTelegramMessage(text, entities);
   if (!normalized.message.trim() && attachments.length === 0) return null;
 
-  const rollbackAttachments: string[] = [];
+  const normalizedAttachments = attachments.filter((attachment) => typeof attachment === 'string' && attachment.length > 0);
 
   return {
     id: 'personal:draft:quick-planner',
@@ -145,9 +157,30 @@ export function normalizePlannerDraft(
     channelName: chat?.name ?? '',
     channelLabel: chat?.username ? `@${chat.username}` : '',
     updatedAt: updatedAt || new Date().toISOString(),
-    attachments: rollbackAttachments,
+    attachments: normalizedAttachments,
     entities: normalized.entities,
     draftColor: 'teal',
-    original: { kind: 'planner-draft', text, entities: normalized.entities, attachments: rollbackAttachments },
+    original: { kind: 'planner-draft', text, entities: normalized.entities, attachments: normalizedAttachments, reminderType },
+  };
+}
+
+export function normalizeSavedPlannerDraft(draft: SavedPlannerDraft): HistoryItem {
+  const normalized = normalizeTelegramMessage(draft.message, draft.entities);
+  const updatedAt = Number.isFinite(Date.parse(draft.savedAt))
+    ? draft.savedAt
+    : new Date().toISOString();
+  return {
+    id: `personal:saved-planner-draft:${draft.id}`,
+    source: 'personal',
+    status: 'draft',
+    title: 'Saved Quick Planner draft',
+    text: normalized.message,
+    channelName: '',
+    channelLabel: '',
+    updatedAt,
+    attachments: draft.attachments,
+    entities: normalized.entities,
+    draftColor: 'teal',
+    original: { kind: 'saved-planner-draft', draft },
   };
 }

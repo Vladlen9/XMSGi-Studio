@@ -15,11 +15,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@/lib/i18n": ["../../XMSGi Studio/packages/shared/i18n/index.ts"],
-      "@/*": ["src/*"],
-      "react": ["node_modules/@types/react/index.d.ts"],
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
       "@shared/*": ["../../XMSGi Studio/packages/shared/*"]
     }
   },

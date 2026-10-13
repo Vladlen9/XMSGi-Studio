@@ -14,12 +14,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Path alias — depth-invariant imports for src (@/foo === src/foo from any file) */
-    "baseUrl": ".",
+    /* Path alias — depth-invariant imports for src (@/foo === src/foo from any file).
+       baseUrl omitted: deprecated in TS 6/7; paths entries resolve relative to this tsconfig. */
     "paths": {
-      "@/*": ["src/*"],
-      "react": ["node_modules/@types/react/index.d.ts"],
-      "@shared/*": ["packages/shared/*"]
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "@shared/*": ["./packages/shared/*"]
     },
 
     /* Linting */

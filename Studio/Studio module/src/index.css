@@ -350,7 +350,7 @@ body:has(.auth-panel) {
   background: transparent;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   cursor: pointer;
 }
@@ -489,7 +489,7 @@ body:has(.auth-panel) {
   align-items: center;
   color: #c2cbd3;
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -741,7 +741,7 @@ body:has(.auth-panel) {
   background: transparent;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -760,7 +760,7 @@ body:has(.auth-panel) {
   margin-top: 14px;
   color: #c98282;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -768,7 +768,7 @@ body:has(.auth-panel) {
   margin-top: 24px;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -796,7 +796,7 @@ body:has(.auth-panel) {
   bottom: 24px;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -977,7 +977,7 @@ body:has(.auth-panel) {
   margin: -2px 0 14px;
   color: #c98282;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1026,7 +1026,7 @@ body:has(.auth-panel) {
   background: transparent;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   line-height: 1.4;
   text-align: center;
@@ -1070,7 +1070,7 @@ body:has(.auth-panel) {
 .settings-section-label {
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -1089,7 +1089,7 @@ body:has(.auth-panel) {
   background: transparent;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   cursor: pointer;
 }
@@ -1141,7 +1141,7 @@ body:has(.auth-panel) {
 .settings-subsection-label {
   color: var(--text);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: none;
 }
@@ -1156,7 +1156,7 @@ body:has(.auth-panel) {
   margin-top: 12px;
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .settings-toggle {
@@ -1181,7 +1181,7 @@ body:has(.auth-panel) {
 .settings-toggle strong {
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
 }
 
@@ -1210,7 +1210,7 @@ body:has(.auth-panel) {
   border-bottom: 1px solid var(--line);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .settings-key-actions {
@@ -1236,7 +1236,7 @@ body:has(.auth-panel) {
   background: rgba(17, 19, 22, 0.72);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .settings-key-entry input:focus {
@@ -1252,7 +1252,7 @@ body:has(.auth-panel) {
   margin-top: 14px;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   text-decoration: none;
 }
 
@@ -1262,7 +1262,7 @@ body:has(.auth-panel) {
   margin-top: 12px;
   color: #c98282;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 @keyframes settingsReveal {
@@ -1360,7 +1360,7 @@ body:has(.auth-panel) {
   background: transparent;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   cursor: pointer;
 }
@@ -1391,7 +1391,7 @@ body:has(.auth-panel) {
   color: transparent !important;
   -webkit-text-fill-color: transparent;
   font-family: 'Inter', 'Segoe UI', sans-serif;
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 500;
   letter-spacing: 0.27em;
   line-height: 1;
@@ -1654,7 +1654,7 @@ body:has(.auth-panel) {
   background: rgba(154, 168, 184, 0.04);
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -1712,7 +1712,7 @@ h1 {
   display: block;
   margin-bottom: 12px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(214, 222, 232, 0.7);
@@ -1775,7 +1775,7 @@ textarea {
 .message-field > label {
   margin-bottom: 28px;
   color: rgba(222, 230, 238, 0.8);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.26em;
   line-height: 1;
 }
@@ -1859,7 +1859,7 @@ textarea {
   padding-top: 10px;
   color: rgba(154, 168, 184, 0.42);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   line-height: 1;
 }
@@ -2169,7 +2169,7 @@ textarea:focus-visible {
 
 .chat-field > label {
   margin-bottom: 8px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
 }
 
@@ -2250,7 +2250,7 @@ textarea:focus-visible {
 
 .chat-picker-current-type {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -2391,7 +2391,7 @@ textarea:focus-visible {
   background: rgba(154, 168, 184, 0.06);
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.03em;
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
@@ -2427,7 +2427,7 @@ textarea:focus-visible {
 
 .chat-picker-menu .chat-option-type {
   color: rgba(154, 168, 184, 0.72) !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 400 !important;
   letter-spacing: 0.02em;
   text-transform: none !important;
@@ -2439,7 +2439,7 @@ textarea:focus-visible {
   border-color: rgba(154, 168, 184, 0.38) !important;
   color: var(--signal) !important;
   font-family: var(--sans) !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   letter-spacing: 0.01em;
 }
 
@@ -2515,7 +2515,7 @@ textarea:focus-visible {
   border-radius: 5px;
   background: transparent;
   color: #b9d0bd;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .chat-picker-list {
@@ -2648,7 +2648,7 @@ textarea:focus-visible {
   background: transparent;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .chat-picker-menu .chat-add-button:hover {
@@ -2750,7 +2750,7 @@ textarea:focus-visible {
 
 .chat-picker-menu .chat-option-type {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -2819,7 +2819,7 @@ textarea:focus-visible {
   justify-content: flex-start;
   padding-left: 28px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -2879,7 +2879,7 @@ textarea:focus-visible {
   background: rgba(111, 155, 124, 0.08);
   color: #b9d0bd;
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2982,7 +2982,7 @@ textarea:focus-visible {
   background: rgba(111, 155, 124, 0.08);
   color: #b9d0bd;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -3010,7 +3010,7 @@ textarea:focus-visible {
 .chat-picker-empty {
   padding: 18px 10px 16px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   text-align: center;
 }
@@ -3188,7 +3188,7 @@ textarea:focus-visible {
 }
 
 .tab-count {
-  font-size: 9px;
+  font-size: 12px;
   color: var(--dim);
   min-width: 1.2em;
   text-align: center;
@@ -3215,7 +3215,7 @@ textarea:focus-visible {
   justify-content: center;
   opacity: 0.7;
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.01em;
   transition: color 0.15s ease, opacity 0.15s ease;
 }
@@ -3331,7 +3331,7 @@ textarea:focus-visible {
 }
 
 .message-row.sent .message-status {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
 }
 
@@ -3403,7 +3403,7 @@ textarea:focus-visible {
   margin-top: 4px;
   margin-bottom: 4px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--faint);
   text-transform: uppercase;
@@ -3525,7 +3525,7 @@ textarea:focus-visible {
   gap: 8px;
   margin: 0;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--faint);
   text-transform: uppercase;
@@ -3612,12 +3612,12 @@ textarea:focus-visible {
   border-left: 2px solid var(--signal);
   background: rgba(154, 168, 184, 0.08);
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .message-attachment-file span {
   color: var(--signal);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -3637,7 +3637,7 @@ textarea:focus-visible {
   border-left: 2px solid currentColor;
   background: rgba(255, 255, 255, 0.015);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.12em;
   line-height: 1.2;
@@ -3681,7 +3681,7 @@ textarea:focus-visible {
   border: none;
   background: none;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   color: var(--dim);
   cursor: pointer;
@@ -3703,7 +3703,7 @@ footer {
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
   color: var(--dim);
@@ -3713,7 +3713,7 @@ footer {
 
 .tz-badge {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   color: var(--dim);
   font-weight: 400;
@@ -4040,7 +4040,7 @@ textarea:active,
 .chat-picker-menu-eyebrow {
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -4111,7 +4111,7 @@ textarea:active,
 .chat-add-hint {
   justify-self: end;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chat-add-form {
@@ -4145,7 +4145,7 @@ textarea:active,
   background: rgba(154, 168, 184, 0.06);
   color: var(--text);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -4159,7 +4159,7 @@ textarea:active,
 .chat-picker-inline-error {
   grid-column: 1 / -1;
   color: #d9a0a0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -4208,7 +4208,7 @@ textarea:active,
   border-radius: 50%;
   background: #3d4a55;
   color: #eef3f6;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -4230,7 +4230,7 @@ textarea:active,
 .chat-option-type {
   overflow: hidden;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -4278,7 +4278,7 @@ textarea:active,
 }
 
 .chat-picker-empty span {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -4366,7 +4366,7 @@ textarea:active,
 }
 
 .chat-option-type {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chat-option-selected,
@@ -4501,7 +4501,7 @@ textarea:active,
   background: transparent;
   color: var(--signal);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.03em;
 }
 

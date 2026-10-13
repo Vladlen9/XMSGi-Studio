@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { HistoryDrawer } from './HistoryDrawer';
-import { normalizePlannerDraft, normalizeSavedDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
+import { normalizePlannerDraft, normalizeSavedDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
 
 const scheduledMessage: ScheduledMessage = {
   id: 'scheduled-studio-1',
@@ -69,7 +69,7 @@ describe('App-owned history mapping', () => {
     ]);
   });
 
-  it('strips attachments from planner draft history so restore keeps only text', () => {
+  it('preserves attachments in planner draft history so either editor can restore them', () => {
     const record = normalizePlannerDraft(
       'Проверяем откат текста',
       channel,
@@ -80,11 +80,11 @@ describe('App-owned history mapping', () => {
 
     expect(record).not.toBeNull();
     expect(record?.text).toBe('Проверяем откат текста');
-    expect(record?.attachments).toEqual([]);
+    expect(record?.attachments).toEqual(['C:\\files\\photo.png', 'C:\\files\\brief.pdf']);
     expect(record?.original).toMatchObject({
       kind: 'planner-draft',
       text: 'Проверяем откат текста',
-      attachments: [],
+      attachments: ['C:\\files\\photo.png', 'C:\\files\\brief.pdf'],
     });
   });
 
@@ -148,6 +148,41 @@ describe('history filter glass indicators', () => {
 
     expect(sourceIndicator?.dataset.activeFilter).toBe('workspace');
     expect(statusIndicator?.dataset.activeFilter).toBe('sent');
+  });
+
+  it('opens on the Planner source when requested, regardless of the saved source filter', () => {
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
+      sourceFilter: 'workspace',
+      statusFilter: 'scheduled',
+    }));
+    const renderDrawer = (isOpen: boolean, sourceFilterOnOpen?: 'personal') => (
+      <LocaleProvider>
+        <HistoryDrawer
+          isOpen={isOpen}
+          sourceFilterOnOpen={sourceFilterOnOpen}
+          onClose={vi.fn()}
+          records={[upcomingRecord, personalUpcomingRecord]}
+          onCancel={vi.fn()}
+          onReschedule={vi.fn()}
+          onSendNow={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenDraft={vi.fn()}
+          onClearSent={vi.fn()}
+          onClearDrafts={vi.fn().mockResolvedValue(true)}
+          onCancelQueue={vi.fn().mockResolvedValue(true)}
+        />
+      </LocaleProvider>
+    );
+    const { container, rerender } = render(renderDrawer(true, 'personal'));
+
+    expect(container.querySelector('[data-history-filter="personal"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(container.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'false');
+    expect(JSON.parse(window.localStorage.getItem('xmsgi-history-filters') ?? '{}').sourceFilter).toBe('workspace');
+
+    rerender(renderDrawer(false));
+    rerender(renderDrawer(true));
+    expect(container.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');
+    window.localStorage.removeItem('xmsgi-history-filters');
   });
 
   it('bounces the selected status in place when clicked again', () => {
@@ -614,6 +649,73 @@ describe('HistoryDrawer search', () => {
     expect(screen.getByRole('article')).toHaveTextContent('A saved Planner draft');
   });
 
+  it('shows saved Quick Planner drafts in Posts and offers both editor destinations', () => {
+    const savedPlannerDraft = normalizeSavedPlannerDraft({
+      id: 'saved-idea-1',
+      message: 'An idea saved from Quick Planner',
+      attachments: [],
+      entities: [],
+      reminderType: 'idea',
+      savedAt: '2026-10-06T10:00:00.000Z',
+    });
+    const { onUseDraft } = renderHistory([savedPlannerDraft]);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+    expect(screen.getByRole('article')).toHaveTextContent('An idea saved from Quick Planner');
+    fireEvent.click(screen.getByRole('button', { name: /Использовать черновик/ }));
+
+    const chooser = screen.getByRole('menu', { name: /Saved Quick Planner draft/ });
+    fireEvent.click(within(chooser).getByRole('menuitem', { name: 'Планер' }));
+
+    expect(onUseDraft).toHaveBeenCalledWith(savedPlannerDraft, 'planner');
+  });
+
+  it('keeps Posts rendering for a legacy Quick Planner draft without a saved date', () => {
+    const legacyDraft = normalizeSavedPlannerDraft({
+      id: 'legacy-saved-idea',
+      message: 'A legacy Planner draft without a date',
+      attachments: [],
+      entities: [],
+      reminderType: null,
+      savedAt: '',
+    });
+    renderHistory([legacyDraft]);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+
+    expect(screen.getByRole('article')).toHaveTextContent('A legacy Planner draft without a date');
+    expect(screen.getByRole('article').querySelector('time')).not.toHaveAttribute('datetime', '');
+  });
+
+  it.each([
+    ['Планер', 'planner'],
+    ['Студия', 'studio'],
+  ] as const)('asks where to use a Quick Planner draft and opens it in %s', (destinationLabel, destination) => {
+    const plannerDraft = normalizePlannerDraft(
+      'An editable Quick Planner note',
+      channel,
+      '2026-10-06T10:00:00.000Z',
+      [{ type: 'bold', offset: 3, length: 8 }],
+      ['C:\\files\\planner-note.pdf'],
+    );
+    expect(plannerDraft).not.toBeNull();
+    const { onUseDraft, onClose } = renderHistory([plannerDraft!]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+
+    fireEvent.click(screen.getByRole('button', { name: `Использовать черновик: ${plannerDraft!.title}` }));
+
+    const chooser = screen.getByRole('menu', { name: `Где открыть черновик «${plannerDraft!.title}»?` });
+    expect(onUseDraft).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(within(chooser).getAllByRole('menuitem')).toHaveLength(2);
+    expect(within(chooser).queryByRole('menuitem', { name: 'Отмена' })).not.toBeInTheDocument();
+    expect(chooser.parentElement).toHaveClass('history-record-primary-wrap');
+    fireEvent.click(within(chooser).getByRole('menuitem', { name: destinationLabel }));
+
+    expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, destination);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('mentions drafts in the empty Planner state', () => {
     renderHistory([upcomingRecord]);
 
@@ -786,6 +888,8 @@ describe('HistoryDrawer search', () => {
 
       const confirmation = screen.getByRole('alertdialog', { name: 'Подтвердить удаление записи' });
       expect(confirmation).toHaveTextContent('Удалить черновик «Draft to delete»? Восстановление невозможно.');
+      expect([...confirmation.querySelectorAll('.history-record-confirmation-action')].map((button) => button.textContent?.trim()))
+        .toEqual(['Удалить черновик', 'Отмена']);
       fireEvent.click(within(confirmation).getByRole('button', { name: 'Удалить черновик' }));
 
       await waitFor(() => expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({
@@ -970,12 +1074,9 @@ describe('HistoryDrawer search', () => {
       expect(onOpenDraft).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: 'Ещё' }));
-      expect(screen.getByRole('menuitem', { name: 'Редактировать' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Редактировать' })).not.toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: 'Удалить' })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Редактировать' }));
-      expect(onOpenDraft).toHaveBeenCalledWith(expect.objectContaining({ status: 'draft' }));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Ещё' }));
       fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить' }));
       expect(onDelete).not.toHaveBeenCalled();
       const confirmation = screen.getByRole('alertdialog', { name: 'Подтвердить удаление записи' });

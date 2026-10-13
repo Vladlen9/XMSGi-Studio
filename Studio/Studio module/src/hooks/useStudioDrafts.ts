@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { Chat, PersistedDraftStore, SavedDraft, ScheduledMessage } from '@/types';
 import type { DraftAttachment } from '@/domain/types';
+import { normalizeAttachments } from '@/lib/draftAttachments';
 import { DRAFT_STORE_SCHEMA_VERSION } from '@/lib/draftStoreVersion';
 import {
   getDraftStorageApi,
@@ -19,8 +20,16 @@ import { useLocale } from '@/lib/i18n';
 import { loadSavedDrafts } from '@/lib/storage';
 import type { InlineButtonRow } from '@/lib/inlineKeyboard';
 import type { ScheduleRepeatOptions } from '@/lib/scheduling';
+import {
+  appendWorkspaceDocumentVersion,
+  areWorkspaceSnapshotsEqual,
+  hasWorkspaceDocumentContent,
+} from '@/lib/documentHistory';
+import { normalizeWorkspaceDocumentHistories } from '@/lib/documentHistory';
+import type { PersistedWorkspaceDocumentHistories, PersistedWorkspaceDocumentVersion } from '@shared/types';
 
 type WorkspaceDraftState = {
+  documentId: string;
   body: string;
   entities: WorkspaceDraft['entities'];
   attachments: DraftAttachment[];
@@ -52,6 +61,8 @@ function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
   const [draftStoreSaving, setDraftStoreSaving] = useState(false);
   const [draftStoreError, setDraftStoreError] = useState('');
   const [draftStoreBackups, setDraftStoreBackups] = useState<number[]>([]);
+  const [documentHistories, setDocumentHistories] = useState<PersistedWorkspaceDocumentHistories>({});
+  const documentHistoriesRef = useRef(documentHistories);
   const draftStoreQueueRef = useRef<Promise<void>>(Promise.resolve());
   const draftStorePendingRef = useRef(0);
 
@@ -60,27 +71,45 @@ function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
     setSavedDrafts(nextDrafts);
   };
 
+  const replaceDocumentHistories = (nextHistories: PersistedWorkspaceDocumentHistories) => {
+    documentHistoriesRef.current = nextHistories;
+    setDocumentHistories(nextHistories);
+  };
+
   const persistDraftStore = (
     getSavedDrafts: SavedDraft[] | (() => SavedDraft[]),
     workspaceDraft: WorkspaceDraft | null,
-    onPersisted?: () => void,
+    onPersisted?: (documentHistories: PersistedWorkspaceDocumentHistories) => void,
+    getDocumentHistories: PersistedWorkspaceDocumentHistories | (() => PersistedWorkspaceDocumentHistories) = () => documentHistoriesRef.current,
   ) => {
     draftStorePendingRef.current += 1;
     setDraftStoreSaving(true);
     const operation = draftStoreQueueRef.current.then(async () => {
+      const nextDocumentHistories = typeof getDocumentHistories === 'function'
+        ? getDocumentHistories()
+        : getDocumentHistories;
       const data: PersistedDraftStore = {
         schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
         migrationVersion: 1,
         savedDrafts: typeof getSavedDrafts === 'function' ? getSavedDrafts() : getSavedDrafts,
         workspaceDraft,
+        documentHistories: nextDocumentHistories,
       };
 
       const draftStorage = getDraftStorageApi();
       if (!draftStorage) {
-        writeWorkspaceDraftStoreFallback(data);
+        const fallbackSaved = writeWorkspaceDraftStoreFallback(data);
+        if (!fallbackSaved) {
+          setDraftStoreError(t('studio.draftsCouldNotSave'));
+          draftStorePendingRef.current -= 1;
+          setDraftStoreSaving(draftStorePendingRef.current > 0);
+          return false;
+        }
         setDraftStoreError('');
         setDraftStoreBackups([]);
-        onPersisted?.();
+        onPersisted?.(data.documentHistories ?? {});
+        draftStorePendingRef.current -= 1;
+        setDraftStoreSaving(draftStorePendingRef.current > 0);
         return true;
       }
 
@@ -93,7 +122,7 @@ function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
         }
         setDraftStoreError('');
         setDraftStoreBackups([]);
-        onPersisted?.();
+        onPersisted?.(data.documentHistories ?? {});
         return true;
       } catch (error) {
         setDraftStoreError(error instanceof Error ? error.message : 'Drafts could not be saved.');
@@ -111,6 +140,9 @@ function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
     savedDrafts,
     savedDraftsRef,
     replaceSavedDrafts,
+    documentHistories,
+    documentHistoriesRef,
+    replaceDocumentHistories,
     draftStoreReady,
     setDraftStoreReady,
     draftStoreSaving,
@@ -128,6 +160,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
   const optionsRef = useRef(options);
   const translateRef = useRef(t);
   const autosaveTimeoutRef = useRef<number | null>(null);
+  const lastPersistedWorkspaceSnapshotRef = useRef<WorkspaceDraft | null>(null);
   const [savedAt, setSavedAt] = useState(options.initialWorkspaceDraftRef.current?.savedAt ?? '');
   const [draftStateHydrated, setDraftStateHydrated] = useState(false);
   optionsRef.current = options;
@@ -135,7 +168,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
 
   const createWorkspaceDraftSnapshot = () => {
     const workspace = optionsRef.current.workspace;
-    if (!hasDraftContent(workspace.body, workspace.attachments)) return null;
+    if (!hasDraftContent(workspace.body, workspace.attachments) && !workspace.inlineButtons.length) return null;
     return {
       ...workspace,
       attachments: workspace.attachments
@@ -151,10 +184,32 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
 
   const applyPersistedDraftStore = (store: PersistedDraftStore) => {
     drafts.replaceSavedDrafts(store.savedDrafts);
+    drafts.replaceDocumentHistories(normalizeWorkspaceDocumentHistories(store.documentHistories));
     const workspaceDraft = store.workspaceDraft as Partial<WorkspaceDraft> | null;
     optionsRef.current.initialWorkspaceDraftRef.current = workspaceDraft ?? {};
     setSavedAt(workspaceDraft?.savedAt ?? '');
     optionsRef.current.onWorkspaceDraftLoaded(workspaceDraft);
+    const appliedWorkspace = optionsRef.current.initialWorkspaceDraftRef.current;
+    lastPersistedWorkspaceSnapshotRef.current = workspaceDraft
+      && typeof appliedWorkspace?.body === 'string'
+      && Array.isArray(appliedWorkspace.attachments)
+      && hasWorkspaceDocumentContent(appliedWorkspace as WorkspaceDraft)
+      ? {
+          ...appliedWorkspace,
+          documentId: appliedWorkspace.documentId ?? workspaceDraft.documentId,
+          body: appliedWorkspace.body,
+          entities: appliedWorkspace.entities ?? [],
+          attachments: normalizeAttachments(appliedWorkspace.attachments),
+          selectedChat: appliedWorkspace.selectedChat ?? null,
+          savedAt: workspaceDraft.savedAt ?? '',
+          inlineButtons: appliedWorkspace.inlineButtons ?? [],
+          date: appliedWorkspace.date ?? '',
+          time: appliedWorkspace.time ?? '',
+          repeatMode: appliedWorkspace.repeatMode ?? 'none',
+          repeatDays: appliedWorkspace.repeatDays ?? [],
+          repeatOccurrences: appliedWorkspace.repeatOccurrences ?? 1,
+        }
+      : null;
     drafts.setDraftStoreBackups([]);
     drafts.setDraftStoreError('');
     drafts.setDraftStoreReady(true);
@@ -164,6 +219,101 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     if (autosaveTimeoutRef.current === null) return;
     window.clearTimeout(autosaveTimeoutRef.current);
     autosaveTimeoutRef.current = null;
+  };
+
+  const makeHistorySnapshot = async (snapshot: WorkspaceDraft, strict: boolean) => {
+    if (!snapshot.attachments.length) return { snapshot, error: '' };
+    const storage = getDraftStorageApi();
+    const attachments: DraftAttachment[] = [];
+    let error = '';
+
+    for (const attachment of snapshot.attachments) {
+      if (!attachment.path || attachment.unavailable) {
+        error ||= t('studio.historyAttachmentUnavailable', { name: attachment.name });
+        if (strict) return { snapshot: null, error };
+        attachments.push({ ...attachment, path: '', sourcePath: attachment.sourcePath || undefined, unavailable: true });
+        continue;
+      }
+
+      if (attachment.path.startsWith('data:')) {
+        error ||= t('studio.historyAttachmentCopyFailed', { name: attachment.name });
+        if (strict) return { snapshot: null, error };
+        attachments.push({ ...attachment, path: '', sourcePath: undefined, previewUrl: undefined, unavailable: true });
+        continue;
+      }
+
+      if (!storage?.copyAttachmentPath) {
+        error ||= t('studio.historyAttachmentUnavailable', { name: attachment.name });
+        if (strict) return { snapshot: null, error };
+        attachments.push({ ...attachment, path: '', sourcePath: attachment.sourcePath || attachment.path, unavailable: true });
+        continue;
+      }
+
+      try {
+        const result = await storage.copyAttachmentPath(attachment.path);
+        if (!result.success || !result.attachment) {
+          error ||= t('studio.historyAttachmentCopyFailed', { name: attachment.name });
+          if (strict) return { snapshot: null, error };
+          attachments.push({ ...attachment, path: '', sourcePath: attachment.sourcePath || attachment.path, unavailable: true });
+          continue;
+        }
+        attachments.push({
+          ...attachment,
+          name: attachment.name || result.attachment.name,
+          path: result.attachment.path,
+          sourcePath: attachment.sourcePath ?? attachment.path,
+          size: result.attachment.size,
+          unavailable: undefined,
+        });
+      } catch (copyError) {
+        error ||= t('studio.historyAttachmentCopyFailed', { name: attachment.name });
+        if (strict) return { snapshot: null, error };
+        attachments.push({ ...attachment, path: '', sourcePath: attachment.sourcePath || attachment.path, unavailable: true });
+      }
+    }
+
+    return { snapshot: { ...snapshot, attachments }, error };
+  };
+
+  const prepareWorkspaceVersionSnapshot = (snapshot: WorkspaceDraft) => makeHistorySnapshot(snapshot, true);
+
+  const recordWorkspaceVersion = async (
+    snapshot: WorkspaceDraft | null,
+    reason: PersistedWorkspaceDocumentVersion['reason'],
+    requireAvailableAttachments = true,
+  ) => {
+    if (!hasWorkspaceDocumentContent(snapshot)) return { success: true, snapshot, error: '' };
+    const archived = await makeHistorySnapshot(snapshot, requireAvailableAttachments);
+    if (!archived.snapshot) {
+      drafts.setDraftStoreError(archived.error);
+      return { success: false, snapshot: null, error: archived.error };
+    }
+
+    const documentId = archived.snapshot.documentId;
+    if (!documentId) {
+      const error = t('studio.historyCouldNotSave');
+      drafts.setDraftStoreError(error);
+      return { success: false, snapshot: null, error };
+    }
+
+    let persistedHistories = drafts.documentHistoriesRef.current;
+    const workspaceDraft = createWorkspaceDraftSnapshot();
+    const persisted = await drafts.persistDraftStore(
+      () => drafts.savedDraftsRef.current,
+      workspaceDraft,
+      (histories) => {
+        persistedHistories = histories;
+        drafts.replaceDocumentHistories(histories);
+      },
+      () => appendWorkspaceDocumentVersion(
+        drafts.documentHistoriesRef.current,
+        documentId,
+        archived.snapshot!,
+        reason,
+      ),
+    );
+    if (!persisted) return { success: false, snapshot: null, error: drafts.draftStoreError };
+    return { success: true, snapshot: archived.snapshot, error: '', documentHistories: persistedHistories };
   };
 
   useEffect(() => {
@@ -189,6 +339,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
             migrationVersion: 1,
             savedDrafts: [],
             workspaceDraft: null,
+            documentHistories: {},
           };
           const seeded = seedDefaultDraft(emptyStore);
           writeWorkspaceDraftStoreFallback(seeded.store);
@@ -273,9 +424,38 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     if (!drafts.draftStoreReady || !draftStateHydrated) return undefined;
     cancelPendingAutosave();
     autosaveTimeoutRef.current = window.setTimeout(() => {
-      const workspaceDraft = createWorkspaceDraftSnapshot();
-      if (workspaceDraft) setSavedAt(workspaceDraft.savedAt);
-      void drafts.persistDraftStore(() => drafts.savedDraftsRef.current, workspaceDraft);
+      void (async () => {
+        const workspaceDraft = createWorkspaceDraftSnapshot();
+        if (workspaceDraft) setSavedAt(workspaceDraft.savedAt);
+        const previousSnapshot = lastPersistedWorkspaceSnapshotRef.current;
+        let nextSnapshot = previousSnapshot;
+        let historyError = '';
+        if (!areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft) && previousSnapshot) {
+          const archived = await makeHistorySnapshot(previousSnapshot, false);
+          nextSnapshot = archived.snapshot ?? previousSnapshot;
+          historyError = archived.error;
+        }
+        if (historyError) drafts.setDraftStoreError(historyError);
+
+        await drafts.persistDraftStore(
+          () => drafts.savedDraftsRef.current,
+          workspaceDraft,
+          (histories) => {
+            if (histories !== drafts.documentHistoriesRef.current) drafts.replaceDocumentHistories(histories);
+            lastPersistedWorkspaceSnapshotRef.current = workspaceDraft
+              ? JSON.parse(JSON.stringify(workspaceDraft)) as WorkspaceDraft
+              : null;
+          },
+          () => previousSnapshot && nextSnapshot && !areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft)
+            ? appendWorkspaceDocumentVersion(
+                drafts.documentHistoriesRef.current,
+                previousSnapshot.documentId ?? workspaceDraft?.documentId ?? '',
+                nextSnapshot,
+                'edit',
+              )
+            : drafts.documentHistoriesRef.current,
+        );
+      })();
     }, 350);
     return cancelPendingAutosave;
   }, [
@@ -301,6 +481,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
         migrationVersion: 1,
         savedDrafts: drafts.savedDraftsRef.current,
         workspaceDraft: createWorkspaceDraftSnapshot(),
+        documentHistories: drafts.documentHistoriesRef.current,
       };
       const draftStorage = getDraftStorageApi();
       if (!draftStorage) {
@@ -357,6 +538,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
         migrationVersion: 1,
         savedDrafts: drafts.savedDraftsRef.current,
         workspaceDraft,
+        documentHistories: drafts.documentHistoriesRef.current,
       });
       showFeedback(t('studio.draftStorageSaved'), 'success');
       return;
@@ -393,6 +575,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
   };
   return {
     ...drafts,
+    draftStateHydrated,
     savedAt,
     setSavedAt,
     createWorkspaceDraftSnapshot,
@@ -401,5 +584,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     handleRestoreDraftBackup,
     handleExportDrafts,
     handleImportDrafts,
+    prepareWorkspaceVersionSnapshot,
+    recordWorkspaceVersion,
   };
 }

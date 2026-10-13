@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAssistant, useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
 import type { PersistedDraftStore, SavedDraft, StudioScheduledMessage } from '$studio';
@@ -7,7 +7,8 @@ import type { StudioPlannerTextPayload } from '@shared/bridge';
 
 import { AppShell, StudioMount } from './workspace';
 import { preloadStudioApp } from './workspace/studioLoader';
-import { normalizePlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
+import { hasPlannerPayloadContent } from './workspace/plannerText';
+import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { SchedulePage } from './pages/SchedulePage';
@@ -17,7 +18,10 @@ import {
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
   readPlannerDraftUpdatedAt,
+  readSavedPlannerDrafts,
   writePlannerDraft,
+  writeSavedPlannerDrafts,
+  SAVED_PLANNER_DRAFTS_UPDATED_EVENT,
 } from './lib/plannerDraft';
 import { readLastProductView, writeLastProductView, type ProductView } from './lib/productView';
 
@@ -68,6 +72,7 @@ function App() {
     writePlannerDraft(messageRef.current, messageEntitiesRef.current, nextAttachments);
     setPlannerAttachmentsState(nextAttachments);
   }, []);
+  const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [route, setRoute] = useState<AppRoute>(getCurrentHashPath());
   const [productView, setProductView] = useState<ProductView>(readLastProductView);
@@ -86,6 +91,12 @@ function App() {
 
   useEffect(() => {
     void preloadStudioApp();
+  }, []);
+
+  useEffect(() => {
+    const updateSavedPlannerDrafts = () => setSavedPlannerDraftRevision((revision) => revision + 1);
+    window.addEventListener(SAVED_PLANNER_DRAFTS_UPDATED_EVENT, updateSavedPlannerDrafts);
+    return () => window.removeEventListener(SAVED_PLANNER_DRAFTS_UPDATED_EVENT, updateSavedPlannerDrafts);
   }, []);
 
   const {
@@ -273,8 +284,8 @@ function App() {
   );
 
   const openPlannerTextInStudio = async (payload: StudioPlannerTextPayload) => {
-    if (!payload.text.trim()) {
-      showNotification('Enter some text before opening Studio.', 'warning', 'Nothing to open');
+    if (!hasPlannerPayloadContent(payload)) {
+      showNotification('Add text or an attachment before opening Studio.', 'warning', 'Nothing to open');
       return;
     }
     if (pendingPlannerTextRef.current !== null) return;
@@ -319,12 +330,17 @@ function App() {
   }, [productView, showNotification, studioPlannerTextOpenerVersion]);
 
   const plannerDraftRecord = normalizePlannerDraft(message, selectedChat, readPlannerDraftUpdatedAt(), messageEntities, plannerAttachments);
+  const savedPlannerDraftRecords = useMemo(
+    () => readSavedPlannerDrafts().map(normalizeSavedPlannerDraft),
+    [savedPlannerDraftRevision],
+  );
   const historyRecords = [
     ...normalizeScheduledMessages(personalUpcoming, 'personal', 'upcoming', chats),
     ...normalizeScheduledMessages(personalSent, 'personal', 'sent', chats),
     ...normalizeScheduledMessages(studioScheduler.upcoming, 'workspace', 'upcoming', chats),
     ...normalizeScheduledMessages(studioScheduler.sent, 'workspace', 'sent', chats),
     ...(plannerDraftRecord ? [plannerDraftRecord] : []),
+    ...savedPlannerDraftRecords,
   ];
   const cancelHistoryRecord = (record: HistoryItem) => {
     if (record.original.kind !== 'scheduled' || record.status !== 'scheduled') return;
@@ -379,6 +395,7 @@ function App() {
       }
     }
     if (source === 'all' || source === 'personal') {
+      if (!writeSavedPlannerDrafts([])) return false;
       setMessage('');
       setMessageEntities([]);
       setPlannerAttachments([]);
@@ -398,6 +415,11 @@ function App() {
 
   const deleteHistoryRecord = (record: HistoryItem): void | Promise<boolean> => {
     if (record.original.kind === 'saved-draft') return studioDraftDeleterRef.current?.(record.original.draft.id);
+    if (record.original.kind === 'saved-planner-draft') {
+      const savedDraftId = record.original.draft.id;
+      const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
+      return Promise.resolve(writeSavedPlannerDrafts(remainingDrafts));
+    }
     if (record.original.kind === 'planner-draft') {
       setMessage('');
       setMessageEntities([]);
@@ -437,18 +459,36 @@ function App() {
       setMessageEntities(record.original.entities);
       setMessage(record.original.text);
       setPlannerAttachments([]);
+    } else if (record.original.kind === 'saved-planner-draft') {
+      setMessageEntities(record.original.draft.entities);
+      setPlannerAttachments(record.original.draft.attachments);
+      setMessage(record.original.draft.message);
     }
   };
 
-  const useHistoryDraft = (record: HistoryItem) => {
-    setProductView(record.source === 'workspace' ? 'studio' : 'planner');
+  const useHistoryDraft = (record: HistoryItem, destination?: 'planner' | 'studio') => {
     if (record.original.kind === 'saved-draft') {
+      setProductView('studio');
       studioDraftUseRef.current?.(record.original.draft);
-    } else if (record.original.kind === 'planner-draft') {
-      setMessageEntities(record.original.entities);
-      setMessage(record.original.text);
-      setPlannerAttachments([]);
+      return;
     }
+
+    const plannerPayload = record.original.kind === 'planner-draft'
+      ? { text: record.original.text, attachments: record.original.attachments, entities: record.original.entities }
+      : record.original.kind === 'saved-planner-draft'
+        ? { text: record.original.draft.message, attachments: record.original.draft.attachments, entities: record.original.draft.entities }
+        : null;
+    if (!plannerPayload) return;
+
+    if (destination === 'studio') {
+      void openPlannerTextInStudio(plannerPayload);
+      return;
+    }
+
+    setProductView('planner');
+    setMessageEntities(plannerPayload.entities);
+    setPlannerAttachments(plannerPayload.attachments);
+    setMessage(plannerPayload.text);
   };
 
   const studioConnected = connected && !signedOut && activeAccountId === 'account-1';
@@ -720,12 +760,16 @@ function App() {
               isScheduling={personalScheduling}
               onSendNow={async (text, attachments, entities) => {
                 if (!selectedChat) return false;
-                const sent = await handlePersonalSendDraftNow(selectedChat, text, attachments, entities);
-                if (sent) {
-                  setMessageEntities([]);
-                  setPlannerAttachments([]);
-                }
-                return sent;
+                return handlePersonalSendDraftNow(
+                  selectedChat,
+                  text,
+                  attachments,
+                  entities,
+                  undefined,
+                  false,
+                  undefined,
+                  { clearMessageOnSuccess: false },
+                );
               }}
               onSchedule={handlePersonalSchedule}
               onSaveDraft={(text, attachments, entities) => {
@@ -735,7 +779,6 @@ function App() {
                 showNotification('Draft saved on this device.', 'success', 'Draft saved');
               }}
               onOpenInStudio={openPlannerTextInStudio}
-              onCancelScheduled={(scheduledMessage) => { void handlePersonalCancelMessage(scheduledMessage); }}
               notification={notification}
               closeNotification={closeNotification}
             />

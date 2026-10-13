@@ -11,8 +11,10 @@ export interface DraftAttachment {
   mimeType: string;
   size: number;
   path: string;
+  sourcePath?: string;
   previewUrl?: string;
   position: number;
+  unavailable?: boolean;
 }
 
 export interface Account {

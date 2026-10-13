@@ -112,6 +112,10 @@ function isSavedMessagesRecord(record: HistoryItem) {
   return normalizedName === 'saved messages' || normalizedName === 'сохранённые сообщения';
 }
 
+function isPlannerDraftRecord(record: HistoryItem) {
+  return record.original.kind === 'planner-draft' || record.original.kind === 'saved-planner-draft';
+}
+
 function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) {
   if (record.status === 'failed') return false;
 
@@ -432,19 +436,20 @@ function exportHistoryRecords(
 
 export function HistoryDrawer({
   isOpen,
+  sourceFilterOnOpen,
   onClose,
   records,
   onCancel,
   onReschedule,
   onSendNow,
   onDelete,
-  onOpenDraft,
   onUseDraft,
   onClearSent,
   onClearDrafts,
   onCancelQueue,
 }: {
   isOpen: boolean;
+  sourceFilterOnOpen?: HistorySourceFilter;
   onClose: () => void;
   records: HistoryItem[];
   onCancel: (record: HistoryItem) => void;
@@ -452,7 +457,7 @@ export function HistoryDrawer({
   onSendNow: (record: HistoryItem) => void;
   onDelete: (record: HistoryItem) => void | Promise<boolean>;
   onOpenDraft: (record: HistoryItem) => void;
-  onUseDraft?: (record: HistoryItem) => void;
+  onUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => void;
   onClearSent: (source: HistoryBulkActionSource) => void;
   onClearDrafts?: (source: HistoryBulkActionSource) => Promise<boolean>;
   onCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
@@ -461,9 +466,12 @@ export function HistoryDrawer({
   const [savedFilters] = useState(loadSavedHistoryFilters);
   const [sourceFilter, setSourceFilter] = useState<HistorySourceFilter>(savedFilters.sourceFilter);
   const [statusFilter, setStatusFilter] = useState<HistoryStatusFilter>(savedFilters.statusFilter);
+  const sourceFilterBeforeOverrideRef = useRef<HistorySourceFilter | null>(null);
+  const sourceFilterOverrideChangedRef = useRef(false);
   const [query, setQuery] = useState('');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null);
+  const [draftUseTarget, setDraftUseTarget] = useState<HistoryItem | null>(null);
   const [draftItems, setDraftItems] = useState<HistoryItem[]>([]);
   const [confirmAction, setConfirmAction] = useState<{ type: 'cancel' | 'delete' | 'send-now'; recordId: string } | null>(null);
   const [bulkDeleteCategory, setBulkDeleteCategory] = useState<'scheduled' | 'sent' | 'drafts' | 'notes' | null>(null);
@@ -479,8 +487,28 @@ export function HistoryDrawer({
   const historyRecordListRef = useRef<HTMLDivElement | null>(null);
   const expandedRecordRef = useRef<HTMLElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const draftDestinationAnchorRef = useRef<HTMLDivElement | null>(null);
   const preExpansionScrollTopRef = useRef<number | null>(null);
   const imageHoverTimerRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (isOpen && sourceFilterOnOpen) {
+      if (sourceFilterBeforeOverrideRef.current === null) {
+        sourceFilterBeforeOverrideRef.current = sourceFilter;
+        sourceFilterOverrideChangedRef.current = false;
+      }
+      setSourceFilter(sourceFilterOnOpen);
+      return;
+    }
+
+    if (!isOpen && sourceFilterBeforeOverrideRef.current !== null) {
+      const previousSourceFilter = sourceFilterBeforeOverrideRef.current;
+      const sourceFilterWasChanged = sourceFilterOverrideChangedRef.current;
+      sourceFilterBeforeOverrideRef.current = null;
+      sourceFilterOverrideChangedRef.current = false;
+      if (!sourceFilterWasChanged) setSourceFilter(previousSourceFilter);
+    }
+  }, [isOpen, sourceFilterOnOpen]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -507,7 +535,13 @@ export function HistoryDrawer({
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(HISTORY_FILTER_STORAGE_KEY, JSON.stringify({ sourceFilter, statusFilter }));
+      const savedSourceFilter = sourceFilterBeforeOverrideRef.current !== null && !sourceFilterOverrideChangedRef.current
+        ? sourceFilterBeforeOverrideRef.current
+        : sourceFilter;
+      window.localStorage.setItem(HISTORY_FILTER_STORAGE_KEY, JSON.stringify({
+        sourceFilter: savedSourceFilter,
+        statusFilter,
+      }));
     } catch {
       // Keep history usable when local storage is unavailable.
     }
@@ -630,6 +664,8 @@ export function HistoryDrawer({
         closeImagePreview();
       } else if (confirmAction) {
         setConfirmAction(null);
+      } else if (draftUseTarget) {
+        setDraftUseTarget(null);
       } else if (bulkDeleteCategory && !bulkDeleteBusy) {
         setBulkDeleteCategory(null);
         setBulkDeleteRecordId(null);
@@ -653,7 +689,7 @@ export function HistoryDrawer({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, isExportMenuOpen, isOpen, onClose, previewImagePath, selectedRecord]);
+  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, onClose, previewImagePath, selectedRecord]);
 
   useEffect(() => {
     if (!isOpen || !isExportMenuOpen) return;
@@ -667,6 +703,17 @@ export function HistoryDrawer({
       document.removeEventListener('mousedown', closeOnOutsideClick);
     };
   }, [isExportMenuOpen, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !draftUseTarget) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!draftDestinationAnchorRef.current?.contains(event.target as Node)) setDraftUseTarget(null);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [draftUseTarget, isOpen]);
 
   const filteredRecords = useMemo(() => {
     const categoryRecords = [...historyItems, ...draftItems]
@@ -1046,6 +1093,7 @@ export function HistoryDrawer({
                 type="button"
                 data-history-filter={item}
                 onClick={() => {
+                  if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
                   if (sourceFilter === item) {
                     bounceHistoryGlassIndicator(sourceFiltersRef.current, item);
                   } else {
@@ -1103,12 +1151,16 @@ export function HistoryDrawer({
                       ? null
                       : { label: t('history.sendNow'), handler: () => confirmSendNow(record), type: 'send-now' }
                   : record.status === 'draft'
-                      ? { label: t('history.useDraft'), handler: () => { onUseDraft?.(record); onClose(); }, type: 'use-draft' }
+                      ? { label: t('history.useDraft'), handler: () => {
+                        if (isPlannerDraftRecord(record)) {
+                          setDraftUseTarget((current) => current?.id === record.id ? null : record);
+                        }
+                        else { onUseDraft?.(record); onClose(); }
+                      }, type: 'use-draft' }
                     : null;
               const secondaryActions = [
                 ...(record.status === 'draft'
                   ? [
-                    { label: t('history.editDraft'), handler: () => { onOpenDraft(record); onClose(); }, type: 'open-draft' },
                     { label: t('history.delete'), handler: () => {
                       setBulkDeleteError('');
                       setBulkDeleteCategory('drafts');
@@ -1130,6 +1182,8 @@ export function HistoryDrawer({
                   }, type: 'delete' }]
                   : []),
               ];
+              const isPlannerDraftAction = primaryAction?.type === 'use-draft' && isPlannerDraftRecord(record);
+              const isDestinationMenuOpen = isPlannerDraftAction && draftUseTarget?.id === record.id;
 
               return (
               <Fragment key={record.id}>
@@ -1267,20 +1321,60 @@ export function HistoryDrawer({
                 <div className="history-record-actions">
                   <div className="history-record-leading-actions">
                     {primaryAction && (
-                      <button
-                        type="button"
-                        className="history-record-action is-primary"
-                        onClick={primaryAction.handler}
-                        aria-label={primaryAction.type === 'reschedule'
-                          ? t('history.showRecord', { action: t('history.edit'), title: record.title })
-                          : primaryAction.type === 'open-draft'
-                            ? t('history.editDraftTitle', { title: record.title })
-                            : primaryAction.type === 'use-draft'
-                              ? t('history.useDraftTitle', { title: record.title })
-                              : primaryAction.label}
+                      <div
+                        className="history-record-primary-wrap"
+                        ref={isDestinationMenuOpen ? draftDestinationAnchorRef : undefined}
                       >
-                        <span>{primaryAction.label}</span>
-                      </button>
+                        <button
+                          type="button"
+                          className="history-record-action is-primary"
+                          onClick={primaryAction.handler}
+                          aria-haspopup={isPlannerDraftAction ? 'menu' : undefined}
+                          aria-expanded={isPlannerDraftAction ? Boolean(isDestinationMenuOpen) : undefined}
+                          aria-label={primaryAction.type === 'reschedule'
+                            ? t('history.showRecord', { action: t('history.edit'), title: record.title })
+                            : primaryAction.type === 'open-draft'
+                              ? t('history.editDraftTitle', { title: record.title })
+                              : primaryAction.type === 'use-draft'
+                                ? t('history.useDraftTitle', { title: record.title })
+                                : primaryAction.label}
+                        >
+                          <span>{primaryAction.label}</span>
+                        </button>
+                        {isDestinationMenuOpen && draftUseTarget && (
+                          <div
+                            className="history-record-action-menu history-draft-destination-menu"
+                            role="menu"
+                            aria-label={t('history.chooseDraftDestination', { title: draftUseTarget.title })}
+                          >
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="history-record-action-menu-item"
+                              autoFocus
+                              onClick={() => {
+                                onUseDraft?.(draftUseTarget, 'studio');
+                                setDraftUseTarget(null);
+                                onClose();
+                              }}
+                            >
+                              {t('product.studio')}
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="history-record-action-menu-item"
+                              onClick={() => {
+                                onUseDraft?.(draftUseTarget, 'planner');
+                                setDraftUseTarget(null);
+                                onClose();
+                              }}
+                            >
+                              {t('product.planner')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {secondaryActions.length > 0 && (
                       <div className="history-record-more">
@@ -1590,6 +1684,16 @@ export function HistoryDrawer({
               <div className="history-record-confirmation-actions">
                 <button
                   type="button"
+                  className="history-record-confirmation-action is-primary"
+                  onClick={() => void confirmCategoryDelete()}
+                  disabled={bulkDeleteBusy}
+                >
+                  {bulkDeleteBusy
+                    ? bulkDeleteCategory === 'scheduled' ? t('history.cancelling') : t('history.deleting')
+                    : bulkDeleteActionLabel}
+                </button>
+                <button
+                  type="button"
                   className="history-record-confirmation-action is-secondary"
                   autoFocus
                   onClick={() => {
@@ -1600,16 +1704,6 @@ export function HistoryDrawer({
                   disabled={bulkDeleteBusy}
                 >
                   {t('common.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className="history-record-confirmation-action is-primary"
-                  onClick={() => void confirmCategoryDelete()}
-                  disabled={bulkDeleteBusy}
-                >
-                  {bulkDeleteBusy
-                    ? bulkDeleteCategory === 'scheduled' ? t('history.cancelling') : t('history.deleting')
-                    : bulkDeleteActionLabel}
                 </button>
               </div>
             </div>

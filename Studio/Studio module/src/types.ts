@@ -1,4 +1,4 @@
-import type { SavedDraft } from '@shared/types';
+import type { PersistedWorkspaceDocumentHistories, SavedDraft } from '@shared/types';
 
 export type { DraftAttachment } from './domain/types';
 export type {
@@ -29,5 +29,6 @@ export interface PersistedDraftStore {
   migrationVersion: number;
   savedDrafts: SavedDraft[];
   workspaceDraft: Record<string, unknown> | null;
+  documentHistories?: PersistedWorkspaceDocumentHistories;
   [key: string]: unknown;
 }

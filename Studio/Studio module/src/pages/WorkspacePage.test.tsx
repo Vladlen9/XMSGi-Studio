@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@/types';
+import type { StudioPlannerTextPayload } from '@shared/bridge';
 import type { WorkspaceDraft } from '../lib/draftStore';
 import { LocaleProvider } from '@/lib/i18n';
 import { hasDraftContent, normalizeAttachments, readWorkspaceDraftStoreFallback, remapAttachmentPositions, WorkspacePage, writeWorkspaceDraftStoreFallback } from './WorkspacePage';
@@ -31,6 +32,50 @@ function getInMemoryWorkspaceDraft(): WorkspaceDraft {
     throw new Error('Expected an in-memory workspace draft.');
   }
   return workspaceDraft as WorkspaceDraft;
+}
+
+function seedVersionHistoryDialogStore() {
+  const currentDocumentId = 'history-dialog-current-document';
+  const otherDocumentId = 'history-dialog-other-document';
+  const createVersion = (documentId: string, body: string, createdAt: string) => ({
+    id: `${documentId}-version`,
+    documentId,
+    createdAt,
+    reason: 'edit' as const,
+    snapshot: {
+      documentId,
+      body,
+      entities: [],
+      attachments: [],
+      selectedChat: chatA,
+      inlineButtons: [],
+      date: '2026-10-20',
+      time: '09:00',
+      repeatMode: 'none' as const,
+      repeatDays: [],
+      repeatOccurrences: 1,
+      savedAt: '12:00',
+    },
+  });
+
+  inMemoryDraftStore = {
+    schemaVersion: 3,
+    migrationVersion: 1,
+    savedDrafts: [],
+    documentHistories: {
+      [currentDocumentId]: [createVersion(currentDocumentId, 'Current historical document', '2026-10-01T12:00:00.000Z')],
+      [otherDocumentId]: [createVersion(otherDocumentId, 'Other historical document', '2026-10-02T12:00:00.000Z')],
+    },
+    workspaceDraft: {
+      documentId: currentDocumentId,
+      body: 'Current editor document',
+      entities: [],
+      attachments: [],
+      savedAt: '12:00',
+    },
+  };
+
+  return { currentDocumentId, otherDocumentId };
 }
 
 async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeof WorkspacePage>> = {}) {
@@ -101,6 +146,36 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
     });
   }
 
+  async function saveEditorAsDraft() {
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
+    });
+    const saveDraftOption = Array.from(document.querySelectorAll('.workspace-page-publish-option'))
+      .find((button) => button.textContent?.trim() === 'Save draft') as HTMLButtonElement;
+    await act(async () => saveDraftOption.click());
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+  }
+
+  async function editComposerText(text: string) {
+    const editor = document.querySelector('[aria-label="Post content"]') as HTMLDivElement;
+    await act(async () => {
+      editor.textContent = text;
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    });
+  }
+
+  async function waitForWorkspaceAutosave() {
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    });
+  }
+
 describe('WorkspacePage main-screen flows', () => {
   it('renders the main composer labels in the selected Russian locale', async () => {
     localStorage.setItem('awaitmsg_locale', 'ru');
@@ -110,6 +185,27 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-publish-menu-toggle')?.getAttribute('aria-label'))
       .toBe('Другие действия с публикацией');
     unmount();
+  });
+
+  it('keeps the live current action inside the editor and updates it with the selected chat', async () => {
+    localStorage.setItem('awaitmsg_locale', 'en');
+    const { rerender, unmount } = await renderWorkspacePage();
+
+    try {
+      const editorShell = document.querySelector('.workspace-page-editor-shell') as HTMLElement;
+      const summary = editorShell.querySelector('.workspace-page-mode-summary') as HTMLElement;
+
+      expect(summary).not.toBeNull();
+      expect(document.querySelector('.workspace-page-editor-heading .workspace-page-mode-summary')).toBeNull();
+      expect(summary.querySelector('strong')?.textContent).toContain('Alpha Team');
+
+      const nextChat = { ...chatA, id: 'chat-2', name: 'Beta Team' };
+      rerender({ selectedChat: nextChat, chats: [nextChat] });
+
+      expect(editorShell.querySelector('.workspace-page-mode-summary strong')?.textContent).toContain('Beta Team');
+    } finally {
+      unmount();
+    }
   });
 
   it('keeps time and repeat stages at the workspace top after scrolling', async () => {
@@ -140,10 +236,11 @@ describe('WorkspacePage main-screen flows', () => {
 
   it('falls back to localStorage when the Electron bridge is unavailable', async () => {
     const store = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       migrationVersion: 1,
       savedDrafts: [],
       workspaceDraft: { body: 'fallback content', savedAt: '12:00' },
+      documentHistories: {},
     };
 
     writeWorkspaceDraftStoreFallback(store);
@@ -159,6 +256,7 @@ describe('WorkspacePage main-screen flows', () => {
   it('clears saved drafts through the history handler and preserves the workspace draft', async () => {
     const savedDraft = {
       id: 'history-clear-draft',
+      documentId: 'history-clear-document',
       name: 'Saved draft',
       body: 'Saved content',
       createdAt: '2026-09-28T10:00:00.000Z',
@@ -174,6 +272,7 @@ describe('WorkspacePage main-screen flows', () => {
       migrationVersion: 1,
       savedDrafts: [savedDraft],
       workspaceDraft,
+      documentHistories: {},
     };
     let clearHistoryDrafts: (() => Promise<boolean>) | null = null;
     const { unmount } = await renderWorkspacePage({
@@ -188,12 +287,13 @@ describe('WorkspacePage main-screen flows', () => {
     expect(cleared).toBe(true);
     expect(inMemoryDraftStore.savedDrafts).toEqual([]);
     expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: 'Unsaved editor content' });
+    expect(inMemoryDraftStore.documentHistories?.['history-clear-document']?.[0].snapshot).toMatchObject({ body: 'Saved content' });
     unmount();
   });
 
   it('deletes one saved draft through the history handler and keeps the others', async () => {
     const drafts = [
-      { id: 'delete-one', name: 'Delete one', body: 'Selected draft', createdAt: '2026-09-28T10:00:00.000Z', updatedAt: '2026-09-29T18:35:00.000Z' },
+      { id: 'delete-one', documentId: 'delete-document', name: 'Delete one', body: 'Selected draft', createdAt: '2026-09-28T10:00:00.000Z', updatedAt: '2026-09-29T18:35:00.000Z' },
       { id: 'keep-one', name: 'Keep one', body: 'Other draft', createdAt: '2026-09-28T10:00:00.000Z', updatedAt: '2026-09-29T18:36:00.000Z' },
     ];
     inMemoryDraftStore = {
@@ -201,6 +301,7 @@ describe('WorkspacePage main-screen flows', () => {
       migrationVersion: 1,
       savedDrafts: drafts,
       workspaceDraft: { body: 'Unsaved editor content', savedAt: '12:00', attachments: [] },
+      documentHistories: {},
     };
     let deleteHistoryDraft: ((draftId: string) => Promise<boolean>) | null = null;
     const { unmount } = await renderWorkspacePage({
@@ -215,6 +316,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(deleted).toBe(true);
     expect(inMemoryDraftStore.savedDrafts.map((draft: { id: string }) => draft.id)).toEqual(['keep-one']);
     expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: 'Unsaved editor content' });
+    expect(inMemoryDraftStore.documentHistories?.['delete-document']?.[0].snapshot).toMatchObject({ body: 'Selected draft' });
     unmount();
   });
 
@@ -447,6 +549,744 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     expect(document.querySelector('.workspace-page-rich-text-draft-stage.is-active')).not.toBeNull();
+    unmount();
+  });
+
+  it('opens Planner text in the main Studio editor and reuses the same workspace draft', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = { schemaVersion: 2, migrationVersion: 1, savedDrafts: [], workspaceDraft: null };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    const payload = {
+      text: 'Message from Quick Planner',
+      attachments: ['C:/planner/brief.pdf'],
+      entities: [{ type: 'bold' as const, offset: 0, length: 7 }],
+    };
+
+    expect(opener).toBeTypeOf('function');
+    let opened = false;
+    await act(async () => {
+      opened = await opener!(payload);
+    });
+
+    expect(opened).toBe(true);
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
+      .toContain('Message from Quick Planner');
+    await act(async () => {
+      opened = await opener!(payload);
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    expect(opened).toBe(true);
+    expect(getInMemoryWorkspaceDraft().body).toBe('Message from Quick Planner');
+    expect(getInMemoryWorkspaceDraft().entities).toEqual(payload.entities);
+    expect(getInMemoryWorkspaceDraft().attachments[0]).toMatchObject({
+      path: '/stored/brief.pdf',
+      sourcePath: payload.attachments[0],
+      name: 'brief.pdf',
+    });
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    unmount();
+  });
+
+  it('preserves a different Studio document in history before opening Planner text without creating duplicate drafts', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: { body: 'Existing Studio document', attachments: [], savedAt: '12:00' },
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    let opened = true;
+    await act(async () => {
+      opened = await opener?.({ text: 'Planner document', attachments: [], entities: [] }) ?? true;
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    expect(opened).toBe(true);
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
+      .toContain('Planner document');
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Existing Studio document'
+    ))).toBe(true);
+    expect(getInMemoryWorkspaceDraft().body).toBe('Planner document');
+
+    await act(async () => {
+      opened = await opener!({ text: 'Planner document', attachments: [], entities: [] });
+    });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+    expect(opened).toBe(true);
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().filter((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Existing Studio document'
+    ))).toHaveLength(1);
+    unmount();
+  });
+
+  it('keeps existing Studio work when its history checkpoint fails before opening Planner text', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: { body: 'Keep this Studio document', attachments: [], savedAt: '12:00' },
+    };
+    vi.mocked(window.draftStorage.save).mockResolvedValueOnce({ success: false, error: 'Disk unavailable' });
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    let opened = true;
+    await act(async () => {
+      opened = await opener?.({ text: 'Do not lose this document', attachments: [], entities: [] }) ?? true;
+    });
+
+    expect(opened).toBe(false);
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
+      .toContain('Keep this Studio document');
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    unmount();
+  });
+
+  it('restores the previous Studio document after successfully saving Planner text', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: {
+        body: 'Previous Studio post',
+        entities: [{ type: 'bold', offset: 0, length: 8 }],
+        attachments: [{ name: 'original.pdf', path: 'C:/files/original.pdf' }],
+        selectedChat: chatA,
+        inlineButtons: [],
+        date: '2026-01-10',
+        time: '09:00',
+        repeatMode: 'none',
+        repeatDays: [],
+        repeatOccurrences: 1,
+        savedAt: '12:00',
+      },
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+
+    await act(async () => {
+      expect(await opener!({ text: 'Planner post', attachments: [], entities: [] })).toBe(true);
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+    await saveEditorAsDraft();
+
+    expect(inMemoryDraftStore.savedDrafts.map((draft) => draft.body)).toEqual(['Planner post']);
+    expect(getInMemoryWorkspaceDraft().body).toBe('Previous Studio post');
+    const editor = document.querySelector('.workspace-page-rich-text-input.is-active');
+    expect(editor?.textContent).toContain('Previous Studio post');
+    expect(editor?.textContent).not.toContain('Planner post');
+    expect(editor?.querySelector('strong')?.textContent).toBe('Previous');
+    expect(document.body.textContent).toContain('original.pdf');
+    expect(getInMemoryWorkspaceDraft()).toMatchObject({
+      body: 'Previous Studio post',
+      entities: [{ type: 'bold', offset: 0, length: 8 }],
+      attachments: [expect.objectContaining({ path: '/stored/original.pdf', sourcePath: 'C:/files/original.pdf' })],
+      selectedChat: chatA,
+      date: '2026-01-10',
+      time: '09:00',
+    });
+    expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Planner post'
+      && version.reason === 'publish'
+    ))).toBe(true);
+    unmount();
+  });
+
+  it('keeps Planner text in the editor when saving it as a draft fails', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: { body: 'Previous Studio post', attachments: [], savedAt: '12:00' },
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    await act(async () => {
+      await opener!({ text: 'Planner post', attachments: [], entities: [] });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+    vi.mocked(window.draftStorage.save).mockResolvedValueOnce({ success: false, error: 'Disk unavailable' });
+
+    await saveEditorAsDraft();
+
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Planner post');
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).not.toContain('Previous Studio post');
+    // The previous Studio document is preserved as a history checkpoint, not as a temporary draft,
+    // so a failed save leaves no half-written entry in the saved drafts list.
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Previous Studio post'
+      && version.reason === 'before-replacement'
+    ))).toBe(true);
+    unmount();
+  });
+
+  it('does not delete a matching user-saved draft when restoring after Planner save', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const existingUserDraft = {
+      id: 'user-saved-previous-post',
+      name: 'My saved Studio post',
+      body: 'Previous Studio post',
+      entities: [],
+      attachments: [],
+      selectedChat: chatA,
+      inlineButtons: [],
+      date: '2026-01-10',
+      time: '09:00',
+      repeatMode: 'none' as const,
+      repeatDays: [],
+      repeatOccurrences: 1,
+      createdAt: '2026-09-28T10:00:00.000Z',
+      updatedAt: '2026-09-29T18:35:00.000Z',
+    };
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [existingUserDraft],
+      workspaceDraft: {
+        body: 'Previous Studio post',
+        attachments: [],
+        savedAt: '12:00',
+        selectedChat: chatA,
+        date: '2026-01-10',
+        time: '09:00',
+        repeatMode: 'none',
+        repeatDays: [],
+        repeatOccurrences: 1,
+      },
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    await act(async () => {
+      await opener!({ text: 'Planner post', attachments: [], entities: [] });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    await saveEditorAsDraft();
+
+    expect(inMemoryDraftStore.savedDrafts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: existingUserDraft.id, body: existingUserDraft.body }),
+      expect.objectContaining({ body: 'Planner post' }),
+    ]));
+    expect(getInMemoryWorkspaceDraft().body).toBe('Previous Studio post');
+    unmount();
+  });
+
+  it.each([
+    { lastAction: 'sent' as const },
+    { lastAction: 'scheduled' as const },
+  ])('restores the previous Studio document after Planner text is $lastAction', async ({ lastAction }) => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: { body: 'Previous Studio post', attachments: [], savedAt: '12:00' },
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { rerender, unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    await act(async () => {
+      await opener!({ text: 'Planner post', attachments: [], entities: [] });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    await act(async () => {
+      rerender({ successPulse: true, lastAction });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    expect(getInMemoryWorkspaceDraft().body).toBe('Previous Studio post');
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Previous Studio post');
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).not.toContain('Planner post');
+    expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Planner post'
+      && version.reason === 'publish'
+    ))).toBe(true);
+    unmount();
+  });
+
+  it('persists previous versions with the workspace draft and reloads them in History', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {},
+      workspaceDraft: {
+        documentId: 'history-reload-document',
+        body: 'Original post before reload',
+        entities: [],
+        attachments: [],
+        selectedChat: chatA,
+        inlineButtons: [],
+        date: '2026-01-10',
+        time: '09:00',
+        repeatMode: 'none',
+        repeatDays: [],
+        repeatOccurrences: 1,
+        savedAt: '12:00',
+      },
+    };
+    const firstMount = await renderWorkspacePage();
+
+    await editComposerText('Updated post after typing');
+    await waitForWorkspaceAutosave();
+
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: 'Updated post after typing' });
+    expect(inMemoryDraftStore.documentHistories?.['history-reload-document']?.map((version) => (version.snapshot as WorkspaceDraft).body))
+      .toEqual(['Original post before reload']);
+    firstMount.unmount();
+
+    const secondMount = await renderWorkspacePage();
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Original post before reload');
+    secondMount.unmount();
+  });
+
+  it('keeps version history open while changing the selected document', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const { otherDocumentId } = seedVersionHistoryDialogStore();
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+
+    const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
+    const documentPicker = dialog.querySelector('.workspace-page-version-history-document-trigger') as HTMLButtonElement;
+    await act(async () => {
+      documentPicker.click();
+    });
+    expect(documentPicker.getAttribute('aria-expanded')).toBe('true');
+    expect(dialog.querySelector('[role="listbox"]')).not.toBeNull();
+    const otherDocumentOption = dialog.querySelector(`[role="option"][value="${otherDocumentId}"]`) as HTMLButtonElement;
+    await act(async () => {
+      otherDocumentOption.click();
+    });
+
+    expect(documentPicker.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelector('.workspace-page-version-history-dialog')).not.toBeNull();
+    expect(document.querySelector('.workspace-page-version-history-preview')?.textContent)
+      .toContain('Other historical document');
+    unmount();
+  });
+
+  it('opens the document picker with the keyboard and Escape closes it before the dialog', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    seedVersionHistoryDialogStore();
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+
+    const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
+    const documentPicker = dialog.querySelector('.workspace-page-version-history-document-trigger') as HTMLButtonElement;
+    await act(async () => {
+      documentPicker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    expect(documentPicker.getAttribute('aria-expanded')).toBe('true');
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(documentPicker.getAttribute('aria-expanded')).toBe('false');
+    expect(document.querySelector('.workspace-page-version-history-dialog')).not.toBeNull();
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(document.querySelector('.workspace-page-version-history-dialog')).toBeNull();
+    unmount();
+  });
+
+  it('closes version history only when the backdrop itself is clicked', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    seedVersionHistoryDialogStore();
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+
+    const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
+    const backdrop = dialog.parentElement as HTMLElement;
+    await act(async () => {
+      dialog.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(document.querySelector('.workspace-page-version-history-dialog')).not.toBeNull();
+
+    await act(async () => {
+      backdrop.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(document.querySelector('.workspace-page-version-history-dialog')).toBeNull();
+    unmount();
+  });
+
+  it('restores the selected version with ordered attachments and document metadata', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const oldSnapshot: WorkspaceDraft = {
+      documentId: 'restore-complete-document',
+      body: 'Previous Studio post',
+      entities: [{ type: 'bold', offset: 0, length: 8 }],
+      attachments: [
+        { id: 'first', type: 'file', name: 'first.pdf', mimeType: 'application/pdf', size: 11, path: 'C:/files/first.pdf', position: 0 },
+        { id: 'second', type: 'image', name: 'second.png', mimeType: 'image/png', size: 22, path: 'C:/files/second.png', position: 3 },
+        { id: 'third', type: 'file', name: 'third.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 33, path: 'C:/files/third.docx', position: 5 },
+      ],
+      selectedChat: chatA,
+      inlineButtons: [[{ id: 'history-button', label: 'Read more', action: { type: 'url', value: 'https://example.com' } }]],
+      date: '2035-01-15',
+      time: '18:30',
+      repeatMode: 'weekly',
+      repeatDays: ['monday'],
+      repeatOccurrences: 4,
+      savedAt: '10:00',
+    };
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {
+        [oldSnapshot.documentId!]: [{
+          id: 'restore-version-1',
+          documentId: oldSnapshot.documentId!,
+          createdAt: '2026-10-01T12:00:00.000Z',
+          reason: 'edit',
+          snapshot: oldSnapshot as unknown as Record<string, unknown>,
+        }],
+      },
+      workspaceDraft: {
+        documentId: oldSnapshot.documentId,
+        body: 'Current Studio post',
+        entities: [],
+        attachments: [],
+        selectedChat: chatA,
+        inlineButtons: [],
+        date: '2026-01-10',
+        time: '09:00',
+        repeatMode: 'none',
+        repeatDays: [],
+        repeatOccurrences: 1,
+        savedAt: '12:00',
+      },
+    };
+    const setSelectedChat = vi.fn();
+    const setDate = vi.fn();
+    const setTime = vi.fn();
+    const confirmRestore = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { rerender, unmount } = await renderWorkspacePage({ setSelectedChat, setDate, setTime });
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+    expect(document.querySelector('.workspace-page-version-history-preview')?.textContent).toContain('Previous Studio post');
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-restore') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    rerender({ date: '2035-01-15', time: '18:30' });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+    });
+
+    const editor = document.querySelector('.workspace-page-rich-text-input.is-active');
+    expect(editor?.textContent).toContain('Previous Studio post');
+    expect(editor?.querySelector('strong')?.textContent).toBe('Previous');
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({
+      body: 'Previous Studio post',
+      documentId: oldSnapshot.documentId,
+      attachments: [
+        expect.objectContaining({ name: 'first.pdf', path: '/stored/first.pdf', position: 0 }),
+        expect.objectContaining({ name: 'second.png', path: '/stored/second.png', position: 3 }),
+        expect.objectContaining({ name: 'third.docx', path: '/stored/third.docx', position: 5 }),
+      ],
+      inlineButtons: oldSnapshot.inlineButtons,
+      date: '2035-01-15',
+      time: '18:30',
+      repeatMode: 'weekly',
+      repeatDays: ['monday'],
+      repeatOccurrences: 4,
+    });
+    expect(setSelectedChat).toHaveBeenCalledWith(chatA);
+    expect(setDate).toHaveBeenCalledWith('2035-01-15');
+    expect(setTime).toHaveBeenCalledWith('18:30');
+    expect(inMemoryDraftStore.documentHistories?.[oldSnapshot.documentId!]).toHaveLength(2);
+    confirmRestore.mockRestore();
+    unmount();
+  });
+
+  it('opens a historical version as a new document without replacing either history', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const currentDocumentId = 'copy-current-document';
+    const sourceDocumentId = 'copy-source-document';
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {
+        [sourceDocumentId]: [{
+          id: 'copy-source-version',
+          documentId: sourceDocumentId,
+          createdAt: '2026-10-01T12:00:00.000Z',
+          reason: 'edit',
+          snapshot: {
+            documentId: sourceDocumentId,
+            body: 'Source document copy',
+            entities: [],
+            attachments: [],
+            selectedChat: chatA,
+            inlineButtons: [],
+            date: '2026-01-10',
+            time: '09:00',
+            repeatMode: 'none',
+            repeatDays: [],
+            repeatOccurrences: 1,
+            savedAt: '12:00',
+          },
+        }],
+      },
+      workspaceDraft: {
+        documentId: currentDocumentId,
+        body: 'Current document stays available',
+        attachments: [],
+        savedAt: '12:00',
+      },
+    };
+    const confirmCopy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { unmount } = await renderWorkspacePage();
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-copy') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    await waitForWorkspaceAutosave();
+
+    const copyDocumentId = getInMemoryWorkspaceDraft().documentId;
+    expect(copyDocumentId).toBeTruthy();
+    expect(copyDocumentId).not.toBe(sourceDocumentId);
+    expect(getInMemoryWorkspaceDraft().body).toBe('Source document copy');
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Source document copy');
+    expect(inMemoryDraftStore.documentHistories?.[sourceDocumentId]?.map((version) => version.id)).toEqual(['copy-source-version']);
+    expect(inMemoryDraftStore.documentHistories?.[currentDocumentId]?.[0].snapshot).toMatchObject({ body: 'Current document stays available' });
+    confirmCopy.mockRestore();
+    unmount();
+  });
+
+  it('leaves the current document untouched when a historical attachment is missing', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const documentId = 'history-missing-file-document';
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {
+        [documentId]: [{
+          id: 'missing-file-version',
+          documentId,
+          createdAt: '2026-10-01T12:00:00.000Z',
+          reason: 'edit',
+          snapshot: {
+            documentId,
+            body: 'Historical post with missing file',
+            entities: [],
+            attachments: [{ id: 'missing', type: 'file', name: 'missing.pdf', mimeType: 'application/pdf', size: 0, path: 'C:/gone/missing.pdf', position: 0 }],
+            selectedChat: chatA,
+            inlineButtons: [],
+            date: '2026-01-10',
+            time: '09:00',
+            repeatMode: 'none',
+            repeatDays: [],
+            repeatOccurrences: 1,
+            savedAt: '12:00',
+          },
+        }],
+      },
+      workspaceDraft: { documentId, body: 'Current safe post', attachments: [], savedAt: '12:00' },
+    };
+    vi.mocked(window.draftStorage.copyAttachmentPath).mockResolvedValueOnce({
+      success: false,
+      error: 'Source file does not exist.',
+    });
+    const confirmRestore = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-restore') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    });
+
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Current safe post');
+    expect(getInMemoryWorkspaceDraft().body).toBe('Current safe post');
+    expect(document.querySelector('.workspace-page-version-history-error')?.textContent).toContain('missing.pdf');
+    expect(inMemoryDraftStore.documentHistories?.[documentId]).toHaveLength(1);
+    confirmRestore.mockRestore();
+    unmount();
+  });
+
+  it('records the current document before clearing editor text', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {},
+      workspaceDraft: { documentId: 'clear-document', body: 'Text before clear', entities: [], attachments: [], savedAt: '12:00' },
+    };
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-rich-text-clear') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    await waitForWorkspaceAutosave();
+
+    expect(inMemoryDraftStore.documentHistories?.['clear-document']?.map((version) => ({
+      documentId: version.documentId,
+      reason: version.reason,
+      body: (version.snapshot as WorkspaceDraft).body,
+    }))).toEqual([{ documentId: 'clear-document', reason: 'before-clear', body: 'Text before clear' }]);
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toBe('');
+    expect(inMemoryDraftStore.workspaceDraft).toBeNull();
+    unmount();
+  });
+
+  it('does not clear editor text when the browser fallback cannot save a checkpoint', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    const fallbackStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {},
+      workspaceDraft: {
+        documentId: 'fallback-clear-document',
+        body: 'Keep this if local storage is full',
+        entities: [],
+        attachments: [],
+        savedAt: '12:00',
+      },
+    };
+    writeWorkspaceDraftStoreFallback(fallbackStore);
+    Reflect.deleteProperty(window, 'draftStorage');
+    const originalSetItem = Storage.prototype.setItem;
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === 'xmsgi-draft-store-fallback' || key === 'awaitmsg-draft-store-fallback') {
+        throw new DOMException('Quota exceeded', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    });
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-rich-text-clear') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Keep this if local storage is full');
+    expect(readWorkspaceDraftStoreFallback()?.workspaceDraft).toMatchObject({ body: 'Keep this if local storage is full' });
+
+    unmount();
+    setItem.mockRestore();
+    if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+  });
+
+  it('records removed files in history without deleting the persistent copy', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {},
+      workspaceDraft: {
+        documentId: 'attachment-removal-document',
+        body: 'Keep the image with this post',
+        entities: [],
+        attachments: [{ id: 'history-photo', type: 'image', name: 'photo.png', mimeType: 'image/png', size: 123, path: '/stored/photo.png', position: 4 }],
+        savedAt: '12:00',
+      },
+    };
+    const { unmount } = await renderWorkspacePage();
+
+    await act(async () => {
+      (document.querySelector('button[aria-label="Remove photo.png"]') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    await waitForWorkspaceAutosave();
+
+    const versions = inMemoryDraftStore.documentHistories?.['attachment-removal-document'] ?? [];
+    expect(versions.map((version) => ({
+      documentId: version.documentId,
+      reason: version.reason,
+      body: (version.snapshot as WorkspaceDraft).body,
+    }))).toEqual([{ documentId: 'attachment-removal-document', reason: 'before-attachment-removal', body: 'Keep the image with this post' }]);
+    expect((versions[0].snapshot as WorkspaceDraft).attachments).toMatchObject([
+      { name: 'photo.png', path: '/stored/photo.png', position: 4 },
+    ]);
+    expect(getInMemoryWorkspaceDraft().attachments).toEqual([]);
+    expect(window.draftStorage.copyAttachmentPath).toHaveBeenCalledWith('/stored/photo.png');
+    unmount();
+  });
+
+  it('keeps native undo and redo shortcuts and opens History with Ctrl/Cmd+Shift+H', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const editor = document.querySelector('[aria-label="Post content"]') as HTMLDivElement;
+
+    const undoEvent = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    const redoEvent = new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true, cancelable: true });
+    editor.dispatchEvent(undoEvent);
+    editor.dispatchEvent(redoEvent);
+    expect(undoEvent.defaultPrevented).toBe(false);
+    expect(redoEvent.defaultPrevented).toBe(false);
+
+    const openHistoryEvent = new KeyboardEvent('keydown', { key: 'H', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
+    await act(async () => editor.dispatchEvent(openHistoryEvent));
+    expect(openHistoryEvent.defaultPrevented).toBe(true);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-version-history-close') as HTMLButtonElement).click();
+    });
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'H', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    input.remove();
     unmount();
   });
 
@@ -1110,8 +1950,12 @@ describe('WorkspacePage main-screen flows', () => {
       time: '09:00',
       repeatMode: 'none',
     });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Draft saved.');
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.classList.contains('is-success')).toBe(true);
+    const draftSavedFeedback = document.querySelector('.workspace-page-publish-transient-feedback');
+    expect(draftSavedFeedback?.textContent).toContain('Draft saved.');
+    expect(draftSavedFeedback?.querySelector('.workspace-page-publish-transient-feedback-detail')?.textContent).toBe('Hello world');
+    expect(draftSavedFeedback?.classList.contains('is-success')).toBe(true);
+    expect(document.querySelector('.workspace-page-draft-meta')?.textContent).toContain('Draft saved');
+    expect(document.body.textContent).not.toContain('Draft not saved');
 
     const activeActionGroup = document.querySelector('.workspace-page-action-left-group');
     const actionButtons = Array.from(activeActionGroup?.querySelectorAll(':scope > button') ?? []);
@@ -2130,6 +2974,13 @@ describe('WorkspacePage main-screen flows', () => {
           success: true,
           attachment: { name: file.name, path: `/stored/${file.name}`, size: file.size },
         })),
+          copyAttachmentPath: vi.fn(async (sourcePath: string) => {
+            const name = sourcePath.split(/[\\/]/).pop() || sourcePath;
+            return {
+              success: true,
+              attachment: { name, path: `/stored/${name}`, size: 123 },
+            };
+          }),
       },
       configurable: true,
     });

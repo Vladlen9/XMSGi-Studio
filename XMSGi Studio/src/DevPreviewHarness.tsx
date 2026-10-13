@@ -5,8 +5,10 @@ import { BRIDGE_PROTOCOL_VERSION } from '@shared/bridge';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { AppShell, StudioMount } from './workspace';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { hasPlannerPayloadContent } from './workspace/plannerText';
 import { writePlannerDraft } from './lib/plannerDraft';
-import { normalizeSavedDraft, normalizeScheduledMessages } from './workspace/historyModel';
+import { normalizePlannerDraft, normalizeSavedDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem } from './workspace/historyModel';
 
 const DRAFT_STORE_SCHEMA_VERSION = 1;
@@ -62,6 +64,11 @@ const demoHistoryMessages: ScheduledMessage[] = [
 ];
 const demoHistoryRecords = [
   ...normalizeScheduledMessages(demoHistoryMessages, 'workspace', 'upcoming', demoChats),
+  normalizePlannerDraft(
+    'Черновик Quick Planner: идеи для следующей публикации.',
+    demoChats[0],
+    '2026-10-12T09:30:00.000Z',
+  ),
   ...normalizeScheduledMessages([{
     id: 'history-failed-1',
     chatId: 'dev-channel',
@@ -94,9 +101,10 @@ const demoHistoryRecords = [
     updatedAt: '2026-10-03T13:20:00.000Z',
     selectedChat: demoChats[2],
   }),
-];
-const showHistoryPreview = new URLSearchParams(window.location.search).get('historyPreview') === '1';
-const showPlannerPreview = new URLSearchParams(window.location.search).get('devPreview') === 'planner';
+].filter((record): record is HistoryItem => record !== null);
+const previewParams = new URLSearchParams(window.location.search);
+const showPlannerPreview = previewParams.get('devPreview') === 'planner';
+const showHistoryPreview = previewParams.get('historyPreview') !== '0';
 
 const DEV_DRAFT_STORE_KEY = 'xmsgi-draft-store-fallback';
 const emptyNotification: NotificationState = { message: '', title: '', type: 'info', visible: false };
@@ -140,6 +148,7 @@ const demoScheduler: StudioSchedulerRuntime = {
 
 export default function DevPreviewHarness() {
   const [view, setView] = useState<'studio' | 'planner'>(showPlannerPreview ? 'planner' : 'studio');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [plannerMessage, setPlannerMessage] = useState('');
   const [plannerEntities, setPlannerEntities] = useState<RichTextEntity[]>([]);
   const [plannerAttachments, setPlannerAttachments] = useState<string[]>([]);
@@ -154,7 +163,7 @@ export default function DevPreviewHarness() {
     setPlannerTextOpenerVersion((version) => version + 1);
   }, []);
   const handlePlannerOpenInStudio = (payload: StudioPlannerTextPayload) => {
-    if (!payload.text.trim() || pendingPlannerTextRef.current !== null) return;
+    if (!hasPlannerPayloadContent(payload) || pendingPlannerTextRef.current !== null) return;
     pendingPlannerTextRef.current = payload;
     setView('studio');
   };
@@ -188,10 +197,51 @@ export default function DevPreviewHarness() {
     void opener(text);
   }, [plannerTextOpenerVersion, view]);
 
+  const previewSettingsPage = (
+    <SettingsPage
+      onClose={() => setIsSettingsOpen(false)}
+      accountName="Preview user"
+      telegramUsername="preview_user"
+      telegramConnected
+      telegramConnecting={false}
+      telegramAuthStep="phone"
+      telegramPhoneNumber=""
+      telegramPhoneCode=""
+      telegramTwoFactorPassword=""
+      telegramAuthBusy={false}
+      telegramAuthError=""
+      telegramStatus={{ accountId: 'dev-preview', status: 'normal' }}
+      geminiSettings={{ hasKey: false, maskedKey: '', enabled: false, encryptionAvailable: true }}
+      settingsKey=""
+      settingsBusy={false}
+      settingsError=""
+      onSettingsKeyChange={noOperation}
+      onSaveGeminiKey={noOperation}
+      onRemoveGeminiKey={noOperation}
+      onToggleAssistant={noOperation}
+      telegramCredentials={{ hasCredentials: true, hasSession: true, connected: true, signedOut: false }}
+      telegramApiId=""
+      telegramApiHash=""
+      telegramCredentialsBusy={false}
+      telegramCredentialsError=""
+      onTelegramApiIdChange={noOperation}
+      onTelegramApiHashChange={noOperation}
+      onSaveTelegramCredentials={noOperation}
+      onTelegramPhoneNumberChange={noOperation}
+      onTelegramPhoneCodeChange={noOperation}
+      onTelegramTwoFactorPasswordChange={noOperation}
+      onTelegramAuth={noOperation}
+      onTelegramReconnect={noOperation}
+      onTelegramDisconnect={noOperation}
+    />
+  );
+
   return (
     <AppShell
       view={view}
       onViewChange={setView}
+      settingsOpen={isSettingsOpen}
+      onCloseSettings={() => setIsSettingsOpen(false)}
       connected={true}
       authBusy={false}
       isConfirmingLogout={isConfirmingLogout}
@@ -199,7 +249,7 @@ export default function DevPreviewHarness() {
       setShowAuthForm={setShowAuthForm}
       handleDisconnect={async () => {}}
       handleForgetAccount={async () => {}}
-      onOpenSettings={noOperation}
+      onOpenSettings={() => setIsSettingsOpen(true)}
       historyRecords={showHistoryPreview ? demoHistoryRecords : []}
       onHistoryCancel={noOperation}
       onHistoryReschedule={handleHistoryReschedule}
@@ -209,7 +259,7 @@ export default function DevPreviewHarness() {
       onHistoryUseDraft={handleHistoryUseDraft}
       onHistoryClearSent={noOperation}
     >
-      {view === 'planner' ? (
+      {isSettingsOpen ? previewSettingsPage : view === 'planner' ? (
         <QuickPlannerPage
           chats={plannerChats}
           selectedChat={plannerSelectedChat}
@@ -271,7 +321,6 @@ export default function DevPreviewHarness() {
             writePlannerDraft(text, entities, attachments);
           }}
           onOpenInStudio={handlePlannerOpenInStudio}
-          onCancelScheduled={(scheduledMessage) => setPlannerUpcoming((current) => current.filter((item) => item.id !== scheduledMessage.id))}
         />
       ) : (
         <div className="product-view is-active">

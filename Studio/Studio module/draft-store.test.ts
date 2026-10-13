@@ -49,7 +49,7 @@ function createTempStore() {
 
 function baseStore(body = 'Hello') {
   return {
-    schemaVersion: 2,
+    schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
     migrationVersion: 1,
     savedDrafts: [{
       id: 'draft-1',
@@ -145,17 +145,100 @@ describe('Electron draft file store', () => {
       needsMigration: false,
       schemaMigrated: true,
       store: {
-        schemaVersion: 2,
+        schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
         migrationVersion: previousVersion.migrationVersion,
         savedDrafts: [{ id: 'draft-1', body: 'Saved before version 2' }],
         workspaceDraft: { body: 'Unsaved editor text' },
+        documentHistories: {},
       },
     });
     expect(readFileSync(store.backupPath(1), 'utf8')).toBe(previousContents);
 
     const currentContents = readFileSync(store.filePath, 'utf8');
-    expect(store.load()).toMatchObject({ success: true, schemaMigrated: false, store: { schemaVersion: 2 } });
+    expect(store.load()).toMatchObject({ success: true, schemaMigrated: false, store: { schemaVersion: DRAFT_STORE_SCHEMA_VERSION } });
     expect(readFileSync(store.filePath, 'utf8')).toBe(currentContents);
+  });
+
+  it('migrates a schema v2 store to the history schema without touching drafts', () => {
+    const { store } = createTempStore();
+    const previousVersion = { ...baseStore('Draft from schema 2'), schemaVersion: 2 };
+    delete (previousVersion as Record<string, unknown>).documentHistories;
+    const previousContents = JSON.stringify(previousVersion);
+    writeFileSync(store.filePath, previousContents);
+
+    const migrated = store.load();
+
+    expect(migrated).toMatchObject({
+      success: true,
+      schemaMigrated: true,
+      store: {
+        schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
+        savedDrafts: [{ id: 'draft-1', body: 'Draft from schema 2' }],
+        workspaceDraft: { body: 'Unsaved editor text' },
+        documentHistories: {},
+      },
+    });
+    expect(readFileSync(store.backupPath(1), 'utf8')).toBe(previousContents);
+  });
+
+  it('round-trips document histories per document and caps them at 30 versions', async () => {
+    const { store } = createTempStore();
+    const version = (documentId: string, id: string, body: string) => ({
+      id,
+      documentId,
+      createdAt: new Date().toISOString(),
+      reason: 'edit',
+      snapshot: { documentId, body, entities: [], attachments: [], savedAt: '12:00' },
+    });
+    const draft = baseStore();
+    (draft as Record<string, unknown>).documentHistories = {
+      'document-1': Array.from({ length: 35 }, (_, index) => version('document-1', `v1-${index}`, `Post ${index}`)),
+      'document-2': [version('document-2', 'v2-0', 'Other post')],
+      corrupted: [{ id: '', documentId: 'corrupted', createdAt: 'bad', reason: 'edit', snapshot: {} }],
+    };
+
+    await store.save(draft);
+    const saved = store.load().store as Record<string, unknown> & { documentHistories: Record<string, Array<{ id: string; snapshot: { body: string } }>> };
+
+    expect(saved.documentHistories['document-1']).toHaveLength(30);
+    expect(saved.documentHistories['document-1']?.[0].snapshot.body).toBe('Post 5');
+    expect(saved.documentHistories['document-2']).toHaveLength(1);
+    expect(saved.documentHistories.corrupted).toBeUndefined();
+  });
+
+  it('merges imported document histories without mixing documents', async () => {
+    const source = createTempStore();
+    const target = createTempStore();
+    const version = (documentId: string, id: string, body: string) => ({
+      id,
+      documentId,
+      createdAt: new Date().toISOString(),
+      reason: 'edit',
+      snapshot: { documentId, body, entities: [], attachments: [], savedAt: '12:00' },
+    });
+    const sourceDraft = baseStore('Exported text');
+    (sourceDraft as Record<string, unknown>).documentHistories = {
+      'document-1': [version('document-1', 'shared-id', 'Source revision')],
+      'document-2': [version('document-2', 'only-source', 'Source-only document')],
+    };
+    await source.store.save(sourceDraft);
+    const backupPath = join(source.directory, 'backup.json');
+    expect(source.store.exportTo(backupPath)).toEqual({ success: true });
+
+    const targetDraft = baseStore('Existing text');
+    (targetDraft as Record<string, unknown>).documentHistories = {
+      'document-1': [version('document-1', 'shared-id', 'Target revision')],
+      'document-3': [version('document-3', 'only-target', 'Target-only document')],
+    };
+    await target.store.save(targetDraft);
+
+    const merged = target.store.importFrom(backupPath, 'merge');
+    const histories = (merged.store as Record<string, unknown> & { documentHistories: Record<string, Array<{ id: string; snapshot: { body: string } }>> }).documentHistories;
+
+    expect(histories['document-1']).toHaveLength(1);
+    expect(histories['document-1']?.[0].snapshot.body).toBe('Source revision');
+    expect(histories['document-2']).toHaveLength(1);
+    expect(histories['document-3']).toHaveLength(1);
   });
 
   it.each([

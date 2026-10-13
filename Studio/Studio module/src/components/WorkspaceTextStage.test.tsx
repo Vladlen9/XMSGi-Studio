@@ -971,7 +971,7 @@ describe('WorkspaceTextStage editor flows', () => {
     act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 
     const linkButton = container.querySelector('[aria-label="Insert link"]') as HTMLButtonElement;
-    expect(linkButton.querySelector('.workspace-page-rich-text-link-trigger__icon')?.textContent).toBe('↗');
+    expect(linkButton.querySelector('.workspace-page-rich-text-link-trigger__icon svg')).not.toBeNull();
     act(() => linkButton.click());
 
     const popover = container.querySelector('[role="dialog"][aria-label="Insert link"]') as HTMLFormElement;

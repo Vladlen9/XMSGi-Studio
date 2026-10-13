@@ -38,7 +38,6 @@ export function getTimezoneParts(): {
 
 export function getTodayStr(): string {
   const now = new Date();
-  now.setMinutes(now.getMinutes() + 1);
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');

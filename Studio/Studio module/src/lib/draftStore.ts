@@ -2,6 +2,7 @@ import type { Chat, InlineButtonRow, PersistedDraftStore, RichTextEntity, SavedD
 import type { DraftAttachment } from '../domain/types';
 import { DRAFT_STORE_SCHEMA_VERSION } from './draftStoreVersion';
 import { normalizeAttachments } from './draftAttachments';
+import { normalizeWorkspaceDocumentHistories } from './documentHistory';
 import { normalizeRichTextEntities } from './richText';
 import type { ScheduleRepeatOptions } from './scheduling';
 
@@ -16,6 +17,7 @@ const DRAFT_STORE_FALLBACK_KEY = 'xmsgi-draft-store-fallback';
 const LEGACY_DRAFT_STORE_FALLBACK_KEY = 'awaitmsg-draft-store-fallback';
 
 export type WorkspaceDraft = {
+  documentId?: string;
   body: string;
   entities?: RichTextEntity[];
   attachments: DraftAttachment[];
@@ -90,6 +92,11 @@ export interface DraftStorageApi {
     attachment?: { name: string; path: string; size: number };
     error?: string;
   }>;
+  copyAttachmentPath?: (path: string) => Promise<{
+    success: boolean;
+    attachment?: { name: string; path: string; size: number };
+    error?: string;
+  }>;
   importText: () => Promise<{ success: boolean; cancelled?: boolean; text?: string; error?: string }>;
   exportText: (text: string, format?: 'txt' | 'json') => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
 }
@@ -117,19 +124,26 @@ export function readWorkspaceDraftStoreFallback(): PersistedDraftStore | null {
       migrationVersion: typeof parsed.migrationVersion === 'number' ? parsed.migrationVersion : 1,
       savedDrafts: parsed.savedDrafts,
       workspaceDraft: parsed.workspaceDraft ?? null,
+      documentHistories: normalizeWorkspaceDocumentHistories(parsed.documentHistories),
     };
   } catch {
     return null;
   }
 }
 
-export function writeWorkspaceDraftStoreFallback(store: PersistedDraftStore): void {
+export function writeWorkspaceDraftStoreFallback(store: PersistedDraftStore): boolean {
   try {
     const serialized = JSON.stringify(store);
     window.localStorage.setItem(DRAFT_STORE_FALLBACK_KEY, serialized);
-    window.localStorage.setItem(LEGACY_DRAFT_STORE_FALLBACK_KEY, serialized);
+    if (window.localStorage.getItem(DRAFT_STORE_FALLBACK_KEY) !== serialized) return false;
+    try {
+      window.localStorage.setItem(LEGACY_DRAFT_STORE_FALLBACK_KEY, serialized);
+    } catch {
+      // The primary fallback is authoritative; the legacy copy is best-effort.
+    }
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
 

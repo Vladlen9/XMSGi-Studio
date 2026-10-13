@@ -101,7 +101,7 @@
 }
 
 .workspace-page-sidebar-item {
-    font-size: 11px;
+    font-size: 12px;
   align-items: center;
   justify-content: center;
   min-height: 34px;
@@ -109,7 +109,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--signal);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transition: all 180ms ease;
@@ -120,7 +120,7 @@
 .workspace-page-sidebar-item.is-expanded {
   justify-content: flex-start;
   padding: 0 10px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .workspace-page-sidebar-item.is-active {
@@ -221,7 +221,7 @@
   gap: 10px;
   min-height: 28px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-queue-header > span {
@@ -348,7 +348,7 @@
 .workspace-page-queue-header > span,
 .workspace-page-editor-title-text {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 400;
   letter-spacing: 0.16em;
@@ -395,15 +395,19 @@
 
 .workspace-page-mode-summary {
   display: flex;
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 3;
   flex: 0 1 auto;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
   width: auto;
-  max-width: min(100%, 520px);
+  max-width: min(calc(100% - 24px), 520px);
   min-width: 0;
-  margin-left: auto;
-  min-height: 22px;
+  min-height: 28px;
+  margin: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -416,7 +420,7 @@
 .workspace-page-mode-summary-label {
   flex: 0 0 auto;
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -601,7 +605,7 @@
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-mode-back:hover,
@@ -636,7 +640,7 @@
   display: grid;
   gap: 6px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -681,7 +685,7 @@
   display: block;
   margin-bottom: 7px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -702,7 +706,7 @@
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-weekday-list button:hover,
@@ -722,7 +726,7 @@
 
 .workspace-page-schedule-summary span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -746,7 +750,7 @@
   border-radius: 7px;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-stage-secondary {
@@ -816,7 +820,7 @@
 
 .workspace-page-template-stage-item span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -834,7 +838,7 @@
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -921,7 +925,7 @@
   min-height: 18px;
   padding-top: 6px;
   color: rgba(226, 230, 235, 0.78);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   line-height: 1.2;
@@ -979,7 +983,7 @@
   flex: 0 0 auto;
   margin-left: auto;
   color: rgba(226, 230, 235, 0.68);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.12em;
   line-height: 1.3;
@@ -1025,7 +1029,7 @@
 
 .workspace-page-template-stage-item span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -1058,7 +1062,7 @@
 
 .workspace-page-rich-text-template-stage .workspace-page-template-stage-item span {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-stage-view {
@@ -1078,6 +1082,7 @@
   position: relative;
   display: grid;
   flex: 1 1 0%;
+  margin-bottom: -20px;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   width: 100%;
@@ -1217,7 +1222,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1272,7 +1277,7 @@
   padding: 0 11px;
   background: transparent;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-template-stage > .workspace-page-template-stage-footer,
@@ -1307,14 +1312,14 @@
 .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-footer .workspace-page-stage-primary {
   min-height: 32px;
   padding: 0 11px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-add,
 .workspace-page-rich-text-chat-stage .workspace-page-chat-favorites-filter {
   min-height: 25px;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: 12px;
   transform: none;
 }
 
@@ -1399,7 +1404,7 @@
 
 .workspace-page-schedule-time-panel-header {
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1426,7 +1431,7 @@
 
 .workspace-page-schedule-time-option span {
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1449,7 +1454,7 @@
   display: grid;
   gap: 6px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1738,7 +1743,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-schedule-section-label {
   padding: 2px 4px 5px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1760,7 +1765,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 8px;
   background: linear-gradient(105deg, rgba(154, 168, 184, 0.045), rgba(17, 19, 22, 0.12));
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1819,7 +1824,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-date-preset-row button:hover,
@@ -1841,7 +1846,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   gap: 5px;
   min-width: 0;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2095,7 +2100,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-align: left;
   text-transform: uppercase;
@@ -2159,7 +2164,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 28px;
   padding: 0 8px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -2201,7 +2206,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   gap: 5px;
   margin-bottom: 7px;
   color: #ffffff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2265,7 +2270,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 8px;
   background: rgba(111, 155, 124, 0.14);
   color: #ffffff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2311,7 +2316,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-schedule-selected-time span {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2356,7 +2361,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-schedule-options-heading {
   padding: 15px 4px 7px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -2374,7 +2379,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-schedule-option-row span,
 .workspace-page-schedule-option-row strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-option-row span {
@@ -2414,7 +2419,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-schedule-row-heading > span:first-child {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -2457,7 +2462,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-schedule-quick-label {
   margin-right: 3px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -2470,7 +2475,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-repeat-menu button {
@@ -2482,7 +2487,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--dim);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-quick-row button:hover,
@@ -2510,7 +2515,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   background: rgba(17, 19, 22, 0.42);
   color: var(--text);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-repeat-menu {
@@ -2527,7 +2532,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   gap: 7px;
   margin-left: 3px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -2541,7 +2546,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color-scheme: dark;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-repeat-count select option {
@@ -2553,7 +2558,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   grid-column: 3;
   justify-self: start;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -2633,7 +2638,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 50%;
   background: #3d4a55;
   color: #eef3f6;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -2682,7 +2687,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-chat-stage-copy span {
   overflow: hidden;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -2690,7 +2695,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-chat-trigger-copy span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-chat-trigger-chevron {
@@ -2727,7 +2732,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-chat-stage-list-header > span {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -2741,7 +2746,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   background: rgba(10, 11, 13, 0.48);
   color: var(--text);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -2879,7 +2884,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   gap: 5px;
   padding: 24px 4px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-chat-stage-empty strong {
@@ -2899,7 +2904,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--signal);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-chat-stage-add:hover,
@@ -2924,7 +2929,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-chat-stage-add-form button:disabled {
@@ -2935,7 +2940,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-chat-stage-add-form [role='alert'] {
   grid-column: 1 / -1;
   color: #d78b8b;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-chat-stage-footer {
@@ -2987,7 +2992,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   margin-top: 0;
   padding: 0 8px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -3065,7 +3070,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   grid-row: 1;
   min-height: 22px;
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-mode-header h2 {
@@ -3092,7 +3097,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-repeat-row label {
   gap: 3px;
   min-width: 0;
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 
@@ -3105,7 +3110,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border: 1px solid rgba(154, 168, 184, 0.15);
   border-radius: 6px;
   background: rgba(17, 19, 22, 0.22);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-summary {
@@ -3119,12 +3124,12 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-schedule-summary span {
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-summary strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
 }
@@ -3138,7 +3143,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 27px;
   padding: 0 10px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-repeat-options {
@@ -3158,7 +3163,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-repeat-caption {
   margin-bottom: 4px;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .workspace-page-weekday-list {
@@ -3170,7 +3175,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 30px;
   padding: 0 7px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-schedule-stage:has(.workspace-page-repeat-options) {
@@ -3196,11 +3201,11 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-template-stage-item strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-item span {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-item > div {
@@ -3209,12 +3214,12 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-template-stage-item > div button {
   padding: 2px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-empty {
   padding: 14px 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-footer {
@@ -3229,7 +3234,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-template-stage-editor label {
   gap: 3px;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-editor input,
@@ -3238,7 +3243,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border: 1px solid rgba(154, 168, 184, 0.34);
   border-radius: 6px;
   background: rgba(17, 19, 22, 0.5);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-template-stage-editor textarea {
@@ -3354,7 +3359,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-field-label {
   display: block;
   margin-bottom: 8px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--signal);
@@ -3545,20 +3550,24 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   align-self: flex-end;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 0;
   min-height: 0;
   margin: 10px 0 0 auto;
-  padding: 8px 10px 8px 12px;
-  border: 1px solid rgba(162, 178, 197, 0.18);
-  background: linear-gradient(180deg, rgba(18, 22, 30, 0.94), rgba(12, 16, 23, 0.9));
-  border-radius: 14px;
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 0 1px rgba(139, 155, 178, 0.08);
-  backdrop-filter: blur(14px);
+  padding: 3px;
+  border: 1px solid rgba(162, 178, 197, 0.2);
+  background: linear-gradient(180deg, rgba(18, 25, 32, 0.96), rgba(11, 17, 23, 0.96));
+  border-radius: 9px;
+  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(12px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transform: none;
   transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.workspace-page-rich-text-editor.is-toolbar-active .workspace-page-rich-text-toolbar {
+  transform: translateY(20px);
 }
 
 .workspace-page-rich-text-editor.is-toolbar-active .workspace-page-rich-text-toolbar {
@@ -3572,7 +3581,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   align-items: center;
   justify-content: flex-end;
   flex-wrap: nowrap;
-  gap: 7px;
+  gap: 0;
 }
 
 .workspace-page-rich-text-link-trigger {
@@ -3597,11 +3606,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-rich-text-photo-slot {
-  display: block;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  display: none;
 }
 
 .workspace-page-rich-text-link-trigger__icon {
@@ -3610,11 +3615,15 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   justify-content: center;
   width: 16px;
   height: 16px;
-  font-size: 18px;
   line-height: 1;
-  font-weight: 700;
-  color: #f4f7ff;
+  color: inherit;
   transform: none;
+}
+
+.workspace-page-rich-text-link-trigger__icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .workspace-page-rich-text-link-popover {
@@ -3636,7 +3645,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-rich-text-link-popover__label {
   color: rgba(221, 228, 239, 0.7);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.02em;
 }
 
@@ -3721,6 +3730,21 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
+.workspace-page-rich-text-toolbar .workspace-page-editor-export-trigger:hover,
+.workspace-page-rich-text-toolbar .workspace-page-editor-export-trigger:focus-visible,
+.workspace-page-rich-text-toolbar .workspace-page-editor-export-trigger.is-open,
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-link-trigger:hover,
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-link-trigger:focus-visible,
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-link-trigger.is-open {
+  border-color: transparent;
+  border-radius: 5px;
+  background: rgba(113, 188, 198, 0.1);
+  color: #e3f2f3;
+  outline: none;
+  box-shadow: none;
+  transform: none;
+}
+
 .workspace-page-rich-text-toolbar button.is-active,
 .workspace-page-rich-text-toolbar button[aria-pressed='true'] {
   border-color: rgba(120, 166, 255, 0.82);
@@ -3767,13 +3791,22 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-rich-text-toolbar .workspace-page-character-count {
   order: 0;
-  margin-right: 2px;
+  height: 32px;
+  margin-right: 0;
+  padding: 0 10px;
+  border: 0;
+  border-right: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(199, 214, 222, 0.72);
+  opacity: 1;
+  text-align: center;
 }
 
 .workspace-page-rich-text-counter-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
 }
 
 .workspace-page-editor-export {
@@ -3801,6 +3834,11 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-rich-text-toolbar .workspace-page-editor-export-trigger {
   border-color: transparent;
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .workspace-page-editor-export-trigger:hover,
@@ -3808,6 +3846,19 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-editor-export-trigger.is-open {
   border-color: rgba(180, 193, 214, 0.42);
   color: var(--text);
+}
+
+.workspace-page-rich-text-toolbar .workspace-page-version-history-trigger,
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-link-trigger {
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-link-trigger:last-child {
+  border-radius: 0 7px 7px 0;
 }
 
 .workspace-page-editor-export-menu {
@@ -3977,7 +4028,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 5px;
   background: var(--void);
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-link-popover button {
@@ -3986,7 +4037,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   height: 28px;
   padding: 0 9px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -4120,12 +4171,12 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-attachment-name {
   color: rgba(226, 230, 235, 0.88);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-attachment-metadata {
   color: rgba(190, 202, 212, 0.82);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.15;
 }
@@ -4137,7 +4188,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   background: rgba(154, 168, 184, 0.08);
   color: rgba(226, 230, 235, 0.8);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 12px;
   letter-spacing: 0.04em;
 }
 
@@ -4165,7 +4216,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-media-label {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--signal);
@@ -4184,7 +4235,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-attachment-chip {
   border: 1px solid var(--line);
   padding: 6px 9px;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text);
@@ -4219,7 +4270,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: #f4f8fb;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
   font-stretch: 107%;
@@ -4284,7 +4335,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   box-shadow: none;
   color: #f4f8fb;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.01em;
   font-stretch: 107%;
@@ -4316,7 +4367,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 38px !important;
   flex: 0 1 auto !important;
   padding: 0 8px !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   border-radius: 10px !important;
 }
 
@@ -4332,7 +4383,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   height: 38px;
   flex: 0 1 auto;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;
@@ -4375,7 +4426,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 38px !important;
   flex: 0 1 auto !important;
   padding: 0 10px !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 500;
   letter-spacing: normal;
   text-transform: none;
@@ -4483,7 +4534,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 38px !important;
   flex: 0 1 auto !important;
   padding: 0 8px !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   border-radius: 10px !important;
   background:
     linear-gradient(145deg, rgba(220, 236, 246, 0.11), rgba(170, 195, 210, 0.025) 52%, transparent 76%),
@@ -4576,7 +4627,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: #edf7fb;
   min-height: 36px;
   padding: 0 18px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
@@ -4593,7 +4644,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
@@ -4669,7 +4720,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 36px;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -4739,7 +4790,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 12px;
   background:
     linear-gradient(145deg, rgba(220, 236, 246, 0.14), rgba(170, 195, 210, 0.04) 48%, transparent 72%),
-    linear-gradient(145deg, rgba(69, 86, 99, 0.28), rgba(20, 25, 30, 0.42));
+    linear-gradient(145deg, rgba(69, 86, 99, 0.52), rgba(20, 25, 30, 0.74));
   -webkit-backdrop-filter: blur(28px) saturate(1.5);
   backdrop-filter: blur(28px) saturate(1.5);
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
@@ -4792,7 +4843,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-publish-option span {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -4800,7 +4851,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-publish-option small {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
 }
@@ -4860,7 +4911,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-publish-menu-compact .workspace-page-publish-option small {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .workspace-page-publish-menu-compact .workspace-page-publish-option.is-selected {
@@ -5033,7 +5084,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     linear-gradient(145deg, rgba(220, 236, 246, 0.11), rgba(170, 195, 210, 0.025) 52%, transparent 76%),
     rgba(23, 27, 31, 0.72);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -5097,19 +5148,19 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   padding: 6px 0;
   color: var(--text);
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-popover-header {
   color: rgba(226, 230, 235, 0.9);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .workspace-page-schedule-popover-caption {
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -5126,7 +5177,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: rgba(226, 230, 235, 0.78);
   padding: 8px 10px;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -5153,7 +5204,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border-radius: 10px;
   background: rgba(154, 168, 184, 0.03);
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -5182,7 +5233,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   background: transparent;
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   min-height: 32px;
@@ -5200,7 +5251,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   display: grid;
   gap: 4px;
   color: var(--dim);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -5209,14 +5260,14 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   width: 100%;
   min-height: 30px;
   padding: 5px 6px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-schedule-done {
   justify-self: end;
   padding: 5px 8px;
   color: var(--signal);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .workspace-page-draft-meta {
@@ -5226,7 +5277,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--signal);
@@ -5251,7 +5302,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   flex: 0 1 auto;
   max-width: 58%;
   text-align: right;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 16px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5291,6 +5342,37 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1), cubic-bezier(0.4, 0, 1, 1);
   animation-delay: 0ms, calc(var(--status-duration, 3360ms) - 300ms);
   animation-fill-mode: both, forwards;
+}
+
+.workspace-page-publish-transient-feedback.has-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 5px 9px;
+  border: 1px solid rgba(112, 201, 149, 0.24);
+  border-radius: 8px;
+  background: rgba(8, 14, 18, 0.96);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22);
+}
+
+.workspace-page-publish-transient-feedback-status {
+  font-size: 12px;
+  line-height: 14px;
+}
+
+.workspace-page-publish-transient-feedback-detail {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(236, 240, 245, 0.96);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 17px;
+  overflow-wrap: anywhere;
+  text-align: right;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .workspace-page-publish-transient-feedback.is-progress {
@@ -5433,7 +5515,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .draft-color-picker .draft-color-selected-label {
   min-width: 36px;
   color: var(--text);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: normal;
   line-height: 1;
@@ -5455,7 +5537,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-width: 0;
   width: min(100%, 440px);
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -5474,7 +5556,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 30px;
   padding-bottom: 2px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -5572,7 +5654,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 34px;
   padding: 0 13px;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-draft-stage-footer-left {
@@ -5610,7 +5692,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 24px;
   padding: 4px 14px 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
   white-space: nowrap;
   overflow: hidden;
@@ -5624,7 +5706,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
 }
 
@@ -5656,7 +5738,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-panel-label {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--signal);
@@ -5677,7 +5759,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--signal);
@@ -5719,7 +5801,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   border: 1px solid var(--line);
   padding: 5px 8px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -5733,7 +5815,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 .workspace-page-draft-preview-title {
   font-weight: 600;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--signal);
@@ -5783,7 +5865,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     border-radius: 6px;
     background: rgba(154, 168, 184, 0.04);
     color: rgba(226, 230, 235, 0.9);
-    font-size: 10px;
+    font-size: 12px;
     transition: none;
   }
 
@@ -5807,7 +5889,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-editor-context {
     overflow: hidden;
     color: rgba(226, 230, 235, 0.9);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-overflow: ellipsis;
@@ -5846,7 +5928,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     border-radius: 50%;
     background: #3d4a55;
     color: #eef3f6;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
   }
 
@@ -5870,7 +5952,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-channel-picker .chat-picker-current-type {
     margin-top: 2px;
     color: var(--dim);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .workspace-page-form-row-body {
@@ -6012,7 +6094,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     border: 1px solid rgba(154, 168, 184, 0.08);
     color: rgba(226, 230, 235, 0.8);
     font-family: var(--mono);
-    font-size: 8px;
+    font-size: 12px;
     letter-spacing: 0.06em;
   }
 
@@ -6022,7 +6104,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     max-width: 100%;
     overflow: hidden;
     color: rgba(226, 230, 235, 0.8);
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -6130,7 +6212,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-height: 34px;
     border-color: rgba(154, 168, 184, 0.2);
     background: transparent;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .workspace-page-schedule-button {
@@ -6263,7 +6345,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-preview-chat-state {
     margin-top: 2px;
     color: var(--dim);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .workspace-page-preview-feed-desktop {
@@ -6378,7 +6460,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-preview-file-mark {
     color: #b9c8d1;
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.08em;
   }
 
@@ -6386,7 +6468,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: 0;
     overflow: hidden;
     color: #e2e9ed;
-    font-size: 11px;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -6397,7 +6479,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     gap: 6px;
     padding: 2px 6px 0;
     color: rgba(226, 230, 235, 0.58);
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .workspace-page-preview-history-bubble.is-incoming {
@@ -6448,7 +6530,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     padding: 12px;
     place-items: center;
     color: rgba(226, 230, 235, 0.58);
-    font-size: 10px;
+    font-size: 12px;
     text-align: center;
   }
 
@@ -6467,7 +6549,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     border-radius: 50%;
     background: rgba(10, 11, 13, 0.68);
     color: #f1f5f6;
-    font-size: 11px;
+    font-size: 12px;
     transform: translate(-50%, -50%);
   }
 
@@ -6479,7 +6561,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     border-radius: 4px;
     background: rgba(10, 11, 13, 0.7);
     color: #f1f5f6;
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .workspace-page-preview-history-document,
@@ -6503,7 +6585,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-preview-history-audio-copy strong {
     overflow: hidden;
     color: #e2e9ed;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -6512,7 +6594,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   .workspace-page-preview-history-document-copy span,
   .workspace-page-preview-history-audio-copy span {
     color: rgba(226, 230, 235, 0.62);
-    font-size: 9px;
+    font-size: 12px;
   }
 
   .workspace-page-preview-history-audio audio {
@@ -6594,7 +6676,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     linear-gradient(145deg, rgba(220, 236, 246, 0.11), rgba(170, 195, 210, 0.025) 52%, transparent 76%),
     rgba(23, 27, 31, 0.72);
   color: #f4f8fb;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   box-shadow: none;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -6858,7 +6940,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     flex: 0 0 auto;
     padding-right: 4px;
     padding-left: 4px;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.04em;
   }
 
@@ -6875,7 +6957,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: 0;
     padding-right: 4px;
     padding-left: 4px;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.04em;
   }
 
@@ -7086,7 +7168,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   justify-self: end;
   margin: 0;
   color: rgba(226, 230, 235, 0.58);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   text-align: right;
 }
@@ -7126,7 +7208,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: clamp(68px, calc(7vw + 5px), 82px) !important;
     padding-right: clamp(6px, calc(0.59vw + 1.5px), 8px) !important;
     padding-left: clamp(6px, calc(0.59vw + 1.5px), 8px) !important;
-    font-size: clamp(8px, calc(0.295vw + 5.75px), 9px) !important;
+    font-size: 12px !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -7168,7 +7250,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   }
 
   .workspace-page-attachment-name {
-    font-size: 9px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -7729,7 +7811,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: rgba(226, 230, 235, 0.72);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   text-align: left;
 }
 
@@ -7852,7 +7934,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   min-height: 32px;
   padding: 0 11px;
   background: transparent;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-panel,
@@ -7878,7 +7960,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 .workspace-page-schedule-options-heading {
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -7960,7 +8042,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   justify-content: end;
   gap: 8px;
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -7993,7 +8075,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: #e2e6eb;
   color-scheme: dark;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 600px) {
@@ -8141,7 +8223,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     flex: 0 0 auto;
     padding-right: 4px;
     padding-left: 4px;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.04em;
   }
 
@@ -8159,7 +8241,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: 0;
     padding-right: 4px;
     padding-left: 4px;
-    font-size: 10px;
+    font-size: 12px;
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
@@ -8200,7 +8282,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     flex-basis: 76px !important;
     padding-right: 5px !important;
     padding-left: 5px !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
   }
 
   .workspace-page-schedule-row .workspace-page-media-row .workspace-page-attachment-toggle,
@@ -8344,11 +8426,12 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   }
 
   .workspace-page-mode-summary {
-    width: 100%;
-    max-width: 100%;
+    width: auto;
+    max-width: calc(100% - 16px);
     flex-wrap: nowrap;
     gap: 4px 8px;
-    margin-left: 0;
+    top: 8px;
+    right: 8px;
   }
 
   .workspace-page-mode-summary strong {
@@ -8503,7 +8586,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: 0;
     padding: 0 3px;
     overflow: hidden;
-    font-size: 11px;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -8555,13 +8638,13 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   }
 
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-options-heading {
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1;
   }
 
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-quick-row button {
     min-height: 28px;
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 
@@ -8616,7 +8699,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-date-value .workspace-page-schedule-segment {
     padding: 1px;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-date-value .workspace-page-schedule-separator {
@@ -8644,7 +8727,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-options-heading {
     padding: 0 2px;
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1;
   }
 
@@ -8663,7 +8746,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     padding: 0 2px;
     overflow: hidden;
     border-radius: 5px;
-    font-size: 9px;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -8671,7 +8754,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
 @media (max-width: 350px) and (max-height: 800px) {
   .workspace-page-rich-text-schedule-stage.is-time-focus .workspace-page-schedule-quick-row button {
-    font-size: 8px;
+    font-size: 12px;
   }
 }
 
@@ -8710,9 +8793,10 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
   .workspace-page .workspace-page-mode-summary {
     width: auto;
-    max-width: min(65%, 520px);
+    max-width: min(calc(100% - 16px), 520px);
     flex: 0 1 auto;
-    margin-left: auto;
+    top: 8px;
+    right: 8px;
   }
 
   .workspace-page .workspace-page-preview-panel {
@@ -8868,7 +8952,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     flex-basis: clamp(48px, 12vw, 76px) !important;
     padding-right: 3px !important;
     padding-left: 3px !important;
-    font-size: 9px !important;
+    font-size: 12px !important;
   }
 
   .workspace-page .workspace-page-preview-toggle,
@@ -8994,7 +9078,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     max-width: 50px !important;
     padding-right: 3px !important;
     padding-left: 3px !important;
-    font-size: 8px !important;
+    font-size: 12px !important;
   }
 }
 
@@ -9160,5 +9244,449 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 
   .workspace-page-preview-panel:not([data-collapsed='true']) .chat-preview-stand.is-mobile .chat-preview-toolbar-label {
     transform: translateY(2px);
+  }
+}
+
+.workspace-page-version-history-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(3, 8, 15, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.workspace-page-attachment-card.is-unavailable {
+  border-color: rgba(234, 184, 117, 0.5);
+}
+
+.workspace-page-attachment-file-mark.is-unavailable {
+  color: #eab875;
+}
+
+.workspace-page-version-history-dialog {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  width: min(920px, 100%);
+  height: min(700px, calc(100dvh - 32px));
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(133, 166, 188, 0.3);
+  border-radius: 12px;
+  background: #101418;
+  box-shadow: 0 28px 76px rgba(0, 0, 0, 0.58);
+  color: var(--text, #eef3f7);
+  font-family: Roboto, "Segoe UI", "Helvetica Neue", sans-serif;
+  font-weight: 400;
+}
+
+.workspace-page-version-history-header,
+.workspace-page-version-history-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 17px 22px;
+}
+
+.workspace-page-version-history-header {
+  min-height: 76px;
+  border-bottom: 1px solid rgba(165, 185, 203, 0.12);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.workspace-page-version-history-header h2 {
+  margin: 0;
+  color: #f2f6f8;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.workspace-page-version-history-header p {
+  margin: 6px 0 0;
+  color: rgba(196, 211, 221, 0.64);
+  font-size: 12px;
+}
+
+.workspace-page-version-history-close,
+.workspace-page-version-history-cancel,
+.workspace-page-version-history-copy,
+.workspace-page-version-history-restore {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(165, 185, 203, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.workspace-page-version-history-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.workspace-page-version-history-cancel,
+.workspace-page-version-history-copy,
+.workspace-page-version-history-restore {
+  padding: 0 12px;
+}
+
+.workspace-page-version-history-restore {
+  border-color: rgba(101, 198, 181, 0.48);
+  background: rgba(67, 148, 132, 0.18);
+}
+
+.workspace-page-version-history-copy {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-page-version-history-close:hover,
+.workspace-page-version-history-cancel:hover,
+.workspace-page-version-history-copy:hover:not(:disabled),
+.workspace-page-version-history-restore:hover:not(:disabled) {
+  border-color: rgba(165, 205, 193, 0.52);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.workspace-page-version-history-content {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  flex: 1 1 auto;
+}
+
+.workspace-page-version-history-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+  padding: 16px;
+  border-right: 1px solid rgba(165, 185, 203, 0.12);
+  background: rgba(4, 10, 15, 0.22);
+}
+
+.workspace-page-version-history-document-picker {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 1px 1px 13px;
+  border-bottom: 1px solid rgba(165, 185, 203, 0.11);
+}
+
+.workspace-page-version-history-picker-label {
+  color: rgba(194, 209, 219, 0.62);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-page-version-history-document-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(151, 176, 193, 0.2);
+  border-radius: 8px;
+  background: rgba(17, 27, 36, 0.9);
+  color: #e8f0f4;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.workspace-page-version-history-document-trigger:hover,
+.workspace-page-version-history-document-trigger:focus-visible,
+.workspace-page-version-history-document-trigger[aria-expanded="true"] {
+  outline: none;
+  border-color: rgba(101, 198, 181, 0.58);
+  background: rgba(21, 36, 43, 0.98);
+  box-shadow: none;
+}
+
+.workspace-page-version-history-document-trigger > svg {
+  flex: 0 0 auto;
+  color: rgba(176, 204, 208, 0.76);
+  transition: transform 150ms ease;
+}
+
+.workspace-page-version-history-document-trigger[aria-expanded="true"] > svg {
+  transform: rotate(180deg);
+}
+
+.workspace-page-version-history-document-copy,
+.workspace-page-version-history-document-option > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.workspace-page-version-history-document-copy strong,
+.workspace-page-version-history-document-option strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-page-version-history-document-copy small,
+.workspace-page-version-history-document-option small {
+  color: rgba(190, 207, 217, 0.58);
+  font-size: 12px;
+}
+
+.workspace-page-version-history-document-menu {
+  display: grid;
+  max-height: min(220px, 32dvh);
+  gap: 3px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid rgba(137, 164, 181, 0.2);
+  border-radius: 8px;
+  background: #0c141b;
+}
+
+.workspace-page-version-history-document-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #dce7ec;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-page-version-history-document-option:hover,
+.workspace-page-version-history-document-option:focus-visible,
+.workspace-page-version-history-document-option.is-selected {
+  outline: none;
+  border-color: rgba(101, 198, 181, 0.24);
+  background: rgba(73, 151, 137, 0.13);
+}
+
+.workspace-page-version-history-document-option > svg {
+  flex: 0 0 auto;
+  color: #72c9b5;
+}
+
+.workspace-page-version-history-item {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.workspace-page-version-history-item:hover,
+.workspace-page-version-history-item.is-selected {
+  border-color: rgba(101, 198, 181, 0.34);
+  background: rgba(73, 151, 137, 0.12);
+}
+
+.workspace-page-version-history-item time,
+.workspace-page-version-history-preview time {
+  color: rgba(216, 227, 235, 0.62);
+  font-size: 12px;
+}
+
+.workspace-page-version-history-item span {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-page-version-history-item small,
+.workspace-page-version-history-attachments small {
+  color: #eab875;
+  font-size: 12px;
+}
+
+.workspace-page-version-history-preview {
+  min-width: 0;
+  overflow: auto;
+  padding: 22px 24px;
+  background: rgba(10, 17, 23, 0.24);
+}
+
+.workspace-page-version-history-preview pre {
+  margin: 12px 0 0;
+  color: rgba(240, 245, 249, 0.94);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.workspace-page-version-history-metadata {
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+}
+
+.workspace-page-version-history-metadata div {
+  display: grid;
+  grid-template-columns: minmax(76px, auto) minmax(0, 1fr);
+  gap: 10px;
+  font-size: 12px;
+}
+
+.workspace-page-version-history-metadata dt {
+  color: rgba(216, 227, 235, 0.62);
+}
+
+.workspace-page-version-history-metadata dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-page-version-history-attachments {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(165, 185, 203, 0.14);
+}
+
+.workspace-page-version-history-attachments h3 {
+  margin: 0 0 8px;
+  color: rgba(216, 227, 235, 0.7);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-page-version-history-attachments ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-page-version-history-attachments li {
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.workspace-page-version-history-error {
+  margin-top: 16px;
+  color: #f0a18f;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workspace-page-version-history-empty {
+  margin: 0;
+  padding: 12px;
+  color: rgba(216, 227, 235, 0.62);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.workspace-page-version-history-footer {
+  min-height: 64px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(165, 185, 203, 0.12);
+  background: rgba(7, 13, 18, 0.32);
+}
+
+.workspace-page-version-history-footer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 700px) {
+  .workspace-page-version-history-backdrop {
+    padding: 12px;
+  }
+
+  .workspace-page-version-history-dialog {
+    height: calc(100dvh - 24px);
+  }
+
+  .workspace-page-version-history-content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(160px, 36dvh) minmax(0, 1fr);
+  }
+
+  .workspace-page-version-history-list {
+    border-right: 0;
+    border-bottom: 1px solid rgba(165, 185, 203, 0.12);
+    padding: 12px;
+  }
+
+  .workspace-page-version-history-preview {
+    padding: 16px;
+  }
+
+  .workspace-page-version-history-header,
+  .workspace-page-version-history-footer {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+}
+
+@media (max-width: 420px) {
+  .workspace-page-version-history-header h2 {
+    font-size: 17px;
+  }
+
+  .workspace-page-version-history-footer {
+    justify-content: stretch;
+    gap: 6px;
+  }
+
+  .workspace-page-version-history-footer button {
+    flex: 1 1 auto;
+    padding-right: 8px;
+    padding-left: 8px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-page-version-history-dialog *,
+  .workspace-page-version-history-dialog *::before,
+  .workspace-page-version-history-dialog *::after {
+    transition-duration: 0.01ms !important;
   }
 }

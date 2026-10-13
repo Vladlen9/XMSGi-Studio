@@ -109,6 +109,13 @@ describe('App media publishing', () => {
           success: true,
           attachment: { name: file.name, path: `/managed/${file.name}`, size: file.size },
         })),
+        copyAttachmentPath: vi.fn(async (sourcePath: string) => {
+          const name = sourcePath.split(/[\\/]/).pop() || sourcePath;
+          return {
+            success: true,
+            attachment: { name, path: sourcePath, size: 123 },
+          };
+        }),
       },
     });
   });
@@ -258,6 +265,7 @@ describe('App media publishing', () => {
     const messageBeforeRemove = editor.textContent;
     await act(async () => {
       (tray.querySelector('[aria-label="Remove photo.png"]') as HTMLButtonElement).click();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
 
     expect(tray.classList.contains('is-empty')).toBe(true);

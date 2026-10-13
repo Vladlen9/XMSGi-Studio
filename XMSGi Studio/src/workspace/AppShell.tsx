@@ -1,18 +1,10 @@
 import { useState, type PropsWithChildren } from 'react';
+import { FileText } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
+import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import type { HistoryItem, HistorySource } from './historyModel';
-
-const HISTORY_DRAWER_OPEN_STORAGE_KEY = 'xmsgi-history-drawer-open';
-
-function loadHistoryDrawerOpen() {
-  try {
-    return window.localStorage.getItem(HISTORY_DRAWER_OPEN_STORAGE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
 
 /* eslint-disable react-refresh/only-export-components */
 export { getTelegramStatusPresentationFromModule as getTelegramStatusPresentation };
@@ -38,7 +30,7 @@ type AppShellProps = PropsWithChildren<{
   onHistorySendNow: (record: HistoryItem) => void;
   onHistoryDelete: (record: HistoryItem) => void | Promise<boolean>;
   onHistoryOpenDraft: (record: HistoryItem) => void;
-  onHistoryUseDraft?: (record: HistoryItem) => void;
+  onHistoryUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => void;
   onHistoryClearSent: (source: HistorySource | 'all') => void;
   onHistoryClearDrafts?: (source: HistorySource | 'all') => Promise<boolean>;
   onHistoryCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
@@ -73,15 +65,19 @@ export function AppShell({
   const { t } = useLocale();
   const nextViewLabel = view === 'planner' ? t('product.studio') : t('product.planner');
   const sectionLabel = view === 'planner' ? t('product.planner') : t('product.studio');
-  const [isHistoryOpen, setIsHistoryOpen] = useState(loadHistoryDrawerOpen);
-  const updateHistoryOpen = (nextIsOpen: boolean) => {
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
+  const updateHistoryOpen = (nextIsOpen: boolean, sourceFilterOnOpen?: 'personal') => {
+    setHistorySourceFilterOnOpen(nextIsOpen ? sourceFilterOnOpen : undefined);
     setIsHistoryOpen(nextIsOpen);
-    try {
-      if (nextIsOpen) window.localStorage.setItem(HISTORY_DRAWER_OPEN_STORAGE_KEY, 'true');
-      else window.localStorage.removeItem(HISTORY_DRAWER_OPEN_STORAGE_KEY);
-    } catch {
-      // The drawer still works when local storage is unavailable.
-    }
+  };
+  const changeView = (nextView: 'studio' | 'planner') => {
+    updateHistoryOpen(false);
+    onViewChange(nextView);
+  };
+  const openSettings = () => {
+    updateHistoryOpen(false);
+    onOpenSettings();
   };
 
   return (
@@ -101,7 +97,7 @@ export function AppShell({
               className="settings-action product-mode-switch"
               aria-label={nextViewLabel}
               aria-pressed={view === 'planner'}
-              onClick={() => onViewChange(view === 'planner' ? 'studio' : 'planner')}
+              onClick={() => changeView(view === 'planner' ? 'studio' : 'planner')}
             >
               <span className="action-label">{nextViewLabel}</span>
             </button>
@@ -130,7 +126,7 @@ export function AppShell({
               onClick={() => {
                 setShowAuthForm(false);
                 setIsConfirmingLogout(false);
-                onOpenSettings();
+                openSettings();
               }}
               title={t('topbar.settings')}
               aria-label={t('topbar.settings')}
@@ -169,13 +165,31 @@ export function AppShell({
         </header>
       )}
       {connected && !settingsOpen && view !== 'planner' && (
-        <span className="product-section-title product-section-title-detached" aria-current="page">
-          {sectionLabel}
-        </span>
+        <div className="product-section-title product-section-title-detached" aria-current="page">
+          <FileText size={19} strokeWidth={2.2} aria-hidden="true" />
+          <span>{sectionLabel}</span>
+        </div>
       )}
-      <main className="product-shell-content">{children}</main>
+      <QuickPlannerNavigationContext.Provider value={{
+        currentSection: settingsOpen ? 'settings' : isHistoryOpen ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',
+        openQuickPlan: () => {
+          updateHistoryOpen(false);
+          changeView('planner');
+        },
+        openStudio: () => {
+          updateHistoryOpen(false);
+          changeView('studio');
+        },
+        openPosts: () => {
+          updateHistoryOpen(true, 'personal');
+        },
+        openSettings,
+      }}>
+        <main className="product-shell-content">{children}</main>
+      </QuickPlannerNavigationContext.Provider>
       <HistoryDrawer
         isOpen={isHistoryOpen}
+        sourceFilterOnOpen={historySourceFilterOnOpen}
         onClose={() => updateHistoryOpen(false)}
         records={historyRecords}
         onCancel={onHistoryCancel}

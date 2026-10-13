@@ -4,7 +4,10 @@ import {
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
   readPlannerDraftUpdatedAt,
+  readSavedPlannerDrafts,
+  SAVED_PLANNER_DRAFT_STORAGE_KEY,
   writePlannerDraft,
+  writeSavedPlannerDrafts,
 } from './plannerDraft';
 
 const plannerDraftStorageKey = 'xmsgi-planner-draft-text';
@@ -18,6 +21,7 @@ describe('Planner draft persistence', () => {
     window.localStorage.removeItem(plannerDraftUpdatedAtStorageKey);
     window.localStorage.removeItem(plannerDraftEntitiesStorageKey);
     window.localStorage.removeItem(plannerDraftAttachmentsStorageKey);
+    window.localStorage.removeItem(SAVED_PLANNER_DRAFT_STORAGE_KEY);
   });
 
   it('restores the latest text after a reload', () => {
@@ -45,5 +49,44 @@ describe('Planner draft persistence', () => {
 
     expect(readPlannerDraftEntities()).toEqual(entities);
     expect(readPlannerDraftAttachments()).toEqual(attachments);
+  });
+
+  it('migrates a previously saved single draft into the queue format', () => {
+    window.localStorage.setItem(SAVED_PLANNER_DRAFT_STORAGE_KEY, JSON.stringify({
+      message: 'Older saved draft',
+      attachments: [],
+      entities: [{ type: 'bold', offset: 0, length: 5 }],
+      reminderType: 'idea',
+    }));
+
+    expect(readSavedPlannerDrafts()).toEqual([{
+      id: 'legacy-draft-0',
+      message: 'Older saved draft',
+      attachments: [],
+      entities: [{ type: 'bold', offset: 0, length: 5 }],
+      reminderType: 'idea',
+      savedAt: '',
+      pinned: false,
+    }]);
+  });
+
+  it('persists and restores multiple planner drafts in queue order', () => {
+    const drafts = [
+      { id: 'newer', message: 'Second idea', attachments: [], entities: [], reminderType: null, savedAt: '2026-10-13T12:00:00.000Z' },
+      { id: 'older', message: 'First idea', attachments: [], entities: [], reminderType: 'task' as const, savedAt: '2026-10-12T12:00:00.000Z' },
+    ];
+
+    expect(writeSavedPlannerDrafts(drafts)).toBe(true);
+    expect(readSavedPlannerDrafts()).toEqual(drafts.map((draft) => ({ ...draft, pinned: false })));
+  });
+
+  it('persists whether a planner draft is pinned', () => {
+    const drafts = [
+      { id: 'important', message: 'Important idea', attachments: [], entities: [], reminderType: null, savedAt: '', pinned: true },
+      { id: 'later', message: 'Another idea', attachments: [], entities: [], reminderType: null, savedAt: '', pinned: false },
+    ];
+
+    expect(writeSavedPlannerDrafts(drafts)).toBe(true);
+    expect(readSavedPlannerDrafts()).toEqual(drafts);
   });
 });
