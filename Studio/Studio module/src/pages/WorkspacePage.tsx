@@ -1338,7 +1338,6 @@ export function WorkspacePage({
       replaceSavedDrafts(nextSavedDrafts);
       setSavedAt(nextDraft.savedAt);
     })) return;
-    showPublishFeedback(t('studio.draftSavedNotice'), 'success', nextDraft.body);
     setScheduleSelectionConfirmed(false);
     setPublishAction('draft');
     setPublishMenuOpen(false);
@@ -2794,7 +2793,6 @@ export function WorkspacePage({
               </div>
 
               <div className={`workspace-page-action-row workspace-page-draft-footer${publishFooterStatus?.massWarning ? ' has-mass-warning' : ''}`}>
-                {savedAt && <div className="workspace-page-draft-meta">{t('studio.draftSaved', { time: savedAt })}</div>}
                 <div className={`workspace-page-schedule-summary ${publishAction === 'draft' ? 'has-draft-color-picker' : ''}`}>
                   <div
                     className={`workspace-page-publish-footer-content${publishFooterStatus ? ' is-feedback-hidden' : ''}`}

@@ -434,11 +434,9 @@ export function QuickPlannerPage({
     ? 'Message sent'
     : actionFeedback === 'scheduled'
       ? 'Scheduled'
-      : actionFeedback === 'saved'
-        ? 'Draft saved'
-        : actionFeedback === 'failed'
-          ? 'Action failed'
-          : null;
+      : actionFeedback === 'failed'
+        ? 'Action failed'
+        : null;
   const actionButtonSucceeded = Boolean(actionFeedback && actionFeedback !== 'failed');
   const progressStatus = isSending || isScheduling || sendingNow
     ? { message: publishMode === 'schedule' ? 'Scheduling message…' : 'Sending message…', type: 'info' as const }
@@ -447,11 +445,9 @@ export function QuickPlannerPage({
     ? { message: 'Message sent.', type: 'success' as const }
     : actionFeedback === 'scheduled'
       ? { message: 'Message scheduled.', type: 'success' as const }
-      : actionFeedback === 'saved'
-        ? { message: 'Draft saved.', type: 'success' as const }
-        : actionFeedback === 'failed'
-          ? { message: 'The action failed. Review the error and try again.', type: 'error' as const }
-          : null;
+      : actionFeedback === 'failed'
+        ? { message: 'The action failed. Review the error and try again.', type: 'error' as const }
+        : null;
   const blockedWarningStatus = blockedWarning
     ? { message: blockedWarning, type: 'warning' as const }
     : null;

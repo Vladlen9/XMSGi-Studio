@@ -105,6 +105,15 @@ beforeEach(() => {
 });
 
 describe('QuickPlannerPage layout positioning', () => {
+  it('keeps the composer shadow subtle and avoids adding a persistent filter glow', () => {
+    const composeRules = getCssRules('.quick-planner-compose')[0];
+    const focusedComposeRules = getCssRules('.quick-planner-compose:focus-within')[0];
+
+    expect(composeRules).toMatch(/box-shadow:\s*0 0 0 1px rgba\(var\(--quick-planner-accent\), 0\.1\)/);
+    expect(composeRules).not.toMatch(/filter:/);
+    expect(focusedComposeRules).toMatch(/box-shadow:\s*0 0 0 2px rgba\(var\(--quick-planner-accent\), 0\.16\)/);
+  });
+
   it('raises only the Current action caption by ten pixels', () => {
     const currentActionRules = getCssRules('.quick-planner-mode-switch > .quick-planner-mode-caption');
 
@@ -553,6 +562,8 @@ describe('QuickPlannerPage action mode', () => {
 
     expect(onSaveDraft).toHaveBeenCalledWith('A note to keep', ['C:/drafts/reference.pdf'], [{ type: 'bold', offset: 0, length: 1 }], 'task');
     expect(screen.getByRole('textbox', { name: 'Reminder text' })).toHaveValue('');
+    expect(screen.queryByText('Draft saved.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save draft' })).toBeInTheDocument();
     expect(screen.getByText('A note to keep')).toBeInTheDocument();
     expect(screen.getByText('Task')).toBeInTheDocument();
     expect(screen.getByText('reference.pdf')).toBeInTheDocument();

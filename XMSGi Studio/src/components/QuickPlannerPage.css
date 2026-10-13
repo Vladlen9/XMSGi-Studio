@@ -24,7 +24,7 @@
   justify-content: space-between;
   width: min(100%, 1460px);
   margin: 22px auto 35px;
-  padding: 0 2px;
+  padding: 20px 2px 0;
 }
 
 .quick-planner-heading {
@@ -32,6 +32,7 @@
   align-items: center;
   gap: 12px;
   color: rgb(var(--quick-planner-accent));
+  transform: translateY(-8px);
 }
 
 .quick-planner-heading h1 {
@@ -282,6 +283,7 @@
   gap: 18px;
   width: min(100%, 1460px);
   margin: 0 auto;
+  padding-top: 20px;
   align-items: stretch;
 }
 
@@ -1187,6 +1189,7 @@
 }
 
 .quick-planner-compose-footer {
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
@@ -1195,6 +1198,7 @@
   margin-top: 8px;
   border-top: 1px solid rgba(140, 163, 176, 0.12);
   padding-top: 8px;
+  padding-right: 134px;
 }
 
 @media (max-width: 860px) {
@@ -1557,12 +1561,18 @@
 }
 
 .quick-planner-action-group {
+  position: absolute;
+  top: calc(50% + 10px);
+  right: 0;
+  z-index: 2;
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
-  margin-left: auto;
+  min-width: 120px;
   white-space: nowrap;
+  transform: translateY(-50%);
 }
 
 .quick-planner-send:hover,

@@ -1950,11 +1950,8 @@ describe('WorkspacePage main-screen flows', () => {
       time: '09:00',
       repeatMode: 'none',
     });
-    const draftSavedFeedback = document.querySelector('.workspace-page-publish-transient-feedback');
-    expect(draftSavedFeedback?.textContent).toContain('Draft saved.');
-    expect(draftSavedFeedback?.querySelector('.workspace-page-publish-transient-feedback-detail')?.textContent).toBe('Hello world');
-    expect(draftSavedFeedback?.classList.contains('is-success')).toBe(true);
-    expect(document.querySelector('.workspace-page-draft-meta')?.textContent).toContain('Draft saved');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toBeNull();
+    expect(document.querySelector('.workspace-page-draft-meta')).toBeNull();
     expect(document.body.textContent).not.toContain('Draft not saved');
 
     const activeActionGroup = document.querySelector('.workspace-page-action-left-group');
