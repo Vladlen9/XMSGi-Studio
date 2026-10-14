@@ -126,6 +126,14 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(focusedComposeRules).toMatch(/box-shadow:\s*0 0 0 2px rgba\(var\(--quick-planner-accent\), 0\.16\)/);
   });
 
+  it('uses a wider, softer ambient glow around the editor panel', () => {
+    const editorRules = getCssRules('.quick-planner-editor')[0];
+
+    expect(editorRules).toMatch(/radial-gradient\(126% 86% at 96% 94%/);
+    expect(editorRules).toMatch(/0 0 8px rgba\(var\(--quick-planner-accent\), 0\.08\)/);
+    expect(editorRules).toMatch(/0 0 26px rgba\(var\(--quick-planner-accent\), 0\.025\)/);
+  });
+
   it('reveals Draft actions on hover and focus, while keeping touch and pinned actions available', () => {
     const actionRules = getCssRules('.quick-planner-draft-actions button')[0];
 
@@ -154,7 +162,10 @@ describe('QuickPlannerPage layout positioning', () => {
   });
 
   it('raises the lower sidebar by four pixels', () => {
-    expect(getCssRules('.quick-planner-sidebar')[0]).toMatch(/transform:\s*translate\(-28px,\s*-1px\)/);
+    const sidebarRules = getCssRules('.quick-planner-sidebar')[0];
+
+    expect(sidebarRules).toMatch(/transform:\s*translate\(-28px,\s*-1px\)/);
+    expect(sidebarRules).toMatch(/radial-gradient\(90% 70% at 100% 100%/);
   });
 
   it('keeps the emoji picker inside the composer and uses an emoji font', () => {

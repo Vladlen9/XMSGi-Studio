@@ -419,9 +419,24 @@ describe('WorkspacePage main-screen flows', () => {
 
     expect(editor.classList.contains('is-toolbar-active')).toBe(false);
     expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.38\)/);
-    expect(baseShellRule).toMatch(/0 0 6px rgba\(var\(--editor-outline\),\s*0\.08\)/);
+    expect(baseShellRule).toMatch(/0 0 7px rgba\(var\(--editor-outline\),\s*0\.075\)/);
+    expect(baseShellRule).toMatch(/0 0 24px rgba\(var\(--editor-outline\),\s*0\.025\)/);
 
     unmount();
+  });
+
+  it('adds restrained ambient depth to the editor background, surface, and divider', () => {
+    const pageRule = workspacePageStyles.match(/\.workspace-page\s*\{([^}]*)\}/)?.[1] ?? '';
+    const shellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
+    const stageRule = workspacePageStyles.match(/\.workspace-page-rich-text-stage\s*\{([^}]*)\}/)?.[1] ?? '';
+    const dividerRule = workspacePageStyles.match(/\.workspace-page-rich-text-stage::after\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    expect(pageRule).toMatch(/radial-gradient\(ellipse 72% 62% at 45% 42%/);
+    expect(pageRule).toMatch(/var\(--void\)/);
+    expect(shellRule).toMatch(/radial-gradient\(ellipse 88% 48% at 50% 0%/);
+    expect(shellRule).toMatch(/0 0 24px rgba\(var\(--editor-outline\), 0\.025\)/);
+    expect(stageRule).toMatch(/rgba\(var\(--editor-outline-bright\), 0\.48\)/);
+    expect(dividerRule).toMatch(/filter:\s*var\(--workspace-rich-text-underline-shadow\)/);
   });
 
   it('applies a distinct accent to each publish action', async () => {
