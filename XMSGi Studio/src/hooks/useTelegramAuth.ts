@@ -19,6 +19,14 @@ export type TelegramStatusSnapshot = {
   waitSecondsText?: string;
 };
 
+function sameTelegramStatus(left: TelegramStatusSnapshot, right: TelegramStatusSnapshot) {
+  return left.accountId === right.accountId
+    && left.status === right.status
+    && (left.category ?? null) === (right.category ?? null)
+    && left.error === right.error
+    && left.waitSecondsText === right.waitSecondsText;
+}
+
 function getFriendlyAuthError(error: string, t: (key: import('@/lib/i18n').TranslationKey) => string) {
   if (/PHONE_NUMBER_INVALID|phone number.{0,24}invalid/i.test(error)) return t('auth.invalidPhone');
   if (/PHONE_CODE_EXPIRED|phone code.{0,24}expired/i.test(error)) return t('auth.expiredCode');
@@ -93,26 +101,34 @@ export function useTelegramAuth({
       const current = rateLimitResult.current;
       const status = current?.status || statusResult.status || 'normal';
 
-      setTelegramStatus({
+      const nextStatus: TelegramStatusSnapshot = {
         accountId: current?.accountId || statusResult.accountId || '',
         status,
         category: current?.category ?? statusResult.category ?? null,
         error: current?.error || statusResult.error,
         waitSecondsText: current?.waitSecondsText,
-      });
+      };
+      setTelegramStatus((previous) => sameTelegramStatus(previous, nextStatus) ? previous : nextStatus);
     } catch {
       // Status polling is advisory and must not interrupt auth or scheduling.
     }
   }, []);
 
-  const handleTelegramAuth = useCallback(async () => {
+  /**
+   * Выполняет полный вход через Telegram.
+   * Возвращает true только при полном успехе (нет необходимости запрашивать
+   * код/2FA). Вызывающий переключает productView в том же microtask-батче,
+   * что и setConnected(true), иначе Planner успевает отрисоваться на время
+   * следующего IPC-запроса (микро-мигание перед Studio).
+   */
+  const handleTelegramAuth = useCallback(async (): Promise<boolean> => {
     setAuthBusy(true);
     setAuthError('');
 
     try {
       if (typeof window.telegram?.login !== 'function') {
         setAuthError(t('auth.desktopBridgeRequired'));
-        return;
+        return false;
       }
 
       const result = await window.telegram.login({
@@ -134,25 +150,23 @@ export function useTelegramAuth({
           setAuthError(getFriendlyAuthError(error, t));
         }
 
-        return;
+        return false;
       }
 
       if (result.requiresPassword || result.nextStep === 'password') {
         setAuthStep('password');
         setAuthError(t('auth.enterTwoFactor'));
-        return;
+        return false;
       }
 
       if (result.requiresCode || result.nextStep === 'code') {
         setAuthStep('code');
-        return;
+        return false;
       }
 
-      setConnecting(false);
-      setConnected(true);
-      setSignedOut(false);
-      setShowAuthForm(false);
-      setAuthError('');
+      // Сначала дозапрашиваем имя аккаунта, затем переключаем connected —
+      // так между setConnected(true) и resolve промиса не будет macrotask
+      // (IPC), иначе вызывающий код не сможет сменить вид без мигания.
       if (typeof window.telegram?.getAuthState === 'function') {
         const authResult = await window.telegram.getAuthState();
         if (authResult.success && authResult.authState) {
@@ -160,8 +174,16 @@ export function useTelegramAuth({
           setReturningUserUsername(authResult.authState.username || '');
         }
       }
+
+      setConnecting(false);
+      setConnected(true);
+      setSignedOut(false);
+      setShowAuthForm(false);
+      setAuthError('');
+      return true;
     } catch (error) {
       setAuthError(getFriendlyAuthError(error instanceof Error ? error.message : '', t));
+      return false;
     } finally {
       setAuthBusy(false);
     }
@@ -203,8 +225,14 @@ export function useTelegramAuth({
     }
   }, [returningUserName, returningUserUsername, setChats, setIsSettingsOpen, setSelectedChat, t]);
 
-  const handleWelcomeBack = useCallback(async () => {
-    if (authBusy) return;
+  /**
+   * Однократный возврат в аккаунт (Welcome back).
+   * Возвращает true при успехе; вызывающий переключает productView в том же
+   * microtask-батче, что и setConnected(true), без промежуточных IPC-запросов
+   * (иначе Planner мелькает перед показом Studio).
+   */
+  const handleWelcomeBack = useCallback(async (): Promise<boolean> => {
+    if (authBusy) return false;
 
     setAuthBusy(true);
     setConnecting(true);
@@ -217,14 +245,14 @@ export function useTelegramAuth({
     try {
       if (typeof window.telegram?.welcomeBack !== 'function') {
         reportRestoreError(t('auth.desktopBridgeRequired'));
-        return;
+        return false;
       }
 
       const result = await window.telegram.welcomeBack();
 
       if (!result.success || !result.authState || !result.authState.connected || result.authState.signedOut) {
         reportRestoreError(result.error || t('auth.restoreFailed'));
-        return;
+        return false;
       }
 
       setSignedOut(false);
@@ -233,12 +261,14 @@ export function useTelegramAuth({
       setReturningUserName(result.authState.userName || returningUserName);
       setReturningUserUsername(result.authState.username || returningUserUsername);
       setConnectionResolved(true);
+      return true;
     } catch (error) {
       reportRestoreError(
         error instanceof Error
           ? error.message
           : t('auth.restoreFailed')
       );
+      return false;
     } finally {
       setConnecting(false);
       setAuthBusy(false);
@@ -367,14 +397,17 @@ export function useTelegramAuth({
           : undefined;
 
         if (mappedStatus) {
-          setTelegramStatus((current) => ({
-            ...current,
+          setTelegramStatus((current) => {
+            const nextStatus: TelegramStatusSnapshot = {
+              ...current,
             accountId: value.accountId || current.accountId,
             status: mappedStatus,
             category: value.category ?? current.category,
             error: value.error,
             waitSecondsText: value.waitSecondsText,
-          }));
+            };
+            return sameTelegramStatus(current, nextStatus) ? current : nextStatus;
+          });
         }
 
         if (typeof value.connected === 'boolean') {

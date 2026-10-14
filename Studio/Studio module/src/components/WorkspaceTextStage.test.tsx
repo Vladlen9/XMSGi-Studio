@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
 import type { Chat, SavedDraft, Template } from '@/types';
-import { RichTextEditor as BaseRichTextEditor } from './RichTextEditor';
+import { RichTextEditor as BaseRichTextEditor, shouldPreventEditorInsertion } from './RichTextEditor';
 import { WorkspaceTextStage } from './WorkspaceTextStage';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -1021,6 +1021,33 @@ describe('WorkspaceTextStage editor flows', () => {
     container.remove();
   });
 
+  it('closes link entry when another button is pressed and lets that button work', () => {
+    const container = document.createElement('div');
+    const otherButton = document.createElement('button');
+    const otherButtonAction = vi.fn();
+    otherButton.addEventListener('click', otherButtonAction);
+    document.body.append(container, otherButton);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<RichTextEditor text="Keep this text" entities={[]} onChange={vi.fn()} maxLength={4096} />);
+    });
+    act(() => (container.querySelector('[aria-label="Insert link"]') as HTMLButtonElement).click());
+    expect(container.querySelector('[role="dialog"][aria-label="Insert link"]')).toBeTruthy();
+
+    act(() => {
+      otherButton.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      otherButton.click();
+    });
+
+    expect(container.querySelector('[role="dialog"][aria-label="Insert link"]')).toBeNull();
+    expect(otherButtonAction).toHaveBeenCalledOnce();
+
+    act(() => root.unmount());
+    container.remove();
+    otherButton.remove();
+  });
+
   it('closes link entry with Cancel without changing the message', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -1039,6 +1066,118 @@ describe('WorkspaceTextStage editor flows', () => {
 
     act(() => root.unmount());
     container.remove();
+  });
+
+  it('opens the format toolbar with the selected format state remembered', () => {
+    const { container, editor, unmount } = renderRichTextEditor({
+      text: 'Bold text',
+      entities: [{ type: 'bold', offset: 0, length: 4 }],
+    });
+    const boldText = editor.querySelector('strong')!;
+    const range = document.createRange();
+    range.selectNodeContents(boldText);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    act(() => {
+      editor.focus();
+      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+    const toolbar = container.querySelector('[role="toolbar"]')!;
+    expect(toolbar.classList.contains('is-airy')).toBe(true);
+    expect(toolbar.querySelector('[aria-label="Bold"]')?.getAttribute('aria-pressed')).toBe('true');
+    expect(toolbar.querySelector('[aria-label="Italic"]')?.getAttribute('aria-pressed')).toBe('false');
+
+    const previousExecCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+    act(() => (toolbar.querySelector('[aria-label="Bold"]') as HTMLButtonElement).click());
+    expect(execCommand).toHaveBeenCalledWith('bold', false);
+    if (previousExecCommand) Object.defineProperty(document, 'execCommand', previousExecCommand);
+    else Reflect.deleteProperty(document, 'execCommand');
+
+    unmount();
+  });
+
+  it('applies every format option in turn while the toolbar stays visible', () => {
+    const { container, editor, unmount } = renderRichTextEditor({
+      text: 'Chain formats',
+      entities: [],
+    });
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    act(() => {
+      editor.focus();
+      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    const toolbar = container.querySelector<HTMLElement>('[role="toolbar"]')!;
+
+    const previousExecCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    const execCommand = vi.fn((command: string) => true);
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+
+    const pressOption = (label: string) => {
+      const option = toolbar.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!;
+      act(() => option.click());
+      // Тулбар — воздушный ряд без попапа: каждая иконка переключается
+      // следом за предыдущей без повторного открытия.
+      expect(toolbar.isConnected).toBe(true);
+    };
+
+    pressOption('Bold');
+    pressOption('Italic');
+    pressOption('Underline');
+    pressOption('Strikethrough');
+    pressOption('Clear formatting');
+
+    expect(execCommand.mock.calls.map((call) => call[0])).toEqual([
+      'bold',
+      'italic',
+      'underline',
+      'strikeThrough',
+      'removeFormat',
+    ]);
+
+    if (previousExecCommand) Object.defineProperty(document, 'execCommand', previousExecCommand);
+    else Reflect.deleteProperty(document, 'execCommand');
+
+    unmount();
+  });
+
+  it('keeps the format icon states when the native selection is cleared', () => {
+    const { container, editor, unmount } = renderRichTextEditor({
+      text: 'Bold text',
+      entities: [{ type: 'bold', offset: 0, length: 4 }],
+    });
+    const strongElement = editor.querySelector('strong')!;
+    const range = document.createRange();
+    range.selectNodeContents(strongElement);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    act(() => {
+      editor.focus();
+      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    });
+
+    const toolbar = container.querySelector<HTMLElement>('[role="toolbar"]')!;
+    expect(toolbar.querySelector('[aria-label="Bold"]')?.getAttribute('aria-pressed')).toBe('true');
+
+    act(() => {
+      selection.removeAllRanges();
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    expect(toolbar.querySelector('[aria-label="Bold"]')?.getAttribute('aria-pressed')).toBe('true');
+
+    unmount();
   });
 
   it('preserves logical text and caret position for a long unbroken string', () => {
@@ -1345,6 +1484,12 @@ describe('WorkspaceTextStage editor flows', () => {
 
     act(() => root.unmount());
     container.remove();
+  });
+
+  it('blocks only insertions that would exceed the editor limit', () => {
+    expect(shouldPreventEditorInsertion(4, 0, 4)).toBe(true);
+    expect(shouldPreventEditorInsertion(4, 1, 4)).toBe(false);
+    expect(shouldPreventEditorInsertion(3, 0, 4)).toBe(false);
   });
 
   it('removes hidden word-joiner and soft-hyphen characters from repeated input', () => {

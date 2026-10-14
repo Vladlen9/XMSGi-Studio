@@ -287,23 +287,25 @@ export function SettingsView({
             </div>
             {isTelegramManagementOpen && createPortal(
               <div
-                className="telegram-manager-backdrop"
+                className="telegram-manager-backdrop topbar-logout-modal-backdrop"
                 onMouseDown={(event) => {
                   if (event.target === event.currentTarget) setIsTelegramManagementOpen(false);
                 }}
               >
-                <section className="telegram-manager-dialog" role="dialog" aria-modal="true" aria-labelledby="telegram-manager-title">
+                <section className="telegram-manager-dialog topbar-logout-modal" role="dialog" aria-modal="true" aria-labelledby="telegram-manager-title">
                   <header className="telegram-manager-header">
                     <div>
-                      <span className="settings-section-label">{t('settings.telegram')}</span>
-                      <h2 id="telegram-manager-title">{t('settings.telegramManageTitle')}</h2>
+                      <span className="telegram-manager-icon topbar-logout-modal-icon" aria-hidden="true">
+                        <Send size={22} strokeWidth={1.8} />
+                      </span>
+                      <h2 id="telegram-manager-title" className="topbar-logout-modal-title">{t('settings.telegramManageTitle')}</h2>
                     </div>
-                    <button type="button" className="telegram-manager-close" onClick={() => setIsTelegramManagementOpen(false)} aria-label={t('common.close')} autoFocus>
+                    <button type="button" className="telegram-manager-close topbar-logout-modal-close" onClick={() => setIsTelegramManagementOpen(false)} aria-label={t('common.close')} autoFocus>
                       <X size={18} aria-hidden="true" />
                     </button>
                   </header>
 
-                  <div className="telegram-manager-status" role="status" aria-live="polite">
+                  <div className="telegram-manager-status topbar-logout-modal-description" role="status" aria-live="polite">
                     <span className={`settings-telegram-status-dot ${telegramConnected ? 'is-connected' : ''}`} aria-hidden="true" />
                     <div>
                       <strong>{telegramConnected ? t('telegramStatus.connected') : t('settings.telegramNotConnected')}</strong>
@@ -316,18 +318,18 @@ export function SettingsView({
                     </div>
                   </div>
 
-                  <div className="telegram-manager-actions">
+                  <div className="telegram-manager-actions topbar-logout-modal-actions">
                     {telegramConnected ? (
                       <>
-                        <button type="button" className="telegram-manager-secondary" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
-                        <button type="button" className="telegram-manager-primary is-danger" onClick={onTelegramDisconnect} disabled={telegramAuthBusy}>
+                        <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--confirm" onClick={onTelegramDisconnect} disabled={telegramAuthBusy}>
                           {telegramAuthBusy ? t('auth.connecting') : t('settings.telegramDisconnect')}
                         </button>
+                        <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
                       </>
                     ) : telegramCredentials.hasSession && telegramCredentials.hasCredentials ? (
                       <>
-                        <button type="button" className="telegram-manager-secondary" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
-                        <button type="button" className="telegram-manager-primary" onClick={onTelegramReconnect} disabled={telegramAuthBusy}>
+                        <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
+                        <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--confirm" onClick={onTelegramReconnect} disabled={telegramAuthBusy}>
                           {telegramAuthBusy ? t('auth.connecting') : t('settings.telegramReconnect')}
                         </button>
                       </>
@@ -356,9 +358,9 @@ export function SettingsView({
                           </label>
                         )}
                         {telegramAuthError && <p className="settings-view-error" role="alert">{telegramAuthError}</p>}
-                        <div className="telegram-manager-actions">
-                          <button type="button" className="telegram-manager-secondary" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
-                          <button type="submit" className="telegram-manager-primary" disabled={telegramAuthBusy || (telegramAuthStep === 'phone' ? !telegramPhoneNumber.trim() : telegramAuthStep === 'code' ? !telegramPhoneCode.trim() : !telegramTwoFactorPassword)}>
+                        <div className="telegram-manager-actions topbar-logout-modal-actions">
+                          <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
+                          <button type="submit" className="topbar-logout-modal-action topbar-logout-modal-action--confirm" disabled={telegramAuthBusy || (telegramAuthStep === 'phone' ? !telegramPhoneNumber.trim() : telegramAuthStep === 'code' ? !telegramPhoneCode.trim() : !telegramTwoFactorPassword)}>
                             {telegramAuthBusy ? t('auth.connecting') : telegramAuthStep === 'phone' ? t('settings.telegramConnect') : telegramAuthStep === 'code' ? t('auth.verifyCode') : t('auth.verifyConnect')}
                           </button>
                         </div>
@@ -366,7 +368,7 @@ export function SettingsView({
                     ) : (
                       <>
                         <p className="settings-view-description">{t('settings.telegramNeedsApi')}</p>
-                        <button type="button" className="telegram-manager-secondary" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
+                        <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
                       </>
                     )}
                     {telegramAuthError && (telegramConnected || telegramCredentials.hasSession) && <p className="settings-view-error" role="alert">{telegramAuthError}</p>}
@@ -407,7 +409,7 @@ export function SettingsView({
                         aria-label={t('settings.apiHashPlaceholder')}
                         disabled={telegramCredentialsBusy}
                       />
-                      <button type="submit" disabled={telegramCredentialsBusy || !telegramApiId.trim() || !telegramApiHash.trim()}>
+                      <button type="submit" className="topbar-logout-modal-action" disabled={telegramCredentialsBusy || !telegramApiId.trim() || !telegramApiHash.trim()}>
                         {t('common.save')}
                       </button>
                     </form>

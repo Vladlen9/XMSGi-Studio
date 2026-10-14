@@ -137,6 +137,7 @@ declare global {
         };
       }) => Promise<{ success: boolean; error?: string }>;
       getChatAvatar: (chatId: string) => Promise<{ success: boolean; avatarDataUrl?: string; error?: string }>;
+      getAccountAvatar: () => Promise<{ success: boolean; avatarDataUrl?: string; error?: string }>;
       findChat: (query: string) => Promise<{
         success: boolean;
         chat?: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string };

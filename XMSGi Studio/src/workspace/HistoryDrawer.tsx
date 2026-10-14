@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, Ellipsis, FileText, Maximize2, Minimize2, Paperclip, Search, Trash2, X } from 'lucide-react';
+import { CalendarOff, Download, Ellipsis, FileText, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
@@ -213,7 +213,7 @@ function positionHistoryGlassIndicator(container: HTMLDivElement | null) {
   indicator.style.setProperty('--history-glass-y', `${activeBounds.top - containerBounds.top - container.clientTop}px`);
   indicator.style.width = `${activeBounds.width}px`;
   indicator.style.height = `${activeBounds.height}px`;
-  indicator.style.opacity = '0';
+  indicator.style.opacity = '1';
 }
 
 function bounceHistoryGlassIndicator(container: HTMLDivElement | null, filter: HistoryStatusFilter | HistorySourceFilter) {
@@ -1069,7 +1069,12 @@ export function HistoryDrawer({
         aria-label={t('history.title')}
       >
         <header className="history-drawer-header">
-          <h2 aria-label={t('history.title')}>{t('history.title')} <span aria-hidden="true">{historyCounts.total}</span></h2>
+          <div className="history-drawer-heading">
+            <span className="history-drawer-header-icon" aria-hidden="true">
+              <Send size={20} strokeWidth={1.8} />
+            </span>
+            <h2 aria-label={t('history.title')}>{t('history.title')} <span aria-hidden="true">{historyCounts.total}</span></h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -1620,16 +1625,23 @@ export function HistoryDrawer({
                 ? t('history.confirmCancel')
                 : confirmAction.type === 'send-now' ? t('history.confirmSend') : t('history.confirmDelete')}
             >
-              <p>{confirmActionPrompt}</p>
+              <button
+                type="button"
+                className="history-confirmation-close"
+                aria-label={t('common.close')}
+                onClick={() => setConfirmAction(null)}
+              >
+                <X size={18} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <span className="history-confirmation-icon" aria-hidden="true">
+                {confirmAction.type === 'cancel'
+                  ? <CalendarOff size={24} strokeWidth={1.8} />
+                  : confirmAction.type === 'send-now'
+                    ? <Send size={24} strokeWidth={1.8} />
+                    : <Trash2 size={24} strokeWidth={1.8} />}
+              </span>
+              <h2 className="history-confirmation-title">{confirmActionPrompt}</h2>
               <div className="history-record-confirmation-actions">
-                <button
-                  type="button"
-                  className="history-record-confirmation-action is-secondary"
-                  autoFocus
-                  onClick={() => setConfirmAction(null)}
-                >
-                  {t('common.cancel')}
-                </button>
                 <button
                   type="button"
                   className="history-record-confirmation-action is-primary"
@@ -1650,6 +1662,14 @@ export function HistoryDrawer({
                     : confirmAction.type === 'send-now'
                       ? t('history.sendNow')
                       : confirmActionRecord.status === 'draft' ? t('history.deleteDraftAction') : t('history.deleteRecordAction')}
+                </button>
+                <button
+                  type="button"
+                  className="history-record-confirmation-action is-secondary"
+                  autoFocus
+                  onClick={() => setConfirmAction(null)}
+                >
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -1679,7 +1699,23 @@ export function HistoryDrawer({
                   ? t('history.confirmDeleteNotes')
                   : bulkDeleteRecord ? t('history.confirmDeleteRecord') : t('history.confirmDeleteCategory')}
             >
-              <p>{bulkDeletePrompt}</p>
+              <button
+                type="button"
+                className="history-confirmation-close"
+                aria-label={t('common.close')}
+                onClick={() => {
+                  if (bulkDeleteBusy) return;
+                  setBulkDeleteCategory(null);
+                  setBulkDeleteRecordId(null);
+                  setBulkDeleteError('');
+                }}
+              >
+                <X size={18} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <span className="history-confirmation-icon" aria-hidden="true">
+                <Trash2 size={24} strokeWidth={1.8} />
+              </span>
+              <h2 className="history-confirmation-title">{bulkDeletePrompt}</h2>
               {bulkDeleteError && <p className="history-bulk-delete-error" role="alert">{bulkDeleteError}</p>}
               <div className="history-record-confirmation-actions">
                 <button

@@ -220,4 +220,62 @@ describe('useTelegramAuth', () => {
       else Reflect.deleteProperty(window, 'telegram');
     }
   });
+
+  it('preserves status snapshot identity when polling returns unchanged values', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const getStatus = vi.fn().mockResolvedValue({ success: true, accountId: 'account-1', status: 'normal' });
+    const getRateLimitState = vi.fn().mockResolvedValue({
+      success: true,
+      current: { accountId: 'account-1', status: 'normal', category: null, paused: false, pausedUntil: null, remainingMs: 0 },
+    });
+    vi.useFakeTimers();
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: false, signedOut: false, connected: false, userName: '', state: 'NO_SESSION' },
+        }),
+        getStatus,
+        getRateLimitState,
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result, unmount } = renderHook(() => useTelegramAuth({
+        showNotification: vi.fn(),
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(result.current.connectionResolved).toBe(true);
+      expect(result.current.telegramStatus).toMatchObject({ accountId: 'account-1', status: 'normal' });
+      const statusSnapshot = result.current.telegramStatus;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+
+      expect(getStatus).toHaveBeenCalledTimes(2);
+      expect(getRateLimitState).toHaveBeenCalledTimes(2);
+      expect(result.current.telegramStatus).toBe(statusSnapshot);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
 });

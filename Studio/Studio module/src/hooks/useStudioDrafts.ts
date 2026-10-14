@@ -182,6 +182,21 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     } satisfies WorkspaceDraft;
   };
 
+  const persistableWorkspaceSnapshot = (snapshot: WorkspaceDraft | null) => {
+    if (!snapshot) return null;
+    return {
+      ...snapshot,
+      attachments: snapshot.attachments.map((attachment) => ({ ...attachment })),
+      entities: snapshot.entities ? [...snapshot.entities] : [],
+      inlineButtons: snapshot.inlineButtons ? snapshot.inlineButtons.map((row) => ({
+        ...row,
+        buttons: row.buttons.map((button) => ({ ...button })),
+      })) : [],
+      repeatDays: snapshot.repeatDays ? [...snapshot.repeatDays] : [],
+      selectedChat: snapshot.selectedChat ? { ...snapshot.selectedChat } : null,
+    } satisfies WorkspaceDraft;
+  };
+
   const applyPersistedDraftStore = (store: PersistedDraftStore) => {
     drafts.replaceSavedDrafts(store.savedDrafts);
     drafts.replaceDocumentHistories(normalizeWorkspaceDocumentHistories(store.documentHistories));
@@ -442,9 +457,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
           workspaceDraft,
           (histories) => {
             if (histories !== drafts.documentHistoriesRef.current) drafts.replaceDocumentHistories(histories);
-            lastPersistedWorkspaceSnapshotRef.current = workspaceDraft
-              ? JSON.parse(JSON.stringify(workspaceDraft)) as WorkspaceDraft
-              : null;
+            lastPersistedWorkspaceSnapshotRef.current = workspaceDraft ? persistableWorkspaceSnapshot(workspaceDraft) : null;
           },
           () => previousSnapshot && nextSnapshot && !areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft)
             ? appendWorkspaceDocumentVersion(

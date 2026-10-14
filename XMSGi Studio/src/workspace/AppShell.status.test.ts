@@ -1,5 +1,5 @@
 import { createElement, useContext } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
 import { AppShell, getTelegramStatusPresentation } from './AppShell';
@@ -160,17 +160,79 @@ describe('shared History Drawer entry point', () => {
     expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
   });
 
-  it('orders History, Settings, and Log out in the topbar', () => {
+  it('shows the Telegram account photo in the topbar avatar', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const avatarDataUrl = 'data:image/jpeg;base64,account-photo';
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getAccountAvatar: vi.fn().mockResolvedValue({ success: true, avatarDataUrl }) },
+    });
+    const onOpenSettings = vi.fn();
+    const setIsConfirmingLogout = vi.fn();
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
       view: 'studio',
       onViewChange: vi.fn(),
       connected: true,
       authBusy: false,
       isConfirmingLogout: false,
-      setIsConfirmingLogout: vi.fn(),
+      setIsConfirmingLogout,
       setShowAuthForm: vi.fn(),
       handleDisconnect: async () => undefined,
       handleForgetAccount: async () => undefined,
+      onOpenSettings,
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement('div', null, 'Current screen'))));
+
+    try {
+      await waitFor(() => {
+        expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', avatarDataUrl);
+      });
+
+      const labels = Array.from(view.container.querySelectorAll('.topbar-actions .action-label'))
+        .map((label) => label.textContent);
+      expect(labels).toEqual(['Posts', 'Settings']);
+      const photoTrigger = view.container.querySelector('.topbar-logout-photo');
+      expect(photoTrigger).not.toBeNull();
+      expect(photoTrigger?.querySelector('.topbar-logout-photo-image')).not.toBeNull();
+      expect(photoTrigger?.querySelector('.topbar-logout-photo-ring')).not.toBeNull();
+      const logoutButton = screen.getByRole('button', { name: 'Log out' });
+      expect(logoutButton).toHaveAttribute('aria-haspopup', 'dialog');
+      expect(logoutButton).toHaveClass('topbar-logout-photo');
+
+      fireEvent.click(logoutButton);
+      expect(setIsConfirmingLogout).toHaveBeenCalledWith(true);
+      expect(onOpenSettings).not.toHaveBeenCalled();
+
+      const studioHeading = view.container.querySelector('.product-section-title-detached');
+      expect(studioHeading?.textContent).toBe('Studio');
+      expect(studioHeading?.querySelector('svg')).not.toBeNull();
+    } finally {
+      view.unmount();
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
+  it('renders the airy sign-out window with cancel and sign-out choices', () => {
+    const onCancel = vi.fn();
+    const onDisconnect = vi.fn(async () => undefined);
+    const onForget = vi.fn(async () => undefined);
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'studio',
+      onViewChange: vi.fn(),
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: true,
+      setIsConfirmingLogout: onCancel,
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: onDisconnect,
+      handleForgetAccount: onForget,
       onOpenSettings: vi.fn(),
       historyRecords: [],
       onHistoryCancel: vi.fn(),
@@ -181,12 +243,17 @@ describe('shared History Drawer entry point', () => {
       onHistoryClearSent: vi.fn(),
     }, createElement('div', null, 'Current screen'))));
 
-    const labels = Array.from(view.container.querySelectorAll('.topbar-actions .action-label'))
-      .map((label) => label.textContent);
-    expect(labels).toEqual(['Posts', 'Settings', 'Log out']);
-    const studioHeading = view.container.querySelector('.product-section-title-detached');
-    expect(studioHeading?.textContent).toBe('Studio');
-    expect(studioHeading?.querySelector('svg')).not.toBeNull();
+    const modal = screen.getByRole('dialog', { name: 'Sign out?' });
+    expect(modal).toHaveClass('topbar-logout-modal');
+    expect(modal).toHaveAttribute('aria-modal', 'true');
+    expect(view.container.querySelector('.topbar-logout-modal-backdrop')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
+    expect(onDisconnect).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Forget me' }));
+    expect(onForget).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledWith(false);
     view.unmount();
   });
 

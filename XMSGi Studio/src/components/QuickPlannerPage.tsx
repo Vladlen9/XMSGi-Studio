@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent as ReactChangeEvent, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -6,6 +7,8 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Eraser,
   FileText,
@@ -54,6 +57,89 @@ const scheduleQuickOptions = [
   { group: 'days', label: '+1 день', ariaLabel: 'Через 1 день', days: 1 },
   { group: 'days', label: '+1 неделя', ariaLabel: 'Через 1 неделю', days: 7 },
 ];
+
+const scheduleTimeOptions = Array.from({ length: 96 }, (_, index) => {
+  const hour = Math.floor(index / 4);
+  const minute = (index % 4) * 15;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+});
+
+function formatScheduleDateValue(value: Date) {
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
+function formatScheduleDateLabel(value: string) {
+  const [year, month, day] = value.split('-');
+  if (!year || !month || !day) return '';
+  return `${day}.${month}.${year}`;
+}
+
+function maskScheduleDateDigits(digits: string) {
+  let masked = digits.slice(0, 2);
+  if (digits.length > 2) masked += `.${digits.slice(2, 4)}`;
+  if (digits.length > 4) masked += `.${digits.slice(4, 8)}`;
+  return masked;
+}
+
+function maskScheduleTimeDigits(digits: string) {
+  let masked = digits.slice(0, 2);
+  if (digits.length > 2) masked += `:${digits.slice(2, 4)}`;
+  return masked;
+}
+
+function isValidScheduleDateValue(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const candidate = new Date(year, month - 1, day);
+  return candidate.getFullYear() === year
+    && candidate.getMonth() === month - 1
+    && candidate.getDate() === day;
+}
+
+function parseScheduleDateInput(text: string): string | null {
+  const trimmed = text.trim();
+  const isoMatch = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  const localMatch = trimmed.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  const digits = trimmed.replace(/\D/g, '');
+  let year = '';
+  let month = '';
+  let day = '';
+  if (isoMatch) {
+    [, year, month, day] = isoMatch;
+  } else if (localMatch) {
+    [, day, month, year] = localMatch;
+  } else if (digits.length === 8) {
+    day = digits.slice(0, 2);
+    month = digits.slice(2, 4);
+    year = digits.slice(4, 8);
+  } else {
+    return null;
+  }
+  const candidate = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  return isValidScheduleDateValue(candidate) ? candidate : null;
+}
+
+function parseScheduleTimeInput(text: string): string | null {
+  const trimmed = text.trim();
+  const separatedMatch = trimmed.match(/^(\d{1,2})[:.](\d{1,2})$/);
+  const digits = trimmed.replace(/\D/g, '');
+  let hours = '';
+  let minutes = '';
+  if (separatedMatch) {
+    [, hours, minutes] = separatedMatch;
+  } else if (digits.length === 4) {
+    hours = digits.slice(0, 2);
+    minutes = digits.slice(2, 4);
+  } else {
+    return null;
+  }
+  if (!/^\d{1,2}$/.test(hours) || !/^\d{1,2}$/.test(minutes)) return null;
+  const hoursNumber = Number(hours);
+  const minutesNumber = Number(minutes);
+  if (hoursNumber > 23 || minutesNumber > 59) return null;
+  return `${String(hoursNumber).padStart(2, '0')}:${String(minutesNumber).padStart(2, '0')}`;
+}
 
 type PlannerPreviewMessage = {
   id: string;
@@ -218,13 +304,17 @@ function buildHistoryPreviewGroups(records: HistoryItem[], pinnedIds: string[], 
     .filter(({ items }) => items.length > 0);
 }
 
-const reminderTypes: Array<{ id: ReminderType; label: string; icon: typeof CheckCircle2 }> = [
-  { id: 'task', label: 'Task', icon: CheckCircle2 },
-  { id: 'meeting', label: 'Meeting', icon: Clock },
-  { id: 'reminder', label: 'Reminder', icon: Bell },
-  { id: 'event', label: 'Event', icon: CalendarDays },
-  { id: 'idea', label: 'Idea', icon: Lightbulb },
-];
+const reminderTypeIds: ReminderType[] = ['task', 'meeting', 'reminder', 'event', 'idea'];
+
+function getReminderTypeOptions(t: ReturnType<typeof useLocale>['t']) {
+  return [
+    { id: 'task' as const, label: t('quickplanner.reminderType.task'), icon: CheckCircle2 },
+    { id: 'meeting' as const, label: t('quickplanner.reminderType.meeting'), icon: Clock },
+    { id: 'reminder' as const, label: t('quickplanner.reminderType.reminder'), icon: Bell },
+    { id: 'event' as const, label: t('quickplanner.reminderType.event'), icon: CalendarDays },
+    { id: 'idea' as const, label: t('quickplanner.reminderType.idea'), icon: Lightbulb },
+  ];
+}
 
 function sortPlannerDraftsByPinned(drafts: SavedPlannerDraft[]) {
   return [
@@ -259,7 +349,7 @@ function choosePlannerMotivation(locale: 'en' | 'ru') {
 
 function readSavedReminderType(): ReminderType | null {
   const savedType = load<unknown>(REMINDER_TYPE_STORAGE_KEY, null);
-  return reminderTypes.some(({ id }) => id === savedType) ? savedType as ReminderType : null;
+  return reminderTypeIds.includes(savedType as ReminderType) ? savedType as ReminderType : null;
 }
 
 const plannerEmojis = ['😀', '😂', '😥', '😍', '😎', '🤔', '😭', '👋', '👍', '🙏', '🔥', '❤️', '✨', '🎉', '✅', '🚀', '☕', '🌸'];
@@ -295,6 +385,7 @@ function readSavedComposeHeight() {
 }
 
 type QuickPlannerPageProps = {
+  draftOnlyMode?: boolean;
   chats: Chat[];
   selectedChat: Chat | null;
   selectedChatPermissions: ChatPermissions | null;
@@ -365,6 +456,7 @@ function updateEntitiesForTextChange(entities: RichTextEntity[], previousText: s
 }
 
 export function QuickPlannerPage({
+  draftOnlyMode = false,
   chats,
   selectedChat,
   selectedChatPermissions,
@@ -390,13 +482,19 @@ export function QuickPlannerPage({
   closeNotification,
 }: QuickPlannerPageProps) {
   const { locale, t } = useLocale();
-  const plannerModeOptions = useMemo(() => plannerModes(t), [t]);
+  const reminderTypes = useMemo(() => getReminderTypeOptions(t), [t]);
+  const plannerModeOptions = useMemo(() => {
+    const modes = plannerModes(t);
+    return draftOnlyMode ? modes.filter(({ id }) => id === 'draft') : modes;
+  }, [draftOnlyMode, t]);
   const { currentSection, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
   const [previewPersistence] = useState(readPlannerPreviewState);
   const [sidebarMotivation] = useState(() => choosePlannerMotivation(locale));
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
   const [publishMode, setPublishMode] = useState<QuickPlannerMode>(() => (
-    plannerModeOptions.some(({ id }) => id === previewPersistence.publishMode)
+    draftOnlyMode
+      ? 'draft'
+      : plannerModeOptions.some(({ id }) => id === previewPersistence.publishMode)
       ? previewPersistence.publishMode as QuickPlannerMode
       : 'send'
   ));
@@ -482,6 +580,156 @@ export function QuickPlannerPage({
     setScheduleDateTime(date && time && nextDateTime < minimumScheduleDateTime
       ? minimumScheduleDateTime
       : nextDateTime);
+  };
+  const [scheduleDateDraft, setScheduleDateDraft] = useState<string | null>(null);
+  const [scheduleTimeDraft, setScheduleTimeDraft] = useState<string | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [schedulePickerPosition, setSchedulePickerPosition] = useState({ top: 8, left: 8 });
+  const [calendarCursor, setCalendarCursor] = useState(() => new Date());
+  const scheduleDatePillRef = useRef<HTMLLabelElement | null>(null);
+  const scheduleTimePillRef = useRef<HTMLLabelElement | null>(null);
+  const scheduleDatePickerRef = useRef<HTMLDivElement | null>(null);
+  const scheduleTimePickerRef = useRef<HTMLDivElement | null>(null);
+  const minimumScheduleDateValue = minimumScheduleDateTime.slice(0, 10);
+  const minimumScheduleTimeValue = minimumScheduleDateTime.slice(11, 16);
+  const todayScheduleDateValue = formatScheduleDateValue(new Date());
+
+  const toggleScheduleDatePicker = () => {
+    setTimePickerOpen(false);
+    setScheduleDateDraft(null);
+    if (!datePickerOpen) {
+      setCalendarCursor(isValidScheduleDateValue(scheduleDate)
+        ? new Date(`${scheduleDate}T12:00:00`)
+        : new Date());
+    }
+    setDatePickerOpen((open) => !open);
+  };
+  const toggleScheduleTimePicker = () => {
+    setDatePickerOpen(false);
+    setScheduleTimeDraft(null);
+    setTimePickerOpen((open) => !open);
+  };
+  const closeSchedulePickers = () => {
+    setDatePickerOpen(false);
+    setTimePickerOpen(false);
+  };
+
+  useEffect(() => {
+    if (!datePickerOpen && !timePickerOpen) return undefined;
+
+    const updateSchedulePickerPosition = () => {
+      const anchor = datePickerOpen ? scheduleDatePillRef.current : scheduleTimePillRef.current;
+      if (!anchor) return;
+      const bounds = anchor.getBoundingClientRect();
+      const width = datePickerOpen ? 246 : 172;
+      const height = datePickerOpen ? 276 : 272;
+      const topBelow = bounds.bottom + 6;
+      const top = topBelow + height + 8 > window.innerHeight
+        ? Math.max(8, bounds.top - height - 6)
+        : topBelow;
+      const left = Math.max(8, Math.min(bounds.left, window.innerWidth - width - 8));
+      setSchedulePickerPosition({ top, left });
+    };
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (datePickerOpen) {
+        if (
+          !scheduleDatePickerRef.current?.contains(target)
+          && !scheduleDatePillRef.current?.contains(target)
+        ) {
+          setDatePickerOpen(false);
+        }
+      } else if (timePickerOpen) {
+        if (
+          !scheduleTimePickerRef.current?.contains(target)
+          && !scheduleTimePillRef.current?.contains(target)
+        ) {
+          setTimePickerOpen(false);
+        }
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeSchedulePickers();
+    };
+
+    updateSchedulePickerPosition();
+    window.addEventListener('resize', updateSchedulePickerPosition);
+    window.addEventListener('scroll', updateSchedulePickerPosition, true);
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('resize', updateSchedulePickerPosition);
+      window.removeEventListener('scroll', updateSchedulePickerPosition, true);
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [datePickerOpen, timePickerOpen]);
+
+  useEffect(() => {
+    if (!timePickerOpen) return;
+    const selectedOption = scheduleTimePickerRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    selectedOption?.scrollIntoView?.({ block: 'center' });
+  }, [timePickerOpen]);
+
+  useEffect(() => {
+    setDatePickerOpen(false);
+    setTimePickerOpen(false);
+    setScheduleDateDraft(null);
+    setScheduleTimeDraft(null);
+  }, [publishMode]);
+
+  const handleScheduleDateChange = (event: ReactChangeEvent<HTMLInputElement>) => {
+    const digits = event.currentTarget.value.replace(/\D/g, '').slice(0, 8);
+    if (digits.length === 8) {
+      const parsed = parseScheduleDateInput(digits);
+      if (parsed) {
+        setScheduleDateDraft(null);
+        setScheduleDateTimeWithinRange(parsed, scheduleTime || '12:00');
+        return;
+      }
+    }
+    setScheduleDateDraft(maskScheduleDateDigits(digits));
+  };
+  const handleScheduleDateBlur = () => {
+    if (scheduleDateDraft === null) return;
+    const parsed = parseScheduleDateInput(scheduleDateDraft);
+    if (parsed) setScheduleDateTimeWithinRange(parsed, scheduleTime || '12:00');
+    setScheduleDateDraft(null);
+  };
+  const handleScheduleDatePaste = (event: ReactClipboardEvent<HTMLInputElement>) => {
+    const parsed = parseScheduleDateInput(event.clipboardData.getData('text'));
+    if (!parsed) return;
+    event.preventDefault();
+    setScheduleDateDraft(null);
+    setScheduleDateTimeWithinRange(parsed, scheduleTime || '12:00');
+  };
+  const handleScheduleTimeChange = (event: ReactChangeEvent<HTMLInputElement>) => {
+    const digits = event.currentTarget.value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length === 4) {
+      const parsed = parseScheduleTimeInput(digits);
+      if (parsed) {
+        setScheduleTimeDraft(null);
+        setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateValue, parsed);
+        return;
+      }
+    }
+    setScheduleTimeDraft(maskScheduleTimeDigits(digits));
+  };
+  const handleScheduleTimeBlur = () => {
+    if (scheduleTimeDraft === null) return;
+    const parsed = parseScheduleTimeInput(scheduleTimeDraft);
+    if (parsed) setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateValue, parsed);
+    setScheduleTimeDraft(null);
+  };
+  const handleScheduleTimePaste = (event: ReactClipboardEvent<HTMLInputElement>) => {
+    const parsed = parseScheduleTimeInput(event.clipboardData.getData('text'));
+    if (!parsed) return;
+    event.preventDefault();
+    setScheduleTimeDraft(null);
+    setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateValue, parsed);
   };
   const [sendingNow, setSendingNow] = useState(false);
   const [actionFeedback, setActionFeedback] = useState<'sent' | 'scheduled' | 'saved' | 'failed' | null>(null);
@@ -1251,9 +1499,11 @@ export function QuickPlannerPage({
   const expandedPreviewMessage = expandedPlannerDraft
     ? {
       id: expandedPlannerDraft.id,
-      time: expandedDraftDate && !Number.isNaN(expandedDraftDate.getTime()) ? expandedDraftDate.toLocaleString() : '',
-      chat: 'Saved draft',
-      message: expandedPlannerDraft.message || `Draft with ${expandedPlannerDraft.attachments.length} attachments`,
+      time: expandedDraftDate && !Number.isNaN(expandedDraftDate.getTime())
+        ? expandedDraftDate.toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')
+        : '',
+      chat: t('quickplanner.savedDraft'),
+      message: expandedPlannerDraft.message || t('quickplanner.draftWithAttachments', { count: expandedPlannerDraft.attachments.length }),
     }
     : expandedPreviewMessageId && publishMode !== 'draft'
       ? visiblePreviewGroups.flatMap(({ items }) => items).find(({ id }) => id === expandedPreviewMessageId) ?? null
@@ -1273,10 +1523,24 @@ export function QuickPlannerPage({
     };
   }, [previewMode, updatePreviewScrollbar, visiblePreviewGroups]);
 
+  const calendarYear = calendarCursor.getFullYear();
+  const calendarMonth = calendarCursor.getMonth();
+  const calendarFirstWeekdayOffset = (new Date(calendarYear, calendarMonth, 1).getDay() + 6) % 7;
+  const calendarDayCount = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const calendarMonthKey = calendarYear * 12 + calendarMonth;
+  const minimumMonthKey = Number(minimumScheduleDateValue.slice(0, 4)) * 12 + Number(minimumScheduleDateValue.slice(5, 7)) - 1;
+  const calendarDateLocale = locale === 'ru' ? 'ru-RU' : 'en-US';
+  const calendarWeekdayLabels = Array.from({ length: 7 }, (_, index) => (
+    new Intl.DateTimeFormat(calendarDateLocale, { weekday: 'short' })
+      .format(new Date(Date.UTC(2023, 0, 2 + index)))
+  ));
+  const calendarMonthLabel = new Intl.DateTimeFormat(calendarDateLocale, { month: 'long', year: 'numeric' }).format(calendarCursor);
+
   return (
     <section
-      className="quick-planner-page"
+      className={`quick-planner-page${draftOnlyMode ? ' is-browser-draft-only' : ''}`}
       aria-labelledby="quick-planner-title"
+      lang={locale}
       data-publish-mode={publishMode}
       style={{
         '--quick-planner-accent': quickPlannerAccent,
@@ -1363,7 +1627,7 @@ export function QuickPlannerPage({
               </div>
               {publishMode !== 'draft' && (
                 <div className="quick-planner-chat-picker">
-                  <span className="quick-planner-mode-caption">Send to</span>
+                  <span className="quick-planner-mode-caption">{t('quickplanner.sendTo')}</span>
                   <ChatPicker
                     chats={chats}
                     selectedChat={selectedChat}
@@ -1496,6 +1760,13 @@ export function QuickPlannerPage({
                 aria-label="Planner attachment files"
                 onChange={handleFileSelection}
               />
+              {emojiPickerOpen && (
+                <div id="quick-planner-emoji-picker" className="quick-planner-emoji-picker" role="group" aria-label="Choose emoji">
+                  {plannerEmojis.map((emoji) => (
+                    <button key={emoji} type="button" aria-label={`Insert ${emoji}`} onClick={() => insertEmoji(emoji)}>{emoji}</button>
+                  ))}
+                </div>
+              )}
               <div className="quick-planner-compose-footer">
                 <div className="quick-planner-tools">
                   <button
@@ -1506,18 +1777,11 @@ export function QuickPlannerPage({
                     title="Emoji"
                     onClick={() => setEmojiPickerOpen((open) => !open)}
                   ><Smile size={18} aria-hidden="true" /></button>
-                  {emojiPickerOpen && (
-                    <div id="quick-planner-emoji-picker" className="quick-planner-emoji-picker" role="group" aria-label="Choose emoji">
-                      {plannerEmojis.map((emoji) => (
-                        <button key={emoji} type="button" aria-label={`Insert ${emoji}`} onClick={() => insertEmoji(emoji)}>{emoji}</button>
-                      ))}
-                    </div>
-                  )}
                   <button type="button" aria-label="Add attachment" title="Attachment" onClick={() => fileInputRef.current?.click()}><Paperclip size={18} aria-hidden="true" /></button>
                   {publishMode === 'draft' && (
                     <div className={`quick-planner-type-controls ${isReminderTypePanelOpen ? 'is-open' : ''}`}>
                       {isReminderTypePanelOpen && (
-                        <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label="Tags">
+                        <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label={t('quickplanner.reminderTypes')}>
                           <button
                             type="button"
                             onClick={() => {
@@ -1525,7 +1789,7 @@ export function QuickPlannerPage({
                               setIsReminderTypePanelOpen(false);
                             }}
                           >
-                            <span>None</span>
+                            <span>{t('quickplanner.reminderType.none')}</span>
                           </button>
                           {reminderTypes.map(({ id, label, icon: TypeIcon }) => (
                             <button
@@ -1546,10 +1810,18 @@ export function QuickPlannerPage({
                       <button
                         className={`quick-planner-type-toggle${selectedReminderType && !isReminderTypePanelOpen ? ' is-selected' : ''}${!selectedReminderType && !isReminderTypePanelOpen ? ' is-add-tag' : ''}`}
                         type="button"
-                        aria-label={isReminderTypePanelOpen ? 'Close tag choices' : selectedReminderType ? `Change tag: ${selectedReminderType.label}` : 'Add tag'}
+                        aria-label={isReminderTypePanelOpen
+                          ? t('quickplanner.closeReminderTypes')
+                          : selectedReminderType
+                            ? t('quickplanner.changeReminderType', { type: selectedReminderType.label })
+                            : t('quickplanner.addReminderType')}
                         aria-expanded={isReminderTypePanelOpen}
                         aria-controls="quick-planner-reminder-types"
-                        title={isReminderTypePanelOpen ? 'Close tag choices' : selectedReminderType ? 'Change tag' : 'Add tag'}
+                        title={isReminderTypePanelOpen
+                          ? t('quickplanner.closeReminderTypes')
+                          : selectedReminderType
+                            ? t('quickplanner.changeReminderType', { type: selectedReminderType.label })
+                            : t('quickplanner.addReminderType')}
                         onClick={() => setIsReminderTypePanelOpen((isOpen) => !isOpen)}
                       >
                         {isReminderTypePanelOpen ? <X size={12} aria-hidden="true" /> : selectedReminderType && SelectedReminderTypeIcon ? (
@@ -1560,7 +1832,7 @@ export function QuickPlannerPage({
                         ) : (
                           <>
                             <Plus size={14} aria-hidden="true" />
-                            <span>Add tag</span>
+                            <span>{t('quickplanner.addReminderType')}</span>
                           </>
                         )}
                       </button>
@@ -1568,27 +1840,188 @@ export function QuickPlannerPage({
                   )}
                   {publishMode === 'schedule' && (
                     <div className="quick-planner-schedule-controls" role="group" aria-label="Schedule date and time">
-                      <label className="quick-planner-schedule-date" title="Schedule date">
-                        <CalendarDays size={15} aria-hidden="true" />
+                      <label ref={scheduleDatePillRef} className="quick-planner-schedule-date" title="Schedule date">
+                        <CalendarDays
+                          size={15}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Open date picker"
+                          aria-haspopup="dialog"
+                          aria-expanded={datePickerOpen}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleScheduleDatePicker();
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
+                            toggleScheduleDatePicker();
+                          }}
+                        />
                         <input
                           aria-label="Schedule date"
-                          type="date"
-                          min={minimumScheduleDateTime.slice(0, 10)}
-                          value={scheduleDate || ''}
-                          onChange={(event) => setScheduleDateTimeWithinRange(event.target.value, scheduleTime || '12:00')}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={scheduleDateDraft ?? formatScheduleDateLabel(scheduleDate)}
+                          onChange={handleScheduleDateChange}
+                          onBlur={handleScheduleDateBlur}
+                          onPaste={handleScheduleDatePaste}
                         />
                       </label>
-                      <label className="quick-planner-schedule-clock" title="Schedule time">
-                        <Clock size={15} aria-hidden="true" />
+                      <label ref={scheduleTimePillRef} className="quick-planner-schedule-clock" title="Schedule time">
+                        <Clock
+                          size={15}
+                          role="button"
+                          tabIndex={0}
+                          aria-label="Open time picker"
+                          aria-haspopup="dialog"
+                          aria-expanded={timePickerOpen}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleScheduleTimePicker();
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
+                            toggleScheduleTimePicker();
+                          }}
+                        />
                         <input
                           aria-label="Schedule time"
-                          type="time"
-                          min={scheduleDate === minimumScheduleDateTime.slice(0, 10) ? minimumScheduleDateTime.slice(11, 16) : undefined}
-                          value={scheduleTime || ''}
-                          onChange={(event) => setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateTime.slice(0, 10), event.target.value)}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={scheduleTimeDraft ?? scheduleTime}
+                          onChange={handleScheduleTimeChange}
+                          onBlur={handleScheduleTimeBlur}
+                          onPaste={handleScheduleTimePaste}
                         />
                       </label>
                     </div>
+                  )}
+                  {datePickerOpen && createPortal(
+                    <div
+                      ref={scheduleDatePickerRef}
+                      className="quick-planner-date-picker"
+                      role="dialog"
+                      aria-label="Schedule date picker"
+                      style={{
+                        top: schedulePickerPosition.top,
+                        left: schedulePickerPosition.left,
+                        '--quick-planner-accent': quickPlannerAccent,
+                      } as CSSProperties}
+                    >
+                      <div className="quick-planner-date-picker-header">
+                        <button
+                          type="button"
+                          aria-label="Previous month"
+                          disabled={calendarMonthKey <= minimumMonthKey}
+                          onClick={() => setCalendarCursor((cursor) => new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+                        >
+                          <ChevronLeft size={14} aria-hidden="true" />
+                        </button>
+                        <span className="quick-planner-date-picker-title">{calendarMonthLabel}</span>
+                        <button
+                          type="button"
+                          aria-label="Next month"
+                          onClick={() => setCalendarCursor((cursor) => new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+                        >
+                          <ChevronRight size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="quick-planner-date-picker-weekdays" aria-hidden="true">
+                        {calendarWeekdayLabels.map((label) => <span key={label}>{label}</span>)}
+                      </div>
+                      <div className="quick-planner-date-picker-grid">
+                        {Array.from({ length: calendarFirstWeekdayOffset }, (_, index) => (
+                          <span key={`gap-${index}`} className="quick-planner-date-picker-gap" aria-hidden="true" />
+                        ))}
+                        {Array.from({ length: calendarDayCount }, (_, index) => {
+                          const dayNumber = index + 1;
+                          const cellValue = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+                          const isSelected = cellValue === scheduleDate;
+                          const isToday = cellValue === todayScheduleDateValue;
+                          const isDisabled = cellValue < minimumScheduleDateValue;
+                          return (
+                            <button
+                              key={cellValue}
+                              type="button"
+                              disabled={isDisabled}
+                              aria-pressed={isSelected}
+                              className={`${isSelected ? 'is-selected' : ''}${isToday ? ' is-today' : ''}`.trim()}
+                              onClick={() => {
+                                if (isDisabled) return;
+                                setScheduleDateTimeWithinRange(cellValue, scheduleTime || '12:00');
+                                setDatePickerOpen(false);
+                              }}
+                            >
+                              {dayNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>,
+                    document.body,
+                  )}
+                  {timePickerOpen && createPortal(
+                    <div
+                      ref={scheduleTimePickerRef}
+                      className="quick-planner-time-picker"
+                      role="dialog"
+                      aria-label="Schedule time picker"
+                      style={{
+                        top: schedulePickerPosition.top,
+                        left: schedulePickerPosition.left,
+                        '--quick-planner-accent': quickPlannerAccent,
+                      } as CSSProperties}
+                    >
+                      <input
+                        className="quick-planner-time-field"
+                        aria-label="Enter schedule time"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        autoFocus
+                        value={scheduleTimeDraft ?? scheduleTime}
+                        onChange={handleScheduleTimeChange}
+                        onBlur={handleScheduleTimeBlur}
+                        onPaste={handleScheduleTimePaste}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter') return;
+                          event.preventDefault();
+                          const parsed = parseScheduleTimeInput(event.currentTarget.value);
+                          if (!parsed) return;
+                          setScheduleTimeDraft(null);
+                          setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateValue, parsed);
+                          setTimePickerOpen(false);
+                        }}
+                      />
+                      <div className="quick-planner-time-list" role="listbox" aria-label="Available times">
+                        {scheduleTimeOptions.map((option) => {
+                          const isSelected = option === scheduleTime;
+                          const isPast = scheduleDate < minimumScheduleDateValue
+                            || (scheduleDate === minimumScheduleDateValue && option < minimumScheduleTimeValue);
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              disabled={isPast}
+                              onClick={() => {
+                                setScheduleTimeDraft(null);
+                                setScheduleDateTimeWithinRange(scheduleDate || minimumScheduleDateValue, option);
+                                setTimePickerOpen(false);
+                              }}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>,
+                    document.body,
                   )}
                   {publishMode === 'schedule' && (
                     <div className="quick-planner-schedule-quick-values" role="group" aria-label="Quick schedule times">
@@ -1704,8 +2137,8 @@ export function QuickPlannerPage({
               <>
             <div className="quick-planner-upcoming">
             <div className="quick-planner-upcoming-heading">
-              <span className="quick-planner-section-label quick-planner-panel-title"><Zap size={13} strokeWidth={2.3} aria-hidden="true" />{savedPlannerDrafts.length >= 2 ? 'Drafts' : 'Draft'}</span>
-              <span>Thoughts &amp; Studio{savedPlannerDrafts.length > 0 ? ` · ${savedPlannerDrafts.length}` : ''}</span>
+              <span className="quick-planner-section-label quick-planner-panel-title"><Zap size={13} strokeWidth={2.3} aria-hidden="true" />{savedPlannerDrafts.length >= 2 ? t('quickplanner.drafts') : t('quickplanner.mode.draft')}</span>
+              <span>{t('quickplanner.draftCollection')}{savedPlannerDrafts.length > 0 ? ` · ${savedPlannerDrafts.length.toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')}` : ''}</span>
             </div>
             <div className="quick-planner-reminder-scroll-area">
               <div
@@ -1713,7 +2146,7 @@ export function QuickPlannerPage({
                 ref={plannerDraftListRef}
                 className="quick-planner-reminder-list"
                 role="list"
-                aria-label="Quick Planner drafts"
+                aria-label={t('quickplanner.draftsListLabel')}
                 onScroll={updateDraftScrollbar}
               >
               {savedPlannerDrafts.length > 0 ? savedPlannerDrafts.map((draft, index) => {
@@ -1722,11 +2155,11 @@ export function QuickPlannerPage({
                 const draftSummary = draft.message.trim()
                   ? draft.message
                   : draft.attachments.length === 1
-                    ? 'Draft with 1 attachment'
-                    : `Draft with ${draft.attachments.length} attachments`;
+                    ? t('quickplanner.draftWithOneAttachment')
+                    : t('quickplanner.draftWithAttachments', { count: draft.attachments.length });
                 const savedDate = draft.savedAt ? new Date(draft.savedAt) : null;
                 const savedLabel = savedDate && !Number.isNaN(savedDate.getTime())
-                  ? savedDate.toLocaleString()
+                  ? savedDate.toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US')
                   : '';
 
                 return (
@@ -1735,7 +2168,7 @@ export function QuickPlannerPage({
                     key={draft.id}
                     role="listitem"
                     tabIndex={0}
-                    aria-label={`Open draft ${draftSummary}`}
+                    aria-label={t('quickplanner.openDraftLabel', { draft: draftSummary })}
                     aria-expanded={publishMode === 'draft' && expandedPreviewMessageId === draft.id}
                     onClick={(event) => {
                       const target = event.target;
@@ -1755,20 +2188,22 @@ export function QuickPlannerPage({
                           type="checkbox"
                           value={draft.id}
                           checked={selectedDraftIds.includes(draft.id)}
-                          title={selectedDraftIds.includes(draft.id) ? 'Deselect this draft' : 'Select this draft'}
+                          title={t(selectedDraftIds.includes(draft.id) ? 'quickplanner.deselectThisDraft' : 'quickplanner.selectThisDraft')}
                           onChange={() => toggleDraftSelection(draft.id)}
-                          aria-label={`${selectedDraftIds.includes(draft.id) ? 'Deselect' : 'Select'} draft ${draftSummary}`}
+                          aria-label={t(selectedDraftIds.includes(draft.id) ? 'quickplanner.deselectDraftLabel' : 'quickplanner.selectDraftLabel', { draft: draftSummary })}
                         />
                         </label>
-                        <strong>{savedPlannerDrafts.length - index === 1 ? 'Saved draft' : `Saved draft ${savedPlannerDrafts.length - index}`}</strong>
+                        <strong>{savedPlannerDrafts.length - index === 1
+                          ? t('quickplanner.savedDraft')
+                          : t('quickplanner.savedDraftNumber', { number: savedPlannerDrafts.length - index })}</strong>
                       </div>
                       <div className="quick-planner-draft-actions">
                         <button
                           type="button"
                           className="quick-planner-draft-open"
                           onClick={() => openPlannerDraftInStudio(draft)}
-                          aria-label={`Open draft in Studio ${draftSummary}`}
-                          title="Open this draft in Studio"
+                          aria-label={t('quickplanner.openDraftInStudio', { draft: draftSummary })}
+                          title={t('quickplanner.openThisDraftInStudio')}
                         >
                           <ArrowUpRight size={14} aria-hidden="true" />
                         </button>
@@ -1776,9 +2211,9 @@ export function QuickPlannerPage({
                           type="button"
                           className={`quick-planner-draft-pin${draft.pinned ? ' is-pinned' : ''}`}
                           onClick={() => togglePlannerDraftPin(draft.id)}
-                          aria-label={`${draft.pinned ? 'Unpin' : 'Pin'} draft ${draftSummary}`}
+                          aria-label={t(draft.pinned ? 'quickplanner.unpinDraft' : 'quickplanner.pinDraft', { draft: draftSummary })}
                           aria-pressed={Boolean(draft.pinned)}
-                          title={draft.pinned ? 'Unpin draft' : 'Pin draft to top'}
+                          title={t(draft.pinned ? 'quickplanner.unpinDraftTitle' : 'quickplanner.pinDraftTitle')}
                         >
                           <Pin size={14} aria-hidden="true" />
                         </button>
@@ -1786,8 +2221,8 @@ export function QuickPlannerPage({
                           type="button"
                           className="quick-planner-draft-delete"
                           onClick={() => deletePlannerDraft(draft.id)}
-                          aria-label={`Delete draft ${draftSummary}`}
-                          title="Delete draft"
+                          aria-label={t('quickplanner.deleteDraft', { draft: draftSummary })}
+                          title={t('quickplanner.deleteDraftTitle')}
                         >
                           <X size={14} aria-hidden="true" />
                         </button>
@@ -1813,7 +2248,7 @@ export function QuickPlannerPage({
                     ))}
                   </article>
                 );
-              }) : <p className="quick-planner-empty">No saved Quick Planner drafts.</p>}
+              }) : <p className="quick-planner-empty">{t('quickplanner.noSavedDrafts')}</p>}
               </div>
               <div
                 ref={plannerDraftScrollbarRef}
@@ -1823,7 +2258,7 @@ export function QuickPlannerPage({
                 <div
                   className="quick-planner-draft-scrollbar-thumb"
                   role="scrollbar"
-                  aria-label="Scroll drafts"
+                  aria-label={t('quickplanner.scrollDrafts')}
                   aria-controls="quick-planner-draft-list"
                   aria-orientation="vertical"
                   aria-valuemin={0}
@@ -1846,7 +2281,7 @@ export function QuickPlannerPage({
             <div className={`quick-planner-open-studio-footer${savedPlannerDrafts.length >= 2 ? ' has-multiple-drafts' : ''}`}>
               {selectedDrafts.length === 0 && showDraftSelectionHint && (
                 <p className="quick-planner-draft-selection-hint" role="status">
-                  Select a draft or create a note
+                  {t('quickplanner.selectDraftHint')}
                 </p>
               )}
               <button
@@ -1859,11 +2294,11 @@ export function QuickPlannerPage({
                   }
                   openSelectedDraftInStudio();
                 }}
-                title={`Open ${selectedDrafts.length} selected ${selectedDrafts.length === 1 ? 'draft' : 'drafts'} in Studio`}
-                aria-label={`Open ${selectedDrafts.length} selected ${selectedDrafts.length === 1 ? 'draft' : 'drafts'} in Studio`}
+                title={t(selectedDrafts.length === 1 ? 'quickplanner.openSelectedDraft' : 'quickplanner.openSelectedDrafts', { count: selectedDrafts.length })}
+                aria-label={t(selectedDrafts.length === 1 ? 'quickplanner.openSelectedDraft' : 'quickplanner.openSelectedDrafts', { count: selectedDrafts.length })}
               >
                 <ArrowUpRight size={18} />
-                <span>Open drafts in Studio</span>
+                <span>{t('quickplanner.openDraftsInStudio')}</span>
                 <span className="quick-planner-open-studio-count" aria-hidden="true">{selectedDrafts.length}</span>
               </button>
             </div>
@@ -1873,7 +2308,7 @@ export function QuickPlannerPage({
                 <div className="quick-planner-upcoming-heading">
                   <span className="quick-planner-section-label quick-planner-panel-title">
                     <Zap size={13} strokeWidth={2.3} aria-hidden="true" />
-                    {publishMode === 'schedule' ? 'Queue' : 'History'}
+                    {t(publishMode === 'schedule' ? 'quickplanner.queue' : 'quickplanner.history')}
                   </span>
                 </div>
                 <div className="quick-planner-mode-preview-scroll-area">
@@ -1982,8 +2417,8 @@ export function QuickPlannerPage({
                   <button
                     className="quick-planner-full-message-close"
                     type="button"
-                    aria-label="Close full message"
-                    title="Close"
+                    aria-label={t('quickplanner.closeFullMessage')}
+                    title={t('common.close')}
                     onClick={() => setExpandedPreviewMessageId(null)}
                   >
                     <X size={18} aria-hidden="true" />

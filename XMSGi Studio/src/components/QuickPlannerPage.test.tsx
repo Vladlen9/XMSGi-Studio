@@ -119,6 +119,20 @@ beforeEach(() => {
 });
 
 describe('QuickPlannerPage layout positioning', () => {
+  it('opens browser draft mode with only local draft actions available', () => {
+    const { container } = renderQuickPlanner({
+      draftOnlyMode: true,
+      chats: [],
+      selectedChat: null,
+    });
+    const modeGroup = screen.getByRole('group', { name: 'Action mode' });
+
+    expect(container.querySelector('.quick-planner-page')).toHaveAttribute('data-publish-mode', 'draft');
+    expect(within(modeGroup).getAllByRole('button')).toHaveLength(1);
+    expect(within(modeGroup).getByRole('button', { name: 'Draft' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Save draft' })).toBeInTheDocument();
+  });
+
   it('lowers the Add tag control by three pixels', () => {
     expect(getCssRules('.quick-planner-type-toggle.is-add-tag')[0]).toMatch(/transform:\s*translateY\(3px\)/);
   });
@@ -186,6 +200,23 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*561px\)\s*and\s*\(max-width:\s*720px\)\s*\{\s*\.quick-planner-mode-switch\s*>\s*\.quick-planner-mode-caption\s*\{[^}]*font-size:\s*8px;[^}]*transform:\s*none;/);
   });
 
+  it('places the Russian action caption before the controls and reserves the clock area', () => {
+    const actionsRules = getCssRules('.quick-planner-page[lang="ru"] .quick-planner-editor > .quick-planner-heading-actions');
+    const switchRules = getCssRules('.quick-planner-page[lang="ru"] .quick-planner-mode-switch');
+    const captionRules = getCssRules('.quick-planner-page[lang="ru"] .quick-planner-mode-switch > .quick-planner-mode-caption');
+    const buttonRules = getCssRules('.quick-planner-page[lang="ru"] .quick-planner-mode-switch button');
+
+    expect(actionsRules[0]).toMatch(/left:\s*240px/);
+    expect(actionsRules[0]).toMatch(/transform:\s*translateY\(-8px\)/);
+    expect(switchRules[0]).toMatch(/flex-wrap:\s*nowrap/);
+    expect(captionRules[0]).toMatch(/flex:\s*0 0 auto/);
+    expect(captionRules[0]).toMatch(/font-size:\s*9px/);
+    expect(captionRules[0]).toMatch(/text-align:\s*left/);
+    expect(buttonRules[0]).toMatch(/font-size:\s*18px/);
+    expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1100px\)[\s\S]*?\.quick-planner-page\[lang="ru"\] \.quick-planner-editor\s*>\s*\.quick-planner-heading-actions\s*\{[^}]*top:\s*70px;[^}]*left:\s*14px;[^}]*transform:\s*none/);
+    expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1100px\)[\s\S]*?\.quick-planner-page\[lang="ru"\] \.quick-planner-mode-switch\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+
   it('moves the sidebar motivation to the right without exceeding the panel width', () => {
     const noteRules = getCssRules('.quick-planner-sidebar-note')[0];
 
@@ -205,9 +236,13 @@ describe('QuickPlannerPage layout positioning', () => {
     const pickerRules = getCssRules('.quick-planner-emoji-picker')[0];
     const emojiButtonRules = getCssRules('.quick-planner-emoji-picker button')[0];
 
-    expect(pickerRules).toMatch(/top:\s*8px/);
-    expect(pickerRules).toMatch(/left:\s*8px/);
-    expect(pickerRules).toMatch(/max-height:\s*calc\(100%\s*-\s*16px\)/);
+    // The picker is anchored to the composer (not the toolbar), stays inside the
+    // compose frame, and opens upward above the toolbar with a scrollable body.
+    expect(pickerRules).toMatch(/position:\s*absolute/);
+    expect(pickerRules).toMatch(/top:\s*auto/);
+    expect(pickerRules).toMatch(/bottom:\s*52px/);
+    expect(pickerRules).toMatch(/align-content:\s*start/);
+    expect(pickerRules).toMatch(/overflow-y:\s*auto/);
     expect(emojiButtonRules).toMatch(/font-family:\s*"Segoe UI Emoji"/);
     expect(emojiButtonRules).toMatch(/appearance:\s*none/);
   });
@@ -245,20 +280,20 @@ describe('QuickPlannerPage layout positioning', () => {
   it('persists the chosen reminder tag across page remounts', () => {
     const { unmount } = renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Draft' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add reminder type' }));
 
-    const tags = within(screen.getByRole('group', { name: 'Tags' }));
+    const tags = within(screen.getByRole('group', { name: 'Reminder type' }));
     expect(tags.getAllByRole('button').map((button) => button.textContent?.trim()))
       .toEqual(['None', 'Task', 'Meeting', 'Reminder', 'Event', 'Idea']);
     fireEvent.click(tags.getByRole('button', { name: 'Idea' }));
 
-    expect(screen.getByRole('button', { name: 'Change tag: Idea' })).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Tags' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change type: Idea' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Reminder type' })).not.toBeInTheDocument();
     unmount();
 
     renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Draft' }));
-    expect(screen.getByRole('button', { name: 'Change tag: Idea' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change type: Idea' })).toBeInTheDocument();
   });
 
   it('shows a different sidebar motivation after re-entering Quick Planner', () => {
@@ -295,6 +330,7 @@ describe('QuickPlannerPage layout positioning', () => {
       .find((rules) => /translate\(-28px,\s*3px\)/.test(rules));
     const compactUpcomingColumnRules = getCssRules('.quick-planner-upcoming-column')
       .find((rules) => /height:\s*390px/.test(rules));
+    const upcomingBottomLineRules = getCssRules('.quick-planner-upcoming-column::after')[0];
     const upcomingRules = getCssRules('.quick-planner-upcoming');
     const desktopUpcomingRules = upcomingRules.find((rules) => /padding:\s*14px\s+14px\s+0/.test(rules));
     const reminderListRules = getCssRules('.quick-planner-reminder-list')[0];
@@ -304,6 +340,12 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(layoutRules).toMatch(/width:\s*min\(100%,\s*1460px\)/);
     expect(plannerStyles).toContain('@media (min-width: 701px) and (max-width: 1200px)');
     expect(layoutRules).toMatch(/margin:\s*0\s+auto/);
+    expect(upcomingColumnRules).toMatch(/inset 0 -1px 0 rgba\(var\(--quick-planner-accent\), 0\.16\)/);
+    expect(upcomingColumnRules).toMatch(/inset 0 -4px 5px rgba\(0, 0, 0, 0\.16\)/);
+    expect(upcomingBottomLineRules).toMatch(/position:\s*absolute/);
+    expect(upcomingBottomLineRules).toMatch(/bottom:\s*1px/);
+    expect(upcomingBottomLineRules).toMatch(/z-index:\s*5/);
+    expect(upcomingBottomLineRules).toMatch(/height:\s*1px/);
     expect(layoutRules).toMatch(/grid-template-areas:\s*"editor upcoming"\s*"editor sidebar"/);
     expect(layoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s*minmax\(280px,\s*360px\)/);
     expect(layoutRules).toMatch(/gap:\s*18px/);
@@ -559,6 +601,34 @@ describe('QuickPlannerPage action mode', () => {
     expect(getCssRules('.quick-planner-mode-preview-row:hover')).toHaveLength(0);
   });
 
+  it('translates the Queue panel heading in Russian', () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    const { container } = renderQuickPlanner();
+    if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+    else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    fireEvent.click(within(screen.getByRole('group', { name: 'Режим действия' })).getByRole('button', { name: 'Запланировать' }));
+
+    expect(container.querySelector('.quick-planner-panel-title')?.textContent).toContain('Очередь');
+  });
+
+  it('translates the receiver and reminder type controls in Russian', () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    renderQuickPlanner();
+    if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+    else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+
+    expect(screen.getByText('Отправить в')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Режим действия' })).getByRole('button', { name: 'Черновик' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить тип напоминания' }));
+
+    const reminderTypeGroup = screen.getByRole('group', { name: 'Тип напоминания' });
+    ['Без типа', 'Задача', 'Встреча', 'Напоминание', 'Событие', 'Идея'].forEach((label) => {
+      expect(within(reminderTypeGroup).getByRole('button', { name: label })).toBeInTheDocument();
+    });
+  });
+
   it('dismisses sent History rows in preview without mutating shared History', () => {
     const today = new Date().toISOString();
     const earlier = '2020-02-03T10:00:00.000Z';
@@ -753,6 +823,40 @@ describe('QuickPlannerPage action mode', () => {
     expect(container.querySelector('.quick-planner-upcoming-heading')?.textContent).toContain('Drafts');
   });
 
+  it('localizes the saved drafts pane in Russian', () => {
+    const previousLocale = localStorage.getItem('awaitmsg_locale');
+    localStorage.setItem('awaitmsg_locale', 'ru');
+    localStorage.setItem(savedPlannerDraftStorageKey, JSON.stringify([
+      { id: 'draft-one', message: 'Идея', attachments: [], entities: [], reminderType: null, savedAt: '2026-10-14T12:00:00.000Z' },
+      { id: 'draft-two', message: '', attachments: ['C:/drafts/brief.pdf'], entities: [], reminderType: null, savedAt: '' },
+    ]));
+    const { container } = renderQuickPlanner();
+    if (previousLocale === null) localStorage.removeItem('awaitmsg_locale');
+    else localStorage.setItem('awaitmsg_locale', previousLocale);
+    fireEvent.click(within(screen.getByRole('group', { name: 'Режим действия' })).getByRole('button', { name: 'Черновик' }));
+
+    const draftsPane = container.querySelector('.quick-planner-upcoming') as HTMLElement;
+    const draftsList = within(draftsPane).getByRole('list', { name: 'Черновики Планера' });
+    const firstDraft = within(draftsList).getByRole('listitem', { name: 'Открыть черновик: Идея' });
+
+    expect(within(draftsPane).getByText('Черновики')).toBeInTheDocument();
+    expect(within(draftsPane).getByText('Идеи и Студия · 2')).toBeInTheDocument();
+    expect(within(firstDraft).getByText('Сохранённый черновик 2')).toBeInTheDocument();
+    expect(within(firstDraft).getByText(new Date('2026-10-14T12:00:00.000Z').toLocaleString('ru-RU'))).toBeInTheDocument();
+    expect(within(firstDraft).getByRole('checkbox', { name: 'Выбрать черновик: Идея' })).toBeInTheDocument();
+    expect(within(firstDraft).getByRole('button', { name: 'Открыть черновик в Студии: Идея' })).toBeInTheDocument();
+    expect(within(firstDraft).getByRole('button', { name: 'Закрепить черновик: Идея' })).toBeInTheDocument();
+    expect(within(firstDraft).getByRole('button', { name: 'Удалить черновик: Идея' })).toBeInTheDocument();
+    expect(within(draftsList).getByRole('listitem', { name: 'Открыть черновик: Черновик с 1 вложением' })).toBeInTheDocument();
+    const openSelectedDrafts = within(container).getByRole('button', { name: 'Открыть выбранные черновики в Студии: 0' });
+    expect(openSelectedDrafts).toBeInTheDocument();
+    expect(within(container).getByText('Открыть черновики в Студии')).toBeInTheDocument();
+    expect(container.querySelector('[role="scrollbar"]')).toHaveAttribute('aria-label', 'Прокрутить черновики');
+
+    fireEvent.click(openSelectedDrafts);
+    expect(within(container).getByRole('status')).toHaveTextContent('Выберите черновик или создайте заметку');
+  });
+
   it('shows the Quick Planner draft instead of scheduled messages in Ideas Space', () => {
     const scheduled: ScheduledMessage = {
       id: 'scheduled-not-a-planner-draft',
@@ -901,8 +1005,8 @@ describe('QuickPlannerPage action mode', () => {
     const modes = within(screen.getByRole('group', { name: 'Action mode' }));
 
     fireEvent.click(modes.getByRole('button', { name: 'Draft' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add tag' }));
-    fireEvent.click(within(screen.getByRole('group', { name: 'Tags' })).getByRole('button', { name: 'Task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add reminder type' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Reminder type' })).getByRole('button', { name: 'Task' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
 
     expect(onSaveDraft).toHaveBeenCalledWith('A note to keep', ['C:/drafts/reference.pdf'], [{ type: 'bold', offset: 0, length: 1 }], 'task');
@@ -1379,5 +1483,111 @@ describe('QuickPlannerPage action mode', () => {
     const actionIconClass = mode === 'schedule' ? 'lucide-calendar-days' : 'lucide-file-text';
     expect(screen.getByRole('button', { name: actionButtonName }).querySelector('svg')).toHaveClass(actionIconClass);
     expect(container.querySelector('.quick-planner-date-time')).not.toBeInTheDocument();
+  });
+});
+
+describe('QuickPlannerPage schedule date and time pickers', () => {
+  function openScheduleControls() {
+    renderQuickPlanner();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
+    return within(screen.getByRole('group', { name: 'Schedule date and time' }));
+  }
+
+  it('keeps the pills visually still while typing by dropping the focus highlight', () => {
+    expect(plannerStyles).not.toContain('.quick-planner-schedule-controls label:focus-within');
+    expect(getCssRules('.quick-planner-schedule-controls label:hover')[0]).toMatch(/background:.*0\.22/);
+    expect(getCssRules('.quick-planner-schedule-controls label > svg')[0]).toMatch(/cursor:\s*pointer/);
+  });
+
+  it('renders both pills as plain masked text fields', () => {
+    const controls = openScheduleControls();
+    const dateInput = controls.getByLabelText('Schedule date') as HTMLInputElement;
+    const timeInput = controls.getByLabelText('Schedule time') as HTMLInputElement;
+
+    expect(dateInput).toHaveAttribute('type', 'text');
+    expect(dateInput).toHaveAttribute('inputmode', 'numeric');
+    expect(timeInput).toHaveAttribute('type', 'text');
+    expect(dateInput.value).toMatch(/^\d{2}\.\d{2}\.\d{4}$/);
+    expect(timeInput.value).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('opens the minimal date calendar from the calendar icon and applies a picked day', () => {
+    const controls = openScheduleControls();
+
+    fireEvent.click(controls.getByRole('button', { name: 'Open date picker' }));
+    const dialog = screen.getByRole('dialog', { name: 'Schedule date picker' });
+
+    expect(within(dialog).getByRole('button', { name: 'Previous month' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Next month' })).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button', { name: '15' })).toHaveLength(1);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next month' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next month' }));
+    const futureDay = within(screen.getByRole('dialog', { name: 'Schedule date picker' })).getAllByRole('button', { name: '15' })[0];
+
+    fireEvent.click(futureDay);
+
+    expect(screen.queryByRole('dialog', { name: 'Schedule date picker' })).not.toBeInTheDocument();
+    const pickedDateInput = within(screen.getByRole('group', { name: 'Schedule date and time' })).getByLabelText('Schedule date') as HTMLInputElement;
+    expect(pickedDateInput.value).toMatch(/^15\.\d{2}\.\d{4}$/);
+  });
+
+  it('closes the date calendar on Escape', () => {
+    const controls = openScheduleControls();
+
+    fireEvent.click(controls.getByRole('button', { name: 'Open date picker' }));
+    expect(screen.getByRole('dialog', { name: 'Schedule date picker' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Schedule date picker' })).not.toBeInTheDocument();
+  });
+
+  it('opens the minimal time list from the clock icon and applies the chosen slot', () => {
+    const controls = openScheduleControls();
+
+    fireEvent.click(controls.getByRole('button', { name: 'Open time picker' }));
+    const list = screen.getByRole('listbox', { name: 'Available times' });
+    const options = within(list).getAllByRole('option') as HTMLButtonElement[];
+
+    expect(options).toHaveLength(96);
+    const enabledOptions = options.filter((option) => !option.disabled);
+    expect(enabledOptions.length).toBeGreaterThan(0);
+
+    fireEvent.click(enabledOptions[enabledOptions.length - 1]);
+
+    expect(screen.queryByRole('dialog', { name: 'Schedule time picker' })).not.toBeInTheDocument();
+    expect((screen.getByLabelText('Schedule time') as HTMLInputElement).value).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('inserts date and time straight from the clipboard', () => {
+    const controls = openScheduleControls();
+
+    fireEvent.paste(controls.getByLabelText('Schedule date'), { clipboardData: { getData: () => '2027-03-09' } });
+    fireEvent.paste(controls.getByLabelText('Schedule time'), { clipboardData: { getData: () => '9:05' } });
+
+    expect(controls.getByLabelText('Schedule date')).toHaveValue('09.03.2027');
+    expect(controls.getByLabelText('Schedule time')).toHaveValue('09:05');
+  });
+
+  it('formats typed digits into the displayed date and time masks', () => {
+    const controls = openScheduleControls();
+    const dateInput = controls.getByLabelText('Schedule date') as HTMLInputElement;
+    const timeInput = controls.getByLabelText('Schedule time') as HTMLInputElement;
+
+    fireEvent.change(dateInput, { target: { value: '1' } });
+    expect(dateInput).toHaveValue('1');
+    fireEvent.change(dateInput, { target: { value: '14102027' } });
+    expect(dateInput).toHaveValue('14.10.2027');
+
+    fireEvent.change(timeInput, { target: { value: '1' } });
+    expect(timeInput).toHaveValue('1');
+    fireEvent.change(timeInput, { target: { value: '1656' } });
+    expect(timeInput).toHaveValue('16:56');
+  });
+
+  it('anchors both pickers as fixed minimal popups with the planner theming', () => {
+    expect(plannerStyles).toMatch(/\.quick-planner-date-picker,\s*\.quick-planner-time-picker\s*\{[^}]*position:\s*fixed/);
+    expect(plannerStyles).toMatch(/\.quick-planner-time-list\s*\{[^}]*max-height:\s*212px/);
   });
 });

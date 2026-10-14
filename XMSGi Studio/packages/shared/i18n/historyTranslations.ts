@@ -164,7 +164,7 @@ export const historyTranslations = {
     'history.statusFailed': 'Ошибка',
     'history.statusCancelled': 'Отменено',
     'history.statusDraft': 'Черновик',
-    'history.categoryScheduled': 'Запланировано',
+    'history.categoryScheduled': 'План',
     'history.categorySent': 'Отправлено',
     'history.categoryNotes': 'Напоминания',
     'history.categoryDrafts': 'Черновики',

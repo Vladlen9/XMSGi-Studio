@@ -84,6 +84,8 @@ export type UseSchedulerOptions = {
   selectedChat: Chat | null;
   chats: Chat[];
   message: string;
+  composerAttachments?: string[];
+  composerEntities?: RichTextEntity[];
   showNotification: (
     message: string,
     type: NotificationType,
@@ -105,6 +107,8 @@ export function useScheduler({
   selectedChat,
   chats,
   message,
+  composerAttachments = [],
+  composerEntities = [],
   showNotification,
   setMessage,
   setAssistantPrompt,
@@ -381,6 +385,12 @@ export function useScheduler({
     const scheduleDate = assistantSchedule?.date ?? date;
     const scheduleTime = assistantSchedule?.time ?? time;
     const replaceMessage = assistantSchedule?.replaceMessage;
+    const scheduleAttachments = assistantSchedule
+      ? assistantSchedule.attachments ?? []
+      : composerAttachments;
+    const scheduleEntities = assistantSchedule
+      ? assistantSchedule.entities ?? []
+      : composerEntities;
 
     if (!scheduleChat) {
       showValidationNotification(
@@ -398,7 +408,7 @@ export function useScheduler({
       return;
     }
 
-    if (!scheduleMessage.trim() && !(assistantSchedule?.attachments ?? []).length) {
+    if (!scheduleMessage.trim() && scheduleAttachments.length === 0) {
       showValidationNotification(
         t('schedule.emptyMessage'),
         'warning',
@@ -408,7 +418,7 @@ export function useScheduler({
       return;
     }
 
-    const messageLimit = getMessageMaxLength((assistantSchedule?.attachments?.length ?? 0) > 0);
+    const messageLimit = getMessageMaxLength(scheduleAttachments.length > 0);
     if (scheduleMessage.length > messageLimit) {
       showValidationNotification(
         t('composer.messageExceedsLimit', { limit: messageLimit }),
@@ -458,8 +468,8 @@ export function useScheduler({
       void handleSendDraftNow(
         scheduleChat,
         scheduleMessage,
-        assistantSchedule?.attachments ?? [],
-        assistantSchedule?.entities ?? [],
+        scheduleAttachments,
+        scheduleEntities,
         assistantSchedule?.replyMarkup,
         assistantSchedule?.silent === true,
         assistantSchedule?.effect,
@@ -487,8 +497,8 @@ export function useScheduler({
     const chatId = scheduleChat.id;
     const chatName = scheduleChat.name;
     const text = scheduleMessage;
-    const attachments = assistantSchedule?.attachments ?? [];
-    const entities = assistantSchedule?.entities ?? [];
+    const attachments = scheduleAttachments;
+    const entities = scheduleEntities;
     const replyMarkup = assistantSchedule?.replyMarkup;
     const silent = assistantSchedule?.silent === true;
     const effect = assistantSchedule?.effect;

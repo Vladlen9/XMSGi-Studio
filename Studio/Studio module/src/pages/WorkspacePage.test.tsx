@@ -182,6 +182,17 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
   }
 
 describe('WorkspacePage main-screen flows', () => {
+  it('does not mount inactive stage panels while editing the main message', async () => {
+    const { unmount } = await renderWorkspacePage();
+
+    try {
+      const stageContent = document.querySelector('.workspace-page-rich-text-stage-content');
+      expect(stageContent?.childElementCount).toBe(0);
+    } finally {
+      unmount();
+    }
+  });
+
   it('renders the main composer labels in the selected Russian locale', async () => {
     localStorage.setItem('awaitmsg_locale', 'ru');
     const { unmount } = await renderWorkspacePage();
@@ -208,6 +219,26 @@ describe('WorkspacePage main-screen flows', () => {
       rerender({ selectedChat: nextChat, chats: [nextChat] });
 
       expect(editorShell.querySelector('.workspace-page-mode-summary strong')?.textContent).toContain('Beta Team');
+    } finally {
+      unmount();
+    }
+  });
+
+  it('hides the chat name in the current action for Saved Messages', async () => {
+    localStorage.setItem('awaitmsg_locale', 'en');
+    const savedMessagesChat: Chat = { ...chatA, id: 'chat-saved', name: 'Saved Messages', type: 'private' };
+    const { rerender, unmount } = await renderWorkspacePage();
+
+    try {
+      const editorShell = document.querySelector('.workspace-page-editor-shell') as HTMLElement;
+      expect(editorShell.querySelector('.workspace-page-mode-summary strong')?.textContent).toContain('Alpha Team');
+
+      rerender({ selectedChat: savedMessagesChat, chats: [savedMessagesChat] });
+
+      const summary = editorShell.querySelector('.workspace-page-mode-summary strong')?.textContent ?? '';
+      expect(summary).toBe('Send now');
+      expect(summary).not.toContain('Saved Messages');
+      expect(summary).not.toContain('·');
     } finally {
       unmount();
     }
@@ -417,11 +448,24 @@ describe('WorkspacePage main-screen flows', () => {
     const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
     const editor = editorShell.querySelector('.workspace-page-rich-text-editor')!;
     const baseShellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
+    const shellAfterRule = workspacePageStyles.match(/\.workspace-page-editor-shell::after\s*\{([^}]*)\}/)?.[1] ?? '';
+    const outlineBaseRule = workspacePageStyles.match(/\.workspace-page-editor-shell\[data-editor-appearance='outline'\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    const outlineAfterRule = workspacePageStyles.match(/\.workspace-page-editor-shell\[data-editor-appearance='outline'\]::after\s*\{([^}]*)\}/)?.[1] ?? '';
+    const toolbarRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar\s*\{([^}]*)\}/)?.[1] ?? '';
 
     expect(editor.classList.contains('is-toolbar-active')).toBe(false);
-    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.38\)/);
-    expect(baseShellRule).toMatch(/0 0 7px rgba\(var\(--editor-outline\),\s*0\.075\)/);
-    expect(baseShellRule).toMatch(/0 0 24px rgba\(var\(--editor-outline\),\s*0\.025\)/);
+    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.62\)/);
+    expect(baseShellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\),\s*0\.14\)/);
+    expect(baseShellRule).toMatch(/0 10px 22px rgba\(0, 0, 0, 0\.12\)/);
+    expect(shellAfterRule).toMatch(/opacity:\s*1/);
+    expect(shellAfterRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.68\)/);
+    expect(outlineBaseRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.62\)/);
+    expect(outlineBaseRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\),\s*0\.1\)/);
+    expect(outlineAfterRule).toMatch(/opacity:\s*0\.55/);
+    expect(outlineAfterRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.48\)/);
+    expect(toolbarRule).toMatch(/opacity:\s*1/);
+    expect(toolbarRule).toMatch(/visibility:\s*visible/);
+    expect(toolbarRule).toMatch(/transform:\s*translateY\(20px\)/);
 
     unmount();
   });
@@ -474,7 +518,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(pageRule).toMatch(/radial-gradient\(ellipse 72% 62% at 45% 42%/);
     expect(pageRule).toMatch(/var\(--void\)/);
     expect(shellRule).toMatch(/radial-gradient\(ellipse 88% 48% at 50% 0%/);
-    expect(shellRule).toMatch(/0 0 24px rgba\(var\(--editor-outline\), 0\.025\)/);
+    expect(shellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\), 0\.14\)/);
     expect(stageRule).toMatch(/rgba\(var\(--editor-outline-bright\), 0\.48\)/);
     expect(dividerRule).toMatch(/filter:\s*none/);
   });
@@ -555,6 +599,7 @@ describe('WorkspacePage main-screen flows', () => {
 
     expect(remapAttachmentPositions(attachments, 'Hello world', 'Hello brave world').map(({ id, position }) => ({ id, position })))
       .toEqual([{ id: 'before', position: 3 }, { id: 'after', position: 12 }]);
+    expect(remapAttachmentPositions(attachments, 'Hello world', 'Hello world!')).toBe(attachments);
   });
 
   it('opens the compact schedule shell by default for the active preview state', async () => {
@@ -965,10 +1010,18 @@ describe('WorkspacePage main-screen flows', () => {
 
     const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
     const dialogRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog\s*\{([^}]*)\}/)?.[1] ?? '';
+    const headerRule = workspacePageStyles.match(/\.workspace-page-version-history-header\s*\{([^}]*)\}/)?.[1] ?? '';
     const dividerRule = workspacePageStyles.match(/\.workspace-page-version-history-list\s*\{([^}]*)\}/)?.[1] ?? '';
+    const hoverRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog button:hover:not\(:disabled\),\s*\.workspace-page-version-history-dialog button:active:not\(:disabled\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    const electronBackdropRule = workspacePageStyles.match(/html\.electron-runtime \.workspace-page-version-history-backdrop\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('40, 127, 166');
-    expect(dialogRule).toMatch(/border:\s*1px solid rgba\(241, 247, 251, 0\.28\)/);
-    expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(241, 247, 251, 0\.14\)/);
+    expect(dialog.querySelector('.workspace-page-version-history-icon svg')).not.toBeNull();
+    expect(headerRule).toMatch(/justify-content:\s*center/);
+    expect(dialogRule).toMatch(/border:\s*1px solid rgba\(154, 168, 184, 0\.16\)/);
+    expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(154, 168, 184, 0\.12\)/);
+    expect(hoverRule).toMatch(/background:\s*transparent !important/);
+    expect(hoverRule).toMatch(/box-shadow:\s*none !important/);
+    expect(electronBackdropRule).toMatch(/backdrop-filter:\s*none/);
 
     await act(async () => {
       writeEditorAppearancePreferences({
@@ -1831,6 +1884,23 @@ describe('WorkspacePage main-screen flows', () => {
     expect(actionGroup?.textContent).not.toContain('Queue / History');
     expect(document.querySelector('.workspace-page-preview-panel')).not.toBeNull();
     expect(document.querySelector('.messages-panel')).toBeNull();
+    const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
+    expect(toolbar).not.toBeNull();
+    const editorFormattingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
+      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-format-clear, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
+    ));
+    expect(editorFormattingControls).toHaveLength(6);
+    expect(editorFormattingControls.every((button) => button.disabled)).toBe(true);
+    expect(toolbar!.querySelector('.workspace-page-version-history-trigger')).not.toBeNull();
+    expect(toolbar!.querySelector('.workspace-page-editor-export-trigger')).not.toBeNull();
+    const editor = document.querySelector('.workspace-page-rich-text-input') as HTMLDivElement;
+    expect(editor.getAttribute('contenteditable')).toBe('true');
+    act(() => {
+      editor.textContent = 'Typed immediately';
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(editor.textContent).toBe('Typed immediately');
+    expect(document.querySelector('.chat-preview-draft-bubble')?.textContent).toContain('Typed immediately');
 
     unmount();
   });
@@ -2061,6 +2131,11 @@ describe('WorkspacePage main-screen flows', () => {
     expect(templatesButtonIndex).toBeGreaterThanOrEqual(0);
     expect(actionButtons.indexOf(draftToggle as HTMLButtonElement)).toBe(templatesButtonIndex + 1);
     expect(draftToggle?.classList.contains('workspace-page-mode-button-template')).toBe(true);
+    expect(draftToggle?.classList.contains('workspace-page-mode-button-draft')).toBe(true);
+    const draftHoverRule = workspacePageStyles.match(/\.workspace-page-action-left-group \.workspace-page-mode-button-template\.workspace-page-mode-button-draft:hover[^{}]*\{([^}]*)\}/)?.[1] ?? '';
+    expect(draftHoverRule).toMatch(/flex:\s*0 0 auto\s*!important/);
+    const modeButtonHoverRule = workspacePageStyles.match(/\.workspace-page-action-left-group \.workspace-page-mode-button-template:hover,[\s\S]*?\.workspace-page-mode-button-history\.is-active\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(modeButtonHoverRule).toMatch(/padding:\s*0 10px\s*!important/);
     expect(draftToggle?.classList.contains('is-active')).toBe(false);
     expect(draftToggle?.getAttribute('aria-pressed')).toBe('false');
     expect(draftToggle?.classList.contains('workspace-page-schedule-compact-button')).toBe(false);
@@ -2339,27 +2414,24 @@ describe('WorkspacePage main-screen flows', () => {
       .find((button) => button.textContent?.includes(extension)) as HTMLButtonElement;
   }
 
-  it('keeps link in the toolbar and groups history beside export', async () => {
+  it('keeps the toolbar visible while disconnecting editor formatting controls', async () => {
     const { unmount } = await renderWorkspacePage();
-    const toolbar = document.querySelector('[role="toolbar"]')!;
-    const toolbarRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar\s*\{([^}]*)\}/)?.[1] ?? '';
-    const toolbarButtonRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar button\s*\{([^}]*)\}/)?.[1] ?? '';
-    const toolbarActions = toolbar.querySelector('.workspace-page-rich-text-toolbar-actions')!;
-    const linkTrigger = toolbarActions.querySelector('.workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)');
-    const documentActions = toolbarActions.querySelector('.workspace-page-rich-text-document-actions')!;
-    const historyTrigger = documentActions.querySelector('.workspace-page-version-history-trigger');
-    const exportControl = documentActions.querySelector('.workspace-page-editor-export');
+    const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
+    const editingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
+      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-format-clear, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
+    ));
+    const historyTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-version-history-trigger');
+    const exportTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-editor-export-trigger');
 
-    expect(linkTrigger?.parentElement).toBe(toolbarActions);
-    expect(historyTrigger?.parentElement).toBe(documentActions);
-    expect(exportControl?.parentElement).toBe(documentActions);
-    expect(historyTrigger?.nextElementSibling).toBe(exportControl);
-    expect(toolbarRule).toMatch(/border:\s*0/);
-    expect(toolbarRule).toMatch(/background:\s*transparent/);
-    expect(toolbarRule).toMatch(/box-shadow:\s*none/);
-    expect(toolbarButtonRule).toMatch(/border:\s*0/);
-    expect(toolbarButtonRule).toMatch(/background:\s*transparent/);
-    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar button:hover\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/);
+    expect(toolbar).not.toBeNull();
+    expect(toolbar!.querySelector('.workspace-page-character-count')).not.toBeNull();
+    expect(editingControls).toHaveLength(6);
+    expect(editingControls.every((button) => button.disabled)).toBe(true);
+    expect(historyTrigger).not.toBeNull();
+    expect(historyTrigger?.disabled).toBe(false);
+    expect(exportTrigger).not.toBeNull();
+    expect(exportTrigger?.disabled).toBe(false);
+    expect(document.querySelector('.workspace-page-rich-text-input')?.getAttribute('contenteditable')).toBe('true');
     unmount();
   });
 

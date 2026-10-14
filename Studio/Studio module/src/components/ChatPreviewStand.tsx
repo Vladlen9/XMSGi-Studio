@@ -1,5 +1,5 @@
 import { ArrowLeft, BatteryFull, ImagePlus, MessageCircle, Mic, Monitor, Paperclip, Search, Send, Signal, SlidersHorizontal, Smartphone, Smile, Wifi, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, MutableRefObject } from 'react';
 import { ChatAvatar } from './ChatAvatar';
@@ -236,6 +236,52 @@ function groupHistory(messages: PreviewChatHistory['messages']): HistoryGroup[] 
   return groups;
 }
 
+type ChatPreviewHistoryProps = {
+  groups: HistoryGroup[];
+  selectedChatType?: string;
+  onOpenPhoto: (photo: { src: string; name: string }) => void;
+  viewPhotoLabel: string;
+};
+
+const ChatPreviewHistory = memo(function ChatPreviewHistory({ groups, selectedChatType, onOpenPhoto, viewPhotoLabel }: ChatPreviewHistoryProps) {
+  return (
+    <>
+      {groups.map((group) => {
+        const firstMessage = group.messages[0];
+        const hasMedia = group.messages.some((message) => message.media);
+        return (
+          <article className={`chat-preview-history-entry ${firstMessage.outgoing ? 'is-outgoing' : 'is-incoming'} ${hasMedia ? 'has-media' : ''}`} key={group.key}>
+            {!firstMessage.outgoing && selectedChatType !== 'private' && firstMessage.senderName && (
+              <span className="chat-preview-sender">{firstMessage.senderName}</span>
+            )}
+            {hasMedia && (
+              <div className={`chat-preview-history-grid ${group.messages.length > 1 ? 'is-album' : ''}`}>
+                {group.messages.map((message) => (
+                  <div key={message.id}>
+                    {renderHistoryMedia(message, onOpenPhoto, viewPhotoLabel)}
+                  </div>
+                ))}
+              </div>
+            )}
+            {group.messages.filter((message) => message.text).map((message) => (
+              <div
+                className="chat-preview-message"
+                key={message.id}
+                dangerouslySetInnerHTML={{ __html: richTextToHtml(message.text, message.entities ?? []) }}
+              />
+            ))}
+            <InlineKeyboardPreview markup={group.messages.find((message) => message.replyMarkup)?.replyMarkup} />
+            <div className="chat-preview-meta">
+              <time>{new Date(firstMessage.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+              {firstMessage.outgoing && <span aria-label="Sent">✓✓</span>}
+            </div>
+          </article>
+        );
+      })}
+    </>
+  );
+});
+
 function getEntityText(text: string, entity: RichTextEntity) {
   return text.slice(entity.offset, entity.offset + entity.length).trim() || 'Open link';
 }
@@ -400,7 +446,7 @@ export function ChatPreviewStand({
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };
-  }, [attachments.length, collapsed, draftText, previewFeedRef, previewHistory?.messages, previewHistoryLoading]);
+  }, [attachments.length, collapsed, previewFeedRef, previewHistory?.messages, previewHistoryLoading]);
 
   const activePreviewHistory = previewHistory?.chat.id === selectedChat?.id
     ? previewHistory
@@ -422,10 +468,10 @@ export function ChatPreviewStand({
   const normalizedDraft = normalizeTelegramMessage(draftText, draftEntities);
   const linkEntities = normalizedDraft.entities.filter((entity) => entity.type === 'text_url' && entity.url);
   const normalizedChatSearch = chatSearchQuery.trim().toLocaleLowerCase();
-  const visibleChats = chats.filter((chat) => (
+  const visibleChats = chatListOpen ? chats.filter((chat) => (
     !normalizedChatSearch
     || `${chat.name} ${chat.username ?? ''} ${chat.type ?? ''}`.toLocaleLowerCase().includes(normalizedChatSearch)
-  ));
+  )) : [];
   const hasDraft = Boolean(normalizedDraft.message.trim() || attachments.length);
   const wallpaperImage = customWallpaperImage;
   const wallpaperStyle = {
@@ -737,42 +783,12 @@ export function ChatPreviewStand({
                 {t('studio.today')}
               </button>
               {previewHistoryLoading && <div className="chat-preview-state">{t('studio.loadingHistory')}</div>}
-              {historyGroups.map((group) => {
-                const firstMessage = group.messages[0];
-                const hasMedia = group.messages.some((message) => message.media);
-                return (
-                  <article className={`chat-preview-history-entry ${firstMessage.outgoing ? 'is-outgoing' : 'is-incoming'} ${hasMedia ? 'has-media' : ''}`} key={group.key}>
-                    {!firstMessage.outgoing && selectedChat?.type !== 'private' && firstMessage.senderName && (
-                      <span className="chat-preview-sender">{firstMessage.senderName}</span>
-                    )}
-                    {hasMedia && (
-                      <div className={`chat-preview-history-grid ${group.messages.length > 1 ? 'is-album' : ''}`}>
-                        {group.messages.map((message) => (
-                          <div key={message.id}>
-                            {renderHistoryMedia(
-                              message,
-                              setExpandedHistoryPhoto,
-                              t('studio.viewPhotoFullSize'),
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {group.messages.filter((message) => message.text).map((message) => (
-                      <div
-                        className="chat-preview-message"
-                        key={message.id}
-                        dangerouslySetInnerHTML={{ __html: richTextToHtml(message.text, message.entities ?? []) }}
-                      />
-                    ))}
-                    <InlineKeyboardPreview markup={group.messages.find((message) => message.replyMarkup)?.replyMarkup} />
-                    <div className="chat-preview-meta">
-                      <time>{new Date(firstMessage.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
-                      {firstMessage.outgoing && <span aria-label="Sent">✓✓</span>}
-                    </div>
-                  </article>
-                );
-              })}
+              <ChatPreviewHistory
+                groups={historyGroups}
+                selectedChatType={selectedChat?.type}
+                onOpenPhoto={setExpandedHistoryPhoto}
+                viewPhotoLabel={t('studio.viewPhotoFullSize')}
+              />
 
               {hasDraft ? (
                 <article

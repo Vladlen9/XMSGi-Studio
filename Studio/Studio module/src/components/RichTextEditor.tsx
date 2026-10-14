@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
 import { Eraser } from 'lucide-react';
 import type { RichTextEntity } from '@/types';
-import { editorHtmlToRichText, normalizeEditorText, richTextToHtml, sanitizeEditorDom, sliceRichText } from '@/lib/richText';
+import { editorHtmlToRichText, normalizeEditorText, richTextToHtml, sliceRichText } from '@/lib/richText';
 import { getMessageCounterTone, getRemainingMessageLength } from '@/lib/messageLimits';
 import { useLocale } from '@/lib/i18n';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
 import { LogoIntroAnimation, type LogoIntroState } from '@/components/editor/LogoIntroAnimation';
-import { useEditorFormats } from '@/components/editor/useEditorFormats';
 import { useEditorSelection } from '@/components/editor/useEditorSelection';
 
 interface Props {
@@ -25,23 +24,23 @@ interface Props {
   onOpenVersionHistory?: () => void;
 }
 
+export function shouldPreventEditorInsertion(currentLength: number, selectedLength: number, maxLength: number) {
+  return currentLength - selectedLength >= maxLength;
+}
+
 export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onExportText, onBeforeClear, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const logicalTextLengthRef = useRef(text.length);
   const {
     getCaretOffset,
     getTextOffset,
     placeCaretAtStart,
     saveSelection,
-    restoreSelection,
     clearSelection,
     restoreTextSelection,
   } = useEditorSelection(editorRef);
-  const { syncToolbarStateFromSelection } = useEditorFormats(editorRef, stageMode);
-  const linkInputRef = useRef<HTMLInputElement | null>(null);
   const [toolbarActive, setToolbarActive] = useState(false);
-  const [linkInput, setLinkInput] = useState('');
-  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [editorFocused, setEditorFocused] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [logoState, setLogoState] = useState<LogoIntroState>({
@@ -52,6 +51,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     introReady: false,
   });
   useEffect(() => {
+    logicalTextLengthRef.current = text.length;
     const editor = editorRef.current;
     if (!editor || document.activeElement === editor) return;
     const nextHtml = richTextToHtml(text, entities);
@@ -61,24 +61,24 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
   const emitChange = () => {
     if (!editorRef.current) return;
     const editor = editorRef.current;
-    sanitizeEditorDom(editor);
-    const selection = window.getSelection();
-    const selectionRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-    const selectionOffsets = selectionRange
-      && (selectionRange.startContainer === editor || editor.contains(selectionRange.startContainer))
-      && (selectionRange.endContainer === editor || editor.contains(selectionRange.endContainer))
-      ? {
-          start: getTextOffset(selectionRange.startContainer, selectionRange.startOffset),
-          end: getTextOffset(selectionRange.endContainer, selectionRange.endOffset),
-        }
-      : null;
-
     const value = editorHtmlToRichText(editor);
     const limited = value.text.length > maxLength
       ? sliceRichText(value.text, value.entities, 0, maxLength)
       : value;
+    logicalTextLengthRef.current = limited.text.length;
 
     if (value.markdownChanged || limited.text !== value.text) {
+      const selection = window.getSelection();
+      const selectionRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const selectionOffsets = selectionRange
+        && (selectionRange.startContainer === editor || editor.contains(selectionRange.startContainer))
+        && (selectionRange.endContainer === editor || editor.contains(selectionRange.endContainer))
+        ? {
+            start: getTextOffset(selectionRange.startContainer, selectionRange.startOffset),
+            end: getTextOffset(selectionRange.endContainer, selectionRange.endOffset),
+          }
+        : null;
+
       editor.innerHTML = richTextToHtml(limited.text, limited.entities);
       if (limited.text !== value.text) {
         const range = document.createRange();
@@ -89,8 +89,9 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
       } else {
         const mapOffset = (sourceOffset: number | null) => {
           if (sourceOffset === null) return limited.text.length;
-          const safeOffset = Math.max(0, Math.min(sourceOffset, value.sourceOffsetMap.length - 1));
-          return Math.min(value.sourceOffsetMap[safeOffset] ?? limited.text.length, limited.text.length);
+          const sourceOffsetMap = value.sourceOffsetMap ?? [];
+          const safeOffset = Math.max(0, Math.min(sourceOffset, sourceOffsetMap.length - 1));
+          return Math.min(sourceOffsetMap[safeOffset] ?? limited.text.length, limited.text.length);
         };
         restoreTextSelection(
           mapOffset(selectionOffsets?.start ?? null),
@@ -112,8 +113,8 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
 
     const selection = window.getSelection();
     const selectedLength = selection?.toString().length ?? 0;
-    const currentLength = editorHtmlToRichText(editorRef.current).text.length;
-    if (currentLength - selectedLength >= maxLength) event.preventDefault();
+    const currentLength = logicalTextLengthRef.current;
+    if (shouldPreventEditorInsertion(currentLength, selectedLength, maxLength)) event.preventDefault();
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -189,51 +190,12 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     const editor = editorRef.current;
     if (!editor) return;
     editor.innerHTML = '';
+    logicalTextLengthRef.current = 0;
     clearSelection();
     onChange('', []);
     editor.focus();
     setEditorFocused(true);
     placeCaretAtStart();
-  };
-
-  const insertLink = () => {
-    const url = linkInput.trim();
-    restoreSelection();
-    const selection = window.getSelection();
-    const editor = editorRef.current;
-    if (!url || !selection || !editor || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-
-    if (range.collapsed) {
-      const text = document.createTextNode(url);
-      link.appendChild(text);
-      range.insertNode(link);
-      const newRange = document.createRange();
-      newRange.selectNodeContents(link);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    } else {
-      const fragment = range.extractContents();
-      link.appendChild(fragment);
-      range.insertNode(link);
-      const newRange = document.createRange();
-      newRange.selectNodeContents(link);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-    }
-
-    setLinkInput('');
-    setLinkPopoverOpen(false);
-    emitChange();
-    requestAnimationFrame(() => {
-      syncToolbarStateFromSelection();
-      editor.focus();
-    });
   };
 
   const remainingCharacters = getRemainingMessageLength(text.length, maxLength);
@@ -304,7 +266,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           role="textbox"
           aria-label={t('studio.postContent')}
           data-placeholder={t('studio.postPlaceholder')}
-          spellCheck
+          spellCheck={false}
           aria-hidden={stageMode !== 'editor'}
           onFocus={() => {
             setToolbarActive(true);
@@ -320,21 +282,17 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           onPaste={handlePaste}
           onInput={() => {
             emitChange();
-            syncToolbarStateFromSelection();
           }}
           onMouseUp={() => {
             if (text.trim()) saveSelection();
             else placeCaretAtStart();
-            syncToolbarStateFromSelection();
           }}
           onKeyUp={() => {
             if (text.trim()) saveSelection();
             else placeCaretAtStart();
-            syncToolbarStateFromSelection();
           }}
           onSelect={() => {
             saveSelection();
-            syncToolbarStateFromSelection();
           }}
           onBlur={() => {
             setEditorFocused(false);
@@ -371,71 +329,11 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
         <div className="workspace-page-rich-text-stage-content">
           {stageContent}
         </div>
-        {linkPopoverOpen && (
-          <form
-            className="workspace-page-rich-text-link-popover"
-            role="dialog"
-            aria-label={t('studio.insertLink')}
-            onSubmit={(event) => {
-              event.preventDefault();
-              insertLink();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setLinkInput('');
-                setLinkPopoverOpen(false);
-              }
-            }}
-          >
-            <label className="workspace-page-rich-text-link-popover__label" htmlFor="workspace-link-input">
-              {t('studio.websiteUrl')}
-            </label>
-            <input
-              ref={linkInputRef}
-              id="workspace-link-input"
-              type="url"
-              value={linkInput}
-              onChange={(event) => setLinkInput(event.target.value)}
-              placeholder="https://example.com"
-              aria-label={t('studio.insertLinkUrl')}
-              className="workspace-page-rich-text-link-popover__input"
-              autoFocus
-            />
-            <div className="workspace-page-rich-text-link-popover__actions">
-              <button
-                type="button"
-                className="workspace-page-rich-text-link-popover__cancel"
-                onClick={() => {
-                  setLinkInput('');
-                  setLinkPopoverOpen(false);
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="submit"
-                className="workspace-page-rich-text-link-popover__submit"
-                disabled={!linkInput.trim()}
-              >
-                {t('studio.confirm')}
-              </button>
-            </div>
-          </form>
-        )}
       </div>
       <EditorToolbar
         stageMode={stageMode}
         remainingCharacters={remainingCharacters}
         counterClassName={`workspace-page-character-count ${counterTone === 'critical' ? 'is-critical' : counterTone === 'warning' ? 'is-warning' : ''}`}
-        linkPopoverOpen={linkPopoverOpen}
-        onToggleLink={() => {
-          setLinkPopoverOpen((open) => !open);
-          if (!linkPopoverOpen) {
-            requestAnimationFrame(() => {
-              linkInputRef.current?.focus();
-            });
-          }
-        }}
         onExportText={onExportText ? (format) => onExportText(text, format) : undefined}
         onOpenVersionHistory={onOpenVersionHistory}
       />

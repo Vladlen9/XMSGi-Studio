@@ -85,6 +85,9 @@ contextBridge.exposeInMainWorld('telegram', {
   getChatAvatar: (chatId) =>
     ipcRenderer.invoke('telegram-chat-avatar', chatId),
 
+  getAccountAvatar: () =>
+    ipcRenderer.invoke('telegram-account-avatar'),
+
   findChat: (query) =>
     ipcRenderer.invoke('telegram-find-chat', query),
 

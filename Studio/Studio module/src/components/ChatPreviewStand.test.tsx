@@ -2,6 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
+import * as richTextModule from '@/lib/richText';
 import type { Chat, PreviewChatHistory, RichTextEntity } from '@/types';
 import { ChatPreviewStand } from './ChatPreviewStand';
 
@@ -22,7 +23,7 @@ function renderChatPreviewStand(
   const onToggleChatList = vi.fn();
   const previewFeedRef: { current: HTMLDivElement | null } = { current: null };
 
-  act(() => {
+  const render = (nextDraftText = draftText, nextDraftEntities = draftEntities) => act(() => {
     root.render(
       <LocaleProvider>
         <ChatPreviewStand
@@ -31,8 +32,8 @@ function renderChatPreviewStand(
           previewHistory={previewHistory}
           previewHistoryLoading={false}
           previewFeedRef={previewFeedRef}
-          draftText={draftText}
-          draftEntities={draftEntities}
+          draftText={nextDraftText}
+          draftEntities={nextDraftEntities}
           inlineButtons={[]}
           attachments={attachments}
           previewTime=""
@@ -44,11 +45,13 @@ function renderChatPreviewStand(
       </LocaleProvider>,
     );
   });
+  render();
 
   return {
     container,
     onToggleChatList,
     previewFeedRef,
+    rerender: render,
     unmount() {
       act(() => root.unmount());
       container.remove();
@@ -157,6 +160,31 @@ describe('ChatPreviewStand wallpaper picker', () => {
       expect(container.querySelector('.chat-preview-message')?.innerHTML)
         .toBe('<strong>ДЕЙСТВУЙ</strong><br><strong>[Название]</strong>');
     } finally {
+      unmount();
+    }
+  });
+
+  it('keeps loaded history markup stable while the live draft changes', () => {
+    const historyText = 'Previously loaded Telegram message';
+    const previewHistory: PreviewChatHistory = {
+      chat: { id: chat.id, title: chat.name },
+      messages: [{ id: 'history-1', text: historyText, date: '2026-10-11T12:00:00.000Z', outgoing: false }],
+    };
+    const richTextToHtml = vi.spyOn(richTextModule, 'richTextToHtml');
+    const { container, rerender, unmount } = renderChatPreviewStand([], '', [], previewHistory);
+
+    try {
+      expect(container.textContent).toContain(historyText);
+      expect(richTextToHtml).toHaveBeenCalledWith(historyText, []);
+      richTextToHtml.mockClear();
+
+      rerender('New draft text', []);
+
+      expect(container.textContent).toContain(historyText);
+      expect(container.textContent).toContain('New draft text');
+      expect(richTextToHtml).not.toHaveBeenCalledWith(historyText, []);
+    } finally {
+      richTextToHtml.mockRestore();
       unmount();
     }
   });

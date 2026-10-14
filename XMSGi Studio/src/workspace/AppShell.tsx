@@ -1,5 +1,5 @@
-import { useState, type PropsWithChildren } from 'react';
-import { FileText } from 'lucide-react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
+import { CircleUserRound, FileText, LogOut, X } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
@@ -15,6 +15,7 @@ type AppShellProps = PropsWithChildren<{
   onViewChange: (view: 'studio' | 'planner') => void;
   settingsOpen?: boolean;
   onCloseSettings?: () => void;
+  browserDraftMode?: boolean;
   connected: boolean;
   headerPending?: boolean;
   authBusy: boolean;
@@ -65,8 +66,30 @@ export function AppShell({
   const { t } = useLocale();
   const nextViewLabel = view === 'planner' ? t('product.studio') : t('product.planner');
   const sectionLabel = view === 'planner' ? t('product.planner') : t('product.studio');
+  const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
+  useEffect(() => {
+    let active = true;
+
+    if (!connected || typeof window.telegram?.getAccountAvatar !== 'function') {
+      setAccountAvatarDataUrl('');
+      return;
+    }
+
+    window.telegram.getAccountAvatar()
+      .then((result) => {
+        if (active) setAccountAvatarDataUrl(result.success ? result.avatarDataUrl || '' : '');
+      })
+      .catch(() => {
+        if (active) setAccountAvatarDataUrl('');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [connected]);
+
   const updateHistoryOpen = (nextIsOpen: boolean, sourceFilterOnOpen?: 'personal') => {
     setHistorySourceFilterOnOpen(nextIsOpen ? sourceFilterOnOpen : undefined);
     setIsHistoryOpen(nextIsOpen);
@@ -134,31 +157,24 @@ export function AppShell({
               <span className="action-label">{t('topbar.settings')}</span>
             </button>
 
-            <div className="logout-action-group">
-              <button
-                className="account-action"
-                onClick={() => setIsConfirmingLogout((current) => !current)}
-                disabled={authBusy || !connected}
-                title={t('auth.logout')}
-                aria-label={t('auth.logout')}
-                aria-expanded={isConfirmingLogout}
-              >
-                <span className="action-label">{t('auth.logout')}</span>
-              </button>
-
-              {isConfirmingLogout && connected && (
-                <div className="logout-confirmation" role="dialog" aria-label={t('auth.confirmLogout')}>
-                  <strong className="logout-confirmation-title">{t('auth.signOut')}</strong>
-                  <div className="logout-choice-list" role="radiogroup" aria-label={t('auth.signOutPreference')}>
-                    <button type="button" className="logout-choice" onClick={handleDisconnect} disabled={authBusy}>{t('auth.rememberMe')}</button>
-                    <button type="button" className="logout-choice" onClick={handleForgetAccount} disabled={authBusy}>{t('auth.forgetMe')}</button>
-                  </div>
-                  <div className="logout-confirmation-actions">
-                    <button type="button" className="logout-confirmation-action" onClick={() => setIsConfirmingLogout(false)} disabled={authBusy}>{t('common.cancel')}</button>
-                  </div>
-                </div>
+            <button
+              type="button"
+              className="topbar-logout-photo"
+              aria-haspopup="dialog"
+              aria-label={t('auth.logout')}
+              title={t('auth.logout')}
+              onClick={() => setIsConfirmingLogout(true)}
+              disabled={authBusy}
+            >
+              {accountAvatarDataUrl ? (
+                <img className="topbar-logout-photo-image" src={accountAvatarDataUrl} alt="" />
+              ) : (
+                <span className="topbar-logout-photo-fallback" aria-hidden="true">
+                  <CircleUserRound size={19} strokeWidth={1.7} />
+                </span>
               )}
-            </div>
+              <span className="topbar-logout-photo-ring" aria-hidden="true" />
+            </button>
               </>
             )}
           </div>
@@ -202,6 +218,65 @@ export function AppShell({
         onClearDrafts={onHistoryClearDrafts}
         onCancelQueue={onHistoryCancelQueue}
       />
+      {isConfirmingLogout && (
+        <div
+          className="topbar-logout-modal-backdrop"
+          onClick={() => {
+            if (!authBusy) {
+              setIsConfirmingLogout(false);
+            }
+          }}
+        >
+          <div
+            className="topbar-logout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('auth.signOut')}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="topbar-logout-modal-close"
+              onClick={() => setIsConfirmingLogout(false)}
+              disabled={authBusy}
+              aria-label={t('common.close')}
+            >
+              <X size={18} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+            <span className="topbar-logout-modal-icon" aria-hidden="true">
+              <LogOut size={24} strokeWidth={1.8} />
+            </span>
+            <h2 className="topbar-logout-modal-title">{t('auth.signOut')}</h2>
+            <p className="topbar-logout-modal-description">{t('auth.signOutPreference')}</p>
+            <div className="topbar-logout-modal-actions">
+              <button
+                type="button"
+                className="topbar-logout-modal-action topbar-logout-modal-action--cancel"
+                onClick={() => setIsConfirmingLogout(false)}
+                disabled={authBusy}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
+                onClick={handleDisconnect}
+                disabled={authBusy}
+              >
+                {t('auth.rememberMe')}
+              </button>
+              <button
+                type="button"
+                className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
+                onClick={handleForgetAccount}
+                disabled={authBusy}
+              >
+                {t('auth.forgetMe')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -130,6 +130,8 @@ export function WorkspaceTextStage({
   inlineButtons,
   setInlineButtons,
 }: Props) {
+  if (mode === 'editor') return null;
+
   return (
     <>
       <ScheduleStage

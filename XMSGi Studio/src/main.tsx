@@ -7,6 +7,7 @@ import { LocaleProvider } from '@/lib/i18n';
 if ('scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
 }
+document.documentElement.classList.toggle('electron-runtime', typeof window.telegram?.login === 'function');
 window.scrollTo(0, 0);
 
 const DevPreviewHarness = import.meta.env.DEV

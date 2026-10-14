@@ -191,83 +191,133 @@
   position: fixed;
   z-index: 10000;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(4, 6, 8, 0.54);
-  backdrop-filter: blur(3px);
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: transparent;
+}
+
+.telegram-manager-backdrop.topbar-logout-modal-backdrop {
+  z-index: 10000;
+}
+
+.telegram-manager-backdrop::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(20, 24, 30, 0.55), rgba(2, 4, 6, 0.72));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: topbar-logout-backdrop-in 220ms ease;
+}
+
+html.electron-runtime .telegram-manager-backdrop::before {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .telegram-manager-dialog {
-  width: min(100%, 460px);
-  max-height: min(88vh, 680px);
+  position: relative;
+  z-index: 1;
+  max-height: min(88vh, 720px);
   overflow: auto;
-  padding: 20px;
-  border: 1px solid rgba(154, 168, 184, 0.2);
-  border-radius: 10px;
-  background: #171b20;
   color: var(--text);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28);
+}
+
+.telegram-manager-dialog.topbar-logout-modal {
+  width: min(500px, 100%);
+  background: radial-gradient(140% 100% at 50% 0%, rgba(60, 52, 56, 0.82), rgba(12, 15, 19, 0.99) 60%);
 }
 
 .telegram-manager-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(154, 168, 184, 0.14);
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 8px 36px 0;
+  text-align: center;
 }
 
-.telegram-manager-header h2 {
-  margin: 8px 0 0;
-  font-size: 20px;
-  font-weight: 500;
+.telegram-manager-header > div {
+  display: grid;
+  justify-items: center;
+}
+
+.telegram-manager-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(193, 157, 157, 0.22), rgba(222, 183, 183, 0.12));
+  color: rgba(222, 183, 183, 0.85);
 }
 
 .telegram-manager-close {
+  position: absolute;
+  top: 0;
+  right: 0;
   display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
+  width: 30px;
+  height: 30px;
   place-items: center;
-  border: 1px solid rgba(154, 168, 184, 0.18);
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: transparent;
-  color: var(--text);
+  color: rgba(205, 214, 222, 0.7);
   cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.telegram-manager-close:hover:not(:disabled),
+.telegram-manager-close:focus-visible {
+  color: rgba(239, 244, 248, 0.95);
+  outline: 2px solid rgba(169, 177, 186, 0.6);
+  outline-offset: 2px;
+}
+
+.telegram-manager-close:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .telegram-manager-status {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  margin-top: 16px;
-  padding: 14px;
-  border: 1px solid rgba(154, 168, 184, 0.14);
-  border-radius: 8px;
-  background: rgba(154, 168, 184, 0.045);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .telegram-manager-status > .settings-telegram-status-dot {
-  margin-top: 5px;
+  margin: 0;
 }
 
 .telegram-manager-status > div {
   min-width: 0;
   display: grid;
   gap: 5px;
+  justify-items: center;
 }
 
 .telegram-manager-status strong {
+  color: rgba(232, 238, 243, 0.92);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .telegram-manager-status span:not(.settings-telegram-status-dot) {
   color: rgba(177, 189, 201, 0.8);
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: inherit;
+  font-size: 13px;
   overflow-wrap: anywhere;
 }
 
@@ -288,23 +338,24 @@
 .telegram-manager-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 0;
 }
 
 .telegram-manager-secondary,
 .telegram-manager-primary {
   display: inline-flex;
-  min-height: 38px;
-  min-width: 126px;
+  min-height: 42px;
+  min-width: 142px;
   align-items: center;
   justify-content: center;
-  padding: 0 18px;
-  border-radius: 8px;
+  padding: 0 20px;
+  border-radius: 10px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
   cursor: pointer;
   transition: color 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
@@ -312,13 +363,13 @@
 .telegram-manager-secondary {
   border: 1px solid rgba(154, 168, 184, 0.16);
   background: rgba(154, 168, 184, 0.05);
-  color: #d4dce3;
+  color: rgba(205, 214, 222, 0.82);
 }
 
 .telegram-manager-secondary:hover,
 .telegram-manager-secondary:focus-visible {
   border-color: rgba(194, 207, 219, 0.3);
-  background: rgba(154, 168, 184, 0.07);
+  background: rgba(154, 168, 184, 0.1);
   color: #f0f3f6;
 }
 
@@ -342,14 +393,14 @@
 }
 
 .telegram-manager-primary.is-danger {
-  border-color: rgba(255, 140, 130, 0.22);
-  background: rgba(255, 140, 130, 0.1);
-  color: #ffd2c6;
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.1);
+  color: #f4b6ae;
 }
 
 .telegram-manager-primary.is-danger:hover {
-  border-color: rgba(255, 164, 145, 0.42);
-  background: rgba(255, 140, 130, 0.15);
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(248, 113, 113, 0.15);
 }
 
 .telegram-manager-primary:disabled,
@@ -393,16 +444,20 @@
 }
 
 .telegram-manager-advanced {
-  margin-top: 4px;
-  padding-top: 13px;
+  margin-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid rgba(154, 168, 184, 0.12);
 }
 
 .telegram-manager-advanced summary {
-  color: var(--signal);
+  color: rgba(205, 214, 222, 0.72);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
+}
+
+.telegram-manager-advanced summary:hover {
+  color: rgba(239, 244, 248, 0.92);
 }
 
 .telegram-credentials-form {
@@ -422,6 +477,11 @@
   cursor: pointer;
 }
 
+.telegram-credentials-form button.topbar-logout-modal-action {
+  border: 0;
+  background: transparent;
+}
+
 .telegram-credentials-form button:disabled {
   opacity: 0.45;
   cursor: default;
@@ -429,12 +489,10 @@
 
 @media (max-width: 560px) {
   .telegram-manager-backdrop { padding: 16px; }
-  .telegram-manager-dialog { padding: 18px 16px 16px; }
   .telegram-credentials-form { grid-template-columns: 1fr; }
-  .telegram-manager-actions { flex-direction: column-reverse; align-items: stretch; }
-  .telegram-manager-actions > button,
-  .telegram-manager-actions > form,
-  .telegram-manager-login .telegram-manager-actions > button { width: 100%; }
+  .telegram-manager-actions:not(.topbar-logout-modal-actions) { flex-direction: column-reverse; align-items: stretch; }
+  .telegram-manager-actions:not(.topbar-logout-modal-actions) > button,
+  .telegram-manager-actions:not(.topbar-logout-modal-actions) > form { width: 100%; }
   .settings-telegram-entry {
     --telegram-mark-size: 32px;
     --telegram-mark-space: 12px;
@@ -1059,24 +1117,24 @@
   justify-content: space-between;
   padding: 12px 14px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--settings-editor-accent) 60%, rgba(154, 168, 184, 0.28));
-  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--settings-editor-accent) 36%, rgba(154, 168, 184, 0.2));
+  border-radius: 12px;
   background:
-    radial-gradient(ellipse 88% 80% at 100% 100%, color-mix(in srgb, var(--settings-editor-accent) 12%, transparent), transparent 72%),
-    linear-gradient(150deg, rgba(18, 23, 28, 0.9), rgba(10, 11, 13, 0.96));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025), 0 0 0 1px color-mix(in srgb, var(--settings-editor-accent) 28%, transparent), 0 0 12px color-mix(in srgb, var(--settings-editor-accent) 14%, transparent);
-  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    radial-gradient(ellipse 88% 80% at 100% 100%, color-mix(in srgb, var(--settings-editor-accent) 7%, transparent), transparent 72%),
+    linear-gradient(150deg, #191a1e, #0d0f12 72%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 36px rgba(0, 0, 0, 0.2);
+  transition: border-color 180ms ease, background 180ms ease;
 }
 
 .settings-editor-preview.is-outline {
-  border-color: rgba(255, 255, 255, 0.72);
-  background: linear-gradient(150deg, rgba(18, 23, 28, 0.9), rgba(10, 11, 13, 0.96));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 14px rgba(255, 255, 255, 0.14);
+  border-color: rgba(205, 211, 218, 0.34);
+  background: linear-gradient(150deg, #191a1e, #0d0f12 72%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 36px rgba(0, 0, 0, 0.2);
 }
 
 .settings-editor-preview[data-appearance='outline'] {
-  border-color: color-mix(in srgb, var(--settings-editor-accent) 60%, rgba(154, 168, 184, 0.28));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025), 0 0 0 1px color-mix(in srgb, var(--settings-editor-accent) 28%, transparent), 0 0 12px color-mix(in srgb, var(--settings-editor-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--settings-editor-accent) 44%, rgba(154, 168, 184, 0.2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 36px rgba(0, 0, 0, 0.2);
 }
 
 .settings-editor-preview-header {
@@ -1092,12 +1150,12 @@
 }
 
 .settings-editor-preview-indicator {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
   border-radius: 50%;
   background: var(--settings-editor-accent);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--settings-editor-accent) 52%, transparent), 0 0 0 1px color-mix(in srgb, var(--settings-editor-accent) 34%, transparent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--settings-editor-accent) 28%, transparent);
 }
 
 .settings-editor-preview-modes {
@@ -1141,11 +1199,11 @@
   align-content: start;
   gap: 14px;
   min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(154, 168, 184, 0.14);
-  border-radius: 8px;
-  background: linear-gradient(150deg, rgba(18, 23, 28, 0.48), rgba(10, 11, 13, 0.62));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  padding: 16px;
+  border: 1px solid rgba(154, 168, 184, 0.16);
+  border-radius: 12px;
+  background: radial-gradient(140% 100% at 50% 0%, rgba(60, 52, 56, 0.18), rgba(12, 15, 19, 0.96) 70%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 16px 36px rgba(0, 0, 0, 0.16);
 }
 
 .settings-editor-control-group {
@@ -1175,17 +1233,17 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
-  border: 1px solid rgba(154, 168, 184, 0.12);
-  border-radius: 7px;
-  background: rgba(10, 11, 13, 0.34);
+  border: 1px solid rgba(154, 168, 184, 0.14);
+  border-radius: 9px;
+  background: rgba(8, 10, 12, 0.56);
 }
 
 .settings-editor-style-switch button {
   min-width: 0;
-  min-height: 32px;
-  padding: 4px 6px;
+  min-height: 36px;
+  padding: 5px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: rgba(203, 212, 220, 0.64);
   font: inherit;
@@ -1199,9 +1257,9 @@
 }
 
 .settings-editor-style-switch button.is-selected {
-  background: rgba(154, 168, 184, 0.08);
+  background: rgba(154, 168, 184, 0.1);
   color: var(--text);
-  box-shadow: inset 0 -1px 0 rgba(154, 168, 184, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(194, 207, 219, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .settings-editor-style-switch button:focus-visible,
@@ -1225,7 +1283,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 34px;
+  min-height: 40px;
   border-bottom: 1px solid rgba(154, 168, 184, 0.08);
 }
 

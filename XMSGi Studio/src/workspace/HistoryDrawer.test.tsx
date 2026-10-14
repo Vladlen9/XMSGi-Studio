@@ -132,6 +132,17 @@ function searchHistory(query: string) {
 }
 
 describe('history filter glass indicators', () => {
+  it('keeps full Russian category labels accessible', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
+    const statusFilters = container.querySelector('.history-status-filters') as HTMLElement;
+    const scheduledTab = statusFilters.querySelector('[data-history-filter="scheduled"]') as HTMLElement;
+
+    expect(scheduledTab).toHaveAttribute('aria-label', 'План');
+    expect(scheduledTab.querySelector('.history-status-label')?.textContent).toBe('План');
+  });
+
   it('tracks the selected source and status filters', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
@@ -142,6 +153,8 @@ describe('history filter glass indicators', () => {
 
     expect(sourceIndicator?.dataset.activeFilter).toBe('all');
     expect(statusIndicator?.dataset.activeFilter).toBe('scheduled');
+    expect(sourceIndicator?.style.opacity).toBe('1');
+    expect(statusIndicator?.style.opacity).toBe('1');
 
     fireEvent.click(sourceFilters.querySelector('[data-history-filter="workspace"]')!);
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
@@ -314,7 +327,7 @@ describe('HistoryDrawer search', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
 
     expect(screen.queryByRole('tab', { name: /Напоминания/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Запланирован/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /План/ })).toBeInTheDocument();
   });
 
   it('resets a previously selected reminders category when opening Posts', () => {
@@ -325,7 +338,7 @@ describe('HistoryDrawer search', () => {
     renderHistory([]);
 
     expect(screen.queryByRole('tab', { name: /Напоминания/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Запланирован/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /План/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('restores the source and status tabs after remounting', () => {
@@ -1098,7 +1111,7 @@ describe('HistoryDrawer search', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Экспортировать текущую категорию' }));
 
-    expect(screen.getByText('Текущая категория: Запланировано')).toBeInTheDocument();
+    expect(screen.getByText('Текущая категория: План')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Экспортировать текущий список как TXT (.txt)' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Экспортировать текущий список как JSON (.json)' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Экспортировать текущий список как TXT (.txt)' }))
@@ -1149,7 +1162,7 @@ describe('HistoryDrawer search', () => {
       expect(downloads.blobs[0].type).toBe('text/plain;charset=utf-8');
       expect(downloads.filenames[0]).toMatch(/xmsgi-scheduled-.*\.txt$/);
       const text = await readBlob(downloads.blobs[0]);
-      expect(text).toContain('XMSGi — Запланировано');
+      expect(text).toContain('XMSGi — План');
       expect(text).toContain('Источник: Studio');
       expect(text).toContain('Чат: XMSGi Updates (@xmsgi_updates)');
       expect(text).toContain('Релиз нового набора шаблонов для Telegram-канала');

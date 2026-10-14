@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Copy, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronDown, Copy, History, RotateCcw, X } from 'lucide-react';
 import type { PersistedWorkspaceDocumentHistories, PersistedWorkspaceDocumentVersion } from '@shared/types';
 import type { DraftAttachment } from '@/domain/types';
 import { useLocale } from '@/lib/i18n';
@@ -176,9 +176,14 @@ export function DocumentHistoryDialog({
         tabIndex={-1}
       >
         <header className="workspace-page-version-history-header">
-          <div>
-            <h2 id="workspace-version-history-title">{t('studio.versionHistory')}</h2>
-            <p>{t('studio.versionHistoryCount', { count: versions.length })}</p>
+          <div className="workspace-page-version-history-heading">
+            <span className="workspace-page-version-history-icon" aria-hidden="true">
+              <History size={22} strokeWidth={1.8} />
+            </span>
+            <div>
+              <h2 id="workspace-version-history-title">{t('studio.versionHistory')}</h2>
+              <p>{t('studio.versionHistoryCount', { count: versions.length })}</p>
+            </div>
           </div>
           <button type="button" className="workspace-page-version-history-close" onClick={onClose} aria-label={t('common.close')}>
             <X size={17} aria-hidden="true" />

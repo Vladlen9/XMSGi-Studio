@@ -134,7 +134,7 @@ describe('SettingsView Telegram integration', () => {
     const dialog = screen.getByRole('dialog', { name: 'Manage connection' });
     expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(Array.from(dialog.querySelectorAll('.telegram-manager-actions > button')).map((button) => button.textContent?.trim()))
-      .toEqual(['Cancel', 'Disconnect account']);
+      .toEqual(['Disconnect account', 'Cancel']);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect account' }));
     expect(onTelegramDisconnect).toHaveBeenCalledOnce();
 

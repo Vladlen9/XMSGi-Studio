@@ -2,8 +2,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
-import type { Chat, ScheduledMessage } from '@/types';
+import type { Chat, RichTextEntity, ScheduledMessage } from '@/types';
 import { useScheduler } from './useScheduler';
+import { getCurrentTimeStr, getTodayStr } from '@/lib/utils';
 
 function createScheduleIdentityResult(operations: Array<Record<string, unknown>>) {
   return {
@@ -41,7 +42,7 @@ function getFutureReplacementTimes() {
   };
 }
 
-function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMessage[], telegramOverrides: Record<string, unknown>, showNotification = vi.fn(), historyScope: 'personal' | 'workspace' = 'workspace', selectedChat: Chat | null = null, setMessage = vi.fn()) {
+function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMessage[], telegramOverrides: Record<string, unknown>, showNotification = vi.fn(), historyScope: 'personal' | 'workspace' = 'workspace', selectedChat: Chat | null = null, setMessage = vi.fn(), attachments: string[] = [], entities: RichTextEntity[] = [], message = '') {
   const saveScheduleHistory = vi.fn().mockResolvedValue({ success: true });
   const loadScheduleHistory = vi.fn().mockResolvedValue({
     success: true,
@@ -61,7 +62,9 @@ function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMes
     connected: true,
     selectedChat,
     chats: selectedChat ? [selectedChat] : [],
-    message: '',
+    message,
+    composerAttachments: attachments,
+    composerEntities: entities,
     showNotification,
     setMessage,
     setAssistantPrompt: vi.fn(),
@@ -785,6 +788,38 @@ describe('useScheduler native history', () => {
       'account-1',
       expect.stringMatching(/^\d+:[a-z0-9]+$/i),
     );
+  });
+
+  it('keeps composer attachments and entities when scheduling for the current minute', async () => {
+    const chat = { id: 'chat-current-minute', name: 'Current minute chat' };
+    const attachments = ['C:/demo/photo.jpg'];
+    const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 5 }];
+    const send = vi.fn().mockResolvedValue({ success: true, id: 'telegram-current-minute' });
+    const schedule = vi.fn();
+    const { result, loadScheduleHistory } = renderWorkspaceHistory(
+      [],
+      [],
+      { send, schedule },
+      vi.fn(),
+      'personal',
+      chat,
+      vi.fn(),
+      attachments,
+      entities,
+      'Photo',
+    );
+
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('personal'));
+    act(() => {
+      result.current.setDate(getTodayStr());
+      result.current.setTime(getCurrentTimeStr());
+    });
+    await act(async () => {
+      await result.current.handleSchedule();
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0].slice(0, 4)).toEqual([chat.id, 'Photo', attachments, entities]);
   });
 
   it('lets Quick Planner clear the message only after confirming the draft is unchanged', async () => {

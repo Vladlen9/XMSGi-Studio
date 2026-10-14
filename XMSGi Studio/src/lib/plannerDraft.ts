@@ -10,9 +10,55 @@ const PLANNER_DRAFT_STORAGE_KEY = 'xmsgi-planner-draft-text';
 const PLANNER_DRAFT_UPDATED_AT_KEY = 'xmsgi-planner-draft-updated-at';
 const PLANNER_DRAFT_ENTITIES_KEY = 'xmsgi-planner-draft-entities';
 const PLANNER_DRAFT_ATTACHMENTS_KEY = 'xmsgi-planner-draft-attachments';
+const PLANNER_DRAFT_SNAPSHOT_KEY = 'xmsgi-planner-draft-snapshot-v1';
 export const SAVED_PLANNER_DRAFT_STORAGE_KEY = 'xmsgi-quick-planner-saved-draft';
+const PLANNER_DRAFT_WRITE_DELAY_MS = 180;
+let plannerDraftWriteTimer: number | null = null;
+let pendingPlannerDraftSnapshot: PlannerDraftSnapshot | null = null;
+
+type PlannerDraftSnapshot = {
+  message: string;
+  updatedAt: string;
+  entities: RichTextEntity[];
+  attachments: string[];
+};
+
+function readPlannerDraftSnapshot(): PlannerDraftSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(PLANNER_DRAFT_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<PlannerDraftSnapshot> | null;
+    if (!value || typeof value.message !== 'string') return null;
+    return {
+      message: value.message,
+      updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : '',
+      entities: Array.isArray(value.entities) ? value.entities : [],
+      attachments: Array.isArray(value.attachments)
+        ? value.attachments.filter((path): path is string => typeof path === 'string')
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clearLegacyPlannerDraft() {
+  for (const key of [PLANNER_DRAFT_STORAGE_KEY, PLANNER_DRAFT_UPDATED_AT_KEY, PLANNER_DRAFT_ENTITIES_KEY, PLANNER_DRAFT_ATTACHMENTS_KEY]) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      return;
+    }
+  }
+}
 
 export function readPlannerDraft() {
+  const pendingSnapshot = pendingPlannerDraftSnapshot;
+  if (pendingSnapshot) return pendingSnapshot.message;
+
+  const snapshot = readPlannerDraftSnapshot();
+  if (snapshot) return snapshot.message;
+
   try {
     return window.localStorage.getItem(PLANNER_DRAFT_STORAGE_KEY) ?? '';
   } catch {
@@ -21,6 +67,12 @@ export function readPlannerDraft() {
 }
 
 export function readPlannerDraftEntities(): RichTextEntity[] {
+  const pendingSnapshot = pendingPlannerDraftSnapshot;
+  if (pendingSnapshot) return normalizeRichTextEntities(pendingSnapshot.entities, pendingSnapshot.message.length);
+
+  const snapshot = readPlannerDraftSnapshot();
+  if (snapshot) return normalizeRichTextEntities(snapshot.entities, snapshot.message.length);
+
   try {
     const value = JSON.parse(window.localStorage.getItem(PLANNER_DRAFT_ENTITIES_KEY) || '[]');
     return normalizeRichTextEntities(value, readPlannerDraft().length);
@@ -30,6 +82,12 @@ export function readPlannerDraftEntities(): RichTextEntity[] {
 }
 
 export function readPlannerDraftAttachments(): string[] {
+  const pendingSnapshot = pendingPlannerDraftSnapshot;
+  if (pendingSnapshot) return pendingSnapshot.attachments;
+
+  const snapshot = readPlannerDraftSnapshot();
+  if (snapshot) return snapshot.attachments;
+
   try {
     const value = JSON.parse(window.localStorage.getItem(PLANNER_DRAFT_ATTACHMENTS_KEY) || '[]');
     return Array.isArray(value) ? value.filter((path): path is string => typeof path === 'string') : [];
@@ -39,23 +97,31 @@ export function readPlannerDraftAttachments(): string[] {
 }
 
 export function writePlannerDraft(message: string, entities: RichTextEntity[] = [], attachments: string[] = []) {
-  try {
-    if (message || attachments.length) {
-      window.localStorage.setItem(PLANNER_DRAFT_STORAGE_KEY, message);
-      window.localStorage.setItem(PLANNER_DRAFT_UPDATED_AT_KEY, new Date().toISOString());
-      if (entities.length) window.localStorage.setItem(PLANNER_DRAFT_ENTITIES_KEY, JSON.stringify(entities));
-      else window.localStorage.removeItem(PLANNER_DRAFT_ENTITIES_KEY);
-      if (attachments.length) window.localStorage.setItem(PLANNER_DRAFT_ATTACHMENTS_KEY, JSON.stringify(attachments));
-      else window.localStorage.removeItem(PLANNER_DRAFT_ATTACHMENTS_KEY);
-    } else {
-      window.localStorage.removeItem(PLANNER_DRAFT_STORAGE_KEY);
-      window.localStorage.removeItem(PLANNER_DRAFT_UPDATED_AT_KEY);
-      window.localStorage.removeItem(PLANNER_DRAFT_ENTITIES_KEY);
-      window.localStorage.removeItem(PLANNER_DRAFT_ATTACHMENTS_KEY);
-    }
-  } catch {
-    // Keep Planner usable when local storage is unavailable.
+  const snapshot = {
+    message,
+    updatedAt: message || attachments.length ? new Date().toISOString() : '',
+    entities,
+    attachments,
+  } satisfies PlannerDraftSnapshot;
+
+  pendingPlannerDraftSnapshot = snapshot;
+
+  if (plannerDraftWriteTimer !== null) {
+    window.clearTimeout(plannerDraftWriteTimer);
   }
+
+  plannerDraftWriteTimer = window.setTimeout(() => {
+    try {
+      window.localStorage.setItem(PLANNER_DRAFT_SNAPSHOT_KEY, JSON.stringify(snapshot));
+      clearLegacyPlannerDraft();
+      pendingPlannerDraftSnapshot = null;
+    } catch {
+      pendingPlannerDraftSnapshot = null;
+      // Keep Planner usable when local storage is unavailable.
+    } finally {
+      plannerDraftWriteTimer = null;
+    }
+  }, PLANNER_DRAFT_WRITE_DELAY_MS);
 }
 
 export function readSavedPlannerDraft(): SavedPlannerDraft | null {
@@ -122,6 +188,9 @@ export function writeSavedPlannerDrafts(drafts: SavedPlannerDraft[]) {
 }
 
 export function readPlannerDraftUpdatedAt() {
+  const snapshot = readPlannerDraftSnapshot();
+  if (snapshot) return snapshot.updatedAt;
+
   try {
     return window.localStorage.getItem(PLANNER_DRAFT_UPDATED_AT_KEY) ?? '';
   } catch {

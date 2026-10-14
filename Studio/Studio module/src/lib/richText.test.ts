@@ -62,6 +62,18 @@ describe('markdownToRichText', () => {
       markdownChanged: true,
     });
   });
+
+  it('skips Markdown offset-map construction for plain HTML text', () => {
+    const root = document.createElement('div');
+    root.innerHTML = '<strong>Plain</strong> text';
+
+    expect(editorHtmlToRichText(root)).toEqual({
+      text: 'Plain text',
+      entities: [{ type: 'bold', offset: 0, length: 5 }],
+      sourceOffsetMap: null,
+      markdownChanged: false,
+    });
+  });
 });
 
 describe('richTextToHtml message normalization', () => {

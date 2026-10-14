@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { memo, startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ChatAvatar } from '../components/ChatAvatar';
@@ -51,6 +51,8 @@ import type {
 } from '../types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import './WorkspacePage.css';
+
+const MemoizedChatPreviewStand = memo(ChatPreviewStand);
 
 export { normalizeAttachments } from '../lib/draftAttachments';
 export { hasDraftContent, readWorkspaceDraftStoreFallback, writeWorkspaceDraftStoreFallback } from '../lib/draftStore';
@@ -393,14 +395,18 @@ export function remapAttachmentPositions(
   const nextEditEnd = nextText.length - suffixLength;
   const lengthDelta = nextText.length - previousText.length;
 
-  return attachments.map((attachment) => {
+  let positionsChanged = false;
+  const remappedAttachments = attachments.map((attachment) => {
     const position = attachment.position < prefixLength
       ? attachment.position
       : attachment.position >= previousEditEnd
         ? attachment.position + lengthDelta
         : nextEditEnd;
-    return position === attachment.position ? attachment : { ...attachment, position: Math.max(0, position) };
+    if (position === attachment.position) return attachment;
+    positionsChanged = true;
+    return { ...attachment, position: Math.max(0, position) };
   });
+  return positionsChanged ? remappedAttachments : attachments;
 }
 
 const PREVIEW_LAYOUT_KEY = 'xmsgi-preview-layout';
@@ -594,6 +600,10 @@ export function WorkspacePage({
   };
 
   const [draftBody, setDraftBody] = useState(() => initialDraftRef.current?.body ?? '');
+  const draftBodyRef = useRef(draftBody);
+  useEffect(() => {
+    draftBodyRef.current = draftBody;
+  }, [draftBody]);
   const [draftEntities, setDraftEntities] = useState<RichTextEntity[]>(
     () => initialDraftRef.current?.entities ?? [],
   );
@@ -1123,6 +1133,18 @@ export function WorkspacePage({
     : stageMode === 'draft' && draftEditingId
       ? draftBodyText
       : draftBody;
+  const previewEntities = stageMode === 'template' && templateEditingId
+    ? []
+    : stageMode === 'draft' && draftEditingId
+      ? draftBodyEntities
+      : draftEntities;
+  const deferredPreviewText = useDeferredValue(previewText);
+  const deferredPreviewEntities = useDeferredValue(previewEntities);
+  const toggleChatList = useCallback(() => setChatListOpen((current) => !current), []);
+  const selectPreviewChat = useCallback((chat: Chat) => {
+    setSelectedChat(chat);
+    setChatListOpen(false);
+  }, [setSelectedChat]);
 
   useEffect(() => {
     if (previewHistoryLoading || previewCollapsed) return;
@@ -1138,8 +1160,8 @@ export function WorkspacePage({
     previewHistory?.chat.id,
     previewHistory?.messages.length,
     previewHistoryLoading,
-    previewText,
-    draftEntities.length,
+    deferredPreviewText,
+    deferredPreviewEntities.length,
     attachments.length,
     inlineButtons.length,
     chatListOpen,
@@ -1205,7 +1227,9 @@ export function WorkspacePage({
         : publishAction === 'draft'
           ? savedAt ? t('studio.draftModeSummary', { time: savedAt }) : t('studio.draftMenuOption')
         : selectedChat
-          ? t('studio.sendToChatSummary', { chat: localizeChatName(selectedChat.name) })
+          ? selectedChat.name === 'Saved Messages'
+            ? t('studio.sendToSavedSummary')
+            : t('studio.sendToChatSummary', { chat: localizeChatName(selectedChat.name) })
           : t('studio.sendChooseChatSummary');
   const publishFooterStatus: PublishFooterStatus | null = notification.visible && notification.title === t('schedule.massWarningTitle')
     ? {
@@ -1585,7 +1609,7 @@ export function WorkspacePage({
     setRepeatDays([]);
     setRepeatOccurrences(1);
     // Keep the original scheduled post intact until the user explicitly saves a replacement.
-    // Canceling it here would remove the record before the reschedule flow is confirmed.
+    // The editor must remain active so the user can continue editing and the schedule fields stay populated.
     changeStageMode('editor');
   };
 
@@ -2425,9 +2449,24 @@ export function WorkspacePage({
                       const limited = nextText.length > maxDraftLength
                         ? sliceRichText(nextText, nextEntities, 0, maxDraftLength)
                         : { text: nextText, entities: nextEntities };
-                      setAttachments((current) => remapAttachmentPositions(current, draftBody, limited.text));
-                      setDraftBody(limited.text);
-                      setDraftEntities(limited.entities);
+                      const previousText = draftBodyRef.current;
+                      draftBodyRef.current = limited.text;
+                      startTransition(() => {
+                        setAttachments((current) => remapAttachmentPositions(current, previousText, limited.text));
+                        setDraftBody(limited.text);
+                        setDraftEntities((current) => (
+                          current.length === limited.entities.length
+                          && current.every((entity, index) => {
+                            const next = limited.entities[index];
+                            return entity.type === next.type
+                              && entity.offset === next.offset
+                              && entity.length === next.length
+                              && entity.url === next.url;
+                          })
+                            ? current
+                            : limited.entities
+                        ));
+                      });
                     }}
                     stageContent={(
                       <WorkspaceTextStage
@@ -2682,7 +2721,7 @@ export function WorkspacePage({
                   {(publishAction !== 'schedule' && stageMode !== 'schedule') && (
                     <button
                       type="button"
-                      className={`workspace-page-mode-button workspace-page-mode-button-template ${stageMode === 'draft' ? 'is-active' : ''}`}
+                      className={`workspace-page-mode-button workspace-page-mode-button-template workspace-page-mode-button-draft ${stageMode === 'draft' ? 'is-active' : ''}`}
                       onClick={() => stageMode === 'draft' ? changeStageMode('editor') : changeStageMode('draft')}
                       aria-pressed={stageMode === 'draft'}
                       title={t('studio.openDrafts')}
@@ -2875,28 +2914,21 @@ export function WorkspacePage({
             data-collapsed={previewCollapsed ? 'true' : 'false'}
             data-visible={previewLayout.visible === false ? 'false' : 'true'}
           >
-            <ChatPreviewStand
+            <MemoizedChatPreviewStand
               chats={chats}
               selectedChat={selectedChat}
               previewHistory={previewHistory}
               previewHistoryLoading={previewHistoryLoading}
               previewFeedRef={previewFeedRef}
-              draftText={previewText}
-              draftEntities={stageMode === 'template' && templateEditingId
-                ? []
-                : stageMode === 'draft' && draftEditingId
-                  ? draftBodyEntities
-                  : draftEntities}
+              draftText={deferredPreviewText}
+              draftEntities={deferredPreviewEntities}
               inlineButtons={inlineButtons}
               attachments={attachments}
               previewTime={previewTime}
               collapsed={previewCollapsed}
               chatListOpen={chatListOpen}
-              onToggleChatList={() => setChatListOpen((current) => !current)}
-              onSelectChat={(chat) => {
-                setSelectedChat(chat);
-                setChatListOpen(false);
-              }}
+              onToggleChatList={toggleChatList}
+              onSelectChat={selectPreviewChat}
               onWallpaperChange={setChatWallpaper}
             />
           </section>

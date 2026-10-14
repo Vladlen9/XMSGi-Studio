@@ -45,6 +45,7 @@ function getCurrentHashPath(): AppRoute {
 }
 
 function App() {
+  const browserDraftMode = typeof window.telegram?.login !== 'function';
   const [message, setMessageState] = useState(readPlannerDraft);
   const messageRef = useRef(message);
   messageRef.current = message;
@@ -75,7 +76,7 @@ function App() {
   const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [route, setRoute] = useState<AppRoute>(getCurrentHashPath());
-  const [productView, setProductView] = useState<ProductView>(readLastProductView);
+  const [productView, setProductView] = useState<ProductView>(() => browserDraftMode ? 'planner' : readLastProductView());
   const settingsReturnViewRef = useRef<ProductView | null>(null);
   const [activeAccountId] = useState<'account-1' | 'account-2'>(() => 'account-1');
   const [telegramApiId, setTelegramApiId] = useState('');
@@ -255,6 +256,8 @@ function App() {
     refreshChatPermissions,
     chats,
     message,
+    composerAttachments: plannerAttachments,
+    composerEntities: messageEntities,
     showNotification,
     setMessage,
     setAssistantPrompt,
@@ -575,7 +578,14 @@ function App() {
   };
 
   const handleWelcomeBackFromReturn = async () => {
-    await handleWelcomeBack();
+    const restored = await handleWelcomeBack();
+    if (restored) {
+      // Переключаем вид в том же microtask-батче, что и setConnected(true)
+      // внутри хука: между ними нет macrotask (IPC), поэтому React отрисует
+      // Studio сразу, не успев показать Planner.
+      setProductView('studio');
+      return;
+    }
     if (await finishWelcomeBack()) return;
     if (typeof window.telegram?.getConfig !== 'function') return;
 
@@ -591,18 +601,33 @@ function App() {
   };
 
   const handleWelcomeBackFromSettings = async () => {
-    await handleWelcomeBack();
+    const restored = await handleWelcomeBack();
+    if (restored) {
+      // Запомним Studio как вид для возврата: useLayoutEffect переключит
+      // productView до первой отрисовки после navigate('/'), без мигания.
+      settingsReturnViewRef.current = 'studio';
+      navigate('/');
+      return;
+    }
     if (await finishWelcomeBack()) navigate('/');
   };
 
   const handleTelegramAuthFromPlanner = async () => {
-    await handleTelegramAuth();
-    if (await finishWelcomeBack()) return;
+    const signedIn = await handleTelegramAuth();
+    if (signedIn) {
+      setProductView('studio');
+      return;
+    }
     await openCredentialSettingsIfMissing();
   };
 
   const handleTelegramAuthFromSettings = async () => {
-    await handleTelegramAuth();
+    const signedIn = await handleTelegramAuth();
+    if (signedIn) {
+      settingsReturnViewRef.current = 'studio';
+      navigate('/');
+      return;
+    }
     if (await finishWelcomeBack()) navigate('/');
   };
 
@@ -687,6 +712,7 @@ function App() {
   return (
     <AppShell
       view={productView}
+      browserDraftMode={browserDraftMode}
       onViewChange={(view) => {
         if (view !== 'studio') pendingPlannerTextRef.current = null;
         setProductView(view);
@@ -744,8 +770,9 @@ function App() {
       </div>
       <div className={`product-view ${productView === 'planner' ? 'is-active' : ''}`} aria-hidden={productView !== 'planner'}>
         {route === '/settings' ? renderSettingsPage() : (
-          connected && !signedOut ? (
+          browserDraftMode || (connected && !signedOut) ? (
             <QuickPlannerPage
+              draftOnlyMode={browserDraftMode}
               chats={chats}
               selectedChat={selectedChat}
               selectedChatPermissions={selectedChatPermissions}

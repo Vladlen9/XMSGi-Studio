@@ -766,8 +766,7 @@
   transition: color 140ms ease, background-color 140ms ease;
 }
 
-.quick-planner-schedule-controls label:hover,
-.quick-planner-schedule-controls label:focus-within {
+.quick-planner-schedule-controls label:hover {
   color: #ffffff;
   background: rgba(var(--quick-planner-accent), 0.22);
 }
@@ -776,6 +775,7 @@
   flex: 0 0 auto;
   color: rgb(var(--quick-planner-accent));
   opacity: 1;
+  cursor: pointer;
 }
 
 .quick-planner-schedule-date {
@@ -824,6 +824,185 @@
   padding: 0;
   opacity: 0;
   cursor: pointer;
+}
+
+.quick-planner-date-picker,
+.quick-planner-time-picker {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  color: #edf5f8;
+  border: 1px solid rgba(146, 168, 182, 0.17);
+  border-radius: 8px;
+  background: rgba(17, 25, 32, 0.98);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+  font: inherit;
+}
+
+.quick-planner-date-picker {
+  width: 246px;
+}
+
+.quick-planner-time-picker {
+  width: 172px;
+}
+
+.quick-planner-date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.quick-planner-date-picker-header button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: #a2b1ba;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.quick-planner-date-picker-header button:hover:not(:disabled),
+.quick-planner-date-picker-header button:focus-visible:not(:disabled) {
+  color: rgb(var(--quick-planner-accent));
+  border-color: rgba(var(--quick-planner-accent), 0.5);
+  background: rgba(var(--quick-planner-accent), 0.08);
+  outline: none;
+}
+
+.quick-planner-date-picker-header button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.quick-planner-date-picker-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.quick-planner-date-picker-weekdays,
+.quick-planner-date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.quick-planner-date-picker-weekdays span {
+  color: #7f8e9c;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.quick-planner-date-picker-grid button {
+  height: 26px;
+  padding: 0;
+  color: #c8d4dc;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.quick-planner-date-picker-grid button:hover:not(:disabled),
+.quick-planner-date-picker-grid button:focus-visible:not(:disabled) {
+  color: #ffffff;
+  border-color: rgba(var(--quick-planner-accent), 0.5);
+  background: rgba(var(--quick-planner-accent), 0.1);
+  outline: none;
+}
+
+.quick-planner-date-picker-grid button.is-today {
+  border-color: rgba(var(--quick-planner-accent), 0.4);
+}
+
+.quick-planner-date-picker-grid button.is-selected,
+.quick-planner-date-picker-grid button.is-selected:hover {
+  color: #0b1116;
+  border-color: rgb(var(--quick-planner-accent));
+  background: rgb(var(--quick-planner-accent));
+}
+
+.quick-planner-date-picker-grid button:disabled {
+  color: rgba(162, 177, 186, 0.32);
+  cursor: default;
+}
+
+.quick-planner-date-picker-gap {
+  height: 26px;
+}
+
+.quick-planner-time-field {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  color: #edf5f8;
+  border: 1px solid rgba(154, 168, 184, 0.24);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.quick-planner-time-field:focus {
+  border-color: rgba(var(--quick-planner-accent), 0.55);
+  outline: none;
+}
+
+.quick-planner-time-list {
+  display: grid;
+  gap: 1px;
+  max-height: 212px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(154, 168, 184, 0.3) transparent;
+}
+
+.quick-planner-time-list button {
+  height: 24px;
+  padding: 0 8px;
+  color: #c8d4dc;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-planner-time-list button:hover:not(:disabled),
+.quick-planner-time-list button:focus-visible:not(:disabled) {
+  color: #ffffff;
+  background: rgba(var(--quick-planner-accent), 0.12);
+  outline: none;
+}
+
+.quick-planner-time-list button[aria-selected="true"] {
+  color: #0b1116;
+  background: rgb(var(--quick-planner-accent));
+  font-weight: 700;
+}
+
+.quick-planner-time-list button:disabled {
+  color: rgba(162, 177, 186, 0.3);
+  cursor: default;
 }
 
 .quick-planner-schedule-quick-values {
@@ -1402,14 +1581,16 @@
 
 .quick-planner-emoji-picker {
   position: absolute;
-  top: 8px;
-  bottom: auto;
-  left: 8px;
+  top: auto;
+  bottom: 52px;
+  left: 10px;
+  right: auto;
   z-index: 8;
   display: grid;
-  width: min(176px, calc(100% - 16px));
-  max-height: calc(100% - 16px);
+  width: min(240px, calc(100% - 20px));
+  max-height: calc(100% - 60px);
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-content: start;
   gap: 3px;
   padding: 6px;
   overflow-y: auto;
@@ -1711,7 +1892,63 @@
   background:
     radial-gradient(90% 70% at 0% 0%, rgba(var(--quick-planner-accent), 0.06), transparent 62%),
     linear-gradient(180deg, rgba(14, 22, 28, 0.96), rgba(9, 14, 19, 0.94));
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(var(--quick-planner-accent), 0.16),
+    inset 0 -4px 5px rgba(0, 0, 0, 0.16);
+}
+
+.quick-planner-upcoming-column::after {
+  position: absolute;
+  right: 16px;
+  bottom: 1px;
+  left: 16px;
+  z-index: 5;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--quick-planner-accent), 0.22) 12%, rgba(var(--quick-planner-accent), 0.3) 50%, rgba(var(--quick-planner-accent), 0.22) 88%, transparent);
+  box-shadow: 0 1px 4px rgba(var(--quick-planner-accent), 0.16);
+  content: "";
+  pointer-events: none;
+}
+
+.quick-planner-page.is-browser-draft-only .quick-planner-layout {
+  grid-template-areas: "editor upcoming";
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+}
+
+.quick-planner-page.is-browser-draft-only .quick-planner-sidebar {
+  display: none;
+}
+
+.quick-planner-page.is-browser-draft-only .quick-planner-editor,
+.quick-planner-page.is-browser-draft-only .quick-planner-upcoming-column {
+  width: 100%;
+  margin: 0;
+  transform: none;
+}
+
+.quick-planner-page.is-browser-draft-only .quick-planner-editor {
+  height: 489px;
+}
+
+.quick-planner-page.is-browser-draft-only .quick-planner-draft-open,
+.quick-planner-page.is-browser-draft-only .quick-planner-open-studio,
+.quick-planner-page.is-browser-draft-only .quick-planner-open-studio-full,
+.quick-planner-page.is-browser-draft-only .quick-planner-tools > button[aria-label="Add attachment"] {
+  display: none;
+}
+
+@media (max-width: 840px) {
+  .quick-planner-page.is-browser-draft-only .quick-planner-layout {
+    grid-template-areas: "editor" "upcoming";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quick-planner-page.is-browser-draft-only .quick-planner-editor {
+    height: 489px;
+  }
 }
 
 .quick-planner-upcoming-heading {
@@ -2746,4 +2983,69 @@
 
 .quick-planner-page .quick-planner-clock-label {
   opacity: 1;
+}
+
+@media (min-width: 701px) {
+  .quick-planner-page[lang="ru"] .quick-planner-editor > .quick-planner-heading-actions {
+    right: 14px;
+    left: 240px;
+    justify-content: flex-start;
+    width: auto;
+    transform: translateY(-8px);
+  }
+}
+
+@media (min-width: 861px) {
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    flex: 0 0 auto;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-align: left;
+    transform: translateY(-13px);
+  }
+
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch button {
+    gap: 3px;
+    font-size: 18px;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  .quick-planner-page[lang="ru"] .quick-planner-editor > .quick-planner-heading-actions {
+    top: 70px;
+    right: 14px;
+    left: 14px;
+    width: auto;
+    justify-content: flex-start;
+    transform: none;
+  }
+
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 4px 10px;
+  }
+
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    flex: 0 0 100%;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-align: left;
+    transform: none;
+  }
+
+  .quick-planner-page[lang="ru"] .quick-planner-mode-switch button {
+    gap: 3px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
 }

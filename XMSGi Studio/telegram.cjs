@@ -1319,6 +1319,16 @@ function getChatAvatar(chatId) {
   return trackTelegramOperation('getChatAvatar', () => getChatAvatarInternal(chatId));
 }
 
+async function getAccountAvatarInternal() {
+  if (!client) await connectTelegram();
+  const account = await telegramRequest(() => client.getMe());
+  return getChatAvatarDataUrl(account);
+}
+
+function getAccountAvatar() {
+  return trackTelegramOperation('getAccountAvatar', getAccountAvatarInternal);
+}
+
 function getPermissionStatus({ canView = true, canSend = null, canSchedule = null, error = '' } = {}) {
   return { canView, canSend, canSchedule, ...(error ? { error } : {}) };
 }
@@ -2829,6 +2839,7 @@ function cancelScheduledMessage(chatId, messageId, message, targetTimestamp) {
     getChats,
     getChatPermissions,
     getChatAvatar,
+    getAccountAvatar,
     getChatHistory,
     deleteSavedMessage,
     getContacts,
@@ -2863,6 +2874,7 @@ module.exports = {
   getChats: (...args) => defaultCore.getChats(...args),
   getChatPermissions: (...args) => defaultCore.getChatPermissions(...args),
   getChatAvatar: (...args) => defaultCore.getChatAvatar(...args),
+  getAccountAvatar: (...args) => defaultCore.getAccountAvatar(...args),
   getChatHistory: (...args) => defaultCore.getChatHistory(...args),
   deleteSavedMessage: (...args) => defaultCore.deleteSavedMessage(...args),
   getContacts: (...args) => defaultCore.getContacts(...args),

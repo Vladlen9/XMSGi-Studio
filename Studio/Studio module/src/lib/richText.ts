@@ -200,7 +200,7 @@ export function markdownToRichText(source: string): {
 export function editorHtmlToRichText(root: HTMLElement): {
   text: string;
   entities: RichTextEntity[];
-  sourceOffsetMap: number[];
+  sourceOffsetMap: number[] | null;
   markdownChanged: boolean;
 } {
   let text = '';
@@ -208,12 +208,16 @@ export function editorHtmlToRichText(root: HTMLElement): {
   const entityStack: { type: RichTextEntityType; url?: string; offset: number }[] = [];
 
   const appendText = (value: string) => {
-    text += normalizeEditorText(value);
+    text += value;
   };
 
   const visit = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      appendText(node.textContent || '');
+      const textNode = node as Text;
+      const rawText = textNode.nodeValue || '';
+      const normalizedText = normalizeEditorText(rawText);
+      if (normalizedText !== rawText) textNode.nodeValue = normalizedText;
+      appendText(normalizedText);
       return;
     }
 
@@ -253,6 +257,15 @@ export function editorHtmlToRichText(root: HTMLElement): {
   };
 
   root.childNodes.forEach(visit);
+  if (!/[*~\\]/.test(text)) {
+    return {
+      text,
+      entities: mergeRichTextEntities(entities),
+      sourceOffsetMap: null,
+      markdownChanged: false,
+    };
+  }
+
   const markdown = markdownToRichText(text);
   const mappedEntities = entities.flatMap((entity) => {
     const offset = markdown.sourceOffsetMap[entity.offset];

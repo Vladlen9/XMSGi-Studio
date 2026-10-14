@@ -263,6 +263,7 @@ const {
   getChats,
   getChatPermissions,
   getChatAvatar,
+  getAccountAvatar,
   getChatHistory,
   deleteSavedMessage,
   getContacts,
@@ -1073,6 +1074,21 @@ ipcMain.handle('telegram-chat-avatar', async (event, chatId) => {
     return { success: true, avatarDataUrl: await getChatAvatar(validatedChatId) };
   } catch (error) {
     console.error('Telegram chat avatar error:', error?.code || error?.name || 'unknown');
+    return { success: false, avatarDataUrl: '', error: error.message };
+  }
+});
+
+ipcMain.handle('telegram-account-avatar', async (event) => {
+  assertTrustedRenderer(
+    event,
+    mainWindow?.webContents,
+    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
+  );
+
+  try {
+    return { success: true, avatarDataUrl: await getAccountAvatar() };
+  } catch (error) {
+    console.error('Telegram account avatar error:', error?.code || error?.name || 'unknown');
     return { success: false, avatarDataUrl: '', error: error.message };
   }
 });
