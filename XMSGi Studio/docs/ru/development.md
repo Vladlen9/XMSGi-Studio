@@ -155,8 +155,9 @@ npm run build
 CI описан в `.github/workflows/` (дерево репозитория — оболочка, приложение в
 подкаталоге `XMSGi Studio/`).
 
-- `.github/workflows/release-check.yml` — быстрые проверки кода (lint,
-  typecheck, тесты) на push в `main`, на PR и вручную. Артефакты не собирает.
+- `.github/workflows/release-check.yml` — проверки хоста и Studio-модуля
+  (lint, typecheck, тесты и отдельная сборка модуля) на push в `main`, на PR
+  и вручную. Артефакты релиза не публикует.
 - `.github/workflows/release.yml` — авто-релиз desktop-приложения. Срабатывает
   **только по тегу вида `v*`** (или вручную через `workflow_dispatch`), собирает
   артефакты для Windows/Linux/macOS через electron-builder и публикует их в

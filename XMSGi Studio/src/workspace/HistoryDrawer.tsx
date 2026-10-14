@@ -213,7 +213,7 @@ function positionHistoryGlassIndicator(container: HTMLDivElement | null) {
   indicator.style.setProperty('--history-glass-y', `${activeBounds.top - containerBounds.top - container.clientTop}px`);
   indicator.style.width = `${activeBounds.width}px`;
   indicator.style.height = `${activeBounds.height}px`;
-  indicator.style.opacity = '1';
+  indicator.style.opacity = '0';
 }
 
 function bounceHistoryGlassIndicator(container: HTMLDivElement | null, filter: HistoryStatusFilter | HistorySourceFilter) {

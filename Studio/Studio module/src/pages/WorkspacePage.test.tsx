@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@/types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import type { WorkspaceDraft } from '../lib/draftStore';
+import { EDITOR_APPEARANCE_STORAGE_KEY, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { LocaleProvider } from '@/lib/i18n';
 import { hasDraftContent, normalizeAttachments, readWorkspaceDraftStoreFallback, remapAttachmentPositions, WorkspacePage, writeWorkspaceDraftStoreFallback } from './WorkspacePage';
 
@@ -413,7 +414,7 @@ describe('WorkspacePage main-screen flows', () => {
 
   it('keeps the editor outline illuminated when toolbar focus is inactive', async () => {
     const { unmount } = await renderWorkspacePage();
-    const editorShell = document.querySelector('.workspace-page-editor-shell')!;
+    const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
     const editor = editorShell.querySelector('.workspace-page-rich-text-editor')!;
     const baseShellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
 
@@ -425,7 +426,46 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('adds restrained ambient depth to the editor background, surface, and divider', () => {
+  it('uses custom action colors and switches them with the publish mode', async () => {
+    localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
+    const { unmount } = await renderWorkspacePage();
+    const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
+
+    expect(editorShell.dataset.editorAppearance).toBe('outline');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
+
+    await act(async () => {
+      writeEditorAppearancePreferences({
+        style: 'outline',
+        palette: 'custom',
+        modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
+      });
+    });
+
+    expect(editorShell.dataset.editorAppearance).toBe('outline');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('40, 127, 166');
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
+    });
+    const scheduleOption = document.querySelector<HTMLButtonElement>('.workspace-page-publish-option.is-scheduled')!;
+    await act(async () => scheduleOption.click());
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('180, 130, 245');
+
+    await act(async () => {
+      writeEditorAppearancePreferences({
+        style: 'monochrome',
+        palette: 'custom',
+        modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
+      });
+    });
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('180, 130, 245');
+
+    unmount();
+    localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
+  });
+
+  it('keeps the outline divider crisp over the restrained editor glow', () => {
     const pageRule = workspacePageStyles.match(/\.workspace-page\s*\{([^}]*)\}/)?.[1] ?? '';
     const shellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
     const stageRule = workspacePageStyles.match(/\.workspace-page-rich-text-stage\s*\{([^}]*)\}/)?.[1] ?? '';
@@ -436,14 +476,15 @@ describe('WorkspacePage main-screen flows', () => {
     expect(shellRule).toMatch(/radial-gradient\(ellipse 88% 48% at 50% 0%/);
     expect(shellRule).toMatch(/0 0 24px rgba\(var\(--editor-outline\), 0\.025\)/);
     expect(stageRule).toMatch(/rgba\(var\(--editor-outline-bright\), 0\.48\)/);
-    expect(dividerRule).toMatch(/filter:\s*var\(--workspace-rich-text-underline-shadow\)/);
+    expect(dividerRule).toMatch(/filter:\s*none/);
   });
 
-  it('applies a distinct accent to each publish action', async () => {
+  it('updates publish actions without changing the light editor outline', async () => {
     const { unmount } = await renderWorkspacePage();
     const publishButton = document.querySelector('.workspace-page-publish-main')!;
-    const editorShell = document.querySelector('.workspace-page-editor-shell')!;
+    const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
     const menuToggle = document.querySelector<HTMLButtonElement>('.workspace-page-publish-menu-toggle')!;
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
     expect(publishButton.classList.contains('is-send')).toBe(true);
     expect(editorShell.classList.contains('is-scheduled')).toBe(false);
     expect(editorShell.classList.contains('is-draft')).toBe(false);
@@ -454,6 +495,7 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => scheduleOption.click());
     expect(publishButton.classList.contains('is-scheduled')).toBe(true);
     expect(editorShell.classList.contains('is-scheduled')).toBe(true);
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
 
     await act(async () => menuToggle.click());
     const draftOption = Array.from(document.querySelectorAll('.workspace-page-publish-option'))
@@ -461,6 +503,7 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => draftOption.click());
     expect(publishButton.classList.contains('is-draft')).toBe(true);
     expect(editorShell.classList.contains('is-draft')).toBe(true);
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
     unmount();
   });
 
@@ -907,6 +950,12 @@ describe('WorkspacePage main-screen flows', () => {
 
   it('keeps version history open while changing the selected document', async () => {
     localStorage.removeItem('awaitmsg-workspace-draft');
+    const previousAppearance = localStorage.getItem(EDITOR_APPEARANCE_STORAGE_KEY);
+    writeEditorAppearancePreferences({
+      style: 'outline',
+      palette: 'custom',
+      modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
+    });
     const { otherDocumentId } = seedVersionHistoryDialogStore();
     const { unmount } = await renderWorkspacePage();
 
@@ -915,6 +964,21 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
+    const dialogRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog\s*\{([^}]*)\}/)?.[1] ?? '';
+    const dividerRule = workspacePageStyles.match(/\.workspace-page-version-history-list\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('40, 127, 166');
+    expect(dialogRule).toMatch(/border:\s*1px solid rgba\(241, 247, 251, 0\.28\)/);
+    expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(241, 247, 251, 0\.14\)/);
+
+    await act(async () => {
+      writeEditorAppearancePreferences({
+        style: 'outline',
+        palette: 'custom',
+        modeColors: { send: '#ff6699', schedule: '#b482f5', draft: '#f58b37' },
+      });
+    });
+    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('255, 102, 153');
+
     const documentPicker = dialog.querySelector('.workspace-page-version-history-document-trigger') as HTMLButtonElement;
     await act(async () => {
       documentPicker.click();
@@ -931,6 +995,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-version-history-preview')?.textContent)
       .toContain('Other historical document');
     unmount();
+    if (previousAppearance === null) localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
+    else localStorage.setItem(EDITOR_APPEARANCE_STORAGE_KEY, previousAppearance);
   });
 
   it('opens the document picker with the keyboard and Escape closes it before the dialog', async () => {

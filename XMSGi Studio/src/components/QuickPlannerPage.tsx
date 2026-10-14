@@ -24,9 +24,15 @@ import {
 import type { Chat, ChatPermissions, NotificationState, NotificationType, RichTextEntity, ScheduledMessage } from '@/types';
 import type { HistoryItem } from '@/workspace/historyModel';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
+import {
+  EDITOR_APPEARANCE_UPDATED_EVENT,
+  getEditorAppearanceCssTokens,
+  readEditorAppearancePreferences,
+} from '@shared/editorAppearance';
 import { insertMessageText, limitMessageText } from '@/lib/messageLimits';
 import { readSavedPlannerDrafts, SAVED_PLANNER_DRAFTS_UPDATED_EVENT, writeSavedPlannerDrafts, type SavedPlannerDraft } from '@/lib/plannerDraft';
 import { mergeRichTextEntities } from '@/lib/richText';
+import { useLocale } from '@/lib/i18n';
 import { load, save } from '@/lib/storage';
 import { ChatPicker } from '@/components/ChatPicker';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
@@ -35,10 +41,10 @@ import './QuickPlannerPage.css';
 type QuickPlannerMode = 'send' | 'schedule' | 'draft';
 type ReminderType = 'task' | 'meeting' | 'reminder' | 'event' | 'idea';
 
-const plannerModes: Array<{ id: QuickPlannerMode; label: string; icon: typeof Send }> = [
-  { id: 'send', label: 'Send now', icon: Send },
-  { id: 'schedule', label: 'Schedule', icon: CalendarDays },
-  { id: 'draft', label: 'Draft', icon: FileText },
+const plannerModes = (t: ReturnType<typeof useLocale>['t']) => [
+  { id: 'send' as const, label: t('quickplanner.mode.send'), icon: Send },
+  { id: 'schedule' as const, label: t('quickplanner.mode.schedule'), icon: CalendarDays },
+  { id: 'draft' as const, label: t('quickplanner.mode.draft'), icon: FileText },
 ];
 
 const scheduleQuickOptions = [
@@ -227,18 +233,28 @@ function sortPlannerDraftsByPinned(drafts: SavedPlannerDraft[]) {
   ];
 }
 
-const plannerMotivations = [
-  'Keep growing, keep glowing.',
-  'Be patient with your progress.',
-  'Make your ordinary extraordinary.',
-  'Focus on what matters.',
-  'Choose what moves you forward.',
-];
+const plannerMotivations = {
+  en: [
+    'Keep growing, keep glowing.',
+    'Be patient with your progress.',
+    'Make your ordinary extraordinary.',
+    'Focus on what matters.',
+    'Choose what moves you forward.',
+  ],
+  ru: [
+    'Двигайся вперёд, не останавливаясь.',
+    'Будь терпелив с собственным прогрессом.',
+    'Сделай обычное особенным.',
+    'Фокусируйся на главном.',
+    'Выбирай то, что ведёт тебя вперёд.',
+  ],
+} as const;
+
 let lastPlannerMotivation: string | null = null;
 
-function choosePlannerMotivation() {
-  const choices = plannerMotivations.filter((phrase) => phrase !== lastPlannerMotivation);
-  return choices[Math.floor(Math.random() * choices.length)] ?? plannerMotivations[0];
+function choosePlannerMotivation(locale: 'en' | 'ru') {
+  const choices = plannerMotivations[locale].filter((phrase) => phrase !== lastPlannerMotivation);
+  return choices[Math.floor(Math.random() * choices.length)] ?? plannerMotivations[locale][0];
 }
 
 function readSavedReminderType(): ReminderType | null {
@@ -373,11 +389,14 @@ export function QuickPlannerPage({
   notification,
   closeNotification,
 }: QuickPlannerPageProps) {
+  const { locale, t } = useLocale();
+  const plannerModeOptions = useMemo(() => plannerModes(t), [t]);
   const { currentSection, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
   const [previewPersistence] = useState(readPlannerPreviewState);
-  const [sidebarMotivation] = useState(choosePlannerMotivation);
+  const [sidebarMotivation] = useState(() => choosePlannerMotivation(locale));
+  const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
   const [publishMode, setPublishMode] = useState<QuickPlannerMode>(() => (
-    plannerModes.some(({ id }) => id === previewPersistence.publishMode)
+    plannerModeOptions.some(({ id }) => id === previewPersistence.publishMode)
       ? previewPersistence.publishMode as QuickPlannerMode
       : 'send'
   ));
@@ -406,6 +425,16 @@ export function QuickPlannerPage({
     defaultDate.setMinutes(defaultDate.getMinutes() + 1);
     return toLocalDateTimeValue(defaultDate);
   });
+
+  useEffect(() => {
+    const refreshEditorAppearance = () => setEditorAppearance(readEditorAppearancePreferences());
+    window.addEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, refreshEditorAppearance);
+    window.addEventListener('storage', refreshEditorAppearance);
+    return () => {
+      window.removeEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, refreshEditorAppearance);
+      window.removeEventListener('storage', refreshEditorAppearance);
+    };
+  }, []);
 
   useEffect(() => {
     const syncSavedPlannerDrafts = () => {
@@ -439,6 +468,7 @@ export function QuickPlannerPage({
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [expandedPreviewMessageId]);
   const [scheduleDate, scheduleTime] = scheduleDateTime.split('T');
+  const quickPlannerAccent = getEditorAppearanceCssTokens(editorAppearance, publishMode)['--editor-outline'];
   const minimumScheduleDate = new Date(currentTime);
   minimumScheduleDate.setMinutes(minimumScheduleDate.getMinutes() + 1, 0, 0);
   const minimumScheduleDateTime = toLocalDateTimeValue(minimumScheduleDate);
@@ -1244,19 +1274,27 @@ export function QuickPlannerPage({
   }, [previewMode, updatePreviewScrollbar, visiblePreviewGroups]);
 
   return (
-    <section className="quick-planner-page" aria-labelledby="quick-planner-title" data-publish-mode={publishMode}>
+    <section
+      className="quick-planner-page"
+      aria-labelledby="quick-planner-title"
+      data-publish-mode={publishMode}
+      style={{
+        '--quick-planner-accent': quickPlannerAccent,
+        '--quick-planner-accent-soft': `rgba(${quickPlannerAccent}, 0.12)`,
+      } as CSSProperties}
+    >
       <header className="quick-planner-header">
           <div className="quick-planner-heading">
             <Zap size={19} strokeWidth={2.2} aria-hidden="true" />
             <div>
-              <h1 id="quick-planner-title">Quick Planner</h1>
+              <h1 id="quick-planner-title">{t('quickplanner.title')}</h1>
             </div>
           </div>
       </header>
 
       <div className="quick-planner-layout">
           <aside className="quick-planner-sidebar">
-            <nav className="quick-planner-nav" aria-label="Workspace navigation">
+            <nav className="quick-planner-nav" aria-label={t('quickplanner.navigation')}>
               <button
                 className={`quick-planner-nav-item${currentSection === 'studio' ? ' is-active' : ''}`}
                 type="button"
@@ -1264,7 +1302,7 @@ export function QuickPlannerPage({
                 onClick={openStudio}
               >
                 <FileText size={16} aria-hidden="true" />
-                <span>Studio</span>
+                <span>{t('product.studio')}</span>
               </button>
               <button
                 className={`quick-planner-nav-item${currentSection === 'posts' ? ' is-active' : ''}`}
@@ -1273,7 +1311,7 @@ export function QuickPlannerPage({
                 onClick={openPosts}
               >
                 <History size={16} aria-hidden="true" />
-                <span>Posts</span>
+                <span>{t('product.posts')}</span>
               </button>
               <button
                 className={`quick-planner-nav-item${currentSection === 'settings' ? ' is-active' : ''}`}
@@ -1282,7 +1320,7 @@ export function QuickPlannerPage({
                 onClick={openSettings}
               >
                 <Settings size={16} aria-hidden="true" />
-                <span>Settings</span>
+                <span>{t('product.settings')}</span>
               </button>
             </nav>
             <p className="quick-planner-sidebar-note">{sidebarMotivation}</p>
@@ -1301,12 +1339,12 @@ export function QuickPlannerPage({
                 </div>
               </div>
               <div className="quick-planner-editor-heading">
-                <span className="quick-planner-section-label">Create reminder</span>
+                <span className="quick-planner-section-label">{t('quickplanner.createReminder')}</span>
               </div>
               <div className="quick-planner-heading-actions">
-                <div className="quick-planner-mode-switch" role="group" aria-label="Action mode">
-                  <span className="quick-planner-mode-caption">Current action</span>
-                  {plannerModes.map(({ id, label, icon: ModeIcon }) => (
+                <div className="quick-planner-mode-switch" role="group" aria-label={t('quickplanner.actionMode')}>
+                  <span className="quick-planner-mode-caption">{t('quickplanner.currentAction')}</span>
+                  {plannerModeOptions.map(({ id, label, icon: ModeIcon }) => (
                     <button
                       key={id}
                       type="button"

@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { ChevronRight, Send, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import {
+  DEFAULT_EDITOR_APPEARANCE,
+  readEditorAppearancePreferences,
+  resolveEditorAppearanceColor,
+  writeEditorAppearancePreferences,
+} from '@shared/editorAppearance';
 import { useLocale } from '@/lib/i18n';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { getTelegramStatusPresentation } from '@/workspace/AppShell';
+import type { EditorAppearanceMode, EditorAppearancePreferences } from '@shared/editorAppearance';
 
 type GeminiSettings = {
   hasKey: boolean;
@@ -89,12 +96,23 @@ export function SettingsView({
   const [isEditingKey, setIsEditingKey] = useState(false);
   const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
   const [isTelegramManagementOpen, setIsTelegramManagementOpen] = useState(false);
+  const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
+  const [editorAppearanceSaveFailed, setEditorAppearanceSaveFailed] = useState(false);
   const statusPresentation = getTelegramStatusPresentation(telegramStatus);
   const statusMessage = telegramStatus.status === 'rate-limited'
     ? t(statusPresentation.messageKey, { wait: telegramStatus.waitSecondsText || '?' })
     : telegramStatus.error && statusPresentation.tone === 'error'
       ? `${t(statusPresentation.messageKey)} ${telegramStatus.error}`
       : t(statusPresentation.messageKey);
+  const saveEditorAppearance = (next: EditorAppearancePreferences) => {
+    setEditorAppearance(next);
+    setEditorAppearanceSaveFailed(!writeEditorAppearancePreferences(next));
+  };
+  const editorModeOptions: Array<{ id: EditorAppearanceMode; label: string }> = [
+    { id: 'send', label: t('settings.editorModeSend') },
+    { id: 'schedule', label: t('settings.editorModeSchedule') },
+    { id: 'draft', label: t('settings.editorModeDraft') },
+  ];
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -140,6 +158,101 @@ export function SettingsView({
               <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
                 RU
               </button>
+            </div>
+          </section>
+          <section className="settings-view-section settings-editor-appearance" aria-labelledby="settings-editor-appearance-title">
+            <div className="settings-editor-appearance-heading">
+              <h2 id="settings-editor-appearance-title">{t('settings.editorAppearance')}</h2>
+            </div>
+            <p className="settings-view-description">{t('settings.editorAppearanceDescription')}</p>
+
+            <div className="settings-editor-appearance-layout">
+              <div
+                className="settings-editor-preview is-outline"
+                data-appearance="outline"
+                data-palette={editorAppearance.palette}
+                style={{ '--settings-editor-accent': resolveEditorAppearanceColor(editorAppearance, 'send') } as CSSProperties}
+                role="region"
+                aria-label={t('settings.editorAppearancePreviewTitle')}
+              >
+                <div className="settings-editor-preview-header">
+                  <span>{t('settings.editorAppearancePreviewTitle')}</span>
+                  <span className="settings-editor-preview-indicator" aria-hidden="true" />
+                </div>
+                <div className="settings-editor-preview-modes">
+                  {editorModeOptions.map(({ id, label }) => (
+                    <div
+                      key={id}
+                      className={`settings-editor-preview-mode is-${id}`}
+                      style={{ '--settings-editor-accent': resolveEditorAppearanceColor(editorAppearance, id) } as CSSProperties}
+                    >
+                      <span>{label}</span>
+                      <span className="settings-editor-preview-mode-line" aria-hidden="true" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="settings-editor-appearance-controls">
+                <div className="settings-editor-control-group">
+                  <div className="settings-editor-control-heading">
+                    <span className="settings-editor-control-label">{t('settings.editorAppearancePalette')}</span>
+                    <span className={`settings-editor-preview-badge${editorAppearanceSaveFailed ? ' is-error' : ''}`} role="status">
+                      {editorAppearanceSaveFailed ? t('settings.editorAppearanceSaveFailed') : t('settings.editorAppearanceSaved')}
+                    </span>
+                  </div>
+                  <div className="settings-editor-style-switch settings-editor-palette-switch" role="group" aria-label={t('settings.editorAppearancePalette')}>
+                    <button
+                      type="button"
+                      className={editorAppearance.palette === 'automatic' ? 'is-selected' : ''}
+                      onClick={() => saveEditorAppearance({ ...editorAppearance, palette: 'automatic' })}
+                      aria-pressed={editorAppearance.palette === 'automatic'}
+                    >
+                      {t('settings.editorAppearanceAutomatic')}
+                    </button>
+                    <button
+                      type="button"
+                      className={editorAppearance.palette === 'custom' ? 'is-selected' : ''}
+                      onClick={() => saveEditorAppearance({ ...editorAppearance, palette: 'custom' })}
+                      aria-pressed={editorAppearance.palette === 'custom'}
+                    >
+                      {t('settings.editorAppearanceCustomByMode')}
+                    </button>
+                  </div>
+                  <div className="settings-editor-mode-colors">
+                    {editorModeOptions.map(({ id, label }) => {
+                      const color = editorAppearance.palette === 'automatic'
+                        ? DEFAULT_EDITOR_APPEARANCE.modeColors[id]
+                        : editorAppearance.modeColors[id];
+
+                      return (
+                        <div className="settings-editor-mode-color-row" key={id}>
+                          <span className="settings-editor-mode-color-label">{label}</span>
+                          {editorAppearance.palette === 'automatic' ? (
+                            <span className="settings-editor-mode-color-value">
+                              <span className="settings-editor-mode-color-dot" style={{ backgroundColor: color }} aria-hidden="true" />
+                              <span>{color.toUpperCase()}</span>
+                            </span>
+                          ) : (
+                            <label className="settings-editor-mode-color-picker">
+                              <input
+                                type="color"
+                                value={color}
+                                aria-label={t('settings.editorAppearanceModeColor', { mode: label })}
+                                onChange={(event) => saveEditorAppearance({
+                                  ...editorAppearance,
+                                  palette: 'custom',
+                                  modeColors: { ...editorAppearance.modeColors, [id]: event.target.value },
+                                })}
+                              />
+                              <span>{color.toUpperCase()}</span>
+                            </label>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
           <section className="settings-view-section settings-telegram-section">

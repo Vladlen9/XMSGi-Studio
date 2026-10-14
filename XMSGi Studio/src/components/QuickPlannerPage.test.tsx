@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { useState, type ComponentProps } from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
 import { SAVED_PLANNER_DRAFTS_UPDATED_EVENT, SAVED_PLANNER_DRAFT_STORAGE_KEY } from '@/lib/plannerDraft';
+import { EDITOR_APPEARANCE_STORAGE_KEY, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import type { ScheduledMessage } from '@/types';
 import { normalizeScheduledMessages } from '@/workspace/historyModel';
 import { QuickPlannerNavigationContext, type QuickPlannerNavigationActions } from '@/workspace/QuickPlannerNavigationContext';
@@ -112,11 +113,40 @@ function selectDraftMode() {
 
 beforeEach(() => {
   localStorage.removeItem(plannerPreviewStorageKey);
+  localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
   localStorage.removeItem('xmsgi-quick-planner-reminder-type');
   localStorage.removeItem('xmsgi-quick-planner-saved-draft');
 });
 
 describe('QuickPlannerPage layout positioning', () => {
+  it('lowers the Add tag control by three pixels', () => {
+    expect(getCssRules('.quick-planner-type-toggle.is-add-tag')[0]).toMatch(/transform:\s*translateY\(3px\)/);
+  });
+
+  it('uses the saved color for each action and refreshes when Settings changes it', () => {
+    writeEditorAppearancePreferences({
+      style: 'outline',
+      palette: 'custom',
+      modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
+    });
+    const { container } = renderQuickPlanner();
+    const planner = container.querySelector<HTMLElement>('.quick-planner-page')!;
+
+    expect(planner.style.getPropertyValue('--quick-planner-accent')).toBe('40, 127, 166');
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
+    expect(planner.style.getPropertyValue('--quick-planner-accent')).toBe('180, 130, 245');
+
+    act(() => {
+      writeEditorAppearancePreferences({
+        style: 'outline',
+        palette: 'custom',
+        modeColors: { send: '#287fa6', schedule: '#40e0d0', draft: '#f58b37' },
+      });
+    });
+    expect(planner.style.getPropertyValue('--quick-planner-accent')).toBe('64, 224, 208');
+  });
+
   it('keeps the composer shadow subtle and avoids adding a persistent filter glow', () => {
     const composeRules = getCssRules('.quick-planner-compose')[0];
     const focusedComposeRules = getCssRules('.quick-planner-compose:focus-within')[0];
@@ -126,12 +156,14 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(focusedComposeRules).toMatch(/box-shadow:\s*0 0 0 2px rgba\(var\(--quick-planner-accent\), 0\.16\)/);
   });
 
-  it('uses a wider, softer ambient glow around the editor panel', () => {
+  it('uses one fixed light accent with a visible glow around the editor panel', () => {
     const editorRules = getCssRules('.quick-planner-editor')[0];
 
     expect(editorRules).toMatch(/radial-gradient\(126% 86% at 96% 94%/);
-    expect(editorRules).toMatch(/0 0 8px rgba\(var\(--quick-planner-accent\), 0\.08\)/);
-    expect(editorRules).toMatch(/0 0 26px rgba\(var\(--quick-planner-accent\), 0\.025\)/);
+    expect(editorRules).toMatch(/0 0 10px rgba\(var\(--quick-planner-accent\), 0\.13\)/);
+    expect(editorRules).toMatch(/0 0 28px rgba\(var\(--quick-planner-accent\), 0\.045\)/);
+    expect(plannerStyles).toMatch(/--quick-planner-accent:\s*255, 255, 255/);
+    expect(plannerStyles).not.toMatch(/data-publish-mode="(?:schedule|draft)"\)\s*\{/);
   });
 
   it('reveals Draft actions on hover and focus, while keeping touch and pinned actions available', () => {
@@ -141,7 +173,8 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(actionRules).toMatch(/opacity:\s*0/);
     expect(actionRules).toMatch(/pointer-events:\s*none/);
     expect(plannerStyles).toMatch(/\.quick-planner-draft:hover \.quick-planner-draft-actions button,[\s\S]*?\.quick-planner-draft:focus-within \.quick-planner-draft-actions button\s*\{[^}]*opacity:\s*1/);
-    expect(getCssRules('.quick-planner-draft-pin.is-pinned').at(-1)).toMatch(/opacity:\s*1/);
+    const pinnedRules = getCssRules('.quick-planner-draft-pin.is-pinned');
+    expect(pinnedRules[pinnedRules.length - 1]).toMatch(/opacity:\s*1/);
     expect(plannerStyles).toMatch(/@media\s*\(hover:\s*none\)[\s\S]*?\.quick-planner-draft-actions button\s*\{[^}]*opacity:\s*1/);
   });
 
@@ -314,7 +347,7 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(composeRules).toMatch(/position:\s*relative/);
     expect(composeRules).toMatch(/width:\s*100%/);
     expect(composeRules).toMatch(/height:\s*calc\(110px\s*\+\s*var\(--quick-planner-resize-height,\s*0px\)\)/);
-    expect(getCssRules('.quick-planner-send')[0]).toMatch(/flex:\s*0 0 38px/);
+    expect(getCssRules('.quick-planner-send')[0]).toMatch(/flex:\s*0 0 40px/);
   });
 
   it('resets the desktop offsets and stretches the editor on narrow screens', () => {
@@ -393,7 +426,7 @@ describe('QuickPlannerPage layout positioning', () => {
 
   it('keeps the empty action-group area from intercepting quick schedule clicks', () => {
     expect(getCssRules('.quick-planner-action-group')[0]).toMatch(/pointer-events:\s*none/);
-    expect(getCssRules('.quick-planner-action-group > \*')[0]).toMatch(/pointer-events:\s*auto/);
+    expect(getCssRules('.quick-planner-action-group > *')[0]).toMatch(/pointer-events:\s*auto/);
   });
 
   it('moves the action selector below the clock on the narrowest desktop widths', () => {
@@ -454,6 +487,17 @@ describe('QuickPlannerPage action mode', () => {
     expect(navigationButtons.filter((button) => button.classList.contains('is-active'))).toHaveLength(0);
     expect(navigationButtons[0]).not.toHaveAttribute('aria-current');
     expect(quickNavigation.queryByRole('button', { name: 'Quick Plan' })).not.toBeInTheDocument();
+  });
+
+  it('uses localized labels for the planner navigation in Russian', () => {
+    localStorage.setItem('awaitmsg_locale', 'ru');
+    renderQuickPlanner();
+
+    expect(screen.getByRole('button', { name: 'Студия' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Публикации' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument();
+
+    localStorage.removeItem('awaitmsg_locale');
   });
 
   it('labels the lower-right planner panel Draft with a lightning icon', () => {
@@ -542,14 +586,14 @@ describe('QuickPlannerPage action mode', () => {
     ], 'personal', 'sent', []);
     const sharedHistory = sentHistory.map((record) => ({ ...record }));
     const { container } = renderQuickPlanner({ sentHistory });
-    const panel = container.querySelector('.quick-planner-upcoming-column')!;
+    const panel = container.querySelector<HTMLElement>('.quick-planner-upcoming-column')!;
 
     expect(within(panel).getByText('Actual sent message')).toBeInTheDocument();
     expect(within(panel).getByText('Older sent message')).toBeInTheDocument();
     expect(within(panel).queryByText('Release notes are ready for review.')).not.toBeInTheDocument();
     expect(within(panel).getByRole('region', { name: 'Earlier' })).toBeInTheDocument();
 
-    const actualRow = screen.getByText('Actual sent message').closest('.quick-planner-mode-preview-row')!;
+    const actualRow = screen.getByText('Actual sent message').closest<HTMLElement>('.quick-planner-mode-preview-row')!;
     fireEvent.mouseEnter(actualRow);
     fireEvent.click(within(actualRow).getByRole('button', { name: /Delete history message from Alpha Team/ }));
 
@@ -580,7 +624,7 @@ describe('QuickPlannerPage action mode', () => {
   it('opens a Queue message by keyboard and closes it with the close button', () => {
     renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
-    const row = screen.getByText('Share the release notes.').closest('.quick-planner-mode-preview-row')!;
+    const row = screen.getByText('Share the release notes.').closest<HTMLElement>('.quick-planner-mode-preview-row')!;
 
     row.focus();
     fireEvent.keyDown(row, { key: 'Enter' });
@@ -642,7 +686,7 @@ describe('QuickPlannerPage action mode', () => {
 
   it('pins and deletes only local History preview rows', () => {
     const { container } = renderQuickPlanner();
-    const firstRow = container.querySelector('.quick-planner-mode-preview-row')!;
+    const firstRow = container.querySelector<HTMLElement>('.quick-planner-mode-preview-row')!;
 
     fireEvent.mouseEnter(firstRow);
     fireEvent.click(within(firstRow).getByRole('button', { name: 'Pin history message from Saved Messages at 14:32' }));
@@ -656,7 +700,7 @@ describe('QuickPlannerPage action mode', () => {
   it('pins and cancels only local Queue preview rows', () => {
     const { container } = renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
-    const firstRow = container.querySelector('.quick-planner-mode-preview-row')!;
+    const firstRow = container.querySelector<HTMLElement>('.quick-planner-mode-preview-row')!;
 
     fireEvent.mouseEnter(firstRow);
     fireEvent.click(within(firstRow).getByRole('button', { name: 'Pin queued message from Saved Messages at 16:30' }));
@@ -669,7 +713,7 @@ describe('QuickPlannerPage action mode', () => {
 
   it('moves a pinned History row above the dates and restores its position when unpinned', () => {
     const { container } = renderQuickPlanner();
-    const originalRow = screen.getByText('The sprint notes are ready.').closest('.quick-planner-mode-preview-row')!;
+    const originalRow = screen.getByText('The sprint notes are ready.').closest<HTMLElement>('.quick-planner-mode-preview-row')!;
 
     fireEvent.mouseEnter(originalRow);
     fireEvent.click(within(originalRow).getByRole('button', { name: 'Pin history message from Product team at 08:20' }));
@@ -685,7 +729,7 @@ describe('QuickPlannerPage action mode', () => {
   it('moves a pinned Queue row above the dates and restores its position when unpinned', () => {
     const { container } = renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
-    const originalRow = screen.getByText('Follow up on open questions.').closest('.quick-planner-mode-preview-row')!;
+    const originalRow = screen.getByText('Follow up on open questions.').closest<HTMLElement>('.quick-planner-mode-preview-row')!;
 
     fireEvent.mouseEnter(originalRow);
     fireEvent.click(within(originalRow).getByRole('button', { name: 'Pin queued message from Product team at 16:20' }));

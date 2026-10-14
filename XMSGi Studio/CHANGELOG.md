@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Kept the light outline and glow as the default, with optional per-action custom colors in editor settings.
+- Added application description and author metadata for desktop packaging.
+- Added standalone Studio module typecheck, test, and build gates to release CI.
 - Renumbered website gallery screenshots to a continuous sequence (`01.png`, `02.png`, `03.png`).
 - Removed local debug helpers and preview artifacts from version control.
 - Added `.env.example` and extended `.gitignore` coverage for local artifacts and build outputs.

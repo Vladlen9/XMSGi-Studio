@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { AlertTriangle, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ChatAvatar } from '../components/ChatAvatar';
@@ -31,6 +31,11 @@ import { useLocale } from '@/lib/i18n';
 import type { InlineButtonRow } from '../lib/inlineKeyboard';
 import { loadTemplates, saveTemplates } from '../lib/storage';
 import { uid } from '@shared/utils';
+import {
+  EDITOR_APPEARANCE_UPDATED_EVENT,
+  getEditorAppearanceCssTokens,
+  readEditorAppearancePreferences,
+} from '@shared/editorAppearance';
 import type { PersistedWorkspaceDocumentVersion } from '@shared/types';
 import { areWorkspaceSnapshotsEqual, hasWorkspaceDocumentContent } from '../lib/documentHistory';
 import { formatScheduleSummary, getScheduleDateTimeAfter, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '../lib/scheduling';
@@ -689,6 +694,16 @@ export function WorkspacePage({
   const publishFeedbackTimerRef = useRef<number | null>(null);
   const sendInFlightRef = useRef(false);
   const [publishAction, setPublishAction] = useState<PublishAction>('send');
+  const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
+  useEffect(() => {
+    const refreshEditorAppearance = () => setEditorAppearance(readEditorAppearancePreferences());
+    window.addEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, refreshEditorAppearance);
+    window.addEventListener('storage', refreshEditorAppearance);
+    return () => {
+      window.removeEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, refreshEditorAppearance);
+      window.removeEventListener('storage', refreshEditorAppearance);
+    };
+  }, []);
   const [rescheduleSource, setRescheduleSource] = useState<ScheduledMessage | null>(null);
   const rescheduleSourceRef = useRef<ScheduledMessage | null>(null);
   // Previous Studio document auto-saved when a Planner note is opened in the editor.
@@ -2362,7 +2377,11 @@ export function WorkspacePage({
                   </div>
                 </div>
 
-                <div className={`workspace-page-editor-shell${publishAction === 'schedule' ? ' is-scheduled' : publishAction === 'draft' ? ' is-draft' : ''}`}>
+                <div
+                  className={`workspace-page-editor-shell${publishAction === 'schedule' ? ' is-scheduled' : publishAction === 'draft' ? ' is-draft' : ''}`}
+                  data-editor-appearance={editorAppearance.style}
+                  style={getEditorAppearanceCssTokens(editorAppearance, publishAction) as CSSProperties}
+                >
                   <div className="workspace-page-mode-summary" aria-live="polite">
                     <span className="workspace-page-mode-summary-label">{t('studio.currentAction')}</span>
                     <strong>{currentModeSummary}</strong>
@@ -2892,6 +2911,7 @@ export function WorkspacePage({
       />
       {versionHistoryOpen && (
         <DocumentHistoryDialog
+          accentChannels={getEditorAppearanceCssTokens(editorAppearance, publishAction)['--editor-outline']}
           histories={documentHistories}
           selectedDocumentId={selectedHistoryDocumentId}
           selectedVersionId={selectedVersionId}

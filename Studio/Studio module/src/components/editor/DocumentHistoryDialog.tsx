@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Copy, RotateCcw, X } from 'lucide-react';
 import type { PersistedWorkspaceDocumentHistories, PersistedWorkspaceDocumentVersion } from '@shared/types';
@@ -6,6 +6,7 @@ import type { DraftAttachment } from '@/domain/types';
 import { useLocale } from '@/lib/i18n';
 
 interface Props {
+  accentChannels: string;
   histories: PersistedWorkspaceDocumentHistories;
   selectedDocumentId: string | null;
   selectedVersionId: string | null;
@@ -34,6 +35,7 @@ function getVersionAttachments(version: PersistedWorkspaceDocumentVersion): Draf
 }
 
 export function DocumentHistoryDialog({
+  accentChannels,
   histories,
   selectedDocumentId,
   selectedVersionId,
@@ -167,6 +169,7 @@ export function DocumentHistoryDialog({
       <section
         ref={dialogRef}
         className="workspace-page-version-history-dialog"
+        style={{ '--version-history-accent': accentChannels } as CSSProperties}
         role="dialog"
         aria-modal="true"
         aria-labelledby="workspace-version-history-title"

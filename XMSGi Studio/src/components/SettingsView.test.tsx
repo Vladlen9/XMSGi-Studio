@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { LocaleProvider } from '@/lib/i18n';
+import { EDITOR_APPEARANCE_STORAGE_KEY, EDITOR_APPEARANCE_UPDATED_EVENT } from '@shared/editorAppearance';
 import { SettingsView } from './SettingsView';
 
 function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsView>> = {}) {
@@ -52,6 +53,10 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsV
   return { container, onTelegramDisconnect, onTelegramReconnect };
 }
 
+beforeEach(() => {
+  localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
+});
+
 describe('SettingsView Telegram integration', () => {
   it('shows the Studio tagline and requested Settings version', () => {
     renderSettings();
@@ -71,6 +76,33 @@ describe('SettingsView Telegram integration', () => {
       if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', originalLocale);
     }
+  });
+
+  it('persists custom action colors and updates the editor preview', () => {
+    const onAppearanceUpdated = vi.fn();
+    window.addEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
+    renderSettings();
+    const appearance = screen.getByRole('region', { name: 'Editor appearance' });
+    const preview = within(appearance).getByRole('region', { name: 'Editor preview' });
+
+    expect(preview).toHaveClass('is-outline');
+    expect(within(appearance).getByRole('group', { name: 'Color mode' })).toBeInTheDocument();
+    expect(within(appearance).queryByRole('group', { name: 'Editor appearance style' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(appearance).getByRole('button', { name: 'Custom' }));
+    fireEvent.change(within(appearance).getByLabelText('Schedule color'), { target: { value: '#287fa6' } });
+
+    const savedAppearance = JSON.parse(localStorage.getItem(EDITOR_APPEARANCE_STORAGE_KEY) || '{}');
+    expect(savedAppearance).toMatchObject({
+      palette: 'custom',
+      modeColors: { send: '#ffffff', schedule: '#287fa6', draft: '#ffffff' },
+    });
+    expect(preview).toHaveAttribute('data-palette', 'custom');
+    const scheduleRow = within(preview).getByText('Schedule').closest<HTMLElement>('.settings-editor-preview-mode');
+    expect(scheduleRow?.style.getPropertyValue('--settings-editor-accent')).toBe('#287fa6');
+    expect(onAppearanceUpdated).toHaveBeenCalledTimes(2);
+
+    window.removeEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
   });
 
   it('keeps API fields out of the main settings screen', () => {
