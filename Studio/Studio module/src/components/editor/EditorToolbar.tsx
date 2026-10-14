@@ -39,6 +39,7 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
   return (
     <div
       className="workspace-page-rich-text-toolbar"
+      role="toolbar"
       aria-label={t('studio.linkTools')}
       aria-hidden={stageMode !== 'editor'}
     >
@@ -46,7 +47,39 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
         <span className={counterClassName} aria-live="polite">
           {remainingCharacters}
         </span>
-        {stageMode === 'editor' && onExportText && (
+      </div>
+      <div className="workspace-page-rich-text-toolbar-actions">
+        {stageMode === 'editor' && (
+          <button
+            type="button"
+            className={`workspace-page-rich-text-link-trigger ${linkPopoverOpen ? 'is-open' : ''}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onToggleLink}
+            aria-label={t('studio.insertLink')}
+            aria-expanded={linkPopoverOpen}
+            title={t('studio.insertLink')}
+          >
+            <span className="workspace-page-rich-text-link-trigger__icon" aria-hidden="true">
+              <ArrowUpRight size={16} strokeWidth={1.8} />
+            </span>
+          </button>
+        )}
+        {stageMode === 'editor' && (onOpenVersionHistory || onExportText) && (
+          <div className="workspace-page-rich-text-document-actions">
+        {onOpenVersionHistory && (
+          <button
+            type="button"
+            className="workspace-page-rich-text-link-trigger workspace-page-version-history-trigger"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={onOpenVersionHistory}
+            aria-label={t('studio.openVersionHistory')}
+            aria-haspopup="dialog"
+            title={t('studio.openVersionHistory')}
+          >
+            <History size={15} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        )}
+        {onExportText && (
           <div className="workspace-page-editor-export" ref={exportRef}>
             <button
               type="button"
@@ -88,35 +121,8 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
             )}
           </div>
         )}
-      </div>
-      <div className="workspace-page-rich-text-toolbar-actions">
-        <span className="workspace-page-rich-text-photo-slot" aria-hidden="true" />
-        {stageMode === 'editor' && onOpenVersionHistory && (
-          <button
-            type="button"
-            className="workspace-page-rich-text-link-trigger workspace-page-version-history-trigger"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={onOpenVersionHistory}
-            aria-label={t('studio.openVersionHistory')}
-            aria-haspopup="dialog"
-            title={t('studio.openVersionHistory')}
-          >
-            <History size={15} strokeWidth={1.8} aria-hidden="true" />
-          </button>
+          </div>
         )}
-        <button
-          type="button"
-          className={`workspace-page-rich-text-link-trigger ${linkPopoverOpen ? 'is-open' : ''}`}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={onToggleLink}
-          aria-label={t('studio.insertLink')}
-          aria-expanded={linkPopoverOpen}
-          title={t('studio.insertLink')}
-        >
-          <span className="workspace-page-rich-text-link-trigger__icon" aria-hidden="true">
-            <ArrowUpRight size={16} strokeWidth={1.8} />
-          </span>
-        </button>
       </div>
     </div>
   );

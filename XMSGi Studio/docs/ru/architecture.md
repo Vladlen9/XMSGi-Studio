@@ -145,8 +145,8 @@ XMSGi Studio — настольное приложение на **Electron**.
   настройки: язык (en/ru), API-данные, Gemini-ключ, выход.
 - `src/hooks/` — `useTelegramAuth`, `useChats`, `useScheduler`,
   `useNotifications`, `useAssistant`.
-- `src/components/` — `ChatPicker`, `RichTextEditor`,
-  `InlineKeyboardBuilder`, `ChatPreviewStand` и др.
+- `src/components/` — `QuickPlannerPage`, `ChatPicker`,
+  `SettingsView`, `Notification`, `InlineKeyboardPreview` и др.
 - `src/workspace/` — интеграция Studio: `StudioMount.tsx`,
   `studioLoader.ts` (ленивый `import('$studio')`),
   `HistoryDrawer.tsx` (единая история), `historyModel.ts`.
@@ -207,7 +207,7 @@ React-props контракт:
 
 ## 5. Данные и состояние в рендере
 
-- **localStorage**: шаблоны (`awaitmsg_templates`), скрытые чаты
+- **localStorage**: скрытые чаты
   (`awaitmsg_hidden_chats_v2`), черновик Planner, режим
   `xmsgi-product-view`, локаль (`awaitmsg_locale`).
 - **Черновики** — через `window.draftStorage` в файловую систему

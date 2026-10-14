@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -17,10 +17,12 @@ import {
   Send,
   Settings,
   Smile,
+  Trash2,
   X,
   Zap,
 } from 'lucide-react';
 import type { Chat, ChatPermissions, NotificationState, NotificationType, RichTextEntity, ScheduledMessage } from '@/types';
+import type { HistoryItem } from '@/workspace/historyModel';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { insertMessageText, limitMessageText } from '@/lib/messageLimits';
 import { readSavedPlannerDrafts, SAVED_PLANNER_DRAFTS_UPDATED_EVENT, writeSavedPlannerDrafts, type SavedPlannerDraft } from '@/lib/plannerDraft';
@@ -46,6 +48,169 @@ const scheduleQuickOptions = [
   { group: 'days', label: '+1 день', ariaLabel: 'Через 1 день', days: 1 },
   { group: 'days', label: '+1 неделя', ariaLabel: 'Через 1 неделю', days: 7 },
 ];
+
+type PlannerPreviewMessage = {
+  id: string;
+  time: string;
+  chat: string;
+  message: string;
+  pinned?: boolean;
+};
+
+type PlannerPreviewGroup = {
+  label: string;
+  items: PlannerPreviewMessage[];
+};
+
+type PlannerPreviewScrollPositions = Record<'history' | 'queue', number>;
+type PersistedPlannerPreviewState = {
+  publishMode?: QuickPlannerMode;
+  historyMockGroups?: unknown;
+  queuePreviewGroups?: unknown;
+  pinnedHistoryIds?: unknown;
+  hiddenHistoryIds?: unknown;
+  scrollPositions?: unknown;
+  expandedPreviewMessageId?: unknown;
+};
+
+const PLANNER_PREVIEW_STORAGE_KEY = 'xmsgi-quick-planner-preview-state';
+
+function readPlannerPreviewState(): PersistedPlannerPreviewState {
+  const stored = load<unknown>(PLANNER_PREVIEW_STORAGE_KEY, null);
+  return stored && typeof stored === 'object' && !Array.isArray(stored)
+    ? stored as PersistedPlannerPreviewState
+    : {};
+}
+
+function clonePreviewGroups(groups: PlannerPreviewGroup[]): PlannerPreviewGroup[] {
+  return groups.map((group) => ({ ...group, items: group.items.map((item) => ({ ...item })) }));
+}
+
+function restorePreviewGroups(value: unknown, fallback: PlannerPreviewGroup[]): PlannerPreviewGroup[] {
+  if (!Array.isArray(value)) return clonePreviewGroups(fallback);
+  return value.flatMap((group): PlannerPreviewGroup[] => {
+    if (!group || typeof group !== 'object' || Array.isArray(group)) return [];
+    const storedGroup = group as { label?: unknown; items?: unknown };
+    if (typeof storedGroup.label !== 'string' || !Array.isArray(storedGroup.items)) return [];
+    const items = storedGroup.items.filter((item): item is PlannerPreviewMessage => (
+      Boolean(item && typeof item === 'object' && !Array.isArray(item)
+        && typeof item.id === 'string'
+        && typeof item.time === 'string'
+        && typeof item.chat === 'string'
+        && typeof item.message === 'string')
+    ));
+    return [{ label: storedGroup.label, items: items.map((item) => ({ ...item, pinned: Boolean(item.pinned) })) }];
+  });
+}
+
+function restorePreviewIds(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+}
+
+function restorePreviewScrollPositions(value: unknown): PlannerPreviewScrollPositions {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { history: 0, queue: 0 };
+  const positions = value as Partial<PlannerPreviewScrollPositions>;
+  return {
+    history: typeof positions.history === 'number' && Number.isFinite(positions.history) ? Math.max(0, positions.history) : 0,
+    queue: typeof positions.queue === 'number' && Number.isFinite(positions.queue) ? Math.max(0, positions.queue) : 0,
+  };
+}
+
+const historyPreviewData: PlannerPreviewGroup[] = [
+  {
+    label: 'Today',
+    items: [
+      { id: 'history-release-notes', time: '14:32', chat: 'Saved Messages', message: 'Release notes are ready for review.' },
+      { id: 'history-launch-checklist', time: '12:08', chat: 'Product team', message: 'The launch checklist is in good shape.' },
+      { id: 'history-customer-outline', time: '09:46', chat: 'Customer notes', message: 'Sent the updated outline to review.' },
+    ],
+  },
+  {
+    label: 'Yesterday',
+    items: [
+      { id: 'history-updated-mockup', time: '18:41', chat: 'Design review', message: 'Updated mockup is ready.' },
+      { id: 'history-next-week', time: '10:15', chat: 'Saved Messages', message: "Ideas for next week's update." },
+      { id: 'history-sprint-notes', time: '08:20', chat: 'Product team', message: 'The sprint notes are ready.' },
+    ],
+  },
+  {
+    label: 'Earlier',
+    items: [
+      { id: 'history-release-plan', time: '16:54', chat: 'Product team', message: 'Release plan approved.' },
+      { id: 'history-design-review', time: '13:27', chat: 'Design review', message: 'Shared the first screen concepts.' },
+      { id: 'history-customer-follow-up', time: '09:12', chat: 'Customer notes', message: 'Follow-up sent after the demo.' },
+    ],
+  },
+];
+
+const queuePreviewData: PlannerPreviewGroup[] = [
+  {
+    label: 'Today',
+    items: [
+      { id: 'queue-release-notes', time: '16:30', chat: 'Saved Messages', message: 'Share the release notes.' },
+      { id: 'queue-launch-checklist', time: '19:00', chat: 'Product team', message: "Reminder: review tomorrow's checklist." },
+      { id: 'queue-weekly-summary', time: '20:30', chat: 'Saved Messages', message: 'Prepare the weekly summary.' },
+    ],
+  },
+  {
+    label: 'Tomorrow',
+    items: [
+      { id: 'queue-morning-update', time: '09:15', chat: 'Product team', message: 'Morning status update.' },
+      { id: 'queue-final-screens', time: '14:00', chat: 'Design review', message: 'Review the final screens.' },
+      { id: 'queue-open-questions', time: '16:20', chat: 'Product team', message: 'Follow up on open questions.' },
+    ],
+  },
+  {
+    label: 'Later',
+    items: [
+      { id: 'queue-roadmap-review', time: '10:00', chat: 'Product team', message: 'Review the next roadmap draft.' },
+      { id: 'queue-customer-recap', time: '13:45', chat: 'Customer notes', message: 'Send the meeting recap.' },
+      { id: 'queue-design-handoff', time: '17:10', chat: 'Design review', message: 'Share the final handoff.' },
+    ],
+  },
+];
+
+function buildHistoryPreviewGroups(records: HistoryItem[], pinnedIds: string[], hiddenIds: string[]) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const groups: Record<'Today' | 'Yesterday' | 'Earlier', PlannerPreviewMessage[]> = {
+    Today: [],
+    Yesterday: [],
+    Earlier: [],
+  };
+  const sentRecords = records
+    .filter((record) => record.status === 'sent' && !hiddenIds.includes(record.id))
+    .sort((left, right) => {
+      const leftDate = new Date(left.sentAt ?? left.updatedAt ?? left.scheduledAt ?? '').getTime();
+      const rightDate = new Date(right.sentAt ?? right.updatedAt ?? right.scheduledAt ?? '').getTime();
+      return (Number.isNaN(rightDate) ? 0 : rightDate) - (Number.isNaN(leftDate) ? 0 : leftDate);
+    });
+
+  sentRecords.forEach((record) => {
+    const sentAt = record.sentAt ?? record.updatedAt ?? record.scheduledAt ?? '';
+    const date = new Date(sentAt);
+    const validDate = !Number.isNaN(date.getTime());
+    const dateKey = validDate ? new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() : -1;
+    const label = dateKey === today.getTime()
+      ? 'Today'
+      : dateKey === yesterday.getTime()
+        ? 'Yesterday'
+        : 'Earlier';
+    groups[label].push({
+      id: record.id,
+      time: validDate ? new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date) : '--:--',
+      chat: record.channelName || record.title || 'Unknown chat',
+      message: record.text.trim() || (record.attachments.length > 0 ? 'Attachment sent' : 'Message sent'),
+      pinned: pinnedIds.includes(record.id),
+    });
+  });
+
+  return (['Today', 'Yesterday', 'Earlier'] as const)
+    .map((label) => ({ label, items: groups[label] }))
+    .filter(({ items }) => items.length > 0);
+}
 
 const reminderTypes: Array<{ id: ReminderType; label: string; icon: typeof CheckCircle2 }> = [
   { id: 'task', label: 'Task', icon: CheckCircle2 },
@@ -128,6 +293,7 @@ type QuickPlannerPageProps = {
   attachments: string[];
   onAttachmentsChange: (attachments: string[]) => void;
   upcoming: ScheduledMessage[];
+  sentHistory?: HistoryItem[];
   isSending: boolean;
   isScheduling: boolean;
   onSendNow: (message: string, attachments: string[], entities: RichTextEntity[]) => Promise<boolean>;
@@ -197,6 +363,7 @@ export function QuickPlannerPage({
   attachments,
   onAttachmentsChange,
   upcoming,
+  sentHistory,
   isSending,
   isScheduling,
   onSendNow,
@@ -207,10 +374,23 @@ export function QuickPlannerPage({
   closeNotification,
 }: QuickPlannerPageProps) {
   const { currentSection, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
+  const [previewPersistence] = useState(readPlannerPreviewState);
   const [sidebarMotivation] = useState(choosePlannerMotivation);
-  const [publishMode, setPublishMode] = useState<QuickPlannerMode>('send');
+  const [publishMode, setPublishMode] = useState<QuickPlannerMode>(() => (
+    plannerModes.some(({ id }) => id === previewPersistence.publishMode)
+      ? previewPersistence.publishMode as QuickPlannerMode
+      : 'send'
+  ));
   const [reminderType, setReminderType] = useState<ReminderType | null>(readSavedReminderType);
   const [savedPlannerDrafts, setSavedPlannerDrafts] = useState<SavedPlannerDraft[]>(readSavedPlannerDrafts);
+  const [historyMockGroups, setHistoryMockGroups] = useState<PlannerPreviewGroup[]>(() => restorePreviewGroups(previewPersistence.historyMockGroups, historyPreviewData));
+  const [queuePreviewGroups, setQueuePreviewGroups] = useState<PlannerPreviewGroup[]>(() => restorePreviewGroups(previewPersistence.queuePreviewGroups, queuePreviewData));
+  const [pinnedHistoryIds, setPinnedHistoryIds] = useState<string[]>(() => restorePreviewIds(previewPersistence.pinnedHistoryIds));
+  const [hiddenHistoryIds, setHiddenHistoryIds] = useState<string[]>(() => restorePreviewIds(previewPersistence.hiddenHistoryIds));
+  const [previewScrollPositions, setPreviewScrollPositions] = useState<PlannerPreviewScrollPositions>(() => restorePreviewScrollPositions(previewPersistence.scrollPositions));
+  const [expandedPreviewMessageId, setExpandedPreviewMessageId] = useState<string | null>(() => (
+    typeof previewPersistence.expandedPreviewMessageId === 'string' ? previewPersistence.expandedPreviewMessageId : null
+  ));
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
   const [showDraftSelectionHint, setShowDraftSelectionHint] = useState(false);
   const draftSelectionHintTimeoutRef = useRef<number | null>(null);
@@ -237,6 +417,27 @@ export function QuickPlannerPage({
     window.addEventListener(SAVED_PLANNER_DRAFTS_UPDATED_EVENT, syncSavedPlannerDrafts);
     return () => window.removeEventListener(SAVED_PLANNER_DRAFTS_UPDATED_EVENT, syncSavedPlannerDrafts);
   }, []);
+
+  useEffect(() => {
+    save(PLANNER_PREVIEW_STORAGE_KEY, {
+      publishMode,
+      historyMockGroups,
+      queuePreviewGroups,
+      pinnedHistoryIds,
+      hiddenHistoryIds,
+      scrollPositions: previewScrollPositions,
+      expandedPreviewMessageId,
+    });
+  }, [expandedPreviewMessageId, hiddenHistoryIds, historyMockGroups, pinnedHistoryIds, previewScrollPositions, publishMode, queuePreviewGroups]);
+
+  useEffect(() => {
+    if (!expandedPreviewMessageId) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedPreviewMessageId(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [expandedPreviewMessageId]);
   const [scheduleDate, scheduleTime] = scheduleDateTime.split('T');
   const minimumScheduleDate = new Date(currentTime);
   minimumScheduleDate.setMinutes(minimumScheduleDate.getMinutes() + 1, 0, 0);
@@ -260,10 +461,14 @@ export function QuickPlannerPage({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [permissionWarningPulse, setPermissionWarningPulse] = useState(false);
   const [draftScrollbar, setDraftScrollbar] = useState({ height: 0, offset: 0, scrollable: false });
+  const [previewScrollbar, setPreviewScrollbar] = useState({ height: 0, offset: 0, scrollable: false });
   const plannerEditorRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftListRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftScrollbarRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftScrollDragRef = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(null);
+  const plannerPreviewListRef = useRef<HTMLDivElement | null>(null);
+  const plannerPreviewScrollbarRef = useRef<HTMLDivElement | null>(null);
+  const plannerPreviewScrollDragRef = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(null);
   const composeResizeHeightRef = useRef(composeResize.height);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -391,6 +596,91 @@ export function QuickPlannerPage({
     }
     event.preventDefault();
     updateDraftScrollbar();
+  };
+
+  const updatePreviewScrollbar = useCallback(() => {
+    const list = plannerPreviewListRef.current;
+    const track = plannerPreviewScrollbarRef.current;
+    if (!list || !track) return;
+
+    const trackHeight = track.clientHeight;
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const scrollable = trackHeight > 0 && maxScroll > 1;
+    const height = scrollable
+      ? Math.min(trackHeight, Math.max(28, trackHeight * list.clientHeight / list.scrollHeight))
+      : trackHeight;
+    const offset = scrollable
+      ? (list.scrollTop / maxScroll) * (trackHeight - height)
+      : 0;
+
+    setPreviewScrollbar((current) => (
+      current.height === height && current.offset === offset && current.scrollable === scrollable
+        ? current
+        : { height, offset, scrollable }
+    ));
+  }, []);
+
+  const handlePreviewScrollbarPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const list = plannerPreviewListRef.current;
+    const track = plannerPreviewScrollbarRef.current;
+    if (event.button !== 0 || !list || !track) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    plannerPreviewScrollDragRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startScrollTop: list.scrollTop,
+    };
+  };
+
+  const handlePreviewScrollbarPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = plannerPreviewScrollDragRef.current;
+    const list = plannerPreviewListRef.current;
+    const track = plannerPreviewScrollbarRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !list || !track) return;
+
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    const thumbTravel = track.clientHeight - previewScrollbar.height;
+    if (maxScroll <= 0 || thumbTravel <= 0) return;
+    list.scrollTop = drag.startScrollTop + ((event.clientY - drag.startY) / thumbTravel) * maxScroll;
+    updatePreviewScrollbar();
+  };
+
+  const finishPreviewScrollbarDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (plannerPreviewScrollDragRef.current?.pointerId === event.pointerId) {
+      plannerPreviewScrollDragRef.current = null;
+    }
+  };
+
+  const handlePreviewScrollbarKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const list = plannerPreviewListRef.current;
+    if (!list) return;
+    const pageSize = list.clientHeight * 0.85;
+    switch (event.key) {
+      case 'ArrowUp':
+        list.scrollTop -= 40;
+        break;
+      case 'ArrowDown':
+        list.scrollTop += 40;
+        break;
+      case 'PageUp':
+        list.scrollTop -= pageSize;
+        break;
+      case 'PageDown':
+        list.scrollTop += pageSize;
+        break;
+      case 'Home':
+        list.scrollTop = 0;
+        break;
+      case 'End':
+        list.scrollTop = list.scrollHeight;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    updatePreviewScrollbar();
   };
 
   useEffect(() => {
@@ -794,6 +1084,13 @@ export function QuickPlannerPage({
   };
 
   const selectedDrafts = savedPlannerDrafts.filter(({ id }) => selectedDraftIds.includes(id));
+  const openPlannerDraftInStudio = (draft: SavedPlannerDraft) => {
+    onOpenInStudio({
+      text: draft.message,
+      attachments: draft.attachments,
+      entities: draft.entities,
+    });
+  };
   const openSelectedDraftInStudio = () => {
     if (selectedDrafts.length === 0) return;
     const textParts: string[] = [];
@@ -847,6 +1144,104 @@ export function QuickPlannerPage({
     }
     setSavedPlannerDrafts(nextDrafts);
   };
+  const togglePreviewPin = (mode: 'history' | 'queue', itemId: string) => {
+    if (mode === 'history' && sentHistory !== undefined) {
+      setPinnedHistoryIds((current) => current.includes(itemId)
+        ? current.filter((id) => id !== itemId)
+        : [...current, itemId]);
+      return;
+    }
+    const setGroups = mode === 'queue' ? setQueuePreviewGroups : setHistoryMockGroups;
+    setGroups((current) => current.map((group) => ({
+      ...group,
+      items: group.items.map((item) => item.id === itemId ? { ...item, pinned: !item.pinned } : item),
+    })));
+  };
+  const removePreviewItem = (mode: 'history' | 'queue', itemId: string) => {
+    if (mode === 'history' && sentHistory !== undefined) {
+      setHiddenHistoryIds((current) => current.includes(itemId) ? current : [...current, itemId]);
+      setPinnedHistoryIds((current) => current.filter((id) => id !== itemId));
+      return;
+    }
+    const setGroups = mode === 'queue' ? setQueuePreviewGroups : setHistoryMockGroups;
+    setGroups((current) => current
+      .map((group) => ({ ...group, items: group.items.filter((item) => item.id !== itemId) }))
+      .filter(({ items }) => items.length > 0));
+  };
+  const previewMode = publishMode === 'schedule' ? 'queue' : 'history';
+  const visibleHistoryGroups = useMemo(
+    () => sentHistory === undefined
+      ? historyMockGroups
+      : buildHistoryPreviewGroups(sentHistory, pinnedHistoryIds, hiddenHistoryIds),
+    [hiddenHistoryIds, historyMockGroups, pinnedHistoryIds, sentHistory],
+  );
+  const visiblePreviewGroups = previewMode === 'queue' ? queuePreviewGroups : visibleHistoryGroups;
+  const pinnedPreviewItems = visiblePreviewGroups.flatMap(({ items }) => items).filter(({ pinned }) => pinned);
+  const visiblePreviewListGroups = [
+    ...(pinnedPreviewItems.length > 0 ? [{ label: 'Pinned', items: pinnedPreviewItems }] : []),
+    ...visiblePreviewGroups
+      .map(({ label, items }) => ({ label, items: items.filter(({ pinned }) => !pinned) }))
+      .filter(({ items }) => items.length > 0),
+  ];
+  const handlePreviewListScroll = () => {
+    const list = plannerPreviewListRef.current;
+    if (!list) return;
+    updatePreviewScrollbar();
+    setPreviewScrollPositions((current) => (
+      current[previewMode] === list.scrollTop ? current : { ...current, [previewMode]: list.scrollTop }
+    ));
+  };
+
+  useLayoutEffect(() => {
+    const list = plannerPreviewListRef.current;
+    if (!list) return;
+    list.scrollTop = previewScrollPositions[previewMode];
+    updatePreviewScrollbar();
+  }, [previewMode, previewScrollPositions, updatePreviewScrollbar, visiblePreviewGroups]);
+
+  useEffect(() => {
+    updatePreviewScrollbar();
+    const list = plannerPreviewListRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(updatePreviewScrollbar);
+    observer.observe(list);
+    list.querySelectorAll('.quick-planner-mode-preview-row, .quick-planner-mode-preview-group').forEach((item) => observer.observe(item));
+    window.addEventListener('resize', updatePreviewScrollbar);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePreviewScrollbar);
+    };
+  }, [previewMode, updatePreviewScrollbar, visiblePreviewGroups]);
+
+  const expandedPlannerDraft = publishMode === 'draft'
+    ? savedPlannerDrafts.find(({ id }) => id === expandedPreviewMessageId) ?? null
+    : null;
+  const expandedDraftDate = expandedPlannerDraft?.savedAt ? new Date(expandedPlannerDraft.savedAt) : null;
+  const expandedPreviewMessage = expandedPlannerDraft
+    ? {
+      id: expandedPlannerDraft.id,
+      time: expandedDraftDate && !Number.isNaN(expandedDraftDate.getTime()) ? expandedDraftDate.toLocaleString() : '',
+      chat: 'Saved draft',
+      message: expandedPlannerDraft.message || `Draft with ${expandedPlannerDraft.attachments.length} attachments`,
+    }
+    : expandedPreviewMessageId && publishMode !== 'draft'
+      ? visiblePreviewGroups.flatMap(({ items }) => items).find(({ id }) => id === expandedPreviewMessageId) ?? null
+      : null;
+  useEffect(() => {
+    updatePreviewScrollbar();
+    const list = plannerPreviewListRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(updatePreviewScrollbar);
+    observer.observe(list);
+    list.querySelectorAll('.quick-planner-mode-preview-row, .quick-planner-mode-preview-group').forEach((item) => observer.observe(item));
+    window.addEventListener('resize', updatePreviewScrollbar);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePreviewScrollbar);
+    };
+  }, [previewMode, updatePreviewScrollbar, visiblePreviewGroups]);
 
   return (
     <section className="quick-planner-page" aria-labelledby="quick-planner-title" data-publish-mode={publishMode}>
@@ -1267,9 +1662,11 @@ export function QuickPlannerPage({
           </div>
 
           <aside className="quick-planner-upcoming-column">
+            {publishMode === 'draft' ? (
+              <>
             <div className="quick-planner-upcoming">
             <div className="quick-planner-upcoming-heading">
-              <span className="quick-planner-section-label"><Zap size={13} strokeWidth={2.3} aria-hidden="true" />{savedPlannerDrafts.length >= 2 ? 'Drafts' : 'Draft'}</span>
+              <span className="quick-planner-section-label quick-planner-panel-title"><Zap size={13} strokeWidth={2.3} aria-hidden="true" />{savedPlannerDrafts.length >= 2 ? 'Drafts' : 'Draft'}</span>
               <span>Thoughts &amp; Studio{savedPlannerDrafts.length > 0 ? ` · ${savedPlannerDrafts.length}` : ''}</span>
             </div>
             <div className="quick-planner-reminder-scroll-area">
@@ -1277,7 +1674,7 @@ export function QuickPlannerPage({
                 id="quick-planner-draft-list"
                 ref={plannerDraftListRef}
                 className="quick-planner-reminder-list"
-                role="group"
+                role="list"
                 aria-label="Quick Planner drafts"
                 onScroll={updateDraftScrollbar}
               >
@@ -1298,14 +1695,24 @@ export function QuickPlannerPage({
                   <article
                     className={`quick-planner-draft${selectedDraftIds.includes(draft.id) ? ' is-selected' : ''}`}
                     key={draft.id}
+                    role="listitem"
+                    tabIndex={0}
+                    aria-label={`Open draft ${draftSummary}`}
+                    aria-expanded={publishMode === 'draft' && expandedPreviewMessageId === draft.id}
                     onClick={(event) => {
                       const target = event.target;
                       if (target instanceof Element && target.closest('button, input, label')) return;
-                      toggleDraftSelection(draft.id);
+                      setExpandedPreviewMessageId(draft.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                      event.preventDefault();
+                      setExpandedPreviewMessageId(draft.id);
                     }}
                   >
                     <div className="quick-planner-draft-heading">
-                      <label className="quick-planner-draft-select">
+                      <div className="quick-planner-draft-heading-main">
+                        <label className="quick-planner-draft-select">
                         <input
                           type="checkbox"
                           value={draft.id}
@@ -1314,9 +1721,19 @@ export function QuickPlannerPage({
                           onChange={() => toggleDraftSelection(draft.id)}
                           aria-label={`${selectedDraftIds.includes(draft.id) ? 'Deselect' : 'Select'} draft ${draftSummary}`}
                         />
+                        </label>
                         <strong>{savedPlannerDrafts.length - index === 1 ? 'Saved draft' : `Saved draft ${savedPlannerDrafts.length - index}`}</strong>
-                      </label>
+                      </div>
                       <div className="quick-planner-draft-actions">
+                        <button
+                          type="button"
+                          className="quick-planner-draft-open"
+                          onClick={() => openPlannerDraftInStudio(draft)}
+                          aria-label={`Open draft in Studio ${draftSummary}`}
+                          title="Open this draft in Studio"
+                        >
+                          <ArrowUpRight size={14} aria-hidden="true" />
+                        </button>
                         <button
                           type="button"
                           className={`quick-planner-draft-pin${draft.pinned ? ' is-pinned' : ''}`}
@@ -1412,6 +1829,131 @@ export function QuickPlannerPage({
                 <span className="quick-planner-open-studio-count" aria-hidden="true">{selectedDrafts.length}</span>
               </button>
             </div>
+              </>
+            ) : (
+              <div className="quick-planner-upcoming">
+                <div className="quick-planner-upcoming-heading">
+                  <span className="quick-planner-section-label quick-planner-panel-title">
+                    <Zap size={13} strokeWidth={2.3} aria-hidden="true" />
+                    {publishMode === 'schedule' ? 'Queue' : 'History'}
+                  </span>
+                </div>
+                <div className="quick-planner-mode-preview-scroll-area">
+                  <div
+                    id="quick-planner-mode-preview-list"
+                    ref={plannerPreviewListRef}
+                    className="quick-planner-mode-preview-list"
+                    onScroll={handlePreviewListScroll}
+                  >
+                    {visiblePreviewListGroups.length > 0 ? visiblePreviewListGroups.map(({ label, items }) => (
+                      <section className="quick-planner-mode-preview-group" key={label} aria-label={label}>
+                        <h3 className="quick-planner-mode-preview-group-label">{label}</h3>
+                        <div className="quick-planner-mode-preview-rows" role="list" aria-label={`${label} messages`}>
+                          {items.map(({ id, time, chat, message, pinned }) => {
+                            const pinLabel = `${pinned ? 'Unpin' : 'Pin'} ${previewMode === 'queue' ? 'queued' : 'history'} message from ${chat} at ${time}`;
+                            const removeLabel = previewMode === 'queue'
+                              ? `Cancel scheduled message to ${chat} at ${time}`
+                              : `Delete history message from ${chat} at ${time}`;
+
+                            return (
+                              <div
+                                className={`quick-planner-mode-preview-row${pinned ? ' is-pinned' : ''}`}
+                                key={id}
+                                role="listitem"
+                                tabIndex={0}
+                                aria-label={`Open message from ${chat} at ${time}`}
+                                onClick={(event) => {
+                                  if (event.target instanceof Element && event.target.closest('button')) return;
+                                  setExpandedPreviewMessageId(id);
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                                  event.preventDefault();
+                                  setExpandedPreviewMessageId(id);
+                                }}
+                              >
+                                <time className="quick-planner-mode-preview-time">{time}</time>
+                                <div className="quick-planner-mode-preview-copy">
+                                  <span className="quick-planner-mode-preview-chat">{chat}</span>
+                                  <span className="quick-planner-mode-preview-message">{message}</span>
+                                </div>
+                                <div className="quick-planner-mode-preview-actions">
+                                  <button
+                                    className={`quick-planner-mode-preview-action${pinned ? ' is-pinned' : ''}`}
+                                    type="button"
+                                    aria-label={pinLabel}
+                                    aria-pressed={Boolean(pinned)}
+                                    title={pinLabel}
+                                    onClick={() => togglePreviewPin(previewMode, id)}
+                                  >
+                                    <Pin size={13} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden="true" />
+                                  </button>
+                                  <button
+                                    className="quick-planner-mode-preview-action"
+                                    type="button"
+                                    aria-label={removeLabel}
+                                    title={removeLabel}
+                                    onClick={() => removePreviewItem(previewMode, id)}
+                                  >
+                                    {previewMode === 'queue' ? <X size={13} aria-hidden="true" /> : <Trash2 size={13} aria-hidden="true" />}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    )) : <p className="quick-planner-mode-preview-empty">No sent messages yet.</p>}
+                  </div>
+                  <div
+                    ref={plannerPreviewScrollbarRef}
+                    className={`quick-planner-mode-preview-scrollbar${previewScrollbar.scrollable ? ' is-scrollable' : ''}`}
+                    aria-hidden={!previewScrollbar.scrollable}
+                  >
+                    <div
+                      className="quick-planner-mode-preview-scrollbar-thumb"
+                      role="scrollbar"
+                      aria-label={`Scroll ${previewMode === 'queue' ? 'queue' : 'history'}`}
+                      aria-controls="quick-planner-mode-preview-list"
+                      aria-orientation="vertical"
+                      aria-valuemin={0}
+                      aria-valuemax={Math.max(0, (plannerPreviewListRef.current?.scrollHeight ?? 0) - (plannerPreviewListRef.current?.clientHeight ?? 0))}
+                      aria-valuenow={plannerPreviewListRef.current?.scrollTop ?? 0}
+                      tabIndex={previewScrollbar.scrollable ? 0 : -1}
+                      style={{
+                        height: `${previewScrollbar.height}px`,
+                        transform: `translateY(${previewScrollbar.offset}px)`,
+                      }}
+                      onPointerDown={handlePreviewScrollbarPointerDown}
+                      onPointerMove={handlePreviewScrollbarPointerMove}
+                      onPointerUp={finishPreviewScrollbarDrag}
+                      onPointerCancel={finishPreviewScrollbarDrag}
+                      onKeyDown={handlePreviewScrollbarKeyDown}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {expandedPreviewMessage && (
+              <div className="quick-planner-full-message" role="dialog" aria-modal="true" aria-labelledby="quick-planner-full-message-title">
+                <div className="quick-planner-full-message-header">
+                  <div className="quick-planner-full-message-meta">
+                    <span>{expandedPreviewMessage.chat}</span>
+                    <time>{expandedPreviewMessage.time}</time>
+                  </div>
+                  <button
+                    className="quick-planner-full-message-close"
+                    type="button"
+                    aria-label="Close full message"
+                    title="Close"
+                    onClick={() => setExpandedPreviewMessageId(null)}
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </div>
+                <p id="quick-planner-full-message-title" className="quick-planner-full-message-text">{expandedPreviewMessage.message}</p>
+              </div>
+            )}
           </aside>
       </div>
     </section>

@@ -1,4 +1,7 @@
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@/types';
@@ -25,6 +28,7 @@ const baseNotification: NotificationState = {
 };
 
 let inMemoryDraftStore: PersistedDraftStore;
+const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
 
 function getInMemoryWorkspaceDraft(): WorkspaceDraft {
   const workspaceDraft = inMemoryDraftStore.workspaceDraft;
@@ -404,6 +408,19 @@ describe('WorkspacePage main-screen flows', () => {
     });
     expect(editorShell.classList.contains('is-toolbar-active')).toBe(false);
     historyScrollArea.remove();
+    unmount();
+  });
+
+  it('keeps the editor outline illuminated when toolbar focus is inactive', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const editorShell = document.querySelector('.workspace-page-editor-shell')!;
+    const editor = editorShell.querySelector('.workspace-page-rich-text-editor')!;
+    const baseShellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    expect(editor.classList.contains('is-toolbar-active')).toBe(false);
+    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.38\)/);
+    expect(baseShellRule).toMatch(/0 0 6px rgba\(var\(--editor-outline\),\s*0\.08\)/);
+
     unmount();
   });
 
@@ -2240,6 +2257,30 @@ describe('WorkspacePage main-screen flows', () => {
     return Array.from(menu.querySelectorAll('button'))
       .find((button) => button.textContent?.includes(extension)) as HTMLButtonElement;
   }
+
+  it('keeps link in the toolbar and groups history beside export', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const toolbar = document.querySelector('[role="toolbar"]')!;
+    const toolbarRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar\s*\{([^}]*)\}/)?.[1] ?? '';
+    const toolbarButtonRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar button\s*\{([^}]*)\}/)?.[1] ?? '';
+    const toolbarActions = toolbar.querySelector('.workspace-page-rich-text-toolbar-actions')!;
+    const linkTrigger = toolbarActions.querySelector('.workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)');
+    const documentActions = toolbarActions.querySelector('.workspace-page-rich-text-document-actions')!;
+    const historyTrigger = documentActions.querySelector('.workspace-page-version-history-trigger');
+    const exportControl = documentActions.querySelector('.workspace-page-editor-export');
+
+    expect(linkTrigger?.parentElement).toBe(toolbarActions);
+    expect(historyTrigger?.parentElement).toBe(documentActions);
+    expect(exportControl?.parentElement).toBe(documentActions);
+    expect(historyTrigger?.nextElementSibling).toBe(exportControl);
+    expect(toolbarRule).toMatch(/border:\s*0/);
+    expect(toolbarRule).toMatch(/background:\s*transparent/);
+    expect(toolbarRule).toMatch(/box-shadow:\s*none/);
+    expect(toolbarButtonRule).toMatch(/border:\s*0/);
+    expect(toolbarButtonRule).toMatch(/background:\s*transparent/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar button:hover\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/);
+    unmount();
+  });
 
   it('exports the current editor text as a .txt file through the format menu', async () => {
     const { unmount } = await renderWorkspacePage();

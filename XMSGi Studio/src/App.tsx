@@ -334,9 +334,13 @@ function App() {
     () => readSavedPlannerDrafts().map(normalizeSavedPlannerDraft),
     [savedPlannerDraftRevision],
   );
+  const personalSentHistoryRecords = useMemo(
+    () => normalizeScheduledMessages(personalSent, 'personal', 'sent', chats),
+    [chats, personalSent],
+  );
   const historyRecords = [
     ...normalizeScheduledMessages(personalUpcoming, 'personal', 'upcoming', chats),
-    ...normalizeScheduledMessages(personalSent, 'personal', 'sent', chats),
+    ...personalSentHistoryRecords,
     ...normalizeScheduledMessages(studioScheduler.upcoming, 'workspace', 'upcoming', chats),
     ...normalizeScheduledMessages(studioScheduler.sent, 'workspace', 'sent', chats),
     ...(plannerDraftRecord ? [plannerDraftRecord] : []),
@@ -756,6 +760,7 @@ function App() {
               attachments={plannerAttachments}
               onAttachmentsChange={setPlannerAttachments}
               upcoming={personalUpcoming}
+              sentHistory={personalSentHistoryRecords}
               isSending={personalPublishingDraft}
               isScheduling={personalScheduling}
               onSendNow={async (text, attachments, entities) => {
