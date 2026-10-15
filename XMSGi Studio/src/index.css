@@ -18,9 +18,9 @@
   margin-left: 0;
   padding: 3px;
   border-radius: 11px;
-  background: rgba(8, 11, 14, 0.55);
-  border: 1px solid rgba(154, 168, 184, 0.1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  background: rgba(4, 6, 9, 0.35);
+  border: 1px solid rgba(154, 168, 184, 0.08);
+  box-shadow: none;
 }
 
 .history-status-filters {
@@ -51,9 +51,9 @@
   inset: 0;
   display: block;
   overflow: hidden;
-  border: 1px solid rgba(194, 207, 219, 0.2);
+  border: 1px solid rgba(194, 207, 219, 0.13);
   border-radius: inherit;
-  background: rgba(154, 168, 184, 0.15);
+  background: rgba(154, 168, 184, 0.09);
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -170,8 +170,8 @@
 
 .history-filter.is-active .history-filter-count,
 .history-status-tab.is-active .history-filter-count {
-  border-color: rgba(194, 207, 219, 0.26);
-  background: rgba(154, 168, 184, 0.24);
+  border-color: rgba(194, 207, 219, 0.18);
+  background: rgba(154, 168, 184, 0.16);
   color: #f4f8fb;
 }
 
@@ -185,9 +185,9 @@
   margin: 0;
   padding: 0 8px 0 12px;
   overflow: hidden;
-  border: 1px solid rgba(154, 168, 184, 0.16);
+  border: 1px solid rgba(154, 168, 184, 0.10);
   border-radius: 12px;
-  background: rgba(8, 11, 14, 0.5);
+  background: rgba(8, 11, 14, 0.42);
   color: #aebdca;
   transition: color 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
   box-shadow: none;
@@ -297,9 +297,9 @@
   width: min(580px, calc(100vw - 24px));
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(154, 168, 184, 0.16);
+  border: 1px solid rgba(154, 168, 184, 0.11);
   border-radius: 20px;
-  background: #101418;
+  background: #0d1116;
   color: var(--text);
   font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
@@ -318,7 +318,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  border-bottom: 1px solid rgba(154, 168, 184, 0.11);
+  background: transparent;
+  border-bottom: 1px solid rgba(154, 168, 184, 0.08);
 }
 
 .history-drawer-heading {
@@ -400,9 +401,9 @@
   margin: 0 12px 12px;
   min-width: 0;
   padding: 8px 10px 8px;
-  border: 1px solid rgba(154, 168, 184, 0.16);
+  border: 1px solid rgba(154, 168, 184, 0.10);
   border-radius: 16px;
-  background: #12171c;
+  background: #0f1419;
   box-shadow: none;
 }
 
@@ -504,7 +505,7 @@
   align-items: center;
   justify-content: center;
   padding: 5px 0 0;
-  border-top: 1px solid rgba(154, 168, 184, 0.1);
+  border-top: 1px solid rgba(154, 168, 184, 0.07);
 }
 
 .history-drawer-footer .history-status-row {
@@ -539,9 +540,9 @@
   height: 36px;
   flex: 0 0 36px;
   place-items: center;
-  border: 1px solid rgba(255, 153, 143, 0.34);
+  border: 1px solid rgba(255, 153, 143, 0.26);
   border-radius: 9px;
-  background: rgba(126, 48, 48, 0.32);
+  background: rgba(100, 42, 42, 0.34);
   color: #ffc0b5;
   cursor: pointer;
   box-shadow: none;
@@ -575,9 +576,9 @@
   justify-content: center;
   gap: 8px;
   padding: 0 14px;
-  border: 1px solid rgba(168, 195, 216, 0.34);
+  border: 1px solid rgba(168, 195, 216, 0.20);
   border-radius: 9px;
-  background: rgba(98, 127, 149, 0.22);
+  background: rgba(98, 127, 149, 0.14);
   color: #edf5fa;
   font: inherit;
   font-size: 13px;
@@ -590,8 +591,8 @@
 .history-export-button:hover:not(:disabled),
 .history-export-button:focus-visible {
   outline: none;
-  border-color: rgba(194, 222, 241, 0.58);
-  background: rgba(130, 165, 190, 0.3);
+  border-color: rgba(194, 222, 241, 0.40);
+  background: rgba(130, 165, 190, 0.22);
   color: #ffffff;
   box-shadow: none;
 }
@@ -846,7 +847,7 @@ html.electron-runtime .history-confirmation-backdrop {
   margin: 4px 0 -2px;
   padding: 10px 10px 2px;
   border-bottom: 0;
-  background: #101418;
+  background: #0d1116;
   color: var(--dim);
   font-size: 10px;
   font-weight: 600;
@@ -855,13 +856,25 @@ html.electron-runtime .history-confirmation-backdrop {
   text-transform: uppercase;
 }
 
+/* Solid backdrop above the sticky date so records scrolling underneath
+   never peek through the gap between the list top and the heading. */
+.history-date-heading::before {
+  content: "";
+  position: absolute;
+  top: -16px;
+  right: 0;
+  left: 0;
+  height: 16px;
+  background: #0d1116;
+}
+
 .history-record {
   position: relative;
   margin: 0;
   padding: 14px 14px 12px;
-  border: 1px solid rgba(154, 168, 184, 0.14);
+  border: 1px solid rgba(154, 168, 184, 0.09);
   border-radius: 14px;
-  background: rgba(154, 168, 184, 0.03);
+  background: rgba(4, 7, 10, 0.45);
   box-shadow: none;
   scroll-margin-top: 16px;
   transition: background 180ms ease, border-color 180ms ease;
@@ -870,9 +883,9 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-record.is-expanded {
   margin: 0;
   padding: 14px 14px 12px;
-  border: 1px solid rgba(154, 168, 184, 0.22);
+  border: 1px solid rgba(154, 168, 184, 0.15);
   border-radius: 14px;
-  background: rgba(154, 168, 184, 0.05);
+  background: rgba(4, 7, 10, 0.62);
   box-shadow: none;
 }
 
@@ -925,7 +938,7 @@ html.electron-runtime .history-confirmation-backdrop {
 
 .history-record.is-draft[data-draft-color] {
   --history-record-accent: var(--history-draft-color);
-  background: rgba(154, 168, 184, 0.03);
+  background: rgba(4, 7, 10, 0.45);
   box-shadow: none;
 }
 
@@ -946,7 +959,7 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-record:focus-within {
   border-radius: 14px;
   outline: none;
-  background: rgba(154, 168, 184, 0.03);
+  background: rgba(4, 7, 10, 0.45);
 }
 
 .history-record-meta,
@@ -1655,6 +1668,7 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 html {
+  zoom: 0.95;
   background: var(--void);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1718,10 +1732,14 @@ body:has(.auth-panel) {
   position: relative;
 }
 
+.app:has(.auth-panel) {
+  padding-bottom: 0;
+}
+
 /* ── TOPBAR ── */
 
 .product-shell {
-  min-height: 100vh;
+  min-height: calc(100vh / 0.95);
   display: flex;
   flex-direction: column;
   background: radial-gradient(ellipse 72% 34% at 50% -10%, #101216 0%, transparent 72%), #030405;
@@ -1734,8 +1752,8 @@ body:has(.auth-panel) {
 
 .product-shell.studio-shell {
   --void: #030405;
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh / 0.95);
+  height: calc(100dvh / 0.95);
   min-height: 0;
   overflow: hidden;
 }
@@ -1809,8 +1827,8 @@ body:has(.product-shell.studio-shell) {
 
 .product-section-title-detached {
   position: absolute;
-  top: 94px;
-  left: 36.5px;
+  top: 99px;
+  left: 56.5px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -1833,8 +1851,8 @@ body:has(.product-shell.studio-shell) {
 
 @media (max-width: 1100px) {
   .product-section-title-detached {
-    top: 72px;
-    left: 16px;
+    top: 77px;
+    left: 36px;
   }
 }
 
@@ -2057,6 +2075,23 @@ body:has(.product-shell.studio-shell) {
   transform: scale(1);
 }
 
+/* Online status dot on the avatar: sits outside the circle,
+   at the lower-right edge. Flat dot only, no glow. */
+.topbar-logout-photo-status {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  z-index: 2;
+  width: 11px;
+  height: 11px;
+  border: 2px solid #0b0d10;
+  border-radius: 50%;
+  background: var(--ok);
+  background-clip: padding-box;
+  box-shadow: none;
+  pointer-events: none;
+}
+
 .topbar-logout-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2159,9 +2194,17 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 }
 
 .topbar-logout-modal-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.topbar-logout-modal-exit-choices {
+  grid-column: 2;
   display: flex;
-  gap: 10px;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 
 .topbar-logout-modal-action {
@@ -2198,6 +2241,10 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 }
 
 .topbar-logout-modal-action--cancel {
+  grid-column: 1;
+  justify-self: start;
+  padding-right: 6px;
+  padding-left: 6px;
   color: rgba(205, 214, 222, 0.6);
 }
 
@@ -2211,6 +2258,35 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 
 .topbar-logout-modal-action--confirm:hover {
   color: #fecaca;
+}
+
+@media (max-width: 400px) {
+  .topbar-logout-modal-actions {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .topbar-logout-modal-exit-choices {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    gap: 0;
+  }
+
+  .topbar-logout-modal-exit-choices .topbar-logout-modal-action {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-right: 4px;
+    padding-left: 4px;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .topbar-logout-modal-action--cancel {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 
 @keyframes topbar-logout-backdrop-in {
@@ -2311,7 +2387,7 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 }
 
 .settings-view {
-  width: 100vw;
+  width: 100%;
   height: 100%;
   min-height: 0;
   background: var(--void);
@@ -2584,7 +2660,7 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  min-height: 100svh;
+  min-height: calc(100svh / 0.95);
   margin: 0;
   padding: 0;
   display: flex;
@@ -2644,7 +2720,7 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   box-sizing: border-box;
   width: min(1360px, 100%);
   min-height: 100vh;
-  min-height: 100svh;
+  min-height: calc(100svh / 0.95);
   margin: 0 auto;
   padding: 76px 16px 56px;
   display: grid;
@@ -2993,7 +3069,7 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 @media (max-width: 700px) {
   .auth-intro {
     min-height: 100vh;
-    min-height: 100svh;
+    min-height: calc(100svh / 0.95);
     padding: 86px 24px 44px;
     grid-template-columns: minmax(0, 1fr);
     align-content: center;

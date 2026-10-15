@@ -1,5 +1,5 @@
 import { useEffect, useState, type PropsWithChildren } from 'react';
-import { CircleUserRound, FileText, LogOut, X } from 'lucide-react';
+import { CircleUserRound, FileText, LogOut, X, Zap } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
@@ -43,6 +43,7 @@ export function AppShell({
   onViewChange,
   settingsOpen = false,
   onCloseSettings,
+  browserDraftMode = false,
   connected,
   headerPending = false,
   authBusy,
@@ -174,16 +175,21 @@ export function AppShell({
                 </span>
               )}
               <span className="topbar-logout-photo-ring" aria-hidden="true" />
+              <span className="topbar-logout-photo-status" aria-hidden="true" />
             </button>
               </>
             )}
           </div>
         </header>
       )}
-      {connected && !settingsOpen && view !== 'planner' && (
+      {!settingsOpen && (connected || (view === 'planner' && browserDraftMode)) && (
         <div className="product-section-title product-section-title-detached" aria-current="page">
-          <FileText size={19} strokeWidth={2.2} aria-hidden="true" />
-          <span>{sectionLabel}</span>
+          {view === 'planner' ? (
+            <Zap size={19} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--quick-planner-title-icon-color, currentColor)' }} />
+          ) : (
+            <FileText size={19} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--studio-title-icon-color, currentColor)' }} />
+          )}
+          <span>{view === 'planner' ? t('quickplanner.title') : sectionLabel}</span>
         </div>
       )}
       <QuickPlannerNavigationContext.Provider value={{
@@ -249,30 +255,24 @@ export function AppShell({
             <h2 className="topbar-logout-modal-title">{t('auth.signOut')}</h2>
             <p className="topbar-logout-modal-description">{t('auth.signOutPreference')}</p>
             <div className="topbar-logout-modal-actions">
-              <button
-                type="button"
-                className="topbar-logout-modal-action topbar-logout-modal-action--cancel"
-                onClick={() => setIsConfirmingLogout(false)}
-                disabled={authBusy}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
-                onClick={handleDisconnect}
-                disabled={authBusy}
-              >
-                {t('auth.rememberMe')}
-              </button>
-              <button
-                type="button"
-                className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
-                onClick={handleForgetAccount}
-                disabled={authBusy}
-              >
-                {t('auth.forgetMe')}
-              </button>
+              <div className="topbar-logout-modal-exit-choices">
+                <button
+                  type="button"
+                  className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
+                  onClick={handleDisconnect}
+                  disabled={authBusy}
+                >
+                  {t('auth.rememberMe')}
+                </button>
+                <button
+                  type="button"
+                  className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
+                  onClick={handleForgetAccount}
+                  disabled={authBusy}
+                >
+                  {t('auth.forgetMe')}
+                </button>
+              </div>
             </div>
           </div>
         </div>

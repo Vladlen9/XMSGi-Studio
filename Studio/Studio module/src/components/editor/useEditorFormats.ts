@@ -102,9 +102,8 @@ export function useEditorFormats(editorRef: MutableRefObject<HTMLDivElement | nu
       const selector = formatSelectors[format];
       const inSelectionDom = candidates.some((candidate) => walkMatches(candidate, selector))
         || (fragment ? fragment.querySelector(selector) !== null : false);
-      // Иконка отражает и DOM-контекст, и состояние нативной команды
-      // (queryCommandState): она совпадает с тем, что сделает execCommand.
-      next[format] = inSelectionDom || readCommandState(commandByFormat[format]) === true;
+      const commandState = readCommandState(commandByFormat[format]);
+      next[format] = commandState ?? inSelectionDom;
     });
     return next;
   };

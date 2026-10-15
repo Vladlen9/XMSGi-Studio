@@ -6,7 +6,9 @@ import { editorHtmlToRichText, normalizeEditorText, richTextToHtml, sliceRichTex
 import { getMessageCounterTone, getRemainingMessageLength } from '@/lib/messageLimits';
 import { useLocale } from '@/lib/i18n';
 import { EditorToolbar } from '@/components/editor/EditorToolbar';
+import type { EditorToolbarFormat } from '@/components/editor/EditorToolbar';
 import { LogoIntroAnimation, type LogoIntroState } from '@/components/editor/LogoIntroAnimation';
+import { useEditorFormats } from '@/components/editor/useEditorFormats';
 import { useEditorSelection } from '@/components/editor/useEditorSelection';
 
 interface Props {
@@ -28,21 +30,76 @@ export function shouldPreventEditorInsertion(currentLength: number, selectedLeng
   return currentLength - selectedLength >= maxLength;
 }
 
+function isValidEditorLink(value: string): boolean {
+  if (!value || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'tg:';
+  } catch {
+    return false;
+  }
+}
+
+function getNormalizedEditorTextLength(node: Node): number {
+  if (node.nodeType === Node.TEXT_NODE) return normalizeEditorText(node.textContent ?? '').length;
+  if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'BR') return 1;
+  return Array.from(node.childNodes).reduce((length, child) => length + getNormalizedEditorTextLength(child), 0);
+}
+
+function getNormalizedEditorTextOffset(root: HTMLElement, targetNode: Node, targetOffset: number): number | null {
+  let offset = 0;
+
+  const visit = (node: Node): boolean => {
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += normalizeEditorText((node.textContent ?? '').slice(0, targetOffset)).length;
+      } else {
+        const childLimit = Math.max(0, Math.min(targetOffset, node.childNodes.length));
+        for (let childIndex = 0; childIndex < childLimit; childIndex += 1) {
+          offset += getNormalizedEditorTextLength(node.childNodes[childIndex]);
+        }
+      }
+      return true;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      offset += normalizeEditorText(node.textContent ?? '').length;
+      return false;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'BR') {
+      offset += 1;
+      return false;
+    }
+
+    for (const child of Array.from(node.childNodes)) {
+      if (visit(child)) return true;
+    }
+    return false;
+  };
+
+  return visit(root) ? offset : null;
+}
+
 export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onExportText, onBeforeClear, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const logicalTextLengthRef = useRef(text.length);
   const {
     getCaretOffset,
-    getTextOffset,
     placeCaretAtStart,
     saveSelection,
     clearSelection,
+    restoreSelection,
     restoreTextSelection,
   } = useEditorSelection(editorRef);
+  const { activeFormats, syncToolbarStateFromSelection, scheduleToolbarStateSync } = useEditorFormats(editorRef, stageMode);
   const [toolbarActive, setToolbarActive] = useState(false);
   const [editorFocused, setEditorFocused] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+  const linkPopoverRef = useRef<HTMLFormElement | null>(null);
+  const isApplyingFormatRef = useRef(false);
   const [logoState, setLogoState] = useState<LogoIntroState>({
     hasPlayed: false,
     flying: false,
@@ -61,6 +118,16 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
   const emitChange = () => {
     if (!editorRef.current) return;
     const editor = editorRef.current;
+    const selection = window.getSelection();
+    const selectionRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    const selectionOffsets = selectionRange
+      && (selectionRange.startContainer === editor || editor.contains(selectionRange.startContainer))
+      && (selectionRange.endContainer === editor || editor.contains(selectionRange.endContainer))
+      ? {
+          start: getNormalizedEditorTextOffset(editor, selectionRange.startContainer, selectionRange.startOffset),
+          end: getNormalizedEditorTextOffset(editor, selectionRange.endContainer, selectionRange.endOffset),
+        }
+      : null;
     const value = editorHtmlToRichText(editor);
     const limited = value.text.length > maxLength
       ? sliceRichText(value.text, value.entities, 0, maxLength)
@@ -68,17 +135,6 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     logicalTextLengthRef.current = limited.text.length;
 
     if (value.markdownChanged || limited.text !== value.text) {
-      const selection = window.getSelection();
-      const selectionRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-      const selectionOffsets = selectionRange
-        && (selectionRange.startContainer === editor || editor.contains(selectionRange.startContainer))
-        && (selectionRange.endContainer === editor || editor.contains(selectionRange.endContainer))
-        ? {
-            start: getTextOffset(selectionRange.startContainer, selectionRange.startOffset),
-            end: getTextOffset(selectionRange.endContainer, selectionRange.endOffset),
-          }
-        : null;
-
       editor.innerHTML = richTextToHtml(limited.text, limited.entities);
       if (limited.text !== value.text) {
         const range = document.createRange();
@@ -93,14 +149,183 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           const safeOffset = Math.max(0, Math.min(sourceOffset, sourceOffsetMap.length - 1));
           return Math.min(sourceOffsetMap[safeOffset] ?? limited.text.length, limited.text.length);
         };
-        restoreTextSelection(
-          mapOffset(selectionOffsets?.start ?? null),
-          mapOffset(selectionOffsets?.end ?? null),
-        );
+        if (selectionOffsets) {
+          restoreTextSelection(
+            mapOffset(selectionOffsets.start),
+            mapOffset(selectionOffsets.end),
+          );
+        }
       }
+    } else if (selectionOffsets?.start !== null && selectionOffsets?.start !== undefined
+      && selectionOffsets?.end !== null && selectionOffsets?.end !== undefined) {
+      restoreTextSelection(selectionOffsets.start, selectionOffsets.end);
     }
+    if (selectionOffsets) saveSelection();
     onChange(limited.text, limited.entities);
   };
+
+  const applyFormat = (format: EditorToolbarFormat) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const commands = {
+      bold: 'bold',
+      italic: 'italic',
+      underline: 'underline',
+      strike: 'strikeThrough',
+    } as const;
+
+    restoreSelection();
+    let selection = window.getSelection();
+    let range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!selection || !range || (range.startContainer !== editor && !editor.contains(range.startContainer))) {
+      editor.focus();
+      placeCaretAtStart();
+      selection = window.getSelection();
+      range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    }
+    if (!selection || !range) return;
+
+    if (range.collapsed) {
+      const tagByFormat = {
+        bold: 'b',
+        italic: 'i',
+        underline: 'u',
+        strike: 's',
+      } as const;
+      const selectors = {
+        bold: 'b,strong',
+        italic: 'i,em',
+        underline: 'u',
+        strike: 's,strike,del',
+      } as const;
+      const anchorElement = selection.anchorNode?.nodeType === Node.ELEMENT_NODE
+        ? selection.anchorNode as Element
+        : selection.anchorNode?.parentElement;
+      const activeTag = anchorElement?.closest(selectors[format]);
+
+      if (activeTag?.textContent === '\u200B' && activeTag.firstChild) {
+        const marker = activeTag.firstChild;
+        activeTag.parentNode?.insertBefore(marker, activeTag);
+        activeTag.remove();
+        const caretRange = document.createRange();
+        caretRange.setStart(marker, marker.textContent?.length ?? 0);
+        caretRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caretRange);
+      } else if (activeTag) {
+        if (typeof document.execCommand === 'function') document.execCommand(commands[format], false);
+      } else {
+        const wrapper = document.createElement(tagByFormat[format]);
+        const marker = document.createTextNode('\u200B');
+        wrapper.appendChild(marker);
+        range.insertNode(wrapper);
+        const caretRange = document.createRange();
+        caretRange.setStart(marker, marker.length);
+        caretRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caretRange);
+      }
+
+      saveSelection();
+      syncToolbarStateFromSelection();
+      return;
+    }
+
+    isApplyingFormatRef.current = true;
+    try {
+      if (typeof document.execCommand === 'function') document.execCommand(commands[format], false);
+    } finally {
+      isApplyingFormatRef.current = false;
+    }
+
+    saveSelection();
+    emitChange();
+    syncToolbarStateFromSelection();
+    requestAnimationFrame(() => {
+      restoreSelection();
+      saveSelection();
+      syncToolbarStateFromSelection();
+    });
+  };
+
+  const openLinkPopover = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (range && (range.startContainer === editor || editor.contains(range.startContainer))) {
+      saveSelection();
+    } else {
+      editor.focus();
+      placeCaretAtStart();
+      saveSelection();
+    }
+    setLinkInput('');
+    setLinkPopoverOpen(true);
+  };
+
+  const closeLinkPopover = () => {
+    setLinkInput('');
+    setLinkPopoverOpen(false);
+  };
+
+  const insertLink = () => {
+    const url = linkInput.trim();
+    const editor = editorRef.current;
+    if (!editor || !isValidEditorLink(url)) return;
+
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (range.startContainer !== editor && !editor.contains(range.startContainer)) return;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    if (range.collapsed) {
+      link.textContent = url;
+    } else {
+      link.appendChild(range.extractContents());
+    }
+    range.insertNode(link);
+
+    const nextRange = document.createRange();
+    nextRange.selectNodeContents(link);
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+    saveSelection();
+    closeLinkPopover();
+    emitChange();
+    syncToolbarStateFromSelection();
+    requestAnimationFrame(() => {
+      saveSelection();
+      syncToolbarStateFromSelection();
+    });
+  };
+
+  useEffect(() => {
+    if (!linkPopoverOpen) return undefined;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!(event.target instanceof Element)) return;
+      if (linkPopoverRef.current?.contains(event.target)) return;
+      if (event.target.closest('.workspace-page-rich-text-link-trigger')) return;
+      closeLinkPopover();
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeLinkPopover();
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [linkPopoverOpen]);
 
   const handleBeforeInput = (event: React.FormEvent<HTMLDivElement>) => {
     if (!editorRef.current || !event.nativeEvent) return;
@@ -281,18 +506,22 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           }}
           onPaste={handlePaste}
           onInput={() => {
-            emitChange();
+            if (!isApplyingFormatRef.current) emitChange();
+            scheduleToolbarStateSync();
           }}
           onMouseUp={() => {
-            if (text.trim()) saveSelection();
+            if (editorRef.current?.textContent) saveSelection();
             else placeCaretAtStart();
+            syncToolbarStateFromSelection();
           }}
           onKeyUp={() => {
-            if (text.trim()) saveSelection();
+            if (editorRef.current?.textContent) saveSelection();
             else placeCaretAtStart();
+            syncToolbarStateFromSelection();
           }}
           onSelect={() => {
             saveSelection();
+            scheduleToolbarStateSync();
           }}
           onBlur={() => {
             setEditorFocused(false);
@@ -329,11 +558,49 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
         <div className="workspace-page-rich-text-stage-content">
           {stageContent}
         </div>
+        {stageMode === 'editor' && linkPopoverOpen && (
+          <form
+            ref={linkPopoverRef}
+            className="workspace-page-rich-text-link-popover"
+            role="dialog"
+            aria-label={t('studio.insertLink')}
+            onSubmit={(event) => {
+              event.preventDefault();
+              insertLink();
+            }}
+          >
+            <label className="workspace-page-rich-text-link-popover__label" htmlFor="workspace-link-input">
+              {t('studio.websiteUrl')}
+            </label>
+            <input
+              id="workspace-link-input"
+              type="url"
+              value={linkInput}
+              onChange={(event) => setLinkInput(event.target.value)}
+              placeholder="https://example.com"
+              aria-label={t('studio.insertLinkUrl')}
+              className="workspace-page-rich-text-link-popover__input"
+              autoFocus
+            />
+            <div className="workspace-page-rich-text-link-popover__actions">
+              <button type="button" className="workspace-page-rich-text-link-popover__cancel" onClick={closeLinkPopover}>
+                {t('common.cancel')}
+              </button>
+              <button type="submit" className="workspace-page-rich-text-link-popover__submit" disabled={!linkInput.trim()}>
+                {t('studio.confirm')}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
       <EditorToolbar
         stageMode={stageMode}
         remainingCharacters={remainingCharacters}
         counterClassName={`workspace-page-character-count ${counterTone === 'critical' ? 'is-critical' : counterTone === 'warning' ? 'is-warning' : ''}`}
+        activeFormats={activeFormats}
+        linkPopoverOpen={linkPopoverOpen}
+        onFormat={(format) => applyFormat(format)}
+        onToggleLink={openLinkPopover}
         onExportText={onExportText ? (format) => onExportText(text, format) : undefined}
         onOpenVersionHistory={onOpenVersionHistory}
       />

@@ -963,6 +963,7 @@ describe('WorkspaceTextStage editor flows', () => {
     });
 
     const editor = container.querySelector('[contenteditable="true"]') as HTMLDivElement;
+    act(() => editor.focus());
     const range = document.createRange();
     range.selectNodeContents(editor);
     const selection = window.getSelection()!;
@@ -995,6 +996,7 @@ describe('WorkspaceTextStage editor flows', () => {
     ]);
     expect(container.querySelector('[role="dialog"][aria-label="Insert link"]')).toBeNull();
 
+    act(() => editor.focus());
     act(() => root.unmount());
     container.remove();
   });
@@ -1080,10 +1082,7 @@ describe('WorkspaceTextStage editor flows', () => {
     selection.removeAllRanges();
     selection.addRange(range);
 
-    act(() => {
-      editor.focus();
-      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    });
+    act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
     const toolbar = container.querySelector('[role="toolbar"]')!;
     expect(toolbar.classList.contains('is-airy')).toBe(true);
     expect(toolbar.querySelector('[aria-label="Bold"]')?.getAttribute('aria-pressed')).toBe('true');
@@ -1100,21 +1099,117 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
+  it('toggles italic off and on when clicked repeatedly at a caret', () => {
+    const { container, editor, unmount } = renderRichTextEditor({
+      text: 'Italic text',
+      entities: [{ type: 'italic', offset: 0, length: 6 }],
+    });
+    let italicEnabled = true;
+    const previousQueryCommandState = Object.getOwnPropertyDescriptor(document, 'queryCommandState');
+    const previousExecCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    const execCommand = vi.fn((command: string) => {
+      if (command === 'italic') italicEnabled = !italicEnabled;
+      return true;
+    });
+    Object.defineProperty(document, 'queryCommandState', {
+      configurable: true,
+      value: (command: string) => command === 'italic' ? italicEnabled : false,
+    });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+
+    try {
+      const italicText = editor.querySelector('em, i')?.firstChild;
+      expect(italicText).not.toBeNull();
+      const range = document.createRange();
+      range.setStart(italicText!, 2);
+      range.collapse(true);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
+
+      const italicButton = container.querySelector<HTMLButtonElement>('[aria-label="Italic"]')!;
+      expect(italicButton.getAttribute('aria-pressed')).toBe('true');
+
+      act(() => italicButton.click());
+      expect(execCommand).toHaveBeenCalledWith('italic', false);
+      expect(italicButton.getAttribute('aria-pressed')).toBe('false');
+
+      act(() => italicButton.click());
+      expect(execCommand).toHaveBeenCalledTimes(2);
+      expect(italicButton.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      if (previousQueryCommandState) Object.defineProperty(document, 'queryCommandState', previousQueryCommandState);
+      else Reflect.deleteProperty(document, 'queryCommandState');
+      if (previousExecCommand) Object.defineProperty(document, 'execCommand', previousExecCommand);
+      else Reflect.deleteProperty(document, 'execCommand');
+      unmount();
+    }
+  });
+
+  it('toggles italic off and on across multiple italic text runs', () => {
+    const { container, editor, unmount } = renderRichTextEditor({
+      text: 'one two three four',
+      entities: [
+        { type: 'italic', offset: 0, length: 3 },
+        { type: 'italic', offset: 4, length: 3 },
+        { type: 'italic', offset: 8, length: 5 },
+        { type: 'italic', offset: 14, length: 4 },
+      ],
+    });
+    let italicEnabled = true;
+    const previousQueryCommandState = Object.getOwnPropertyDescriptor(document, 'queryCommandState');
+    const previousExecCommand = Object.getOwnPropertyDescriptor(document, 'execCommand');
+    const execCommand = vi.fn((command: string) => {
+      if (command === 'italic') italicEnabled = !italicEnabled;
+      return true;
+    });
+    Object.defineProperty(document, 'queryCommandState', {
+      configurable: true,
+      value: (command: string) => command === 'italic' ? italicEnabled : false,
+    });
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
+
+      const italicButton = container.querySelector<HTMLButtonElement>('[aria-label="Italic"]')!;
+      expect(italicButton.getAttribute('aria-pressed')).toBe('true');
+
+      act(() => italicButton.click());
+      expect(execCommand).toHaveBeenCalledWith('italic', false);
+      expect(italicButton.getAttribute('aria-pressed')).toBe('false');
+
+      act(() => italicButton.click());
+      expect(execCommand).toHaveBeenCalledTimes(2);
+      expect(italicButton.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      if (previousQueryCommandState) Object.defineProperty(document, 'queryCommandState', previousQueryCommandState);
+      else Reflect.deleteProperty(document, 'queryCommandState');
+      if (previousExecCommand) Object.defineProperty(document, 'execCommand', previousExecCommand);
+      else Reflect.deleteProperty(document, 'execCommand');
+      unmount();
+    }
+  });
+
   it('applies every format option in turn while the toolbar stays visible', () => {
     const { container, editor, unmount } = renderRichTextEditor({
       text: 'Chain formats',
       entities: [],
     });
+    act(() => editor.focus());
     const selection = window.getSelection()!;
     const range = document.createRange();
     range.selectNodeContents(editor);
     selection.removeAllRanges();
     selection.addRange(range);
 
-    act(() => {
-      editor.focus();
-      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    });
+    act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 
     const toolbar = container.querySelector<HTMLElement>('[role="toolbar"]')!;
 
@@ -1134,18 +1229,51 @@ describe('WorkspaceTextStage editor flows', () => {
     pressOption('Italic');
     pressOption('Underline');
     pressOption('Strikethrough');
-    pressOption('Clear formatting');
 
     expect(execCommand.mock.calls.map((call) => call[0])).toEqual([
       'bold',
       'italic',
       'underline',
       'strikeThrough',
-      'removeFormat',
     ]);
 
     if (previousExecCommand) Object.defineProperty(document, 'execCommand', previousExecCommand);
     else Reflect.deleteProperty(document, 'execCommand');
+
+    unmount();
+  });
+
+  it('keeps typing order and bold formatting after toggling the toolbar at an empty caret', () => {
+    const { container, editor, onChange, unmount } = renderRichTextEditor();
+    act(() => editor.focus());
+
+    const selection = window.getSelection()!;
+    const initialRange = document.createRange();
+    initialRange.selectNodeContents(editor);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+    act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
+
+    const boldButton = container.querySelector<HTMLButtonElement>('[aria-label="Bold"]')!;
+    act(() => boldButton.click());
+    expect(boldButton.getAttribute('aria-pressed')).toBe('true');
+
+    const marker = editor.querySelector('b')?.firstChild as Text;
+    expect(marker.textContent).toBe('\u200B');
+    act(() => {
+      marker.insertData(marker.length, 'AB');
+      const caretRange = document.createRange();
+      caretRange.setStart(marker, marker.length);
+      caretRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caretRange);
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'B' }));
+    });
+
+    expect(editor.querySelector('b')?.textContent).toBe('AB');
+    expect(onChange).toHaveBeenLastCalledWith('AB', [{ type: 'bold', offset: 0, length: 2 }]);
+    expect(selection.getRangeAt(0).startOffset).toBe(2);
 
     unmount();
   });
@@ -1155,6 +1283,7 @@ describe('WorkspaceTextStage editor flows', () => {
       text: 'Bold text',
       entities: [{ type: 'bold', offset: 0, length: 4 }],
     });
+    act(() => editor.focus());
     const strongElement = editor.querySelector('strong')!;
     const range = document.createRange();
     range.selectNodeContents(strongElement);
@@ -1162,10 +1291,7 @@ describe('WorkspaceTextStage editor flows', () => {
     selection.removeAllRanges();
     selection.addRange(range);
 
-    act(() => {
-      editor.focus();
-      editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-    });
+    act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 
     const toolbar = container.querySelector<HTMLElement>('[role="toolbar"]')!;
     expect(toolbar.querySelector('[aria-label="Bold"]')?.getAttribute('aria-pressed')).toBe('true');

@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bold, Download, Eraser, History, Italic, Link2, Strikethrough, Underline } from 'lucide-react';
+import { Bold, Download, History, Italic, Link, Strikethrough, Underline } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
 import type { StageMode } from '@/components/stages/types';
+import type { EditorFormats } from './useEditorFormats';
+
+export type EditorToolbarFormat = 'bold' | 'italic' | 'underline' | 'strike';
 
 interface Props {
   stageMode: StageMode;
   remainingCharacters: number;
   counterClassName: string;
+  activeFormats: EditorFormats;
+  linkPopoverOpen: boolean;
+  onFormat: (format: EditorToolbarFormat) => void;
+  onToggleLink: () => void;
   onExportText?: (format: 'txt' | 'json') => void;
   onOpenVersionHistory?: () => void;
 }
 
-export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, onExportText, onOpenVersionHistory }: Props) {
+export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, activeFormats, linkPopoverOpen, onFormat, onToggleLink, onExportText, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
@@ -41,20 +48,19 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
   if (stageMode !== 'editor') return null;
 
   return (
-    <div className="workspace-page-rich-text-toolbar is-airy is-editor-disconnected" role="toolbar" aria-label={t('studio.formattingTools')} aria-orientation="horizontal">
+    <div className="workspace-page-rich-text-toolbar is-airy" role="toolbar" aria-label={t('studio.formattingTools')} aria-orientation="horizontal">
       <span className={counterClassName} aria-live="polite">{remainingCharacters}</span>
       <div className="workspace-page-rich-text-toolbar-actions" role="group" aria-label={t('studio.formattingTools')}>
         {formatOptions.map(({ id, label, icon: Icon }) => (
-          <button key={id} type="button" className="workspace-page-rich-text-format-option" disabled aria-label={label} title={label}>
+          <button key={id} type="button" className="workspace-page-rich-text-format-option" onMouseDown={(event) => event.preventDefault()} onClick={() => onFormat(id)} aria-label={label} aria-pressed={activeFormats[id]} title={label}>
             <Icon size={17} strokeWidth={1.8} aria-hidden="true" />
           </button>
         ))}
-        <button type="button" className="workspace-page-rich-text-format-clear" disabled aria-label={t('studio.removeFormatting')} title={t('studio.removeFormatting')}>
-          <Eraser size={15} strokeWidth={1.8} aria-hidden="true" />
-        </button>
         <span className="workspace-page-rich-text-toolbar-divider" aria-hidden="true" />
-        <button type="button" className="workspace-page-rich-text-link-trigger" disabled aria-label={t('studio.insertLink')} title={t('studio.insertLink')}>
-          <Link2 size={17} strokeWidth={1.8} aria-hidden="true" />
+        <button type="button" className={`workspace-page-rich-text-link-trigger${linkPopoverOpen ? ' is-open' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={onToggleLink} aria-label={t('studio.insertLink')} aria-haspopup="dialog" aria-expanded={linkPopoverOpen} title={t('studio.insertLink')}>
+          <span className="workspace-page-rich-text-link-trigger__icon" aria-hidden="true">
+              <Link size={17} strokeWidth={1.8} aria-hidden="true" />
+          </span>
         </button>
         {onOpenVersionHistory && (
           <button type="button" className="workspace-page-rich-text-link-trigger workspace-page-version-history-trigger" onMouseDown={(e) => e.preventDefault()} onClick={onOpenVersionHistory} aria-label={t('studio.openVersionHistory')} aria-haspopup="dialog" title={t('studio.openVersionHistory')}>

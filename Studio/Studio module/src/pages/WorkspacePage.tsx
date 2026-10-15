@@ -714,6 +714,16 @@ export function WorkspacePage({
       window.removeEventListener('storage', refreshEditorAppearance);
     };
   }, []);
+  useEffect(() => {
+    const productShell = workspaceRef.current?.closest<HTMLElement>('.product-shell');
+    if (!productShell) return undefined;
+
+    const outline = getEditorAppearanceCssTokens(editorAppearance, publishAction)['--editor-outline'];
+    productShell.style.setProperty('--studio-title-icon-color', `rgb(${outline})`);
+    return () => {
+      productShell.style.removeProperty('--studio-title-icon-color');
+    };
+  }, [editorAppearance, publishAction]);
   const [rescheduleSource, setRescheduleSource] = useState<ScheduledMessage | null>(null);
   const rescheduleSourceRef = useRef<ScheduledMessage | null>(null);
   // Previous Studio document auto-saved when a Planner note is opened in the editor.
@@ -733,6 +743,53 @@ export function WorkspacePage({
   });
   const previewCollapsed = previewLayout.collapsed === true;
   const maxDraftLength = getMessageMaxLength(attachments.length > 0);
+
+  useLayoutEffect(() => {
+    const workspace = workspaceRef.current;
+    const editor = workspace?.querySelector<HTMLElement>('.workspace-page-editor-shell');
+    const previewPanel = workspace?.querySelector<HTMLElement>('.workspace-page-preview-panel');
+    const previewWindow = previewPanel?.querySelector<HTMLElement>('.chat-preview-window');
+    const workspaceMain = workspace?.querySelector<HTMLElement>('.workspace-page-main');
+    if (!editor || !previewPanel || !previewWindow || !workspaceMain) return undefined;
+
+    const offsetProperty = '--workspace-page-preview-horizontal-offset';
+    let animationFrame = 0;
+    const alignPreview = () => {
+      animationFrame = 0;
+      if (previewPanel.dataset.visible === 'false' || previewPanel.dataset.collapsed === 'true') return;
+
+      const editorBounds = editor.getBoundingClientRect();
+      const previewBounds = previewWindow.getBoundingClientRect();
+      if (!editorBounds.width || !previewBounds.width) return;
+
+      const offset = Number.parseFloat(previewPanel.style.getPropertyValue(offsetProperty)) || 0;
+      const editorGap = previewBounds.left - editorBounds.right;
+      const viewportGap = window.innerWidth - previewBounds.right;
+      const nextOffset = offset - (editorGap - viewportGap) / 2;
+      if (Math.abs(nextOffset - offset) > 0.25) {
+        previewPanel.style.setProperty(offsetProperty, `${nextOffset}px`);
+      }
+    };
+    const scheduleAlignment = () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(alignPreview);
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleAlignment);
+    resizeObserver.observe(workspaceMain);
+    resizeObserver.observe(editor);
+    resizeObserver.observe(previewPanel);
+    resizeObserver.observe(previewWindow);
+    window.addEventListener('resize', scheduleAlignment);
+    scheduleAlignment();
+
+    return () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', scheduleAlignment);
+      previewPanel.style.removeProperty(offsetProperty);
+    };
+  }, [previewLayout.collapsed, previewLayout.visible]);
 
   const applyWorkspaceDraft = (workspaceDraft: Partial<WorkspaceDraft> | null) => {
     if (rescheduleSourceRef.current) return;
@@ -2414,7 +2471,7 @@ export function WorkspacePage({
                 <div className="workspace-page-form-row">
                   <label className="workspace-page-field-label" aria-label={t('studio.channelSelector')} />
                   <div className="workspace-page-channel-picker">
-                    <button type="button" className="workspace-page-chat-trigger" onClick={openChatSelection} aria-label={t('studio.chooseChat')} title={t('studio.chooseChatOrChannel')}>
+                    <button type="button" className="workspace-page-chat-trigger" onClick={openChatSelection} aria-label={t('studio.chooseChat')} aria-expanded={stageMode === 'chat'} title={t('studio.chooseChatOrChannel')}>
                       {selectedChat ? (
                         <>
                           <ChatAvatar name={selectedChat.name} src={selectedChat.avatarDataUrl} className="workspace-page-chat-trigger-avatar" />

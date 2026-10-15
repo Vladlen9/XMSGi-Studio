@@ -8,6 +8,7 @@ import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { AppShell, StudioMount } from './workspace';
 import { preloadStudioApp } from './workspace/studioLoader';
 import { hasPlannerPayloadContent } from './workspace/plannerText';
+import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
@@ -499,6 +500,13 @@ function App() {
   };
 
   const studioConnected = connected && !signedOut && activeAccountId === 'account-1';
+  const plannerSurface = getPlannerSurface({
+    browserDraftMode,
+    connected,
+    signedOut,
+    connecting,
+    connectionResolved,
+  });
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -770,7 +778,7 @@ function App() {
       </div>
       <div className={`product-view ${productView === 'planner' ? 'is-active' : ''}`} aria-hidden={productView !== 'planner'}>
         {route === '/settings' ? renderSettingsPage() : (
-          browserDraftMode || (connected && !signedOut) ? (
+          plannerSurface === 'pending' ? null : plannerSurface === 'quick' ? (
             <QuickPlannerPage
               draftOnlyMode={browserDraftMode}
               chats={chats}

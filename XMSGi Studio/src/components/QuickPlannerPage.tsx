@@ -567,6 +567,15 @@ export function QuickPlannerPage({
   }, [expandedPreviewMessageId]);
   const [scheduleDate, scheduleTime] = scheduleDateTime.split('T');
   const quickPlannerAccent = getEditorAppearanceCssTokens(editorAppearance, publishMode)['--editor-outline'];
+  useEffect(() => {
+    const productShell = document.querySelector<HTMLElement>('.product-shell');
+    if (!productShell) return undefined;
+
+    productShell.style.setProperty('--quick-planner-title-icon-color', `rgb(${quickPlannerAccent})`);
+    return () => {
+      productShell.style.removeProperty('--quick-planner-title-icon-color');
+    };
+  }, [quickPlannerAccent]);
   const minimumScheduleDate = new Date(currentTime);
   minimumScheduleDate.setMinutes(minimumScheduleDate.getMinutes() + 1, 0, 0);
   const minimumScheduleDateTime = toLocalDateTimeValue(minimumScheduleDate);
@@ -670,9 +679,16 @@ export function QuickPlannerPage({
 
   useEffect(() => {
     if (!timePickerOpen) return;
-    const selectedOption = scheduleTimePickerRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
-    selectedOption?.scrollIntoView?.({ block: 'center' });
-  }, [timePickerOpen]);
+    const picker = scheduleTimePickerRef.current;
+    if (!picker) return;
+
+    const selectedOption = picker.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+    const firstAvailableOption = picker.querySelector<HTMLButtonElement>('[role="option"]:not(:disabled)');
+    const targetOption = selectedOption && !selectedOption.disabled
+      ? selectedOption
+      : firstAvailableOption ?? selectedOption;
+    targetOption?.scrollIntoView?.({ block: 'center' });
+  }, [minimumScheduleDateTime, scheduleDate, scheduleTime, timePickerOpen]);
 
   useEffect(() => {
     setDatePickerOpen(false);

@@ -1543,6 +1543,31 @@ describe('QuickPlannerPage schedule date and time pickers', () => {
     expect(screen.queryByRole('dialog', { name: 'Schedule date picker' })).not.toBeInTheDocument();
   });
 
+  it('scrolls to the first available time when the displayed time is not selectable', () => {
+    const previousScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    const scrolledElements: HTMLElement[] = [];
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: function (this: HTMLElement) { scrolledElements.push(this); },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 15, 13, 52));
+
+    try {
+      const controls = openScheduleControls();
+      fireEvent.click(controls.getByRole('button', { name: 'Open time picker' }));
+
+      const list = screen.getByRole('listbox', { name: 'Available times' });
+      const firstAvailableOption = within(list).getAllByRole('option').find((option) => !option.hasAttribute('disabled'));
+      expect(firstAvailableOption).toHaveTextContent('14:00');
+      expect(scrolledElements).toEqual([firstAvailableOption]);
+    } finally {
+      if (previousScrollIntoView) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', previousScrollIntoView);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      vi.useRealTimers();
+    }
+  });
+
   it('opens the minimal time list from the clock icon and applies the chosen slot', () => {
     const controls = openScheduleControls();
 

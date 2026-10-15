@@ -9,6 +9,7 @@
 .quick-planner-page * { box-sizing: border-box; }
 
 .quick-planner-header {
+  min-height: 39px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -18,11 +19,15 @@
 }
 
 .quick-planner-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: rgb(var(--quick-planner-accent));
-  transform: translateY(-8px);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .quick-planner-heading h1 {

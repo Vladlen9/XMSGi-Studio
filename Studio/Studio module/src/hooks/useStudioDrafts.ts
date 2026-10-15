@@ -161,6 +161,8 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
   const translateRef = useRef(t);
   const autosaveTimeoutRef = useRef<number | null>(null);
   const lastPersistedWorkspaceSnapshotRef = useRef<WorkspaceDraft | null>(null);
+  const editHistoryCheckpointedDocumentsRef = useRef(new Set<string>());
+  const activeEditDocumentIdRef = useRef('');
   const [savedAt, setSavedAt] = useState(options.initialWorkspaceDraftRef.current?.savedAt ?? '');
   const [draftStateHydrated, setDraftStateHydrated] = useState(false);
   optionsRef.current = options;
@@ -188,10 +190,12 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
       ...snapshot,
       attachments: snapshot.attachments.map((attachment) => ({ ...attachment })),
       entities: snapshot.entities ? [...snapshot.entities] : [],
-      inlineButtons: snapshot.inlineButtons ? snapshot.inlineButtons.map((row) => ({
-        ...row,
-        buttons: row.buttons.map((button) => ({ ...button })),
-      })) : [],
+      inlineButtons: snapshot.inlineButtons
+        ? snapshot.inlineButtons.map((row) => row.map((button) => ({
+            ...button,
+            action: { ...button.action },
+          })))
+        : [],
       repeatDays: snapshot.repeatDays ? [...snapshot.repeatDays] : [],
       selectedChat: snapshot.selectedChat ? { ...snapshot.selectedChat } : null,
     } satisfies WorkspaceDraft;
@@ -443,9 +447,20 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
         const workspaceDraft = createWorkspaceDraftSnapshot();
         if (workspaceDraft) setSavedAt(workspaceDraft.savedAt);
         const previousSnapshot = lastPersistedWorkspaceSnapshotRef.current;
+        const documentId = workspaceDraft?.documentId ?? '';
+        if (activeEditDocumentIdRef.current !== documentId) {
+          if (documentId) editHistoryCheckpointedDocumentsRef.current.delete(documentId);
+          activeEditDocumentIdRef.current = documentId;
+        }
+        const shouldCheckpointEdit = Boolean(
+          previousSnapshot
+          && !areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft)
+          && previousSnapshot.documentId
+          && !editHistoryCheckpointedDocumentsRef.current.has(previousSnapshot.documentId),
+        );
         let nextSnapshot = previousSnapshot;
         let historyError = '';
-        if (!areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft) && previousSnapshot) {
+        if (shouldCheckpointEdit && previousSnapshot) {
           const archived = await makeHistorySnapshot(previousSnapshot, false);
           nextSnapshot = archived.snapshot ?? previousSnapshot;
           historyError = archived.error;
@@ -458,8 +473,11 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
           (histories) => {
             if (histories !== drafts.documentHistoriesRef.current) drafts.replaceDocumentHistories(histories);
             lastPersistedWorkspaceSnapshotRef.current = workspaceDraft ? persistableWorkspaceSnapshot(workspaceDraft) : null;
+            if (shouldCheckpointEdit && previousSnapshot?.documentId) {
+              editHistoryCheckpointedDocumentsRef.current.add(previousSnapshot.documentId);
+            }
           },
-          () => previousSnapshot && nextSnapshot && !areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft)
+          () => shouldCheckpointEdit && previousSnapshot && nextSnapshot
             ? appendWorkspaceDocumentVersion(
                 drafts.documentHistoriesRef.current,
                 previousSnapshot.documentId ?? workspaceDraft?.documentId ?? '',

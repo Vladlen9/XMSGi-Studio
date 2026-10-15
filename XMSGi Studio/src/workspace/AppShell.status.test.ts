@@ -219,7 +219,7 @@ describe('shared History Drawer entry point', () => {
     }
   });
 
-  it('renders the airy sign-out window with cancel and sign-out choices', () => {
+  it('renders the airy sign-out window with sign-out choices and no cancel button', () => {
     const onCancel = vi.fn();
     const onDisconnect = vi.fn(async () => undefined);
     const onForget = vi.fn(async () => undefined);
@@ -247,17 +247,17 @@ describe('shared History Drawer entry point', () => {
     expect(modal).toHaveClass('topbar-logout-modal');
     expect(modal).toHaveAttribute('aria-modal', 'true');
     expect(view.container.querySelector('.topbar-logout-modal-backdrop')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
     expect(onDisconnect).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Forget me' }));
     expect(onForget).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(onCancel).toHaveBeenCalledWith(false);
     view.unmount();
   });
 
-  it('leaves the Planner heading to the page layout', () => {
+  it('shows the Planner title in the shared shell position', () => {
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
       view: 'planner',
       onViewChange: vi.fn(),
@@ -276,11 +276,37 @@ describe('shared History Drawer entry point', () => {
       onHistoryDelete: vi.fn(),
       onHistoryOpenDraft: vi.fn(),
       onHistoryClearSent: vi.fn(),
-    }, createElement('div', null, 'Quick Planner'))));
+    }, createElement('div', null, 'Planner canvas'))));
 
-    expect(view.container.querySelector('.product-section-title')).not.toBeInTheDocument();
-    expect(view.container.querySelector('.quick-planner-page')).not.toBeInTheDocument();
-    expect(screen.getByText('Quick Planner')).toBeInTheDocument();
+    const title = view.container.querySelector('.product-section-title-detached');
+    expect(title).toHaveTextContent('Quick Planner');
+    expect(title?.querySelector('svg')).toHaveClass('lucide-zap');
+    expect(screen.getByText('Planner canvas')).toBeInTheDocument();
+  });
+
+  it('hides the Planner title on the login and return screen', () => {
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'planner',
+      browserDraftMode: false,
+      onViewChange: vi.fn(),
+      connected: false,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement('div', null, 'Login screen'))));
+
+    expect(view.container.querySelector('.product-section-title-detached')).not.toBeInTheDocument();
   });
 
   it('shows only Done in the topbar while Settings is open', () => {

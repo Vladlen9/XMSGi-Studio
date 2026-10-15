@@ -993,6 +993,43 @@ describe('WorkspacePage main-screen flows', () => {
     secondMount.unmount();
   });
 
+  it('coalesces autosave history checkpoints while persisting every latest edit', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    const documentId = 'coalesced-edit-history-document';
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [],
+      documentHistories: {},
+      workspaceDraft: {
+        documentId,
+        body: 'Original post before edits',
+        entities: [],
+        attachments: [],
+        selectedChat: chatA,
+        inlineButtons: [],
+        date: '',
+        time: '',
+        repeatMode: 'none',
+        repeatDays: [],
+        repeatOccurrences: 1,
+        savedAt: '12:00',
+      },
+    };
+    const { unmount } = await renderWorkspacePage();
+
+    await editComposerText('First saved edit');
+    await waitForWorkspaceAutosave();
+    await editComposerText('Latest saved edit');
+    await waitForWorkspaceAutosave();
+
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: 'Latest saved edit' });
+    expect(inMemoryDraftStore.documentHistories?.[documentId]?.map((version) => (
+      (version.snapshot as WorkspaceDraft).body
+    ))).toEqual(['Original post before edits']);
+    unmount();
+  });
+
   it('keeps version history open while changing the selected document', async () => {
     localStorage.removeItem('awaitmsg-workspace-draft');
     const previousAppearance = localStorage.getItem(EDITOR_APPEARANCE_STORAGE_KEY);
@@ -1475,10 +1512,10 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => {
       scheduleOption.click();
     });
-    const timeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
+    const restoredTimeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
       .find((button) => button.textContent?.trim() === 'Time') as HTMLButtonElement;
     await act(async () => {
-      timeButton.click();
+      restoredTimeButton.click();
     });
     const dayInput = document.querySelector<HTMLInputElement>('[aria-label="Day"]')!;
     await act(async () => {
@@ -1487,6 +1524,11 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     expect(registerRescheduler).toHaveBeenCalledWith(expect.any(Function));
+    const editor = document.querySelector<HTMLDivElement>('.workspace-page-rich-text-input')!;
+    Object.defineProperties(editor, {
+      scrollHeight: { configurable: true, value: 900 },
+      clientHeight: { configurable: true, value: 200 },
+    });
     await act(async () => {
       registerRescheduler.mock.calls[0][0](message);
     });
@@ -1497,10 +1539,9 @@ describe('WorkspacePage main-screen flows', () => {
       date: expectedDate,
       time: expectedTime,
     });
-    const editor = document.querySelector<HTMLDivElement>('.workspace-page-rich-text-input.is-active')!;
-    Object.defineProperties(editor, {
-      scrollHeight: { configurable: true, value: 900 },
-      clientHeight: { configurable: true, value: 200 },
+    expect(editor.classList.contains('is-active')).toBe(true);
+    await act(async () => {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     });
     await act(async () => {
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
@@ -1512,9 +1553,14 @@ describe('WorkspacePage main-screen flows', () => {
     expect(handleCancelMessage).not.toHaveBeenCalled();
     expect(editor.textContent).toContain(message.text);
     expect(document.activeElement).toBe(editor);
-    expect(editor.scrollTop).toBe(700);
     expect(editor.dataset.selectionStart).toBe(String(message.text.length));
     expect(editor.dataset.selectionEnd).toBe(String(message.text.length));
+    expect(editor.scrollTop).toBe(700);
+    const visibleTimeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
+      .find((button) => button.textContent?.trim() === 'Time') as HTMLButtonElement;
+    await act(async () => {
+      visibleTimeButton.click();
+    });
     expect(document.querySelector<HTMLInputElement>('[aria-label="Day"]')?.value).toBe(String(scheduledAt.getDate()));
     expect(document.querySelector<HTMLInputElement>('[aria-label="Month"]')?.value).toBe(String(scheduledAt.getMonth() + 1).padStart(2, '0'));
     expect(document.querySelector<HTMLInputElement>('[aria-label="Year"]')?.value).toBe(String(scheduledAt.getFullYear()));
@@ -1589,6 +1635,13 @@ describe('WorkspacePage main-screen flows', () => {
       expect(editor?.textContent).not.toContain('An older workspace draft');
       expect(document.body.textContent).toContain('brief.pdf');
       expect(document.body.textContent).toContain('photo.png');
+      expect(document.querySelector('.workspace-page-rich-text-input.is-active strong')?.textContent).toBe('exact');
+      expect(document.body.textContent).toContain('Original button');
+      const timeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
+        .find((button) => button.textContent?.trim() === 'Time') as HTMLButtonElement;
+      await act(async () => {
+        timeButton.click();
+      });
       expect(document.querySelector<HTMLInputElement>('[aria-label="Hours"]')?.value)
         .toBe(expectedTime.slice(0, 2));
       expect(document.querySelector<HTMLInputElement>('[aria-label="Minutes"]')?.value)
@@ -1597,8 +1650,6 @@ describe('WorkspacePage main-screen flows', () => {
       expect(setDate).not.toHaveBeenCalledWith('2026-01-10');
       expect(setTime).toHaveBeenCalledWith(expectedTime);
       expect(setTime).not.toHaveBeenCalledWith('09:00');
-      expect(document.querySelector('.workspace-page-rich-text-input.is-active strong')?.textContent).toBe('exact');
-      expect(document.body.textContent).toContain('Original button');
     } finally {
       unmount();
     }
@@ -1887,10 +1938,32 @@ describe('WorkspacePage main-screen flows', () => {
     const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
     expect(toolbar).not.toBeNull();
     const editorFormattingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
-      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-format-clear, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
+      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
     ));
-    expect(editorFormattingControls).toHaveLength(6);
-    expect(editorFormattingControls.every((button) => button.disabled)).toBe(true);
+    expect(editorFormattingControls.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Bold',
+      'Italic',
+      'Underline',
+      'Strikethrough',
+      'Insert link',
+    ]);
+    const toolbarActions = toolbar!.querySelector('.workspace-page-rich-text-toolbar-actions')!;
+    const actionOrder = Array.from(toolbarActions.children).map((element) => {
+      if (element.classList.contains('workspace-page-rich-text-toolbar-divider')) return 'divider';
+      return element.getAttribute('aria-label') ?? element.querySelector('button')?.getAttribute('aria-label');
+    });
+    expect(actionOrder).toEqual([
+      'Bold',
+      'Italic',
+      'Underline',
+      'Strikethrough',
+      'divider',
+      'Insert link',
+      'Open version history',
+      'Export editor text',
+    ]);
+    expect(toolbar!.querySelector('.workspace-page-rich-text-format-clear')).toBeNull();
+    expect(editorFormattingControls.every((button) => !button.disabled)).toBe(true);
     expect(toolbar!.querySelector('.workspace-page-version-history-trigger')).not.toBeNull();
     expect(toolbar!.querySelector('.workspace-page-editor-export-trigger')).not.toBeNull();
     const editor = document.querySelector('.workspace-page-rich-text-input') as HTMLDivElement;
@@ -2414,19 +2487,20 @@ describe('WorkspacePage main-screen flows', () => {
       .find((button) => button.textContent?.includes(extension)) as HTMLButtonElement;
   }
 
-  it('keeps the toolbar visible while disconnecting editor formatting controls', async () => {
+  it('keeps the toolbar visible with connected editor formatting controls', async () => {
     const { unmount } = await renderWorkspacePage();
     const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
     const editingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
-      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-format-clear, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
+      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger)',
     ));
     const historyTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-version-history-trigger');
     const exportTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-editor-export-trigger');
 
     expect(toolbar).not.toBeNull();
     expect(toolbar!.querySelector('.workspace-page-character-count')).not.toBeNull();
-    expect(editingControls).toHaveLength(6);
-    expect(editingControls.every((button) => button.disabled)).toBe(true);
+    expect(editingControls).toHaveLength(5);
+    expect(toolbar!.querySelector('.workspace-page-rich-text-format-clear')).toBeNull();
+    expect(editingControls.every((button) => !button.disabled)).toBe(true);
     expect(historyTrigger).not.toBeNull();
     expect(historyTrigger?.disabled).toBe(false);
     expect(exportTrigger).not.toBeNull();

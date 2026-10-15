@@ -268,6 +268,30 @@ function scrollHistoryRecordIntoView(list: HTMLDivElement, record: HTMLElement) 
   else list.scrollTop = options.top ?? 0;
 }
 
+function alignHistoryScroll(list: HTMLDivElement, element: HTMLElement) {
+  scrollHistoryRecordIntoView(list, element);
+
+  // Smooth scrolling can be interrupted (native focus scroll, drawer layout),
+  // leaving the menu half-hidden. Finish the alignment once scrolling settles.
+  const realign = () => {
+    if (element.isConnected) scrollHistoryRecordIntoView(list, element);
+  };
+  const onScrollEnd = () => {
+    list.removeEventListener('scrollend', onScrollEnd);
+    window.clearTimeout(retryId);
+    realign();
+  };
+  const retryId = window.setTimeout(() => {
+    list.removeEventListener('scrollend', onScrollEnd);
+    realign();
+  }, 260);
+  list.addEventListener('scrollend', onScrollEnd);
+  return () => {
+    list.removeEventListener('scrollend', onScrollEnd);
+    window.clearTimeout(retryId);
+  };
+}
+
 function formatTime(value: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     hour: '2-digit',
@@ -609,8 +633,15 @@ export function HistoryDrawer({
     if (!isOpen || !actionMenuOpenId) return;
     const list = historyRecordListRef.current;
     const actionMenu = actionMenuRef.current;
-    if (list && actionMenu) scrollHistoryRecordIntoView(list, actionMenu);
+    if (list && actionMenu) return alignHistoryScroll(list, actionMenu);
   }, [actionMenuOpenId, isOpen]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !draftUseTarget) return;
+    const list = historyRecordListRef.current;
+    const destinationMenu = list?.querySelector<HTMLElement>('.history-draft-destination-menu');
+    if (list && destinationMenu) return alignHistoryScroll(list, destinationMenu);
+  }, [draftUseTarget, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !selectedRecord) return;

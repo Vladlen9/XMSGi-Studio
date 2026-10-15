@@ -182,12 +182,13 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 360px;
+  margin-bottom: 16px;
   min-height: 0;
   min-width: 360px;
   width: 360px;
   max-width: 360px;
   background: transparent;
-  transform: none;
+  transform: translateX(var(--workspace-page-preview-horizontal-offset, 0px));
   order: 2;
 }
 
@@ -452,6 +453,7 @@
   isolation: isolate;
   flex-direction: column;
   flex: 1;
+  margin-bottom: 16px;
   width: min(100%, 760px);
   min-height: 0;
   border: 1px solid rgba(var(--editor-outline), 0.62);
@@ -1113,6 +1115,12 @@
   --workspace-rich-text-underline-shadow: drop-shadow(0 0 2px rgba(var(--editor-outline), 0.16));
 }
 
+.workspace-page-rich-text-stage:has(.workspace-page-rich-text-stage-view.is-active:not(.workspace-page-textarea)) {
+  min-height: 0;
+  max-height: calc(100% - 25px);
+  margin-bottom: 0;
+}
+
 .workspace-page-rich-text-chat-stage {
   box-sizing: border-box;
   height: 100%;
@@ -1155,7 +1163,7 @@
 .workspace-page-rich-text-clear {
   position: absolute;
   z-index: 4;
-  top: 6px;
+  top: 2px;
   right: 36px;
   display: grid;
   width: 32px;
@@ -2718,14 +2726,20 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   height: 19px;
   margin-left: auto;
   margin-right: 14px;
-  color: var(--dim);
+  color: rgba(225, 238, 246, 0.84);
+  transform: translateY(4px) rotate(var(--chat-chevron-turn, 0deg));
   transition: color 180ms ease, transform 180ms ease;
+}
+
+.workspace-page-chat-trigger[aria-expanded='true'] .workspace-page-chat-trigger-chevron {
+  --chat-chevron-turn: 180deg;
+  color: var(--text);
 }
 
 .workspace-page-chat-trigger:hover .workspace-page-chat-trigger-chevron,
 .workspace-page-chat-trigger:focus-visible .workspace-page-chat-trigger-chevron {
   color: var(--text);
-  transform: scale(1.2);
+  transform: translateY(4px) rotate(var(--chat-chevron-turn, 0deg)) scale(1.2);
 }
 
 .workspace-page-chat-stage-list-header {
@@ -3840,7 +3854,6 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
 }
 
 .workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-format-option,
-.workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-format-clear,
 .workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-link-trigger,
 .workspace-page-rich-text-toolbar.is-airy .workspace-page-editor-export-trigger {
   width: 32px;
@@ -3988,9 +4001,15 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
-.workspace-page-rich-text-toolbar .workspace-page-rich-text-format-option:hover,
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-format-option:hover:not([aria-pressed='true']) {
+  background: transparent;
+  color: rgba(208, 218, 228, 0.66);
+  transform: none;
+}
+
 .workspace-page-rich-text-toolbar .workspace-page-rich-text-format-option:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
+  outline: 2px solid rgba(var(--editor-outline), 0.58);
+  outline-offset: 2px;
   color: #f4f8fb;
 }
 
@@ -3998,29 +4017,6 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   background: rgba(113, 188, 198, 0.16);
   color: #d9f4f6;
   box-shadow: none;
-}
-
-.workspace-page-rich-text-toolbar .workspace-page-rich-text-format-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: rgba(208, 218, 228, 0.66);
-  font-size: 12.5px;
-  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
-}
-
-.workspace-page-rich-text-toolbar .workspace-page-rich-text-format-clear:hover,
-.workspace-page-rich-text-toolbar .workspace-page-rich-text-format-clear:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
-  color: #f2f7fa;
 }
 
 .workspace-page-editor-export .workspace-page-editor-export-option {
@@ -6384,7 +6380,7 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
     min-width: 360px;
     min-height: min(430px, max(0px, calc(100dvh - 172px)));
     flex: 0 0 360px;
-    transform: none;
+    transform: translateX(var(--workspace-page-preview-horizontal-offset, 0px));
   }
 
   .workspace-page-preview-panel[data-collapsed='true'] {
@@ -8033,12 +8029,12 @@ input[type='date'].workspace-page-schedule-date-native-input::-webkit-calendar-p
   color: var(--text);
 }
 
-.workspace-page-editor-heading:has(+ .workspace-page-editor-shell .workspace-page-rich-text-schedule-stage) {
-  width: min(100%, 800px);
+.workspace-page-editor-heading:has(+ .workspace-page-editor-shell .workspace-page-rich-text-schedule-stage.is-active) {
+  width: min(100%, 760px);
 }
 
-.workspace-page-editor-shell:has(.workspace-page-rich-text-schedule-stage) {
-  width: min(100%, 800px);
+.workspace-page-editor-shell:has(.workspace-page-rich-text-schedule-stage.is-active) {
+  width: min(100%, 760px);
 }
 
 .workspace-page-rich-text-schedule-stage.is-repeat-focus {
