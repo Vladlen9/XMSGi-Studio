@@ -1,0 +1,50 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic "XMSGi" [ref=e5]
+    - button "Done" [ref=e252] [cursor=pointer]
+  - main [ref=e20]:
+    - main [ref=e255]:
+      - heading "Settings" [level=1] [ref=e256]
+      - generic [ref=e257]:
+        - generic [ref=e258]:
+          - heading "Language" [level=2] [ref=e259]
+          - group "Language" [ref=e260]:
+            - button "EN" [pressed] [ref=e261] [cursor=pointer]
+            - generic [aria-hidden] [ref=e262]: "|"
+            - button "RU" [ref=e263] [cursor=pointer]
+        - region [ref=e264]:
+          - heading "Editor appearance" [level=2] [ref=e266]
+          - paragraph [ref=e267]: Use one light accent or customize the color for each action mode.
+          - generic [ref=e268]:
+            - region "Editor preview" [ref=e269]:
+              - generic [ref=e273]:
+                - generic [ref=e274]: Send
+                - generic [ref=e277]: Schedule
+                - generic [ref=e280]: Draft
+            - generic [ref=e284]:
+              - generic [ref=e285]:
+                - generic [ref=e286]: Color mode
+                - status [ref=e287]: Saved on this device
+              - group "Color mode" [ref=e288]:
+                - button "By action" [pressed] [ref=e289] [cursor=pointer]
+                - button "Custom" [ref=e290] [cursor=pointer]
+              - generic [ref=e291]:
+                - generic [ref=e292]:
+                  - generic [ref=e293]: Send
+                  - generic [ref=e294]: "#FFFFFF"
+                - generic [ref=e297]:
+                  - generic [ref=e298]: Schedule
+                  - generic [ref=e299]: "#FFFFFF"
+                - generic [ref=e302]:
+                  - generic [ref=e303]: Draft
+                  - generic [ref=e304]: "#FFFFFF"
+        - button "Telegram Connected @Vladosik06 Manage" [ref=e313] [cursor=pointer]:
+          - generic [ref=e314]:
+            - strong [ref=e315]: Telegram
+            - generic [ref=e316]: Connected
+            - generic [ref=e318]: "@Vladosik06"
+          - generic [ref=e319]: Manage
+        - generic [ref=e323]:
+          - heading "About" [level=2] [ref=e324]
+          - paragraph [ref=e325]: XMSGi Studio — Create messages, save ideas, schedule posts, and keep everything under control in one convenient workspace.
+          - paragraph [ref=e326]: Version 1.1.0

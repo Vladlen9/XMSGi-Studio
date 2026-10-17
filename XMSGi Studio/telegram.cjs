@@ -570,6 +570,7 @@ let shutdownPromise = null;
 
 const REQUEST_TIMEOUT = 15000;
 const MEDIA_REQUEST_TIMEOUT = 120000;
+const MAX_PREVIEW_ORIGINAL_PHOTO_BYTES = 12 * 1024 * 1024;
 const INVALID_SESSION_MESSAGE = 'Telegram session expired or revoked. Please sign in again.';
 
 function getTelegramRequestTimeout(attachments) {
@@ -1409,7 +1410,7 @@ function toPreviewNumber(value) {
   return Number.isFinite(number) ? number : undefined;
 }
 
-async function getPreviewMedia(message) {
+async function getPreviewMedia(message, includeOriginalPhoto = false) {
   const file = message.file;
   const media = message.photo
     ? { kind: 'photo' }
@@ -1436,7 +1437,9 @@ async function getPreviewMedia(message) {
   if (media.kind === 'photo' || media.kind === 'video') {
     try {
       const useOriginalPhoto = media.kind === 'photo'
-        && (!result.size || result.size <= 8 * 1024 * 1024);
+        && includeOriginalPhoto
+        && result.size !== undefined
+        && result.size <= 8 * 1024 * 1024;
       const downloadedMedia = await message.downloadMedia(
         useOriginalPhoto ? undefined : { thumb: 1 },
       );
@@ -1449,7 +1452,7 @@ async function getPreviewMedia(message) {
         } else {
           result.thumbnailDataUrl = dataUrl;
         }
-      } else if (media.kind === 'photo') {
+      } else if (media.kind === 'photo' && useOriginalPhoto) {
         const thumbnail = await message.downloadMedia({ thumb: 1 });
         if (thumbnail && (Buffer.isBuffer(thumbnail) || thumbnail instanceof Uint8Array)) {
           result.thumbnailDataUrl = `data:image/jpeg;base64,${Buffer.from(thumbnail).toString('base64')}`;
@@ -1508,9 +1511,19 @@ async function getChatHistoryInternal(chatId, limit = 50) {
     console.error('Telegram chat avatar unavailable:', error?.code || error?.name || 'unknown');
   }
 
+  let originalPhotoBytesRemaining = MAX_PREVIEW_ORIGINAL_PHOTO_BYTES;
   const normalizedMessages = (await Promise.all([...(messages || [])]
     .filter((message) => message && message.id !== undefined)
     .map(async (message) => {
+      const photoSize = toPreviewNumber(message.file?.size);
+      const includeOriginalPhoto = Boolean(
+        message.photo
+        && photoSize !== undefined
+        && photoSize > 0
+        && photoSize <= 8 * 1024 * 1024
+        && photoSize <= originalPhotoBytesRemaining,
+      );
+      if (includeOriginalPhoto) originalPhotoBytesRemaining -= photoSize;
       const rawDate = message.date instanceof Date
         ? message.date
         : new Date(Number(message.date || 0) * 1000);
@@ -1537,7 +1550,7 @@ async function getChatHistoryInternal(chatId, limit = 50) {
         }),
         mediaType: message.media?.className || '',
         mediaName: message.file?.name || '',
-        media: await getPreviewMedia(message),
+        media: await getPreviewMedia(message, includeOriginalPhoto),
         replyMarkup: fromTelegramInlineKeyboard(message.replyMarkup),
         groupId: message.groupedId ? String(message.groupedId) : ''
       };

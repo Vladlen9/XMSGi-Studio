@@ -86,7 +86,7 @@ export function ChatSelectionStage({
     if (!query) return true;
 
     return `${chat.name} ${chat.username || ''}`.toLocaleLowerCase(locale === 'ru' ? 'ru-RU' : 'en-US').includes(query);
-  });
+  }).sort((left, right) => Number(favoriteChatIds.includes(right.id)) - Number(favoriteChatIds.includes(left.id)));
   const toggleChat = (chat: Chat) => {
     onChatSelectionChange([chat]);
     onChatSelectionDone(chat);

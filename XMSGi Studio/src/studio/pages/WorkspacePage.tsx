@@ -421,6 +421,7 @@ const MAX_PHOTOS_PER_ALBUM = 10;
 const MAX_ATTACHMENTS = MAX_ALBUMS * MAX_PHOTOS_PER_ALBUM;
 const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
 const MAX_ATTACHMENTS_TOTAL_SIZE = 200 * 1024 * 1024;
+const PREVIEW_HISTORY_LIMIT = 50;
 
 type PreviewLayout = {
   collapsed?: boolean;
@@ -1218,7 +1219,7 @@ export function WorkspacePage({
     setPreviewHistoryError('');
     setPreviewHistoryErrorRetryable(false);
     telegramApi
-      .getChatHistory({ chatId: selectedChat.id, limit: 25 })
+      .getChatHistory({ chatId: selectedChat.id, limit: PREVIEW_HISTORY_LIMIT })
       .then((result) => {
         if (cancelled) return;
 

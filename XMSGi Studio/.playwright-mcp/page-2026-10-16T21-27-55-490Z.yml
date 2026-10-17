@@ -1,0 +1,135 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic "XMSGi" [ref=e5]
+    - button "Planner" [ref=e7] [cursor=pointer]
+    - generic [ref=e9]:
+      - button "Posts" [ref=e10] [cursor=pointer]
+      - button "Settings" [ref=e12] [cursor=pointer]
+      - button "Log out" [ref=e14] [cursor=pointer]
+  - generic [ref=e15]: Studio
+  - main [ref=e20]:
+    - generic "Post workspace" [ref=e22]:
+      - main [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]: Create post
+          - generic [ref=e29]:
+            - generic [ref=e30]:
+              - generic [ref=e31]: Current action
+              - strong [ref=e32]: Send now
+            - generic [ref=e33]:
+              - generic [ref=e34]:
+                - generic "Channel selector"
+                - button "Choose chat" [ref=e36] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=e37]: S
+                  - generic [ref=e38]:
+                    - strong [ref=e39]: Saved Messages
+                    - generic [ref=e40]: Saved Messages
+              - generic [ref=e44]:
+                - generic [ref=e45]:
+                  - textbox "Post content" [ref=e46]
+                  - button "Clear editor text" [ref=e47] [cursor=pointer]
+                - toolbar "Text formatting" [ref=e51]:
+                  - generic [ref=e52]: "4086"
+                  - group "Text formatting" [ref=e53]:
+                    - button "Bold" [ref=e54] [cursor=pointer]
+                    - button "Italic" [ref=e57] [cursor=pointer]
+                    - button "Underline" [ref=e60] [cursor=pointer]
+                    - button "Strikethrough" [ref=e63] [cursor=pointer]
+                    - button "Insert link" [ref=e68] [cursor=pointer]
+                    - button "Open version history" [ref=e74] [cursor=pointer]
+                    - button "Export editor text" [ref=e80] [cursor=pointer]
+                    - button "Add photo album" [ref=e85] [cursor=pointer]
+            - generic [ref=e91]:
+              - button "Add file" [ref=e93] [cursor=pointer]
+              - generic [ref=e94]:
+                - button "Hide preview" [pressed] [ref=e95] [cursor=pointer]
+                - button "Templates" [ref=e96] [cursor=pointer]
+                - button "Draft" [ref=e97] [cursor=pointer]
+              - generic [ref=e98]:
+                - button "Send now" [ref=e99] [cursor=pointer]
+                - button "More publish options" [ref=e101] [cursor=pointer]
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - generic [ref=e112]: Live preview
+            - button "Choose File" [ref=e113]
+          - generic [ref=e117]:
+            - article [ref=e118]:
+              - generic [ref=e119]: куку
+              - time [ref=e121]: 17:55
+            - article [ref=e122]:
+              - generic [ref=e123]: ку
+              - time [ref=e125]: 18:40
+            - article [ref=e126]:
+              - generic [ref=e127]: ацууцацу
+              - time [ref=e129]: 21:01
+            - article [ref=e130]:
+              - generic [ref=e131]: укук
+              - time [ref=e133]: 21:01
+            - article [ref=e134]:
+              - generic [ref=e135]: efefe
+              - time [ref=e137]: 21:24
+            - article [ref=e138]:
+              - generic [ref=e139]: ку
+              - time [ref=e141]: 21:54
+            - article [ref=e142]:
+              - generic [ref=e143]: ооо
+              - time [ref=e145]: 22:04
+            - article [ref=e146]:
+              - generic [ref=e147]: ewrer
+              - time [ref=e149]: 22:53
+            - article [ref=e150]:
+              - generic [ref=e151]: rere
+              - time [ref=e153]: 22:53
+            - article [ref=e154]:
+              - generic [ref=e155]: rererere
+              - time [ref=e157]: 22:54
+            - article [ref=e158]:
+              - generic [ref=e159]: rererere
+              - time [ref=e161]: 22:55
+            - article [ref=e162]:
+              - generic [ref=e163]: rerere
+              - time [ref=e165]: 22:55
+            - article [ref=e166]:
+              - generic [ref=e167]: кукуук
+              - time [ref=e169]: 22:59
+            - article [ref=e170]:
+              - generic [ref=e171]: кукукуук
+              - time [ref=e173]: 18:51
+            - article [ref=e174]:
+              - generic [ref=e175]: кукукукуку
+              - time [ref=e177]: 20:09
+            - article [ref=e178]:
+              - generic [ref=e179]: уауауа
+              - time [ref=e181]: 02:17
+            - article [ref=e182]:
+              - generic [ref=e183]: уаауау
+              - time [ref=e185]: 02:17
+            - article [ref=e186]:
+              - generic [ref=e187]: я тут а ты где?
+              - time [ref=e189]: 03:51
+            - article [ref=e190]:
+              - generic [ref=e191]: укуккккккккккккккккккккккккккккккккк
+              - time [ref=e193]: 03:52
+            - article [ref=e194]:
+              - generic [ref=e195]: кукууууууууууууууууууууууууууууууууууууу
+              - time [ref=e197]: 03:53
+            - article [ref=e198]:
+              - generic [ref=e199]: ацуацуацуацу
+              - time [ref=e201]: 00:54
+            - article [ref=e202]:
+              - generic [ref=e203]: ацуацуацуацацуац
+              - time [ref=e205]: 00:54
+            - article [ref=e206]:
+              - generic [ref=e207]: ацуацуацуацуац
+              - time [ref=e209]: 00:54
+            - article [ref=e210]:
+              - generic [ref=e211]: ацуацуацуацуа
+              - time [ref=e213]: 00:54
+            - article [ref=e214]:
+              - generic [ref=e215]: уцаацуа
+              - time [ref=e217]: 23:17
+            - article [ref=e218]:
+              - generic [ref=e219]: Проверкаца
+              - generic [ref=e220]:
+                - time [ref=e221]: 00:27
+                - generic "Sent" [ref=e222]: ✓✓

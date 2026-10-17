@@ -4,6 +4,8 @@
   --quick-planner-surface: rgba(11, 18, 23, 0.9);
   --quick-planner-border: rgba(146, 168, 182, 0.17);
   --quick-planner-muted: #a6b5bf;
+  container-name: quick-planner;
+  container-type: inline-size;
 }
 
 html.electron-runtime .quick-planner-page {
@@ -1624,6 +1626,91 @@ html.electron-runtime .quick-planner-page {
     gap: 3px;
     font-size: 13px;
     white-space: nowrap;
+  }
+}
+
+@container quick-planner (min-width: 851px) and (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    grid-template-rows: 34px;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    min-height: 34px;
+    height: 34px;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+@container quick-planner (max-width: 850px) {
+  html.electron-runtime .quick-planner-layout {
+    grid-template-areas: "editor";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html.electron-runtime .quick-planner-upcoming-column,
+  html.electron-runtime .quick-planner-sidebar {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-editor {
+    justify-self: center;
+    width: min(100%, 920px);
+    max-width: 100%;
+    height: 449px;
+    margin: 0;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    display: flex;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  html.electron-runtime .quick-planner-editor-heading > .quick-planner-section-label {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    grid-row: auto;
+    grid-column: auto;
+    flex: 0 0 auto;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    line-height: normal;
+    text-align: left;
+    transform: translateY(-13px);
+    white-space: normal;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    grid-row: auto;
+    min-width: 0;
+    min-height: 34px;
+    height: auto;
+    align-items: flex-end;
+    gap: 5px;
+    padding: 8px 2px 2px;
+    font-size: 22px;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: 13px;
+    height: 13px;
   }
 }
 
@@ -3374,5 +3461,73 @@ html.electron-runtime .quick-planner-page {
     left: auto;
     width: 100%;
     margin-top: 0;
+  }
+}
+
+@container quick-planner (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    grid-template-rows: 36px;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    transform: none;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    min-height: 36px;
+    height: 36px;
+    gap: 5px;
+    padding: 4px 2px;
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  html.electron-runtime .quick-planner-editor-heading > .quick-planner-section-label {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
+    max-width: 100%;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+    flex: 1 1 300px;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 0;
+    overflow: visible;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group + .quick-planner-schedule-quick-group {
+    margin-left: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values button {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
+
+@container quick-planner (max-width: 850px) {
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    min-height: 34px;
+    height: auto;
+    padding: 8px 2px 2px;
+    font-size: 22px;
   }
 }

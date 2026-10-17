@@ -1,0 +1,199 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic "XMSGi" [ref=e5]
+    - button "Planner" [ref=e7] [cursor=pointer]
+    - generic [ref=e9]:
+      - button "Posts" [ref=e10] [cursor=pointer]
+      - button "Settings" [ref=e12] [cursor=pointer]
+      - button "Log out" [ref=e14] [cursor=pointer]
+  - main [ref=e20]:
+    - generic "Post workspace" [ref=e229]:
+      - main [ref=e231]:
+        - generic [ref=e232]:
+          - generic [ref=e233]: Create post
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - generic [ref=e238]: Current action
+              - strong [ref=e239]: Send now
+            - generic [ref=e240]:
+              - generic [ref=e241]:
+                - generic "Channel selector"
+                - button "Choose chat" [expanded] [active] [ref=e243] [cursor=pointer]:
+                  - generic [ref=e245]:
+                    - strong [ref=e246]: Saved Messages
+                    - generic [ref=e247]: Saved Messages
+              - generic [ref=e446]:
+                - generic:
+                  - button: ← Back
+                  - generic:
+                    - button: Done
+                - generic [ref=e447]:
+                  - generic [ref=e448]:
+                    - strong [ref=e449]: Channel
+                    - generic [ref=e450]: Selected chat or channel
+                  - listbox "Choose a Telegram chat" [ref=e452]:
+                    - option "Saved Messages Saved Messages Remove Saved Messages from favorites Remove Saved Messages from saved chats" [selected] [ref=e453] [cursor=pointer]:
+                      - generic [ref=e455]:
+                        - strong [ref=e456]: Saved Messages
+                        - generic [ref=e457]: Saved Messages
+                      - generic [aria-hidden] [ref=e458]: ✓
+                      - button "Remove Saved Messages from favorites" [pressed] [ref=e459]
+                      - button "Remove Saved Messages from saved chats" [ref=e462]: ×
+                    - option "Telegram Private chat Remove Telegram from favorites Remove Telegram from saved chats" [ref=e463] [cursor=pointer]:
+                      - generic [ref=e465]:
+                        - strong [ref=e466]: Telegram
+                        - generic [ref=e467]: Private chat
+                      - button "Remove Telegram from favorites" [pressed] [ref=e468]
+                      - button "Remove Telegram from saved chats" [ref=e471]: ×
+                    - option "Лекція Наталії Холоденко Channel Remove Лекція Наталії Холоденко from favorites Remove Лекція Наталії Холоденко from saved chats" [ref=e472] [cursor=pointer]:
+                      - generic [ref=e474]:
+                        - strong [ref=e475]: Лекція Наталії Холоденко
+                        - generic [ref=e476]: Channel
+                      - button "Remove Лекція Наталії Холоденко from favorites" [pressed] [ref=e477]
+                      - button "Remove Лекція Наталії Холоденко from saved chats" [ref=e480]: ×
+                    - option "Наталія Холоденко Помічник Private chat · @kholodenkonataliabot Remove Наталія Холоденко Помічник from favorites Remove Наталія Холоденко Помічник from saved chats" [ref=e481] [cursor=pointer]:
+                      - generic [ref=e483]:
+                        - strong [ref=e484]: Наталія Холоденко Помічник
+                        - generic [ref=e485]: Private chat · @kholodenkonataliabot
+                      - button "Remove Наталія Холоденко Помічник from favorites" [pressed] [ref=e486]
+                      - button "Remove Наталія Холоденко Помічник from saved chats" [ref=e489]: ×
+                    - option "Nat Nat Private chat · @Nataliia_Holm Add Nat Nat to favorites Remove Nat Nat from saved chats" [ref=e490] [cursor=pointer]:
+                      - generic [ref=e492]:
+                        - strong [ref=e493]: Nat Nat
+                        - generic [ref=e494]: Private chat · @Nataliia_Holm
+                      - button "Add Nat Nat to favorites" [ref=e495]
+                      - button "Remove Nat Nat from saved chats" [ref=e498]: ×
+                    - option "Vlad Private chat · @NewsWithoutNoise24Bot Add Vlad to favorites Remove Vlad from saved chats" [ref=e499] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=e500]: V
+                      - generic [ref=e501]:
+                        - strong [ref=e502]: Vlad
+                        - generic [ref=e503]: Private chat · @NewsWithoutNoise24Bot
+                      - button "Add Vlad to favorites" [ref=e504]
+                      - button "Remove Vlad from saved chats" [ref=e507]: ×
+                    - option "Inbox Support Private chat · @inbox_SupportBot Add Inbox Support to favorites Remove Inbox Support from saved chats" [ref=e508] [cursor=pointer]:
+                      - generic [ref=e510]:
+                        - strong [ref=e511]: Inbox Support
+                        - generic [ref=e512]: Private chat · @inbox_SupportBot
+                      - button "Add Inbox Support to favorites" [ref=e513]
+                      - button "Remove Inbox Support from saved chats" [ref=e516]: ×
+                    - option "inbox.lv support Private chat · @inbox_lv_SupportBot Add inbox.lv support to favorites Remove inbox.lv support from saved chats" [ref=e517] [cursor=pointer]:
+                      - generic [ref=e519]:
+                        - strong [ref=e520]: inbox.lv support
+                        - generic [ref=e521]: Private chat · @inbox_lv_SupportBot
+                      - button "Add inbox.lv support to favorites" [ref=e522]
+                      - button "Remove inbox.lv support from saved chats" [ref=e525]: ×
+                    - option "Наталія Private chat · @Natalitato4ka Add Наталія to favorites Remove Наталія from saved chats" [ref=e526] [cursor=pointer]:
+                      - generic [ref=e528]:
+                        - strong [ref=e529]: Наталія
+                        - generic [ref=e530]: Private chat · @Natalitato4ka
+                      - button "Add Наталія to favorites" [ref=e531]
+                      - button "Remove Наталія from saved chats" [ref=e534]: ×
+                    - option "Time Capsule Private chat · @TimeCapsule_VeynBot Add Time Capsule to favorites Remove Time Capsule from saved chats" [ref=e535] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=e536]: T
+                      - generic [ref=e537]:
+                        - strong [ref=e538]: Time Capsule
+                        - generic [ref=e539]: Private chat · @TimeCapsule_VeynBot
+                      - button "Add Time Capsule to favorites" [ref=e540]
+                      - button "Remove Time Capsule from saved chats" [ref=e543]: ×
+                    - option "BotFather Private chat · @BotFather Add BotFather to favorites Remove BotFather from saved chats" [ref=e544] [cursor=pointer]:
+                      - generic [ref=e546]:
+                        - strong [ref=e547]: BotFather
+                        - generic [ref=e548]: Private chat · @BotFather
+                      - button "Add BotFather to favorites" [ref=e549]
+                      - button "Remove BotFather from saved chats" [ref=e552]: ×
+                  - generic [ref=e553]:
+                    - generic [ref=e554]:
+                      - button "← Back" [ref=e555] [cursor=pointer]
+                      - button "Add another chat" [ref=e556] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e557]: +
+                        - text: Add another chat
+                      - button "Find a chat" [ref=e558] [cursor=pointer]
+                    - generic [ref=e562]:
+                      - button "Favorites" [ref=e563] [cursor=pointer]
+                      - button "Done" [ref=e566] [cursor=pointer]
+            - generic [ref=e294]:
+              - button "Add file" [ref=e296] [cursor=pointer]
+              - generic [ref=e297]:
+                - button "Hide preview" [pressed] [ref=e298] [cursor=pointer]
+                - button "Templates" [ref=e299] [cursor=pointer]
+                - button "Draft" [ref=e300] [cursor=pointer]
+              - generic [ref=e301]:
+                - button "Send now" [ref=e302] [cursor=pointer]
+                - button "More publish options" [ref=e304] [cursor=pointer]
+        - generic [ref=e313]:
+          - generic [ref=e314]:
+            - generic [ref=e315]: Live preview
+            - button "Choose File" [ref=e316]
+          - generic [ref=e317]:
+            - generic [ref=e318]:
+              - generic [ref=e320]: 9:41
+              - generic [ref=e329]:
+                - button "Back to chats" [ref=e330] [cursor=pointer]
+                - generic [ref=e334]:
+                  - strong [ref=e335]: Vlad Vlad
+                  - generic [ref=e336]: "@Vladosik06"
+                - button "Preview settings" [ref=e338] [cursor=pointer]
+              - generic [ref=e341]:
+                - button "Open chat list" [ref=e342] [cursor=pointer]: Today
+                - article [ref=e343]:
+                  - generic [ref=e344]:
+                    - button "View photo full size" [ref=e346]:
+                      - img "Telegram media" [ref=e347]
+                    - button "View photo full size" [ref=e349]:
+                      - img "Telegram media" [ref=e350]
+                    - button "View photo full size" [ref=e352]:
+                      - img "Telegram media" [ref=e353]
+                    - button "View photo full size" [ref=e355]:
+                      - img "Telegram media" [ref=e356]
+                    - button "View photo full size" [ref=e358]:
+                      - img "Telegram media" [ref=e359]
+                  - time [ref=e361]: 02:13
+                - article [ref=e362]:
+                  - generic [ref=e363]:
+                    - button "View photo full size" [ref=e365]:
+                      - img "Telegram media" [ref=e366]
+                    - button "View photo full size" [ref=e368]:
+                      - img "Telegram media" [ref=e369]
+                    - button "View photo full size" [ref=e371]:
+                      - img "Telegram media" [ref=e372]
+                    - button "View photo full size" [ref=e374]:
+                      - img "Telegram media" [ref=e375]
+                    - button "View photo full size" [ref=e377]:
+                      - img "Telegram media" [ref=e378]
+                    - button "View photo full size" [ref=e380]:
+                      - img "Telegram media" [ref=e381]
+                    - button "View photo full size" [ref=e383]:
+                      - img "Telegram media" [ref=e384]
+                    - button "View photo full size" [ref=e386]:
+                      - img "Telegram media" [ref=e387]
+                    - button "View photo full size" [ref=e389]:
+                      - img "Telegram media" [ref=e390]
+                    - button "View photo full size" [ref=e392]:
+                      - img "Telegram media" [ref=e393]
+                  - time [ref=e395]: 02:20
+                - article [ref=e396]:
+                  - generic [ref=e397]:
+                    - button "View photo full size" [ref=e399]:
+                      - img "Telegram media" [ref=e400]
+                    - button "View photo full size" [ref=e402]:
+                      - img "Telegram media" [ref=e403]
+                    - button "View photo full size" [ref=e405]:
+                      - img "Telegram media" [ref=e406]
+                    - button "View photo full size" [ref=e408]:
+                      - img "Telegram media" [ref=e409]
+                    - button "View photo full size" [ref=e411]:
+                      - img "Telegram media" [ref=e412]
+                    - button "View photo full size" [ref=e414]:
+                      - img "Telegram media" [ref=e415]
+                    - button "View photo full size" [ref=e417]:
+                      - img "Telegram media" [ref=e418]
+                    - button "View photo full size" [ref=e420]:
+                      - img "Telegram media" [ref=e421]
+                    - button "View photo full size" [ref=e423]:
+                      - img "Telegram media" [ref=e424]
+                    - button "View photo full size" [ref=e426]:
+                      - img "Telegram media" [ref=e427]
+                  - time [ref=e429]: 02:20
+                - generic [ref=e430]: Your message will appear here as you write.
+              - generic [ref=e435]: Message
+            - scrollbar "Live chat preview scroll" [ref=e444] [cursor=pointer]

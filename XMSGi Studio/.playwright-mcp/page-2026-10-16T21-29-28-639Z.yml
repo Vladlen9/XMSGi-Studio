@@ -1,0 +1,147 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - generic "XMSGi" [ref=f2e5]
+    - button "Planner" [ref=f2e7] [cursor=pointer]
+    - generic [ref=f2e9]:
+      - button "Posts" [ref=f2e10] [cursor=pointer]
+      - button "Settings" [ref=f2e12] [cursor=pointer]
+      - button "Log out" [ref=f2e14] [cursor=pointer]
+  - generic [ref=f2e15]: Studio
+  - main [ref=f2e20]:
+    - generic "Post workspace" [ref=f2e22]:
+      - main [ref=f2e24]:
+        - generic [ref=f2e25]:
+          - generic [ref=f2e26]: Create post
+          - generic [ref=f2e29]:
+            - generic [ref=f2e30]:
+              - generic [ref=f2e31]: Current action
+              - strong [ref=f2e32]: Send now
+            - generic [ref=f2e33]:
+              - generic [ref=f2e34]:
+                - generic "Channel selector"
+                - button "Choose chat" [ref=f2e36] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f2e37]: S
+                  - generic [ref=f2e38]:
+                    - strong [ref=f2e39]: Saved Messages
+                    - generic [ref=f2e40]: Saved Messages
+              - generic [ref=f2e44]:
+                - generic [ref=f2e45]:
+                  - textbox "Post content" [ref=f2e46]
+                  - button "Clear editor text" [ref=f2e47] [cursor=pointer]
+                - toolbar "Text formatting" [ref=f2e51]:
+                  - generic [ref=f2e52]: "4086"
+                  - group "Text formatting" [ref=f2e53]:
+                    - button "Bold" [ref=f2e54] [cursor=pointer]
+                    - button "Italic" [ref=f2e57] [cursor=pointer]
+                    - button "Underline" [ref=f2e60] [cursor=pointer]
+                    - button "Strikethrough" [ref=f2e63] [cursor=pointer]
+                    - button "Insert link" [ref=f2e68] [cursor=pointer]
+                    - button "Open version history" [ref=f2e74] [cursor=pointer]
+                    - button "Export editor text" [ref=f2e80] [cursor=pointer]
+                    - button "Add photo album" [ref=f2e85] [cursor=pointer]
+            - generic [ref=f2e91]:
+              - button "Add file" [ref=f2e93] [cursor=pointer]
+              - generic [ref=f2e94]:
+                - button "Hide preview" [pressed] [ref=f2e95] [cursor=pointer]
+                - button "Templates" [ref=f2e96] [cursor=pointer]
+                - button "Draft" [ref=f2e97] [cursor=pointer]
+              - generic [ref=f2e98]:
+                - button "Send now" [ref=f2e99] [cursor=pointer]
+                - button "More publish options" [ref=f2e101] [cursor=pointer]
+        - generic [ref=f2e110]:
+          - generic [ref=f2e111]:
+            - generic [ref=f2e112]: Live preview
+            - button "Choose File" [ref=f2e113]
+          - generic [ref=f2e114]:
+            - generic [ref=f2e115]:
+              - generic [ref=f2e117]: 9:41
+              - generic [ref=f2e126]:
+                - button "Back to chats" [ref=f2e127] [cursor=pointer]
+                - generic [ref=f2e131]:
+                  - strong [ref=f2e132]: Vlad Vlad
+                  - generic [ref=f2e133]: "@Vladosik06"
+                - button "Preview settings" [ref=f2e135] [cursor=pointer]
+              - generic [ref=f2e138]:
+                - button "Open chat list" [ref=f2e139] [cursor=pointer]: Today
+                - article [ref=f2e140]:
+                  - generic [ref=f2e141]: куку
+                  - time [ref=f2e143]: 17:55
+                - article [ref=f2e144]:
+                  - generic [ref=f2e145]: ку
+                  - time [ref=f2e147]: 18:40
+                - article [ref=f2e148]:
+                  - generic [ref=f2e149]: ацууцацу
+                  - time [ref=f2e151]: 21:01
+                - article [ref=f2e152]:
+                  - generic [ref=f2e153]: укук
+                  - time [ref=f2e155]: 21:01
+                - article [ref=f2e156]:
+                  - generic [ref=f2e157]: efefe
+                  - time [ref=f2e159]: 21:24
+                - article [ref=f2e160]:
+                  - generic [ref=f2e161]: ку
+                  - time [ref=f2e163]: 21:54
+                - article [ref=f2e164]:
+                  - generic [ref=f2e165]: ооо
+                  - time [ref=f2e167]: 22:04
+                - article [ref=f2e168]:
+                  - generic [ref=f2e169]: ewrer
+                  - time [ref=f2e171]: 22:53
+                - article [ref=f2e172]:
+                  - generic [ref=f2e173]: rere
+                  - time [ref=f2e175]: 22:53
+                - article [ref=f2e176]:
+                  - generic [ref=f2e177]: rererere
+                  - time [ref=f2e179]: 22:54
+                - article [ref=f2e180]:
+                  - generic [ref=f2e181]: rererere
+                  - time [ref=f2e183]: 22:55
+                - article [ref=f2e184]:
+                  - generic [ref=f2e185]: rerere
+                  - time [ref=f2e187]: 22:55
+                - article [ref=f2e188]:
+                  - generic [ref=f2e189]: кукуук
+                  - time [ref=f2e191]: 22:59
+                - article [ref=f2e192]:
+                  - generic [ref=f2e193]: кукукуук
+                  - time [ref=f2e195]: 18:51
+                - article [ref=f2e196]:
+                  - generic [ref=f2e197]: кукукукуку
+                  - time [ref=f2e199]: 20:09
+                - article [ref=f2e200]:
+                  - generic [ref=f2e201]: уауауа
+                  - time [ref=f2e203]: 02:17
+                - article [ref=f2e204]:
+                  - generic [ref=f2e205]: уаауау
+                  - time [ref=f2e207]: 02:17
+                - article [ref=f2e208]:
+                  - generic [ref=f2e209]: я тут а ты где?
+                  - time [ref=f2e211]: 03:51
+                - article [ref=f2e212]:
+                  - generic [ref=f2e213]: укуккккккккккккккккккккккккккккккккк
+                  - time [ref=f2e215]: 03:52
+                - article [ref=f2e216]:
+                  - generic [ref=f2e217]: кукууууууууууууууууууууууууууууууууууууу
+                  - time [ref=f2e219]: 03:53
+                - article [ref=f2e220]:
+                  - generic [ref=f2e221]: ацуацуацуацу
+                  - time [ref=f2e223]: 00:54
+                - article [ref=f2e224]:
+                  - generic [ref=f2e225]: ацуацуацуацацуац
+                  - time [ref=f2e227]: 00:54
+                - article [ref=f2e228]:
+                  - generic [ref=f2e229]: ацуацуацуацуац
+                  - time [ref=f2e231]: 00:54
+                - article [ref=f2e232]:
+                  - generic [ref=f2e233]: ацуацуацуацуа
+                  - time [ref=f2e235]: 00:54
+                - article [ref=f2e236]:
+                  - generic [ref=f2e237]: уцаацуа
+                  - time [ref=f2e239]: 23:17
+                - article [ref=f2e240]:
+                  - generic [ref=f2e241]: Проверкаца
+                  - generic [ref=f2e242]:
+                    - time [ref=f2e243]: 00:29
+                    - generic "Sent" [ref=f2e244]: ✓✓
+              - generic [ref=f2e249]: Message
+            - scrollbar "Live chat preview scroll" [ref=f2e258] [cursor=pointer]

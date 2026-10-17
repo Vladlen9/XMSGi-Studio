@@ -925,7 +925,7 @@ describe('WorkspaceTextStage editor flows', () => {
   });
 
   it('marks chats as favorites and filters the chat list', () => {
-    const { unmount } = renderStage({ mode: 'chat', selectedChats: [] });
+    const { unmount } = renderStage({ mode: 'chat', chats: [chatB, chatA], selectedChats: [] });
     const favoriteButton = document.querySelector('[aria-label="Add Alpha Team to favorites"]') as HTMLButtonElement;
     const favoritesFilter = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Favorites')) as HTMLButtonElement;
 
@@ -938,6 +938,7 @@ describe('WorkspaceTextStage editor flows', () => {
 
     expect(favoriteButton.getAttribute('aria-pressed')).toBe('true');
     expect(window.localStorage.getItem('awaitmsg_favorite_chats')).toBe('["chat-1"]');
+    expect(Array.from(document.querySelectorAll('.workspace-page-chat-stage-copy strong')).map((chat) => chat.textContent)).toEqual(['Alpha Team', 'Beta Channel']);
 
     act(() => {
       favoritesFilter.click();

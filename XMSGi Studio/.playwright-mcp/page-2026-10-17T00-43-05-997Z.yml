@@ -1,0 +1,123 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic "XMSGi" [ref=f1e5]
+    - button "Planner" [ref=f1e7] [cursor=pointer]
+    - generic [ref=f1e9]:
+      - button "Posts" [ref=f1e10] [cursor=pointer]
+      - button "Settings" [ref=f1e12] [cursor=pointer]
+      - button "Log out" [ref=f1e14] [cursor=pointer]
+  - generic [ref=f1e15]: Studio
+  - main [ref=f1e20]:
+    - generic "Post workspace" [ref=f1e22]:
+      - main [ref=f1e24]:
+        - generic [ref=f1e25]:
+          - generic [ref=f1e26]: Create post
+          - generic [ref=f1e29]:
+            - generic [ref=f1e30]:
+              - generic [ref=f1e31]: Current action
+              - strong [ref=f1e32]: Send now
+            - generic [ref=f1e33]:
+              - generic [ref=f1e34]:
+                - generic "Channel selector"
+                - button "Choose chat" [expanded] [active] [ref=f1e36] [cursor=pointer]:
+                  - generic [ref=f1e38]:
+                    - strong [ref=f1e39]: Saved Messages
+                    - generic [ref=f1e40]: Saved Messages
+              - generic [ref=f1e105]:
+                - generic:
+                  - button: ← Back
+                  - generic:
+                    - button: Done
+                - generic [ref=f1e106]:
+                  - generic [ref=f1e107]:
+                    - strong [ref=f1e108]: Channel
+                    - generic [ref=f1e109]: Selected chat or channel
+                  - listbox "Choose a Telegram chat" [ref=f1e111]:
+                    - option "Saved Messages Saved Messages Remove Saved Messages from favorites Remove Saved Messages from saved chats" [selected] [ref=f1e112] [cursor=pointer]:
+                      - generic [ref=f1e114]:
+                        - strong [ref=f1e115]: Saved Messages
+                        - generic [ref=f1e116]: Saved Messages
+                      - generic [aria-hidden] [ref=f1e117]: ✓
+                      - button "Remove Saved Messages from favorites" [pressed] [ref=f1e118]
+                      - button "Remove Saved Messages from saved chats" [ref=f1e121]: ×
+                    - option "Telegram Private chat Remove Telegram from favorites Remove Telegram from saved chats" [ref=f1e122] [cursor=pointer]:
+                      - generic [ref=f1e124]:
+                        - strong [ref=f1e125]: Telegram
+                        - generic [ref=f1e126]: Private chat
+                      - button "Remove Telegram from favorites" [pressed] [ref=f1e127]
+                      - button "Remove Telegram from saved chats" [ref=f1e130]: ×
+                    - option "Лекція Наталії Холоденко Channel Remove Лекція Наталії Холоденко from favorites Remove Лекція Наталії Холоденко from saved chats" [ref=f1e131] [cursor=pointer]:
+                      - generic [ref=f1e133]:
+                        - strong [ref=f1e134]: Лекція Наталії Холоденко
+                        - generic [ref=f1e135]: Channel
+                      - button "Remove Лекція Наталії Холоденко from favorites" [pressed] [ref=f1e136]
+                      - button "Remove Лекція Наталії Холоденко from saved chats" [ref=f1e139]: ×
+                    - option "Наталія Холоденко Помічник Private chat · @kholodenkonataliabot Remove Наталія Холоденко Помічник from favorites Remove Наталія Холоденко Помічник from saved chats" [ref=f1e140] [cursor=pointer]:
+                      - generic [ref=f1e142]:
+                        - strong [ref=f1e143]: Наталія Холоденко Помічник
+                        - generic [ref=f1e144]: Private chat · @kholodenkonataliabot
+                      - button "Remove Наталія Холоденко Помічник from favorites" [pressed] [ref=f1e145]
+                      - button "Remove Наталія Холоденко Помічник from saved chats" [ref=f1e148]: ×
+                    - option "Nat Nat Private chat · @Nataliia_Holm Add Nat Nat to favorites Remove Nat Nat from saved chats" [ref=f1e149] [cursor=pointer]:
+                      - generic [ref=f1e151]:
+                        - strong [ref=f1e152]: Nat Nat
+                        - generic [ref=f1e153]: Private chat · @Nataliia_Holm
+                      - button "Add Nat Nat to favorites" [ref=f1e154]
+                      - button "Remove Nat Nat from saved chats" [ref=f1e157]: ×
+                    - option "Vlad Private chat · @NewsWithoutNoise24Bot Add Vlad to favorites Remove Vlad from saved chats" [ref=f1e158] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=f1e159]: V
+                      - generic [ref=f1e160]:
+                        - strong [ref=f1e161]: Vlad
+                        - generic [ref=f1e162]: Private chat · @NewsWithoutNoise24Bot
+                      - button "Add Vlad to favorites" [ref=f1e163]
+                      - button "Remove Vlad from saved chats" [ref=f1e166]: ×
+                    - option "Inbox Support Private chat · @inbox_SupportBot Add Inbox Support to favorites Remove Inbox Support from saved chats" [ref=f1e167] [cursor=pointer]:
+                      - generic [ref=f1e169]:
+                        - strong [ref=f1e170]: Inbox Support
+                        - generic [ref=f1e171]: Private chat · @inbox_SupportBot
+                      - button "Add Inbox Support to favorites" [ref=f1e172]
+                      - button "Remove Inbox Support from saved chats" [ref=f1e175]: ×
+                    - option "inbox.lv support Private chat · @inbox_lv_SupportBot Add inbox.lv support to favorites Remove inbox.lv support from saved chats" [ref=f1e176] [cursor=pointer]:
+                      - generic [ref=f1e178]:
+                        - strong [ref=f1e179]: inbox.lv support
+                        - generic [ref=f1e180]: Private chat · @inbox_lv_SupportBot
+                      - button "Add inbox.lv support to favorites" [ref=f1e181]
+                      - button "Remove inbox.lv support from saved chats" [ref=f1e184]: ×
+                    - option "Наталія Private chat · @Natalitato4ka Add Наталія to favorites Remove Наталія from saved chats" [ref=f1e185] [cursor=pointer]:
+                      - generic [ref=f1e187]:
+                        - strong [ref=f1e188]: Наталія
+                        - generic [ref=f1e189]: Private chat · @Natalitato4ka
+                      - button "Add Наталія to favorites" [ref=f1e190]
+                      - button "Remove Наталія from saved chats" [ref=f1e193]: ×
+                    - option "Time Capsule Private chat · @TimeCapsule_VeynBot Add Time Capsule to favorites Remove Time Capsule from saved chats" [ref=f1e194] [cursor=pointer]:
+                      - generic [aria-hidden] [ref=f1e195]: T
+                      - generic [ref=f1e196]:
+                        - strong [ref=f1e197]: Time Capsule
+                        - generic [ref=f1e198]: Private chat · @TimeCapsule_VeynBot
+                      - button "Add Time Capsule to favorites" [ref=f1e199]
+                      - button "Remove Time Capsule from saved chats" [ref=f1e202]: ×
+                    - option "BotFather Private chat · @BotFather Add BotFather to favorites Remove BotFather from saved chats" [ref=f1e203] [cursor=pointer]:
+                      - generic [ref=f1e205]:
+                        - strong [ref=f1e206]: BotFather
+                        - generic [ref=f1e207]: Private chat · @BotFather
+                      - button "Add BotFather to favorites" [ref=f1e208]
+                      - button "Remove BotFather from saved chats" [ref=f1e211]: ×
+                  - generic [ref=f1e212]:
+                    - generic [ref=f1e213]:
+                      - button "← Back" [ref=f1e214] [cursor=pointer]
+                      - button "Add another chat" [ref=f1e215] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=f1e216]: +
+                        - text: Add another chat
+                      - button "Find a chat" [ref=f1e217] [cursor=pointer]
+                    - generic [ref=f1e221]:
+                      - button "Favorites" [ref=f1e222] [cursor=pointer]
+                      - button "Done" [ref=f1e225] [cursor=pointer]
+            - generic [ref=f1e87]:
+              - button "Add file" [ref=f1e89] [cursor=pointer]
+              - generic [ref=f1e90]:
+                - button "Show preview" [ref=f1e91] [cursor=pointer]
+                - button "Templates" [ref=f1e92] [cursor=pointer]
+                - button "Draft" [ref=f1e93] [cursor=pointer]
+              - generic [ref=f1e94]:
+                - button "Send now" [ref=f1e95] [cursor=pointer]
+                - button "More publish options" [ref=f1e97] [cursor=pointer]

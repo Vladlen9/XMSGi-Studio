@@ -1914,6 +1914,11 @@ html.electron-runtime {
   overflow: hidden;
 }
 
+html.electron-runtime:has(.product-shell.planner-shell .quick-planner-page) {
+  --electron-ui-scale: 1;
+  zoom: 1;
+}
+
 html.electron-runtime body {
   width: 100%;
   height: 100%;
@@ -1946,6 +1951,19 @@ html.electron-runtime .product-shell:has(.settings-view) > .product-shell-conten
 }
 
 html.electron-runtime .product-shell:has(.settings-view) > .product-shell-content > .product-view.is-active {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.electron-runtime .product-shell.planner-shell:has(.quick-planner-page) > .product-shell-content {
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.electron-runtime .product-shell.planner-shell:has(.quick-planner-page) > .product-shell-content > .product-view.is-active {
   flex: 1 1 auto;
   height: 100%;
   min-height: 0;

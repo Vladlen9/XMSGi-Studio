@@ -1,0 +1,229 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic "XMSGi" [ref=f1e5]
+    - button "Planner" [ref=f1e7] [cursor=pointer]
+    - generic [ref=f1e9]:
+      - button "Posts" [ref=f1e10] [cursor=pointer]
+      - button "Settings" [ref=f1e12] [cursor=pointer]
+      - button "Log out" [ref=f1e14] [cursor=pointer]
+  - generic [ref=f1e15]: Studio
+  - main [ref=f1e20]:
+    - generic "Post workspace" [ref=f1e22]:
+      - main [ref=f1e24]:
+        - generic [ref=f1e25]:
+          - generic [ref=f1e26]: Create post
+          - generic [ref=f1e29]:
+            - generic [ref=f1e30]:
+              - generic [ref=f1e31]: Current action
+              - strong [ref=f1e32]: "Scheduled: Oct 17 · 01:30"
+            - generic [ref=f1e33]:
+              - generic [ref=f1e34]:
+                - generic "Channel selector"
+                - button "Choose chat" [ref=f1e36] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f1e37]: S
+                  - generic [ref=f1e38]:
+                    - strong [ref=f1e39]: Saved Messages
+                    - generic [ref=f1e40]: Saved Messages
+              - generic [ref=f1e47]:
+                - generic [ref=f1e48]:
+                  - generic [ref=f1e49]:
+                    - strong [ref=f1e50]: Schedule
+                    - generic [ref=f1e51]: Oct 17, 2026 · 01:30 AM
+                  - generic [ref=f1e52]: Finland · UTC+03:00
+                - generic "Time schedule tools" [ref=f1e53]:
+                  - generic [ref=f1e54]:
+                    - generic [ref=f1e55]:
+                      - button "Open date picker" [ref=f1e56] [cursor=pointer]
+                      - generic [ref=f1e59]:
+                        - textbox "Day" [ref=f1e60]: "17"
+                        - generic [ref=f1e61]: /
+                        - textbox "Month" [ref=f1e62]: "10"
+                        - generic [ref=f1e63]: /
+                        - textbox "Year" [ref=f1e64]: "2026"
+                    - generic [ref=f1e65]:
+                      - button "Open time picker" [ref=f1e66] [cursor=pointer]
+                      - generic [ref=f1e70]:
+                        - textbox "Hours" [ref=f1e71]: "01"
+                        - generic [ref=f1e72]: ":"
+                        - textbox "Minutes" [ref=f1e73]: "30"
+                  - generic [ref=f1e74]:
+                    - generic [ref=f1e75]: Quick date
+                    - generic [ref=f1e76]:
+                      - 'button "Set date: Today" [ref=f1e77] [cursor=pointer]': Today
+                      - 'button "Set date: In 1 day" [ref=f1e78] [cursor=pointer]': In 1 day
+                      - 'button "Set date: In 1 week" [ref=f1e79] [cursor=pointer]': In 1 week
+                      - 'button "Set date: In 1 month" [ref=f1e80] [cursor=pointer]': In 1 month
+                  - generic [ref=f1e81]:
+                    - generic [ref=f1e82]: Quick time
+                    - generic [ref=f1e83]:
+                      - 'button "Set time: Now" [ref=f1e84] [cursor=pointer]': Now
+                      - 'button "Set time: In 15 min" [ref=f1e85] [cursor=pointer]': In 15 min
+                      - 'button "Set time: In 30 min" [ref=f1e86] [cursor=pointer]': In 30 min
+                      - 'button "Set time: In 1 hour" [ref=f1e87] [cursor=pointer]': In 1 hour
+                - generic [ref=f1e88]:
+                  - button "← Back" [ref=f1e89] [cursor=pointer]
+                  - button "Done" [ref=f1e91] [cursor=pointer]
+            - generic "Attached files" [ref=f1e92]:
+              - generic [ref=f1e93]:
+                - group "Photo album · 10 attachments" [ref=f1e94]:
+                  - generic [ref=f1e96]: "+6"
+                  - generic [ref=f1e97]:
+                    - generic [ref=f1e98]: Photo album
+                    - generic [ref=f1e99]: 10 attachments
+                  - button "Remove photo album" [ref=f1e100] [cursor=pointer]: ×
+                - group "Photo album · 10 attachments" [ref=f1e101]:
+                  - generic [ref=f1e103]: "+6"
+                  - generic [ref=f1e104]:
+                    - generic [ref=f1e105]: Photo album
+                    - generic [ref=f1e106]: 10 attachments
+                  - button "Remove photo album" [ref=f1e107] [cursor=pointer]: ×
+            - generic [ref=f1e108]:
+              - button "Add file" [ref=f1e110] [cursor=pointer]
+              - generic [ref=f1e111]:
+                - button "Hide preview" [pressed] [ref=f1e112] [cursor=pointer]
+                - button "Templates" [ref=f1e113] [cursor=pointer]
+                - generic "Schedule tools" [ref=f1e114]:
+                  - button "Time" [active] [pressed] [ref=f1e115] [cursor=pointer]
+                  - button "Repeat" [ref=f1e116] [cursor=pointer]
+              - generic [ref=f1e117]:
+                - button "Schedule" [ref=f1e118] [cursor=pointer]
+                - button "More publish options" [ref=f1e120] [cursor=pointer]
+            - generic [ref=f1e126]: "Scheduled: Oct 17 · 01:30"
+        - generic [ref=f1e130]:
+          - generic [ref=f1e131]:
+            - generic [ref=f1e132]: Live preview
+            - button "Choose File" [ref=f1e133]
+          - generic [ref=f1e134]:
+            - generic [ref=f1e135]:
+              - generic [ref=f1e137]: 9:41
+              - generic [ref=f1e146]:
+                - button "Back to chats" [ref=f1e147] [cursor=pointer]
+                - generic [ref=f1e151]:
+                  - strong [ref=f1e152]: Vlad Vlad
+                  - generic [ref=f1e153]: "@Vladosik06"
+                - button "Preview settings" [ref=f1e155] [cursor=pointer]
+              - generic [ref=f1e158]:
+                - button "Open chat list" [ref=f1e159] [cursor=pointer]: Today
+                - article [ref=f1e160]:
+                  - generic [ref=f1e161]: куку
+                  - time [ref=f1e163]: 17:55
+                - article [ref=f1e164]:
+                  - generic [ref=f1e165]: ку
+                  - time [ref=f1e167]: 18:40
+                - article [ref=f1e168]:
+                  - generic [ref=f1e169]: ацууцацу
+                  - time [ref=f1e171]: 21:01
+                - article [ref=f1e172]:
+                  - generic [ref=f1e173]: укук
+                  - time [ref=f1e175]: 21:01
+                - article [ref=f1e176]:
+                  - generic [ref=f1e177]: efefe
+                  - time [ref=f1e179]: 21:24
+                - article [ref=f1e180]:
+                  - generic [ref=f1e181]: ку
+                  - time [ref=f1e183]: 21:54
+                - article [ref=f1e184]:
+                  - generic [ref=f1e185]: ооо
+                  - time [ref=f1e187]: 22:04
+                - article [ref=f1e188]:
+                  - generic [ref=f1e189]: ewrer
+                  - time [ref=f1e191]: 22:53
+                - article [ref=f1e192]:
+                  - generic [ref=f1e193]: rere
+                  - time [ref=f1e195]: 22:53
+                - article [ref=f1e196]:
+                  - generic [ref=f1e197]: rererere
+                  - time [ref=f1e199]: 22:54
+                - article [ref=f1e200]:
+                  - generic [ref=f1e201]: rererere
+                  - time [ref=f1e203]: 22:55
+                - article [ref=f1e204]:
+                  - generic [ref=f1e205]: rerere
+                  - time [ref=f1e207]: 22:55
+                - article [ref=f1e208]:
+                  - generic [ref=f1e209]: кукуук
+                  - time [ref=f1e211]: 22:59
+                - article [ref=f1e212]:
+                  - generic [ref=f1e213]: кукукуук
+                  - time [ref=f1e215]: 18:51
+                - article [ref=f1e216]:
+                  - generic [ref=f1e217]: кукукукуку
+                  - time [ref=f1e219]: 20:09
+                - article [ref=f1e220]:
+                  - generic [ref=f1e221]: уауауа
+                  - time [ref=f1e223]: 02:17
+                - article [ref=f1e224]:
+                  - generic [ref=f1e225]: уаауау
+                  - time [ref=f1e227]: 02:17
+                - article [ref=f1e228]:
+                  - generic [ref=f1e229]: я тут а ты где?
+                  - time [ref=f1e231]: 03:51
+                - article [ref=f1e232]:
+                  - generic [ref=f1e233]: укуккккккккккккккккккккккккккккккккк
+                  - time [ref=f1e235]: 03:52
+                - article [ref=f1e236]:
+                  - generic [ref=f1e237]: кукууууууууууууууууууууууууууууууууууууу
+                  - time [ref=f1e239]: 03:53
+                - article [ref=f1e240]:
+                  - generic [ref=f1e241]: ацуацуацуацу
+                  - time [ref=f1e243]: 00:54
+                - article [ref=f1e244]:
+                  - generic [ref=f1e245]: ацуацуацуацацуац
+                  - time [ref=f1e247]: 00:54
+                - article [ref=f1e248]:
+                  - generic [ref=f1e249]: ацуацуацуацуац
+                  - time [ref=f1e251]: 00:54
+                - article [ref=f1e252]:
+                  - generic [ref=f1e253]: ацуацуацуацуа
+                  - time [ref=f1e255]: 00:54
+                - article [ref=f1e256]:
+                  - generic [ref=f1e257]: уцаацуа
+                  - time [ref=f1e259]: 23:17
+                - article [ref=f1e260]:
+                  - generic [ref=f1e261]:
+                    - button "View photo full size" [ref=f1e262]:
+                      - img "001.png" [ref=f1e263]
+                    - button "View photo full size" [ref=f1e264]:
+                      - img "01.png" [ref=f1e265]
+                    - button "View photo full size" [ref=f1e266]:
+                      - img "002.webp" [ref=f1e267]
+                    - button "View photo full size" [ref=f1e268]:
+                      - img "02.png" [ref=f1e269]
+                    - button "View photo full size" [ref=f1e270]:
+                      - img "03.png" [ref=f1e271]
+                    - button "View photo full size" [ref=f1e272]:
+                      - img "04.png" [ref=f1e273]
+                    - button "View photo full size" [ref=f1e274]:
+                      - img "Skärmbild 2026-10-07 034300.png" [ref=f1e275]
+                    - button "View photo full size" [ref=f1e276]:
+                      - img "Skärmbild 2026-10-07 034332.png" [ref=f1e277]
+                    - button "View photo full size" [ref=f1e278]:
+                      - img "Skärmbild 2026-10-07 034417.png" [ref=f1e279]
+                    - button "View photo full size" [ref=f1e280]:
+                      - img "Skärmbild 2026-10-07 140453.png" [ref=f1e281]
+                    - button "View photo full size" [ref=f1e282]:
+                      - img "01_01_architecture_signage.jpg" [ref=f1e283]
+                    - button "View photo full size" [ref=f1e284]:
+                      - img "09_09_apparel_detail.jpg" [ref=f1e285]
+                    - button "View photo full size" [ref=f1e286]:
+                      - img "10_10_modern_architecture.jpg" [ref=f1e287]
+                    - button "View photo full size" [ref=f1e288]:
+                      - img "11_11_business_cards.jpg" [ref=f1e289]
+                    - button "View photo full size" [ref=f1e290]:
+                      - img "12_12_motion_tunnel.jpg" [ref=f1e291]
+                    - button "View photo full size" [ref=f1e292]:
+                      - img "13_13_metal_detail.jpg" [ref=f1e293]
+                    - button "View photo full size" [ref=f1e294]:
+                      - img "14_14_mountain_branding.jpg" [ref=f1e295]
+                    - button "View photo full size" [ref=f1e296]:
+                      - img "326db963-93b2-4a05-9fca-edcc96971ce0.png" [ref=f1e297]
+                    - button "View photo full size" [ref=f1e298]:
+                      - img "ChatGPT Image 16 жовт. 2026 р., 00_51_27.png" [ref=f1e299]
+                    - button "View photo full size" [ref=f1e300]:
+                      - img "HZE Studio_ Mustavalkoinen brändikollaasi.png" [ref=f1e301]
+                  - generic [ref=f1e302]: Проверкаца
+                  - generic [ref=f1e303]:
+                    - time [ref=f1e304]: 01:04
+                    - generic "Sent" [ref=f1e305]: ✓✓
+              - generic [ref=f1e310]: Message
+            - scrollbar "Live chat preview scroll" [ref=f1e319] [cursor=pointer]

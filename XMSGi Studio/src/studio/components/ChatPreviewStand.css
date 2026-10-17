@@ -434,16 +434,16 @@
 }
 
 .chat-preview-wallpaper-quick-choice.is-default {
-  background-color: #20353b;
-  background-image: radial-gradient(rgba(174, 222, 218, 0.55) 1px, transparent 1px);
-  background-size: 7px 7px;
-}
-
-.chat-preview-wallpaper-quick-choice.is-graphite {
   background-color: #171a1d;
   background-image: url('../assets/carbon-live-preview.png');
   background-position: center;
   background-size: cover;
+}
+
+.chat-preview-wallpaper-quick-choice.is-graphite {
+  background-color: #20353b;
+  background-image: radial-gradient(rgba(174, 222, 218, 0.55) 1px, transparent 1px);
+  background-size: 7px 7px;
 }
 
 .chat-preview-wallpaper-quick-choice.is-uploaded img {
@@ -686,9 +686,9 @@
 }
 
 .chat-preview-window.theme-telegram {
-  background-image: radial-gradient(rgba(113, 147, 179, 0.1) 1px, transparent 1px), radial-gradient(rgba(113, 147, 179, 0.07) 1px, transparent 1px);
-  background-position: 0 0, 18px 16px;
-  background-size: 36px 32px, 42px 38px;
+  background-image: url('../assets/carbon-live-preview.png');
+  background-position: center;
+  background-size: cover;
 }
 
 .chat-preview-window.theme-graphite {
@@ -797,15 +797,15 @@ img.chat-preview-avatar,
 }
 
 .chat-preview-wallpaper.theme-telegram {
-  background-image: radial-gradient(rgba(113, 147, 179, 0.1) 1px, transparent 1px), radial-gradient(rgba(113, 147, 179, 0.07) 1px, transparent 1px);
-  background-position: 0 0, 18px 16px;
-  background-size: 36px 32px, 42px 38px;
+  background-image: url('../assets/carbon-live-preview.png');
+  background-position: center;
+  background-size: cover;
 }
 
 .chat-preview-wallpaper.theme-graphite {
-  background-color: #171a1d;
-  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.025) 50%, rgba(255, 255, 255, 0.025) 75%, transparent 75%);
-  background-size: 22px 22px;
+  background-color: #20353b;
+  background-image: radial-gradient(rgba(174, 222, 218, 0.55) 1px, transparent 1px);
+  background-size: 7px 7px;
 }
 
 .chat-preview-service-date {

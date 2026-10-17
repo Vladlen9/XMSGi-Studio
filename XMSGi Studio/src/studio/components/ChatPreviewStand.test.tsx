@@ -287,17 +287,67 @@ describe('ChatPreviewStand wallpaper picker', () => {
     }
   });
 
-  it('applies a web background and lets the user reopen the toolbar palette', () => {
+  it('uses the updated Studio wallpaper as the first-time live preview default', () => {
+    const { container, unmount } = renderChatPreviewStand();
+
+    try {
+      const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
+      expect(preview.classList.contains('theme-telegram')).toBe(true);
+      expect(preview.style.backgroundImage).toContain('carbon-live-preview.png');
+
+      openWallpaperPicker(container);
+      expect(container.querySelector('.chat-preview-wallpaper-quick-choice.is-default')?.classList.contains('is-selected')).toBe(true);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('migrates the former bundled wallpaper to the updated default', () => {
+    window.localStorage.setItem(wallpaperStorageKey, JSON.stringify({ theme: 'graphite', image: '', accent: '' }));
+    const { container, unmount } = renderChatPreviewStand();
+
+    try {
+      const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
+      expect(preview.classList.contains('theme-telegram')).toBe(true);
+      expect(preview.style.backgroundImage).toContain('carbon-live-preview.png');
+    } finally {
+      unmount();
+    }
+  });
+
+  it('remembers a newly selected Graphite wallpaper after remounting', () => {
+    const firstPreview = renderChatPreviewStand();
+
+    try {
+      openWallpaperPicker(firstPreview.container);
+      act(() => {
+        (firstPreview.container.querySelector('[aria-label="Graphite background"]') as HTMLButtonElement).click();
+      });
+
+      expect(JSON.parse(window.localStorage.getItem(wallpaperStorageKey) || '{}')).toMatchObject({ version: 2, theme: 'graphite' });
+    } finally {
+      firstPreview.unmount();
+    }
+
+    const restoredPreview = renderChatPreviewStand();
+    try {
+      expect(restoredPreview.container.querySelector('.chat-preview-window')?.classList.contains('theme-graphite')).toBe(true);
+    } finally {
+      restoredPreview.unmount();
+    }
+  });
+
+  it('applies the default Studio wallpaper in web preview and lets the user reopen the toolbar palette', () => {
     const { container, unmount } = renderChatPreviewStand();
 
     try {
       switchToWebPreview(container);
       openWallpaperPicker(container);
       act(() => {
-        (container.querySelector('[aria-label="Graphite background"]') as HTMLButtonElement).click();
+        (container.querySelector('[aria-label="Default background"]') as HTMLButtonElement).click();
       });
 
-      expect(container.querySelector('.chat-preview-window')?.classList.contains('theme-graphite')).toBe(true);
+      expect(container.querySelector('.chat-preview-window')?.classList.contains('theme-telegram')).toBe(true);
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundImage)
         .toContain('carbon-live-preview.png');
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundSize).toBe('cover');

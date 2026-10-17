@@ -57,6 +57,7 @@ type HistoryGroup = {
 };
 
 type SavedWallpaper = {
+  version?: number;
   theme: WallpaperTheme;
   image: string;
   accent: string;
@@ -89,7 +90,11 @@ function loadSavedWallpaper(): SavedWallpaper {
       : uniqueWallpapers;
 
     return {
-      theme: saved.theme === 'custom' ? 'custom' : saved.theme === 'graphite' ? 'graphite' : 'telegram',
+      theme: saved.theme === 'custom'
+        ? 'custom'
+        : saved.theme === 'graphite' && (saved.version ?? 0) >= 2
+          ? 'graphite'
+          : 'telegram',
       image: savedImage,
       accent: typeof saved.accent === 'string' ? saved.accent : '',
       wallpapers: prioritizedWallpapers.slice(-MAX_UPLOADED_WALLPAPERS),
@@ -345,7 +350,7 @@ export function ChatPreviewStand({
 
   useEffect(() => {
     try {
-      const serialized = JSON.stringify({ theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent });
+      const serialized = JSON.stringify({ version: 2, theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent });
       window.localStorage.setItem(CHAT_WALLPAPER_STORAGE_KEY, serialized);
       window.localStorage.setItem(LEGACY_CHAT_WALLPAPER_STORAGE_KEY, serialized);
     } catch {
@@ -355,7 +360,7 @@ export function ChatPreviewStand({
 
   useEffect(() => {
     try {
-      const serialized = JSON.stringify({ theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent, wallpapers: uploadedWallpapers });
+      const serialized = JSON.stringify({ version: 2, theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent, wallpapers: uploadedWallpapers });
       window.localStorage.setItem(CHAT_WALLPAPER_STORAGE_KEY, serialized);
       window.localStorage.setItem(LEGACY_CHAT_WALLPAPER_STORAGE_KEY, serialized);
     } catch {
@@ -478,7 +483,7 @@ export function ChatPreviewStand({
   const wallpaperStyle = {
     ...(wallpaperTheme === 'custom' && wallpaperImage
       ? { backgroundImage: `url(${wallpaperImage})`, backgroundPosition: 'center', backgroundSize: 'cover' }
-      : wallpaperTheme === 'graphite'
+      : wallpaperTheme === 'telegram'
         ? { backgroundImage: `url(${carbonLivePreviewWallpaper})`, backgroundPosition: 'center', backgroundSize: 'cover' }
         : {}),
     '--chat-preview-wallpaper-accent': wallpaperAccent || (wallpaperTheme === 'graphite' ? '#60727f' : '#6e9d9b'),

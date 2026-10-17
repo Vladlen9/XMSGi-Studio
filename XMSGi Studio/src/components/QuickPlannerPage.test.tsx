@@ -124,7 +124,21 @@ beforeEach(() => {
 
 describe('QuickPlannerPage layout positioning', () => {
   it('keeps the Electron Planner at native scale so compact desktop breakpoints use the real window width', () => {
-    expect(applicationStyles).toMatch(/html\.electron-runtime:has\(\.quick-planner-page\)\s*\{[^}]*--electron-ui-scale:\s*1;[^}]*zoom:\s*1;/);
+    expect(applicationStyles).toMatch(/html\.electron-runtime:has\(\.product-shell\.planner-shell \.quick-planner-page\)\s*\{[^}]*--electron-ui-scale:\s*1;[^}]*zoom:\s*1;/);
+    expect(applicationStyles).toMatch(/html\.electron-runtime \.product-shell\.planner-shell:has\(\.quick-planner-page\) > \.product-shell-content\s*\{[^}]*display:\s*flex;[^}]*overflow:\s*hidden/);
+    expect(applicationStyles).toMatch(/html\.electron-runtime \.product-shell\.planner-shell:has\(\.quick-planner-page\) > \.product-shell-content > \.product-view\.is-active\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden/);
+  });
+
+  it('hides the right column below the comfortable Electron two-column width', () => {
+    expect(plannerStyles).toMatch(/\.quick-planner-page\s*\{[^}]*container-name:\s*quick-planner;[^}]*container-type:\s*inline-size;/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*850px\)[\s\S]*?\.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(plannerStyles).toMatch(/\.quick-planner-upcoming-column,[\s\S]*?\.quick-planner-sidebar\s*\{[^}]*display:\s*none;/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-editor\s*\{[^}]*justify-self:\s*center;[^}]*width:\s*min\(100%,\s*920px\)/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(min-width:\s*851px\) and \(max-width:\s*1200px\)[\s\S]*?\.quick-planner-mode-switch button\s*\{[^}]*font-size:\s*16px/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch button\s*\{[^}]*font-size:\s*22px/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?\.quick-planner-mode-switch > \.quick-planner-mode-caption\s*\{[^}]*font-size:\s*12px/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-tools\s*\{[^}]*flex-wrap:\s*wrap;[^}]*overflow:\s*visible/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-schedule-quick-values button\s*\{[^}]*font-size:\s*12px/);
   });
 
   it('opens browser draft mode with only local draft actions available', () => {

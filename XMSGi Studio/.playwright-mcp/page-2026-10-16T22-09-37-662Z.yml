@@ -1,0 +1,183 @@
+- generic [ref=f4e3]:
+  - banner [ref=f4e4]:
+    - generic "XMSGi" [ref=f4e5]
+    - button "Planner" [ref=f4e7] [cursor=pointer]
+    - generic [ref=f4e9]:
+      - button "Posts" [ref=f4e10] [cursor=pointer]
+      - button "Settings" [ref=f4e12] [cursor=pointer]
+      - button "Log out" [ref=f4e14] [cursor=pointer]
+  - main [ref=f4e15]:
+    - generic "Post workspace" [ref=f4e17]:
+      - main [ref=f4e19]:
+        - generic [ref=f4e20]:
+          - generic [ref=f4e21]: Create post
+          - generic [ref=f4e24]:
+            - generic [ref=f4e25]:
+              - generic [ref=f4e26]: Current action
+              - strong [ref=f4e27]: Send now
+            - generic [ref=f4e28]:
+              - generic [ref=f4e29]:
+                - generic "Channel selector"
+                - button "Choose chat" [ref=f4e31] [cursor=pointer]:
+                  - generic [aria-hidden] [ref=f4e32]: S
+                  - generic [ref=f4e33]:
+                    - strong [ref=f4e34]: Saved Messages
+                    - generic [ref=f4e35]: Saved Messages
+              - generic [ref=f4e39]:
+                - generic [ref=f4e40]:
+                  - textbox "Post content" [ref=f4e41]
+                  - button "Clear editor text" [ref=f4e42] [cursor=pointer]
+                - toolbar "Text formatting" [ref=f4e46]:
+                  - generic [ref=f4e47]: "1014"
+                  - group "Text formatting" [ref=f4e48]:
+                    - button "Bold" [ref=f4e49] [cursor=pointer]
+                    - button "Italic" [ref=f4e52] [cursor=pointer]
+                    - button "Underline" [ref=f4e55] [cursor=pointer]
+                    - button "Strikethrough" [ref=f4e58] [cursor=pointer]
+                    - button "Insert link" [ref=f4e63] [cursor=pointer]
+                    - button "Open version history" [ref=f4e69] [cursor=pointer]
+                    - button "Export editor text" [ref=f4e75] [cursor=pointer]
+                    - button "Add photo album" [ref=f4e80] [cursor=pointer]
+            - generic "Attached files" [ref=f4e86]:
+              - generic [ref=f4e87]:
+                - group "Photo album · 10 attachments" [ref=f4e88]:
+                  - generic [ref=f4e90]: "+6"
+                  - button "Remove photo album" [ref=f4e91] [cursor=pointer]: ×
+                - group "Photo album · 10 attachments" [ref=f4e92]:
+                  - generic [ref=f4e94]: "+6"
+                  - button "Remove photo album" [ref=f4e95] [cursor=pointer]: ×
+            - generic [ref=f4e96]:
+              - button "Add file" [ref=f4e98] [cursor=pointer]
+              - generic [ref=f4e99]:
+                - button "Hide preview" [pressed] [ref=f4e100] [cursor=pointer]
+                - button "Templates" [ref=f4e101] [cursor=pointer]
+                - button "Draft" [ref=f4e102] [cursor=pointer]
+              - generic [ref=f4e103]:
+                - button "Send now" [ref=f4e104] [cursor=pointer]
+                - button "More publish options" [ref=f4e106] [cursor=pointer]
+        - generic [ref=f4e115]:
+          - generic [ref=f4e116]:
+            - generic [ref=f4e117]: Live preview
+            - button "Choose File" [ref=f4e118]
+          - generic [ref=f4e122]:
+            - article [ref=f4e123]:
+              - generic [ref=f4e124]: куку
+              - time [ref=f4e126]: 17:55
+            - article [ref=f4e127]:
+              - generic [ref=f4e128]: ку
+              - time [ref=f4e130]: 18:40
+            - article [ref=f4e131]:
+              - generic [ref=f4e132]: ацууцацу
+              - time [ref=f4e134]: 21:01
+            - article [ref=f4e135]:
+              - generic [ref=f4e136]: укук
+              - time [ref=f4e138]: 21:01
+            - article [ref=f4e139]:
+              - generic [ref=f4e140]: efefe
+              - time [ref=f4e142]: 21:24
+            - article [ref=f4e143]:
+              - generic [ref=f4e144]: ку
+              - time [ref=f4e146]: 21:54
+            - article [ref=f4e147]:
+              - generic [ref=f4e148]: ооо
+              - time [ref=f4e150]: 22:04
+            - article [ref=f4e151]:
+              - generic [ref=f4e152]: ewrer
+              - time [ref=f4e154]: 22:53
+            - article [ref=f4e155]:
+              - generic [ref=f4e156]: rere
+              - time [ref=f4e158]: 22:53
+            - article [ref=f4e159]:
+              - generic [ref=f4e160]: rererere
+              - time [ref=f4e162]: 22:54
+            - article [ref=f4e163]:
+              - generic [ref=f4e164]: rererere
+              - time [ref=f4e166]: 22:55
+            - article [ref=f4e167]:
+              - generic [ref=f4e168]: rerere
+              - time [ref=f4e170]: 22:55
+            - article [ref=f4e171]:
+              - generic [ref=f4e172]: кукуук
+              - time [ref=f4e174]: 22:59
+            - article [ref=f4e175]:
+              - generic [ref=f4e176]: кукукуук
+              - time [ref=f4e178]: 18:51
+            - article [ref=f4e179]:
+              - generic [ref=f4e180]: кукукукуку
+              - time [ref=f4e182]: 20:09
+            - article [ref=f4e183]:
+              - generic [ref=f4e184]: уауауа
+              - time [ref=f4e186]: 02:17
+            - article [ref=f4e187]:
+              - generic [ref=f4e188]: уаауау
+              - time [ref=f4e190]: 02:17
+            - article [ref=f4e191]:
+              - generic [ref=f4e192]: я тут а ты где?
+              - time [ref=f4e194]: 03:51
+            - article [ref=f4e195]:
+              - generic [ref=f4e196]: укуккккккккккккккккккккккккккккккккк
+              - time [ref=f4e198]: 03:52
+            - article [ref=f4e199]:
+              - generic [ref=f4e200]: кукууууууууууууууууууууууууууууууууууууу
+              - time [ref=f4e202]: 03:53
+            - article [ref=f4e203]:
+              - generic [ref=f4e204]: ацуацуацуацу
+              - time [ref=f4e206]: 00:54
+            - article [ref=f4e207]:
+              - generic [ref=f4e208]: ацуацуацуацацуац
+              - time [ref=f4e210]: 00:54
+            - article [ref=f4e211]:
+              - generic [ref=f4e212]: ацуацуацуацуац
+              - time [ref=f4e214]: 00:54
+            - article [ref=f4e215]:
+              - generic [ref=f4e216]: ацуацуацуацуа
+              - time [ref=f4e218]: 00:54
+            - article [ref=f4e219]:
+              - generic [ref=f4e220]: уцаацуа
+              - time [ref=f4e222]: 23:17
+            - article [ref=f4e223]:
+              - generic [ref=f4e224]:
+                - button "View photo full size" [ref=f4e225]:
+                  - img "001.png" [ref=f4e226]
+                - button "View photo full size" [ref=f4e227]:
+                  - img "01.png" [ref=f4e228]
+                - button "View photo full size" [ref=f4e229]:
+                  - img "002.webp" [ref=f4e230]
+                - button "View photo full size" [ref=f4e231]:
+                  - img "02.png" [ref=f4e232]
+                - button "View photo full size" [ref=f4e233]:
+                  - img "03.png" [ref=f4e234]
+                - button "View photo full size" [ref=f4e235]:
+                  - img "04.png" [ref=f4e236]
+                - button "View photo full size" [ref=f4e237]:
+                  - img "Skärmbild 2026-10-07 034300.png" [ref=f4e238]
+                - button "View photo full size" [ref=f4e239]:
+                  - img "Skärmbild 2026-10-07 034332.png" [ref=f4e240]
+                - button "View photo full size" [ref=f4e241]:
+                  - img "Skärmbild 2026-10-07 034417.png" [ref=f4e242]
+                - button "View photo full size" [ref=f4e243]:
+                  - img "Skärmbild 2026-10-07 140453.png" [ref=f4e244]
+                - button "View photo full size" [ref=f4e245]:
+                  - img "01_01_architecture_signage.jpg" [ref=f4e246]
+                - button "View photo full size" [ref=f4e247]:
+                  - img "09_09_apparel_detail.jpg" [ref=f4e248]
+                - button "View photo full size" [ref=f4e249]:
+                  - img "10_10_modern_architecture.jpg" [ref=f4e250]
+                - button "View photo full size" [ref=f4e251]:
+                  - img "11_11_business_cards.jpg" [ref=f4e252]
+                - button "View photo full size" [ref=f4e253]:
+                  - img "12_12_motion_tunnel.jpg" [ref=f4e254]
+                - button "View photo full size" [ref=f4e255]:
+                  - img "13_13_metal_detail.jpg" [ref=f4e256]
+                - button "View photo full size" [ref=f4e257]:
+                  - img "14_14_mountain_branding.jpg" [ref=f4e258]
+                - button "View photo full size" [ref=f4e259]:
+                  - img "326db963-93b2-4a05-9fca-edcc96971ce0.png" [ref=f4e260]
+                - button "View photo full size" [ref=f4e261]:
+                  - img "ChatGPT Image 16 жовт. 2026 р., 00_51_27.png" [ref=f4e262]
+                - button "View photo full size" [ref=f4e263]:
+                  - img "HZE Studio_ Mustavalkoinen brändikollaasi.png" [ref=f4e264]
+              - generic [ref=f4e265]: Проверкаца
+              - generic [ref=f4e266]:
+                - time [ref=f4e267]: 01:09
+                - generic "Sent" [ref=f4e268]: ✓✓
