@@ -356,7 +356,7 @@ const plannerEmojis = ['😀', '😂', '😥', '😍', '😎', '🤔', '😭', '
 const MAX_PLANNER_ATTACHMENTS = 7;
 const MAX_VISIBLE_ATTACHMENT_CHIPS = 5;
 const MAX_PLANNER_TEXT = 1023;
-const MAX_COMPOSE_RESIZE = 40;
+const MAX_COMPOSE_RESIZE = 70;
 const COMPOSE_RESIZE_STORAGE_KEY = 'xmsgi-quick-planner-compose-height';
 const REMINDER_TYPE_STORAGE_KEY = 'xmsgi-quick-planner-reminder-type';
 function clampComposeResize(value: number, maximum: number) {
@@ -513,6 +513,14 @@ export function QuickPlannerPage({
   const [showDraftSelectionHint, setShowDraftSelectionHint] = useState(false);
   const draftSelectionHintTimeoutRef = useRef<number | null>(null);
   const [isReminderTypePanelOpen, setIsReminderTypePanelOpen] = useState(false);
+  useEffect(() => {
+    if (!isReminderTypePanelOpen) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsReminderTypePanelOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isReminderTypePanelOpen]);
   const [composeResize, setComposeResize] = useState(() => ({ height: readSavedComposeHeight() }));
   const [isResizingCompose, setIsResizingCompose] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -1457,6 +1465,7 @@ export function QuickPlannerPage({
       .map(({ label, items }) => ({ label, items: items.filter(({ pinned }) => !pinned) }))
       .filter(({ items }) => items.length > 0),
   ];
+  const hideEmptyQueuePreview = previewMode === 'queue' && visiblePreviewListGroups.length === 0;
   const handlePreviewListScroll = () => {
     const list = plannerPreviewListRef.current;
     if (!list) return;
@@ -1552,7 +1561,7 @@ export function QuickPlannerPage({
           </div>
       </header>
 
-      <div className="quick-planner-layout">
+      <div className={`quick-planner-layout${hideEmptyQueuePreview ? ' is-queue-empty' : ''}`}>
           <aside className="quick-planner-sidebar">
             <nav className="quick-planner-nav" aria-label={t('quickplanner.navigation')}>
               <button
@@ -1780,6 +1789,7 @@ export function QuickPlannerPage({
                         <div id="quick-planner-reminder-types" className="quick-planner-reminder-types" role="group" aria-label={t('quickplanner.reminderTypes')}>
                           <button
                             type="button"
+                            className={reminderType === null ? 'is-selected' : ''}
                             onClick={() => {
                               updateReminderType(null);
                               setIsReminderTypePanelOpen(false);
@@ -1803,35 +1813,33 @@ export function QuickPlannerPage({
                           ))}
                         </div>
                       )}
-                      <button
-                        className={`quick-planner-type-toggle${selectedReminderType && !isReminderTypePanelOpen ? ' is-selected' : ''}${!selectedReminderType && !isReminderTypePanelOpen ? ' is-add-tag' : ''}`}
-                        type="button"
-                        aria-label={isReminderTypePanelOpen
-                          ? t('quickplanner.closeReminderTypes')
-                          : selectedReminderType
+                      {!isReminderTypePanelOpen && (
+                        <button
+                          className={`quick-planner-type-toggle${selectedReminderType ? ' is-selected' : ' is-add-tag'}`}
+                          type="button"
+                          aria-label={selectedReminderType
                             ? t('quickplanner.changeReminderType', { type: selectedReminderType.label })
                             : t('quickplanner.addReminderType')}
-                        aria-expanded={isReminderTypePanelOpen}
-                        aria-controls="quick-planner-reminder-types"
-                        title={isReminderTypePanelOpen
-                          ? t('quickplanner.closeReminderTypes')
-                          : selectedReminderType
+                          aria-expanded={false}
+                          aria-controls="quick-planner-reminder-types"
+                          title={selectedReminderType
                             ? t('quickplanner.changeReminderType', { type: selectedReminderType.label })
                             : t('quickplanner.addReminderType')}
-                        onClick={() => setIsReminderTypePanelOpen((isOpen) => !isOpen)}
-                      >
-                        {isReminderTypePanelOpen ? <X size={12} aria-hidden="true" /> : selectedReminderType && SelectedReminderTypeIcon ? (
-                          <>
-                            <SelectedReminderTypeIcon size={14} aria-hidden="true" />
-                            <span>{selectedReminderType.label}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Plus size={14} aria-hidden="true" />
-                            <span>{t('quickplanner.addReminderType')}</span>
-                          </>
-                        )}
-                      </button>
+                          onClick={() => setIsReminderTypePanelOpen(true)}
+                        >
+                          {selectedReminderType && SelectedReminderTypeIcon ? (
+                            <>
+                              <SelectedReminderTypeIcon size={14} aria-hidden="true" />
+                              <span>{selectedReminderType.label}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={14} aria-hidden="true" />
+                              <span>{t('quickplanner.addReminderType')}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                   {publishMode === 'schedule' && (
@@ -1870,29 +1878,27 @@ export function QuickPlannerPage({
                         ref={scheduleTimePillRef}
                         className="quick-planner-schedule-clock"
                         title="Schedule time"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Open time picker"
+                        aria-haspopup="dialog"
+                        aria-expanded={timePickerOpen}
+                        onClick={toggleScheduleTimePicker}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter' && event.key !== ' ') return;
+                          event.preventDefault();
+                          toggleScheduleTimePicker();
+                        }}
                       >
-                        <Clock
-                          size={15}
-                          role="button"
-                          tabIndex={0}
-                          aria-label="Open time picker"
-                          aria-haspopup="dialog"
-                          aria-expanded={timePickerOpen}
-                          onClick={toggleScheduleTimePicker}
-                          onKeyDown={(event) => {
-                            if (event.key !== 'Enter' && event.key !== ' ') return;
-                            event.preventDefault();
-                            toggleScheduleTimePicker();
-                          }}
-                        />
-                          <span
-                            role="textbox"
-                            aria-label="Schedule time"
-                            aria-readonly="true"
-                            tabIndex={-1}
-                          >
-                            {scheduleTimeDraft ?? scheduleTime}
-                          </span>
+                        <Clock size={15} aria-hidden="true" />
+                        <span
+                          role="textbox"
+                          aria-label="Schedule time"
+                          aria-readonly="true"
+                          tabIndex={-1}
+                        >
+                          {scheduleTimeDraft ?? scheduleTime}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1983,6 +1989,7 @@ export function QuickPlannerPage({
                         autoFocus
                         value={scheduleTimeDraft ?? scheduleTime}
                         onChange={handleScheduleTimeChange}
+                        onFocus={(event) => event.currentTarget.select()}
                         onBlur={handleScheduleTimeBlur}
                         onPaste={handleScheduleTimePaste}
                         onKeyDown={(event) => {
@@ -2130,6 +2137,7 @@ export function QuickPlannerPage({
             </div>
           </div>
 
+          {!hideEmptyQueuePreview && (
           <aside className="quick-planner-upcoming-column">
             {publishMode === 'draft' ? (
               <>
@@ -2426,6 +2434,7 @@ export function QuickPlannerPage({
               </div>
             )}
           </aside>
+          )}
       </div>
     </section>
   );

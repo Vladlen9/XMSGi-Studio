@@ -123,10 +123,27 @@ beforeEach(() => {
 });
 
 describe('QuickPlannerPage layout positioning', () => {
-  it('keeps the Electron Planner at native scale so compact desktop breakpoints use the real window width', () => {
-    expect(applicationStyles).toMatch(/html\.electron-runtime:has\(\.product-shell\.planner-shell \.quick-planner-page\)\s*\{[^}]*--electron-ui-scale:\s*1;[^}]*zoom:\s*1;/);
+  it('scales the entire Electron Planner like Studio while retaining its compact layout rules', () => {
+    expect(applicationStyles).toMatch(/html\.electron-runtime\s*\{[^}]*--electron-ui-scale:\s*clamp\(0\.7,\s*min\(100vw \/ 900px,\s*100dvh \/ 800px\),\s*1\);[^}]*zoom:\s*var\(--electron-ui-scale\)/);
+    expect(applicationStyles).not.toMatch(/html\.electron-runtime:has\(\.product-shell\.planner-shell \.quick-planner-page\)\s*\{/);
+    expect(applicationStyles).not.toMatch(/planner-header-scale/);
     expect(applicationStyles).toMatch(/html\.electron-runtime \.product-shell\.planner-shell:has\(\.quick-planner-page\) > \.product-shell-content\s*\{[^}]*display:\s*flex;[^}]*overflow:\s*hidden/);
     expect(applicationStyles).toMatch(/html\.electron-runtime \.product-shell\.planner-shell:has\(\.quick-planner-page\) > \.product-shell-content > \.product-view\.is-active\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden/);
+  });
+
+  it('hides the empty Queue panel and right-side navigation', () => {
+    localStorage.setItem(plannerPreviewStorageKey, JSON.stringify({
+      publishMode: 'schedule',
+      queuePreviewGroups: [],
+    }));
+    const { container } = renderQuickPlanner();
+
+    expect(container.querySelector('.quick-planner-layout')).toHaveClass('is-queue-empty');
+    expect(container.querySelector('.quick-planner-upcoming-column')).not.toBeInTheDocument();
+    expect(container.querySelector('.quick-planner-sidebar')).toBeInTheDocument();
+    expect(plannerStyles).toMatch(/\.quick-planner-sidebar\s*\{[^}]*display:\s*none;/);
+    expect(plannerStyles).toMatch(/\.quick-planner-upcoming-column\s*\{[^}]*display:\s*none;/);
+    expect(screen.queryByText('No sent messages yet.')).not.toBeInTheDocument();
   });
 
   it('hides the right column below the comfortable Electron two-column width', () => {
@@ -144,8 +161,8 @@ describe('QuickPlannerPage layout positioning', () => {
 
   it('fits the Planner content into a compact Electron window', () => {
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-header\s*\{[^}]*margin:\s*0 auto 8px;[^}]*padding:\s*0/);
-    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-editor\s*\{[^}]*min-width:\s*0;[^}]*height:\s*auto;/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*height:\s*calc\(100% - 16px\)/);
+    expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor\s*\{[^}]*height:\s*auto;[^}]*aspect-ratio:\s*1\.64\s*\/\s*1/);
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-editor\s*\{[^}]*width:\s*min\(100%,\s*800px\)/);
   });
 
@@ -155,6 +172,14 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap/);
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor > \.quick-planner-chat-picker\s*\{[^}]*margin-top:\s*62px/);
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor > \.quick-planner-chat-picker-placeholder\s*\{[^}]*display:\s*block;[^}]*height:\s*34px;[^}]*margin:\s*62px 0 0/);
+  });
+
+  it('keeps Electron action modes aligned at compact desktop widths', () => {
+    expect(plannerStyles).toMatch(/@media \(min-width:\s*701px\) and \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor-heading\s*\{[^}]*position:\s*absolute;[^}]*top:\s*-22px;[^}]*left:\s*8px/);
+    expect(plannerStyles).toMatch(/@media \(min-width:\s*701px\) and \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor > \.quick-planner-clock\s*\{[^}]*position:\s*absolute;[^}]*left:\s*16px/);
+    expect(plannerStyles).toMatch(/@media \(min-width:\s*701px\) and \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-editor > \.quick-planner-heading-actions\s*\{[^}]*position:\s*absolute;[^}]*right:\s*16px/);
+    expect(plannerStyles).toMatch(/@media \(min-width:\s*701px\) and \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap/);
+    expect(plannerStyles).toMatch(/@media \(min-width:\s*701px\) and \(max-width:\s*850px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch button\s*\{[^}]*font-size:\s*13px/);
   });
 
   it('opens browser draft mode with only local draft actions available', () => {
@@ -212,12 +237,12 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(focusedComposeRules).toMatch(/box-shadow:\s*0 0 0 2px rgba\(var\(--quick-planner-accent\), 0\.16\)/);
   });
 
-  it('uses one fixed light accent with a visible glow around the editor panel', () => {
+  it('keeps the editor accent border without an outer glow', () => {
     const editorRules = getCssRules('.quick-planner-editor')[0];
 
     expect(editorRules).toMatch(/radial-gradient\(126% 86% at 96% 94%/);
-    expect(editorRules).toMatch(/0 0 10px rgba\(var\(--quick-planner-accent\), 0\.13\)/);
-    expect(editorRules).toMatch(/0 0 28px rgba\(var\(--quick-planner-accent\), 0\.045\)/);
+    expect(editorRules).toMatch(/border:\s*1px solid rgba\(var\(--quick-planner-accent\),\s*0\.62\)/);
+    expect(editorRules).not.toMatch(/0 0 (?:10|28)px rgba\(var\(--quick-planner-accent\)/);
     expect(plannerStyles).toMatch(/--quick-planner-accent:\s*255, 255, 255/);
     expect(plannerStyles).not.toMatch(/data-publish-mode="(?:schedule|draft)"\)\s*\{/);
   });
@@ -249,8 +274,8 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-page\[lang\] \.quick-planner-mode-switch button\s*\{[^}]*grid-row:\s*1;[^}]*height:\s*30px;[^}]*white-space:\s*nowrap/);
   });
 
-  it('keeps the full planner in two columns while the editor controls flow at compact desktop widths', () => {
-    expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(280px,\s*360px\)/);
+  it('keeps a single centered editor column at compact desktop widths', () => {
+    expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
     expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-page \.quick-planner-editor\s*\{[^}]*height:\s*auto;[^}]*transform:\s*none/);
     expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-page \.quick-planner-compose-anchor\s*\{[^}]*position:\s*relative/);
     expect(plannerStyles).toMatch(/@media\s*\(min-width:\s*701px\)\s*and\s*\(max-width:\s*1200px\)[\s\S]*?\.quick-planner-page\[data-publish-mode\] \.quick-planner-compose-footer\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+40px/);
@@ -330,10 +355,10 @@ describe('QuickPlannerPage layout positioning', () => {
     const resizeHandle = screen.getByRole('button', { name: 'Resize reminder field height' });
 
     fireEvent.pointerDown(resizeHandle, { button: 0, pointerId: 7, clientY: 120 });
-    fireEvent.pointerMove(resizeHandle, { pointerId: 7, clientY: 100 });
+    fireEvent.pointerMove(resizeHandle, { pointerId: 7, clientY: 75 });
 
     expect(composeAnchor).toHaveStyle({
-      '--quick-planner-resize-height': '40px',
+      '--quick-planner-resize-height': '70px',
     });
     expect(composeAnchor?.getAttribute('style')).not.toContain('--quick-planner-resize-offset');
     expect(editor).not.toHaveAttribute('style');
@@ -356,6 +381,25 @@ describe('QuickPlannerPage layout positioning', () => {
     renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Draft' }));
     expect(screen.getByRole('button', { name: 'Change type: Idea' })).toBeInTheDocument();
+  });
+
+  it('highlights reminder categories with the selected theme and omits the trailing close icon', () => {
+    renderQuickPlanner();
+    selectDraftMode();
+    fireEvent.click(screen.getByRole('button', { name: 'Add reminder type' }));
+
+    const categories = screen.getByRole('group', { name: 'Reminder type' });
+    const categoryRules = getCssRules('.quick-planner-reminder-types button')[0];
+    const selectedCategoryRules = getCssRules('.quick-planner-reminder-types button.is-selected')[0];
+
+    expect(within(categories).getByRole('button', { name: 'None' })).toHaveClass('is-selected');
+    expect(categories.parentElement?.querySelector('.quick-planner-type-toggle')).toBeNull();
+    expect(categoryRules).toMatch(/color:\s*rgb\(var\(--quick-planner-accent\)\)/);
+    expect(categoryRules).toMatch(/background:\s*rgba\(var\(--quick-planner-accent\),\s*0\.08\)/);
+    expect(selectedCategoryRules).toMatch(/background:\s*rgba\(var\(--quick-planner-accent\),\s*0\.22\)/);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('group', { name: 'Reminder type' })).not.toBeInTheDocument();
   });
 
   it('shows a different sidebar motivation after re-entering Quick Planner', () => {
@@ -408,9 +452,10 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(upcomingBottomLineRules).toMatch(/bottom:\s*1px/);
     expect(upcomingBottomLineRules).toMatch(/z-index:\s*5/);
     expect(upcomingBottomLineRules).toMatch(/height:\s*1px/);
-    expect(layoutRules).toMatch(/grid-template-areas:\s*"editor upcoming"\s*"editor sidebar"/);
-    expect(layoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s*minmax\(280px,\s*360px\)/);
+    expect(layoutRules).toMatch(/grid-template-areas:\s*"editor"/);
+    expect(layoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
     expect(layoutRules).toMatch(/gap:\s*18px/);
+    expect(editorRules).toMatch(/transform:\s*translateY\(-5px\)/);
     expect(getCssRules('.quick-planner-sidebar')[0]).toMatch(/min-height:\s*190px/);
     expect(getCssRules('.quick-planner-sidebar')[0]).toMatch(/padding:\s*12px\s+14px/);
     expect(sidebarRules).toMatch(/transform:\s*translate\(-28px,\s*-1px\)/);
@@ -442,8 +487,8 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(getCssRules('.quick-planner-draft-scrollbar')[0]).toMatch(/right:\s*-12px/);
     expect(reminderListRules).toMatch(/scrollbar-width:\s*none/);
     expect(editorRules).toMatch(/grid-area:\s*editor/);
-    expect(editorRules).toMatch(/transform:\s*translateX\(-35px\)/);
-    expect(editorRules).toMatch(/translateY\(-5px\)/);
+    expect(editorRules).toMatch(/transform:\s*translateY\(-5px\)/);
+    expect(editorRules).not.toMatch(/translateX/);
     expect(editorRules).toMatch(/width:\s*min\(100%,\s*800px\)/);
     expect(editorRules).toMatch(/height:\s*489px/);
     expect(getCssRules('.quick-planner-editor > .quick-planner-clock')[0]).toMatch(/top:\s*17px/);
@@ -459,11 +504,11 @@ describe('QuickPlannerPage layout positioning', () => {
     const editorRules = getCssRules('.quick-planner-editor');
     const composeRules = getCssRules('.quick-planner-compose');
     const mobileLayoutRules = layoutRules.find((rules) => /grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(rules));
-    const mobileEditorRules = editorRules.find((rules) => /height:\s*auto/.test(rules) && /transform:\s*none/.test(rules));
+    const mobileEditorRules = editorRules.find((rules) => /justify-self:\s*stretch/.test(rules) && /height:\s*auto/.test(rules) && /transform:\s*none/.test(rules));
     const mobileComposeRules = composeRules.find((rules) => /position:\s*static/.test(rules));
 
-    expect(mobileEditorRules).toMatch(/justify-self:\s*center/);
-    expect(mobileEditorRules).toMatch(/width:\s*min\(100%,\s*800px\)/);
+    expect(mobileEditorRules).toMatch(/justify-self:\s*stretch/);
+    expect(mobileEditorRules).toMatch(/width:\s*100%/);
     expect(mobileEditorRules).toMatch(/min-width:\s*0/);
     expect(mobileEditorRules).toMatch(/transform:\s*none/);
     expect(mobileLayoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
@@ -496,25 +541,28 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(mobilePlaceholderRules).toMatch(/flex:\s*0\s+0\s+34px/);
   });
 
-  it('keeps schedule controls in one horizontally scrollable row on compact desktop', () => {
-    const toolsRules = getCssRules('.quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools')
-      .find((rules) => /flex-wrap:\s*nowrap/.test(rules) && /overflow-x:\s*auto/.test(rules));
-    const scheduleControlsRules = getCssRules('.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls')
-      .find((rules) => /width:\s*max-content/.test(rules));
-    const quickValuesRules = getCssRules('.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values')
-      .find((rules) => /width:\s*max-content/.test(rules));
-    const quickButtonRules = getCssRules('.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values button')
-      .find((rules) => /padding-right:\s*6px/.test(rules));
-    const footerRules = getCssRules('.quick-planner-page[data-publish-mode] .quick-planner-compose-footer')
-      .find((rules) => /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+40px/.test(rules));
+  it('centers the Planner and wraps schedule shortcuts on compact Electron desktop', () => {
+    const editorRules = getCssRules('html.electron-runtime .quick-planner-page .quick-planner-editor')
+      .find((rules) => /width:\s*min\(100%,\s*calc\(82vw \/ var\(--electron-ui-scale,\s*1\)\)\)/.test(rules));
+    const composeAnchorRules = getCssRules('html.electron-runtime .quick-planner-page .quick-planner-compose-anchor')
+      .find((rules) => /position:\s*absolute/.test(rules));
+    const toolsRules = getCssRules('html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools')
+      .find((rules) => /flex-wrap:\s*wrap/.test(rules) && /overflow:\s*visible/.test(rules));
+    const quickValuesRules = getCssRules('html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values')
+      .find((rules) => /flex:\s*1\s+1\s+100%/.test(rules) && /flex-wrap:\s*wrap/.test(rules));
 
-    expect(toolsRules).toMatch(/scrollbar-width:\s*none/);
-    expect(scheduleControlsRules).toMatch(/flex:\s*0\s+0\s+auto/);
-    expect(quickValuesRules).toMatch(/flex:\s*0\s+0\s+auto/);
-    expect(quickValuesRules).toMatch(/flex-wrap:\s*nowrap/);
-    expect(quickButtonRules).toMatch(/padding-left:\s*6px/);
-    expect(quickButtonRules).toMatch(/font-size:\s*10px/);
-    expect(footerRules).toBeTruthy();
+    expect(plannerStyles).toContain('@media (min-width: 701px) and (max-width: 1200px)');
+    expect(editorRules).toMatch(/justify-self:\s*center/);
+    expect(editorRules).toMatch(/max-width:\s*none/);
+    expect(editorRules).toMatch(/height:\s*auto/);
+    expect(editorRules).toMatch(/aspect-ratio:\s*1\.64\s*\/\s*1/);
+    expect(editorRules).toMatch(/align-self:\s*center/);
+    expect(composeAnchorRules).toMatch(/top:\s*50%/);
+    expect(composeAnchorRules).toMatch(/transform:\s*translateY\(-50%\)/);
+    expect(toolsRules).toBeTruthy();
+    expect(quickValuesRules).toMatch(/width:\s*100%/);
+    expect(quickValuesRules).toMatch(/max-width:\s*100%/);
+    expect(quickValuesRules).toMatch(/overflow:\s*visible/);
   });
 
   it('wraps schedule controls in the mobile composer', () => {
@@ -531,31 +579,35 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(composeRules).toMatch(/min-height:\s*calc\(110px\s*\+\s*var\(--quick-planner-resize-height,\s*0px\)\)/);
   });
 
-  it('opens the time picker only from its icon and keeps the time value editable', () => {
+  it('opens the time picker from the whole time pill and selects the current value for replacement', () => {
     renderQuickPlanner();
     fireEvent.click(within(screen.getByRole('group', { name: 'Action mode' })).getByRole('button', { name: 'Schedule' }));
 
     const timeInput = screen.getByRole('textbox', { name: 'Schedule time' });
     expect(timeInput).toBeInTheDocument();
     fireEvent.click(timeInput);
-    expect(screen.queryByRole('dialog', { name: 'Schedule time picker' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Schedule time picker' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open time picker' }));
+    const editableTime = screen.getByRole('textbox', { name: 'Enter schedule time' }) as HTMLInputElement;
+    expect(editableTime).toHaveFocus();
+    expect(editableTime.selectionStart).toBe(0);
+    expect(editableTime.selectionEnd).toBe(editableTime.value.length);
 
-    expect(screen.getByRole('textbox', { name: 'Enter schedule time' })).toBeInTheDocument();
+    fireEvent.change(editableTime, { target: { value: '1656' } });
+    expect(timeInput).toHaveTextContent('16:56');
   });
 
   it('keeps compact-desktop quick schedule choices alongside date and time', () => {
     const actionRules = getCssRules('.quick-planner-editor > .quick-planner-heading-actions')
       .find((rules) => /right:\s*8px/.test(rules));
-    const quickValuesRules = getCssRules('.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values')
-      .find((rules) => /transform:\s*none/.test(rules) && /margin:\s*0/.test(rules));
+    const quickValuesRules = getCssRules('html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values')
+      .find((rules) => /transform:\s*none/.test(rules) && /flex:\s*1\s+1\s+100%/.test(rules));
     const footerRules = getCssRules('.quick-planner-page[data-publish-mode] .quick-planner-compose-footer')
       .find((rules) => /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+40px/.test(rules));
 
     expect(actionRules).toMatch(/right:\s*8px/);
-    expect(quickValuesRules).toMatch(/flex:\s*0\s+0\s+auto/);
-    expect(quickValuesRules).toMatch(/flex-wrap:\s*nowrap/);
+    expect(quickValuesRules).toMatch(/flex:\s*1\s+1\s+100%/);
+    expect(quickValuesRules).toMatch(/flex-wrap:\s*wrap/);
     expect(footerRules).toBeTruthy();
   });
 
@@ -1200,6 +1252,8 @@ describe('QuickPlannerPage action mode', () => {
     fireEvent.change(textField, { target: { value: 'Call the dentist' } });
 
     expect(screen.getByText('16 / 1023')).toBeInTheDocument();
+    fireEvent.change(textField, { target: { value: 'x'.repeat(1023) } });
+    expect(screen.getByText('1023 / 1023')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clear reminder text' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Clear reminder text' }));
 
@@ -1207,6 +1261,28 @@ describe('QuickPlannerPage action mode', () => {
     expect(onEntitiesChange).toHaveBeenCalledWith([]);
     expect(screen.getByText('0 / 1023')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear reminder text' })).not.toBeInTheDocument();
+  });
+
+  it('allows native Ctrl+C copying from the reminder editor', () => {
+    renderQuickPlanner({ message: 'Copy this reminder' });
+    const textField = screen.getByRole('textbox', { name: 'Reminder text' });
+    const copyEvent = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    const textFieldRules = getCssRules('.quick-planner-compose textarea')[0];
+
+    textField.dispatchEvent(copyEvent);
+
+    expect(copyEvent.defaultPrevented).toBe(false);
+    expect(textFieldRules).toMatch(/-webkit-user-select:\s*text/);
+    expect(textFieldRules).toMatch(/user-select:\s*text/);
+  });
+
+  it('anchors the reminder counter inside the compose rail for long counts', () => {
+    const counterRules = getCssRules('.quick-planner-counter')[0];
+
+    expect(counterRules).toMatch(/right:\s*-10px/);
+    expect(counterRules).toMatch(/left:\s*auto/);
+    expect(counterRules).toMatch(/width:\s*max-content/);
+    expect(counterRules).toMatch(/text-align:\s*right/);
   });
 
   it('shows attachment names without a duplicate native tooltip', () => {

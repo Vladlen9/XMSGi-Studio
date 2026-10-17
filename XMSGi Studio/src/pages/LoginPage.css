@@ -66,7 +66,7 @@
   color: var(--login-studio);
   font-size: calc(0.44em + 5px);
   font-weight: 400;
-  letter-spacing: 0.4046em;
+  letter-spacing: 0.29232em;
   text-align: left;
   text-transform: uppercase;
 }
@@ -188,6 +188,95 @@
   letter-spacing: 2px;
   white-space: nowrap;
   transition: transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.login-method.is-returning {
+  display: block;
+  white-space: normal;
+}
+
+.login-returning-user {
+  display: grid;
+  gap: 10px;
+}
+
+.login-returning-greeting {
+  color: var(--login-gold);
+  font-family: "Orbitron", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.login-returning-account {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--login-ink);
+  font: 600 20px "Exo 2", "Orbitron", Arial, sans-serif;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.login-returning-account > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-returning-account > svg {
+  flex: 0 0 auto;
+  color: var(--login-gold);
+  transform: translate(0, 0);
+  transition: color 0.18s ease, transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.login-returning-account:hover:not(:disabled) {
+  color: var(--login-gold);
+}
+
+.login-returning-account:hover:not(:disabled) > svg,
+.login-returning-account:focus-visible:not(:disabled) > svg {
+  color: rgba(199, 185, 143, 0.9);
+  transform: translate(4px, -4px);
+}
+
+.login-returning-account:focus-visible,
+.login-returning-start-over:focus-visible {
+  outline: 2px solid var(--login-gold);
+  outline-offset: 3px;
+}
+
+.login-returning-start-over {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 10px 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--login-muted);
+  font: 500 12px "Exo 2", "Orbitron", Arial, sans-serif;
+  text-align: right;
+  cursor: pointer;
+}
+
+.login-returning-start-over:hover:not(:disabled) {
+  color: var(--login-gold);
+}
+
+.login-returning-account:disabled,
+.login-returning-start-over:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .login-method-action {

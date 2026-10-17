@@ -281,15 +281,20 @@ html.electron-runtime .quick-planner-page {
 
 .quick-planner-layout {
   display: grid;
-  grid-template-areas:
-    "editor upcoming"
-    "editor sidebar";
-  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 360px);
+  grid-template-areas: "editor";
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   width: min(100%, 1460px);
   margin: 0 auto;
   padding-top: 20px;
   align-items: stretch;
+}
+
+.quick-planner-layout.is-queue-empty {
+  grid-template-areas:
+    "editor"
+    "sidebar";
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .quick-planner-sidebar,
@@ -305,7 +310,7 @@ html.electron-runtime .quick-planner-page {
   grid-area: sidebar;
   position: relative;
   z-index: 2;
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 10px;
   height: auto;
@@ -491,12 +496,9 @@ html.electron-runtime .quick-planner-page {
   flex-direction: column;
   justify-self: center;
   border: 1px solid rgba(var(--quick-planner-accent), 0.62);
-  box-shadow:
-    0 0 10px rgba(var(--quick-planner-accent), 0.13),
-    0 0 28px rgba(var(--quick-planner-accent), 0.045),
-    0 20px 36px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
   transition: border-color 180ms ease, box-shadow 180ms ease;
-  transform: translateX(-35px) translateY(-5px);
+  transform: translateY(-5px);
   width: min(100%, 800px);
   height: 489px;
   min-height: 0;
@@ -1365,14 +1367,6 @@ html.electron-runtime .quick-planner-page {
   background: var(--quick-planner-accent-soft);
 }
 
-.quick-planner-type-controls.is-open .quick-planner-type-toggle {
-  display: grid;
-  flex: 0 0 24px;
-  width: 24px;
-  padding: 0;
-  border-radius: 50%;
-}
-
 .quick-planner-type-toggle:hover,
 .quick-planner-type-toggle:focus-visible {
   color: rgb(var(--quick-planner-accent));
@@ -1407,6 +1401,7 @@ html.electron-runtime .quick-planner-page {
   min-width: 0;
   height: auto;
   align-items: flex-start;
+  transform: translateY(4px);
 }
 
 .quick-planner-reminder-types::-webkit-scrollbar {
@@ -1422,25 +1417,34 @@ html.electron-runtime .quick-planner-page {
   gap: 3px;
   height: 24px;
   padding: 0 7px;
-  color: #8a9aa7;
-  border: 1px solid rgba(var(--quick-planner-accent), 0.2);
+  color: rgb(var(--quick-planner-accent));
+  border: 1px solid rgba(var(--quick-planner-accent), 0.34);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.025);
+  background: rgba(var(--quick-planner-accent), 0.08);
   font: inherit;
   font-size: 11px;
   white-space: nowrap;
   cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.quick-planner-reminder-types button:hover,
+.quick-planner-reminder-types button:focus-visible {
+  border-color: rgba(var(--quick-planner-accent), 0.72);
+  background: rgba(var(--quick-planner-accent), 0.16);
 }
 
 .quick-planner-reminder-types button.is-selected {
   color: rgb(var(--quick-planner-accent));
-  border-color: rgba(var(--quick-planner-accent), 0.5);
-  background: var(--quick-planner-accent-soft);
+  border-color: rgba(var(--quick-planner-accent), 0.9);
+  background: rgba(var(--quick-planner-accent), 0.22);
 }
 
 .quick-planner-compose textarea {
   flex: 1 1 0;
   width: 100%;
+  -webkit-user-select: text;
+  user-select: text;
   transform: translateX(-4px);
   height: auto;
   min-height: 28px;
@@ -1548,7 +1552,8 @@ html.electron-runtime .quick-planner-page {
   }
 
   .quick-planner-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    grid-template-areas: "editor";
+    grid-template-columns: minmax(0, 1fr);
     gap: 18px;
   }
 
@@ -1688,6 +1693,8 @@ html.electron-runtime .quick-planner-page {
   html.electron-runtime .quick-planner-layout {
     grid-template-areas: "editor";
     grid-template-columns: minmax(0, 1fr);
+    height: calc(100% - 16px);
+    align-items: stretch;
     padding-top: 8px;
   }
 
@@ -1701,9 +1708,10 @@ html.electron-runtime .quick-planner-page {
     width: min(100%, 800px);
     min-width: 0;
     max-width: 100%;
-    height: auto;
+    height: 100%;
     min-height: 0;
     overflow: visible;
+    align-self: stretch;
     margin: 0 auto;
     transform: none;
   }
@@ -1724,7 +1732,9 @@ html.electron-runtime .quick-planner-page {
     justify-self: center;
     width: min(100%, 800px);
     max-width: 100%;
-    height: auto;
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
     margin: 0;
     transform: none;
   }
@@ -1893,14 +1903,15 @@ html.electron-runtime .quick-planner-page {
 
 .quick-planner-counter {
   position: absolute;
-  right: 0;
+  right: -10px;
   bottom: 2px;
-  left: 0;
+  left: auto;
+  width: max-content;
   margin: 0;
   color: #738897;
   font-size: 10px;
   line-height: 12px;
-  text-align: center;
+  text-align: right;
   white-space: nowrap;
   transform: translateY(4px);
 }
@@ -2087,7 +2098,7 @@ html.electron-runtime .quick-planner-page {
 .quick-planner-upcoming-column {
   grid-area: upcoming;
   position: relative;
-  display: flex;
+  display: none;
   height: 400px;
   min-height: 0;
   flex-direction: column;
@@ -2121,8 +2132,8 @@ html.electron-runtime .quick-planner-page {
 }
 
 .quick-planner-page.is-browser-draft-only .quick-planner-layout {
-  grid-template-areas: "editor upcoming";
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-areas: "editor";
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .quick-planner-page.is-browser-draft-only .quick-planner-sidebar {
@@ -2149,7 +2160,7 @@ html.electron-runtime .quick-planner-page {
 
 @media (max-width: 840px) {
   .quick-planner-page.is-browser-draft-only .quick-planner-layout {
-    grid-template-areas: "editor" "upcoming";
+    grid-template-areas: "editor";
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -3320,7 +3331,8 @@ html.electron-runtime .quick-planner-page {
 
 @media (min-width: 701px) and (max-width: 1200px) {
   .quick-planner-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    grid-template-areas: "editor";
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 14px;
   }
@@ -3597,6 +3609,45 @@ html.electron-runtime .quick-planner-page {
   }
 }
 
+@media (min-width: 701px) and (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page .quick-planner-editor {
+    justify-self: center;
+    width: min(100%, calc(82vw / var(--electron-ui-scale, 1)));
+    max-width: none;
+    height: auto;
+    max-height: 100%;
+    aspect-ratio: 1.64 / 1;
+    align-self: center;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-compose-anchor {
+    position: absolute;
+    top: 50%;
+    left: 16px;
+    width: calc(100% - 32px);
+    padding-top: 0;
+    transform: translateY(-50%);
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    overflow: visible;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    overflow: visible;
+    flex-wrap: wrap;
+    gap: 6px;
+    transform: none;
+  }
+}
+
 @container quick-planner (max-width: 1200px) {
   html.electron-runtime .quick-planner-page .quick-planner-editor-heading {
     position: absolute;
@@ -3693,5 +3744,106 @@ html.electron-runtime .quick-planner-page {
     min-height: 34px;
     flex: 0 0 34px;
     margin: 62px 0 0;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page .quick-planner-editor-heading {
+    position: absolute;
+    top: -22px;
+    right: auto;
+    left: 8px;
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor-heading > .quick-planner-section-label {
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-clock {
+    position: absolute;
+    top: 16px;
+    right: auto;
+    left: 16px;
+    align-self: auto;
+    margin: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-editor > .quick-planner-heading-actions {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    left: auto;
+    z-index: 2;
+    width: auto;
+    max-width: calc(100% - 220px);
+    padding: 0;
+    align-items: center;
+    justify-content: flex-end;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    flex: 0 0 auto;
+    font-size: 9px;
+    line-height: 1.2;
+    transform: none;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 32px;
+    height: 32px;
+    align-items: center;
+    gap: 4px;
+    padding: 0 1px;
+    font-size: 15px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 850px) {
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    gap: 3px;
+    font-size: 13px;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: 11px;
+    height: 11px;
   }
 }

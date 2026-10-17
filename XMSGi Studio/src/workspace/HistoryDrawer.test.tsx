@@ -649,12 +649,13 @@ describe('HistoryDrawer search', () => {
   });
 
   it('shows Planner drafts beside Studio posts in the shared Posts history', () => {
-    const plannerDraft = normalizePlannerDraft('A saved Planner draft', null, '2026-10-06T10:00:00.000Z');
+    const plannerDraft = normalizePlannerDraft('A saved Planner draft', null, '2026-10-06T10:00:00.000Z', [], [], 'meeting');
     renderHistory([upcomingRecord, personalUpcomingRecord, ...(plannerDraft ? [plannerDraft] : [])]);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
     expect(screen.getAllByRole('article')).toHaveLength(1);
     expect(screen.getByRole('article')).toHaveTextContent('A saved Planner draft');
+    expect(screen.getByLabelText('Встреча')).toHaveAttribute('data-reminder-type', 'meeting');
     fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
 
     expect(screen.getByRole('tab', { name: 'Черновики' })).toBeInTheDocument();
@@ -676,6 +677,7 @@ describe('HistoryDrawer search', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
     expect(screen.getByRole('article')).toHaveTextContent('An idea saved from Quick Planner');
+    expect(screen.getByLabelText('Идея')).toHaveAttribute('data-reminder-type', 'idea');
     fireEvent.click(screen.getByRole('button', { name: /Использовать черновик/ }));
 
     const chooser = screen.getByRole('menu', { name: /Saved Quick Planner draft/ });

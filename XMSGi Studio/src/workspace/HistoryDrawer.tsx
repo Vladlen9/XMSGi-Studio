@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarOff, Download, Ellipsis, FileText, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
+import { Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
 import type { PersistedDraftStore } from '@shared/types';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
-import type { HistoryItem } from './historyModel';
+import type { HistoryItem, PlannerReminderType } from './historyModel';
 
 type HistorySourceFilter = 'all' | 'workspace' | 'personal';
 type HistoryBulkActionSource = HistorySourceFilter;
@@ -114,6 +114,22 @@ function isSavedMessagesRecord(record: HistoryItem) {
 
 function isPlannerDraftRecord(record: HistoryItem) {
   return record.original.kind === 'planner-draft' || record.original.kind === 'saved-planner-draft';
+}
+
+function getPlannerReminderType(record: HistoryItem): PlannerReminderType | null {
+  if (record.original.kind === 'planner-draft') return record.original.reminderType;
+  if (record.original.kind === 'saved-planner-draft') return record.original.draft.reminderType;
+  return null;
+}
+
+function getPlannerReminderTypePresentation(type: PlannerReminderType, t: HistoryTranslate) {
+  switch (type) {
+    case 'task': return { Icon: CheckCircle2, label: t('quickplanner.reminderType.task') };
+    case 'meeting': return { Icon: Clock, label: t('quickplanner.reminderType.meeting') };
+    case 'reminder': return { Icon: Bell, label: t('quickplanner.reminderType.reminder') };
+    case 'event': return { Icon: CalendarDays, label: t('quickplanner.reminderType.event') };
+    case 'idea': return { Icon: Lightbulb, label: t('quickplanner.reminderType.idea') };
+  }
 }
 
 function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) {
@@ -1227,6 +1243,8 @@ export function HistoryDrawer({
               ];
               const isPlannerDraftAction = primaryAction?.type === 'use-draft' && isPlannerDraftRecord(record);
               const isDestinationMenuOpen = isPlannerDraftAction && draftUseTarget?.id === record.id;
+              const reminderType = getPlannerReminderType(record);
+              const reminderTypePresentation = reminderType ? getPlannerReminderTypePresentation(reminderType, t) : null;
 
               return (
               <Fragment key={record.id}>
@@ -1294,7 +1312,19 @@ export function HistoryDrawer({
                   </span>
 
                   <span className="history-record-heading">
-                    <strong>{record.title}</strong>
+                    <span className="history-record-heading-title">
+                      <strong>{record.title}</strong>
+                      {reminderType && reminderTypePresentation && (
+                        <span
+                          className="history-record-reminder-type"
+                          data-reminder-type={reminderType}
+                          aria-label={reminderTypePresentation.label}
+                          title={reminderTypePresentation.label}
+                        >
+                          <reminderTypePresentation.Icon size={14} strokeWidth={1.9} aria-hidden="true" />
+                        </span>
+                      )}
+                    </span>
                     {!isExpanded && <time dateTime={timestamp}>{formatTime(timestamp, locale)}</time>}
                   </span>
 

@@ -141,15 +141,33 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Two-step password')).toBeInTheDocument();
   });
 
-  it('keeps the Log In screen for a signed-out account', () => {
-    renderLogin({
+  it('offers one-click return for a saved account after sign-out', () => {
+    const { props } = renderLogin({
       signedOut: true,
       returningUserName: 'Alex Example',
     });
 
-    expect(screen.queryByText('WELCOME BACK,')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue with Telegram' })).toBeInTheDocument();
-    expect(screen.queryByText('Alex Example')).not.toBeInTheDocument();
+    expect(screen.getByText('WELCOME BACK,')).toBeInTheDocument();
+    const returnButton = screen.getByRole('button', { name: 'Return to app as Alex Example' });
+    expect(returnButton).toHaveTextContent('Alex Example');
+    expect(screen.queryByRole('button', { name: 'Continue with Telegram' })).not.toBeInTheDocument();
+
+    fireEvent.click(returnButton);
+    expect(props.handleWelcomeBack).toHaveBeenCalledOnce();
+  });
+
+  it('opens phone sign-in from the saved-account screen', () => {
+    const { container, props } = renderLogin({ signedOut: true, returningUserName: 'Alex Example' });
+    const method = container.querySelector('.login-method');
+    const startOver = screen.getByRole('button', { name: 'Start over with another phone' });
+
+    expect(method?.nextElementSibling).toBe(startOver);
+
+    fireEvent.click(startOver);
+
+    expect(props.setShowAuthForm).toHaveBeenCalledWith(true);
+    expect(props.setAuthStep).toHaveBeenCalledWith('phone');
+    expect(props.setAuthError).toHaveBeenCalledWith('');
   });
 });
 

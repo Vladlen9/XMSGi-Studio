@@ -1112,6 +1112,26 @@ html.electron-runtime .history-confirmation-backdrop {
   line-height: 1.35;
 }
 
+.history-record-heading-title {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-record-reminder-type {
+  display: inline-flex;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  align-items: center;
+  justify-content: center;
+  color: var(--history-record-accent);
+  border: 1px solid color-mix(in srgb, var(--history-record-accent) 46%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--history-record-accent) 12%, transparent);
+}
+
 .history-record-heading time {
   flex: 0 0 auto;
   padding: 0;
@@ -1912,11 +1932,6 @@ html.electron-runtime {
   --electron-ui-scale: clamp(0.7, min(100vw / 900px, 100dvh / 800px), 1);
   zoom: var(--electron-ui-scale);
   overflow: hidden;
-}
-
-html.electron-runtime:has(.product-shell.planner-shell .quick-planner-page) {
-  --electron-ui-scale: 1;
-  zoom: 1;
 }
 
 html.electron-runtime body {

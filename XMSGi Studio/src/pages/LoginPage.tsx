@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { useLayoutEffect, useRef } from 'react';
 import { Notification } from '@/components/Notification';
 import type { NotificationState } from '@/types';
@@ -35,6 +35,9 @@ export function LoginPage({
   connecting,
   notification,
   closeNotification,
+  signedOut,
+  returningUserName,
+  returningUserUsername,
   authStep,
   showAuthForm,
   phoneNumber,
@@ -49,8 +52,11 @@ export function LoginPage({
   setTwoFactorPassword,
   setAuthError,
   handleTelegramAuth,
+  handleWelcomeBack,
 }: LoginPageProps) {
   const { locale, setLocale, t } = useLocale();
+  const returningUserLabel = returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'));
+  const returningUserActionLabel = t('auth.returnToApp', { name: returningUserLabel });
   const loginFormRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -119,35 +125,71 @@ export function LoginPage({
             />
 
             <section className="login-panel" aria-label={t('hero.signInIntro')}>
-              <div className="login-method">
+              <div className={`login-method ${signedOut ? 'is-returning' : ''}`}>
+                {signedOut ? (
+                  <div className="login-returning-user">
+                    <span className="login-returning-greeting">{t('auth.welcomeBack')}</span>
+                    <button
+                      type="button"
+                      className="login-returning-account"
+                      onClick={handleWelcomeBack}
+                      disabled={authBusy}
+                      aria-label={returningUserActionLabel}
+                      title={returningUserActionLabel}
+                    >
+                      <span>{returningUserLabel}</span>
+                      <ArrowUpRight size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="login-method-action"
+                      aria-label={t('auth.continueTelegram')}
+                      aria-expanded={showAuthForm}
+                      aria-controls="telegram-login-form"
+                      onClick={() => {
+                        setShowAuthForm((current) => !current);
+                        setAuthStep('phone');
+                        setAuthError('');
+                      }}
+                    >
+                      {t('auth.continue')}
+                    </button>
+                    <ArrowRight className="login-arrow" size={25} aria-hidden="true" />
+                    <button
+                      type="button"
+                      className="login-method-action"
+                      aria-expanded={showAuthForm}
+                      aria-controls="telegram-login-form"
+                      onClick={() => {
+                        setShowAuthForm((current) => !current);
+                        setAuthError('');
+                      }}
+                    >
+                      {t('auth.telegram')}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {signedOut && (
                 <button
                   type="button"
-                  className="login-method-action"
-                  aria-label={t('auth.continueTelegram')}
+                  className="login-returning-start-over"
                   aria-expanded={showAuthForm}
                   aria-controls="telegram-login-form"
                   onClick={() => {
-                    setShowAuthForm((current) => !current);
+                    setShowAuthForm(true);
                     setAuthStep('phone');
                     setAuthError('');
                   }}
+                  disabled={authBusy}
                 >
-                  {t('auth.continue')}
+                  {t('auth.startOver')}
                 </button>
-                <ArrowRight className="login-arrow" size={25} aria-hidden="true" />
-                <button
-                  type="button"
-                  className="login-method-action"
-                  aria-expanded={showAuthForm}
-                  aria-controls="telegram-login-form"
-                  onClick={() => {
-                    setShowAuthForm((current) => !current);
-                    setAuthError('');
-                  }}
-                >
-                  {t('auth.telegram')}
-                </button>
-              </div>
+              )}
 
               <div id="telegram-login-form" ref={loginFormRef} className={`login-form ${showAuthForm ? 'is-visible' : ''}`} aria-hidden={!showAuthForm}>
                 <div className="login-error-slot" aria-live="polite">
