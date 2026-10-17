@@ -23,14 +23,6 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsV
         telegramAuthBusy={false}
         telegramAuthError=""
         telegramStatus={{ accountId: 'account-1', status: 'normal' } satisfies TelegramStatusSnapshot}
-        geminiSettings={{ hasKey: false, maskedKey: '', enabled: false, encryptionAvailable: true }}
-        settingsKey=""
-        settingsBusy={false}
-        settingsError=""
-        onSettingsKeyChange={vi.fn()}
-        onSaveGeminiKey={vi.fn()}
-        onRemoveGeminiKey={vi.fn()}
-        onToggleAssistant={vi.fn()}
         telegramCredentials={{ hasCredentials: true, hasSession: true, connected: true, signedOut: false }}
         telegramApiId=""
         telegramApiHash=""

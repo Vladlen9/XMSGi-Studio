@@ -7,6 +7,7 @@ export type PendingScheduleInput = Pick<
 > & {
   operationId: string;
   attachments?: string[];
+  attachmentGroups?: string[][];
   entities?: RichTextEntity[];
   replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;

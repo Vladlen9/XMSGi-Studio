@@ -6,7 +6,8 @@ const MAX_API_HASH_LENGTH = 256;
 const MAX_PASSWORD_LENGTH = 512;
 const MAX_CODE_LENGTH = 32;
 const MAX_ATTACHMENT_PATH_LENGTH = 4096;
-const MAX_ATTACHMENTS = 10;
+const MAX_ATTACHMENTS = 30;
+const MAX_ATTACHMENTS_PER_GROUP = 10;
 const MAX_FORMATTING_ENTITIES = 100;
 const MAX_INLINE_BUTTON_ROWS = 20;
 const MAX_INLINE_BUTTONS_PER_ROW = 8;
@@ -107,6 +108,7 @@ function validateReplyMarkup(value) {
 
   return {
     inline_keyboard: value.inline_keyboard.map((row, rowIndex) => {
+
       if (!Array.isArray(row) || row.length > MAX_INLINE_BUTTONS_PER_ROW) {
         invalidInput(`replyMarkup row ${rowIndex + 1} is invalid`);
       }
@@ -136,6 +138,7 @@ function validateSchedulePayload(value) {
   }
 
   const attachments = validateAttachments(value.attachments);
+  const attachmentGroups = validateAttachmentGroups(value.attachmentGroups, attachments);
   const message = attachments.length > 0
     ? validateString(value.message, 'message', { max: MAX_MESSAGE_LENGTH, allowEmpty: true })
     : validateMessage(value.message);
@@ -146,6 +149,7 @@ function validateSchedulePayload(value) {
     entities: validateFormattingEntities(value.entities, message.length),
     targetTimestamp: validateTimestamp(value.targetTimestamp),
     attachments,
+    ...(attachmentGroups ? { attachmentGroups } : {}),
     replyMarkup: validateReplyMarkup(value.replyMarkup),
     silent: value.silent === true,
     effect: validateEffect(value.effect)
@@ -190,8 +194,11 @@ function validateDeleteSavedMessagePayload(value) {
 function validateAttachments(value) {
   if (value === undefined) return [];
 
-  if (!Array.isArray(value) || value.length > MAX_ATTACHMENTS) {
+  if (!Array.isArray(value)) {
     invalidInput('attachments must be an array');
+  }
+  if (value.length > MAX_ATTACHMENTS) {
+    invalidInput(`attachments cannot exceed ${MAX_ATTACHMENTS}`);
   }
 
   return value.map((attachment, index) =>
@@ -199,6 +206,29 @@ function validateAttachments(value) {
       max: MAX_ATTACHMENT_PATH_LENGTH
     })
   );
+}
+
+function validateAttachmentGroups(value, attachments) {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > MAX_ATTACHMENTS) {
+    invalidInput('attachmentGroups must be an array');
+  }
+
+  const groups = value.map((group, groupIndex) => {
+    if (!Array.isArray(group) || group.length === 0 || group.length > MAX_ATTACHMENTS_PER_GROUP) {
+      invalidInput(`attachmentGroups[${groupIndex}] must contain 1 to ${MAX_ATTACHMENTS_PER_GROUP} paths`);
+    }
+    return group.map((attachment, attachmentIndex) => validateString(
+      attachment,
+      `attachmentGroups[${groupIndex}][${attachmentIndex}]`,
+      { max: MAX_ATTACHMENT_PATH_LENGTH },
+    ));
+  });
+  const flattened = groups.flat();
+  if (flattened.length !== attachments.length || flattened.some((attachment, index) => attachment !== attachments[index])) {
+    invalidInput('attachmentGroups must match attachments');
+  }
+  return groups;
 }
 
 function validateCancelPayload(value) {
@@ -254,6 +284,7 @@ function validateSendPayload(value) {
   }
 
   const attachments = validateAttachments(value.attachments);
+  const attachmentGroups = validateAttachmentGroups(value.attachmentGroups, attachments);
   const message = attachments.length > 0
     ? validateString(value.message, 'message', { max: MAX_MESSAGE_LENGTH, allowEmpty: true })
     : validateMessage(value.message);
@@ -266,6 +297,7 @@ function validateSendPayload(value) {
     message,
     entities: validateFormattingEntities(value.entities, message.length),
     attachments,
+    ...(attachmentGroups ? { attachmentGroups } : {}),
     replyMarkup: validateReplyMarkup(value.replyMarkup),
     silent: value.silent === true,
     effect: validateEffect(value.effect),
@@ -331,54 +363,6 @@ function validateTelegramCredentialsPayload(value) {
   };
 }
 
-function validateGeminiGeneratePayload(value) {
-  if (!isPlainObject(value)) {
-    invalidInput('Gemini payload must be an object');
-  }
-
-  const prompt = validateString(value.prompt, 'prompt', { max: 12000 });
-  const context = value.context;
-
-  if (!isPlainObject(context)) {
-    invalidInput('Gemini context must be an object');
-  }
-
-  const currentDate = validateString(context.currentDate, 'currentDate', { max: 32 });
-  const currentTime = validateString(context.currentTime, 'currentTime', { max: 32 });
-
-  if (!Array.isArray(context.chats) || context.chats.length > 1000) {
-    invalidInput('chats must be an array');
-  }
-
-  const chats = context.chats.map((chat) => {
-    if (!isPlainObject(chat)) {
-      invalidInput('chat context must be an object');
-    }
-
-    return {
-      id: validateChatId(chat.id),
-      name: validateString(chat.name, 'chat name', { max: 256 })
-    };
-  });
-
-  return {
-    prompt,
-    context: { currentDate, currentTime, chats }
-  };
-}
-
-function validateGeminiKey(value) {
-  return validateString(value, 'Gemini API key', { max: 512 });
-}
-
-function validateEnabled(value) {
-  if (typeof value !== 'boolean') {
-    invalidInput('enabled must be a boolean');
-  }
-
-  return value;
-}
-
 function assertTrustedRenderer(event, expectedWebContents, allowedFileUrl) {
   const senderUrl = event?.senderFrame?.url || '';
   const sender = event?.sender;
@@ -406,8 +390,5 @@ module.exports = {
   validateSendPayload,
   validateLoginPayload,
   validateTelegramCredentialsPayload,
-  validateGeminiGeneratePayload,
-  validateGeminiKey,
-  validateEnabled,
   assertTrustedRenderer
 };

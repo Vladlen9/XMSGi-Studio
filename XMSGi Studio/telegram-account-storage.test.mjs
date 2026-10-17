@@ -68,7 +68,7 @@ function encryptLegacyFallback(value) {
 
 describe('telegram account storage adapter', () => {
   it('preserves unrelated config and encrypted session persistence', () => {
-    const { adapter, files } = createFakeStorage({ AI_ASSISTANT_ENABLED: true });
+    const { adapter, files } = createFakeStorage({ UNRELATED_SETTING: true });
 
     expect(adapter.saveAccountSecrets({
       API_ID: '123',
@@ -80,13 +80,13 @@ describe('telegram account storage adapter', () => {
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
-      AI_ASSISTANT_ENABLED: true
+      UNRELATED_SETTING: true
     });
     expect(JSON.parse(files.get(getConfigPath()))).toEqual({
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
-      AI_ASSISTANT_ENABLED: true
+      UNRELATED_SETTING: true
     });
   });
 
@@ -123,8 +123,8 @@ describe('telegram account storage adapter', () => {
       API_HASH: 'hash',
       SESSION_STRING: 'session',
       SIGNED_OUT: true,
-      GEMINI_API_KEY_ENCRYPTED: 'gemini-ciphertext',
-      AI_ASSISTANT_ENABLED: false
+      UNRELATED_SECRET: 'opaque-ciphertext',
+      UNRELATED_SETTING: false
     });
 
     expect(adapter.loadAccountSecrets()).toMatchObject({
@@ -141,8 +141,8 @@ describe('telegram account storage adapter', () => {
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
       SIGNED_OUT: true,
-      GEMINI_API_KEY_ENCRYPTED: 'gemini-ciphertext',
-      AI_ASSISTANT_ENABLED: false
+      UNRELATED_SECRET: 'opaque-ciphertext',
+      UNRELATED_SETTING: false
     });
     expect(migratedConfig).not.toHaveProperty('API_ID');
     expect(migratedConfig).not.toHaveProperty('API_HASH');
@@ -166,8 +166,8 @@ describe('telegram account storage adapter', () => {
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
-      GEMINI_API_KEY_ENCRYPTED: 'gemini-ciphertext',
-      AI_ASSISTANT_ENABLED: true
+      UNRELATED_SECRET: 'opaque-ciphertext',
+      UNRELATED_SETTING: true
     });
 
     expect(adapter.setTelegramSignedOut(true)).toBe(true);
@@ -180,8 +180,8 @@ describe('telegram account storage adapter', () => {
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
-      GEMINI_API_KEY_ENCRYPTED: 'gemini-ciphertext',
-      AI_ASSISTANT_ENABLED: true,
+      UNRELATED_SECRET: 'opaque-ciphertext',
+      UNRELATED_SETTING: true,
       SIGNED_OUT: true
     });
 
@@ -285,7 +285,7 @@ describe('telegram account storage adapter', () => {
   });
 
   it('writes a temporary config and atomically renames it', () => {
-    const { adapter, files, fs } = createFakeStorage({ AI_ASSISTANT_ENABLED: true });
+    const { adapter, files, fs } = createFakeStorage({ UNRELATED_SETTING: true });
     const configPath = getConfigPath();
     const temporaryPath = `${configPath}.tmp`;
 
@@ -301,7 +301,7 @@ describe('telegram account storage adapter', () => {
   it('preserves the original config when the temporary write fails', () => {
     const writeError = new Error('disk full');
     const { adapter, files, fs } = createFakeStorage(
-      { AI_ASSISTANT_ENABLED: true },
+      { UNRELATED_SETTING: true },
       { writeError }
     );
     const originalConfig = files.get(getConfigPath());
@@ -315,7 +315,7 @@ describe('telegram account storage adapter', () => {
   it('preserves the original config when the temporary rename fails', () => {
     const renameError = new Error('rename failed');
     const { adapter, files, fs } = createFakeStorage(
-      { AI_ASSISTANT_ENABLED: true },
+      { UNRELATED_SETTING: true },
       { renameError }
     );
     const originalConfig = files.get(getConfigPath());
@@ -384,7 +384,7 @@ describe('telegram account storage adapter', () => {
 
   it('does not report a successful save when safeStorage is unavailable', () => {
     const { adapter, files, fs } = createFakeStorage(
-      { AI_ASSISTANT_ENABLED: true },
+      { UNRELATED_SETTING: true },
       { encryptionAvailable: false }
     );
     const originalConfig = files.get(getConfigPath());
@@ -396,7 +396,7 @@ describe('telegram account storage adapter', () => {
   });
 
   it('preserves both changes from concurrent saves', async () => {
-    const { adapter, files } = createFakeStorage({ AI_ASSISTANT_ENABLED: true });
+    const { adapter, files } = createFakeStorage({ UNRELATED_SETTING: true });
 
     await Promise.all([
       Promise.resolve().then(() => adapter.saveAccountSecrets({ API_ID: '123' })),
@@ -406,13 +406,13 @@ describe('telegram account storage adapter', () => {
     expect(JSON.parse(files.get(getConfigPath()))).toMatchObject({
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
       API_HASH_ENCRYPTED: 'ZW5jcnlwdGVkOmhhc2g=',
-      AI_ASSISTANT_ENABLED: true
+      UNRELATED_SETTING: true
     });
   });
 
   it('does not let concurrent config changes overwrite unrelated data', async () => {
     const { adapter, files } = createFakeStorage({
-      AI_ASSISTANT_ENABLED: true,
+      UNRELATED_SETTING: true,
       existingSetting: 'keep'
     });
 
@@ -424,7 +424,7 @@ describe('telegram account storage adapter', () => {
     expect(JSON.parse(files.get(getConfigPath()))).toMatchObject({
       SESSION_STRING_ENCRYPTED: 'ZW5jcnlwdGVkOnNlc3Npb24=',
       API_ID_ENCRYPTED: 'ZW5jcnlwdGVkOjEyMw==',
-      AI_ASSISTANT_ENABLED: true,
+      UNRELATED_SETTING: true,
       existingSetting: 'keep'
     });
   });

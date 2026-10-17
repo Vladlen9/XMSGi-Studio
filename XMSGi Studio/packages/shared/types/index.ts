@@ -140,6 +140,7 @@ export interface ScheduledMessage {
   lastAttemptAt?: string;
   sendAttemptId?: string;
   attachments?: string[];
+  attachmentGroups?: string[][];
   entities?: RichTextEntity[];
   replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;

@@ -14,19 +14,6 @@ type SettingsPageProps = {
   telegramAuthBusy: boolean;
   telegramAuthError: string;
   telegramStatus: TelegramStatusSnapshot;
-  geminiSettings: {
-    hasKey: boolean;
-    maskedKey: string;
-    enabled: boolean;
-    encryptionAvailable: boolean;
-  };
-  settingsKey: string;
-  settingsBusy: boolean;
-  settingsError: string;
-  onSettingsKeyChange: (value: string) => void;
-  onSaveGeminiKey: () => void;
-  onRemoveGeminiKey: () => void;
-  onToggleAssistant: () => void;
   telegramCredentials: { hasCredentials: boolean; hasSession: boolean; connected: boolean; signedOut: boolean };
   telegramApiId: string;
   telegramApiHash: string;
@@ -56,14 +43,6 @@ export function SettingsPage({
   telegramAuthBusy,
   telegramAuthError,
   telegramStatus,
-  geminiSettings,
-  settingsKey,
-  settingsBusy,
-  settingsError,
-  onSettingsKeyChange,
-  onSaveGeminiKey,
-  onRemoveGeminiKey,
-  onToggleAssistant,
   telegramCredentials,
   telegramApiId,
   telegramApiHash,
@@ -93,14 +72,6 @@ export function SettingsPage({
       telegramAuthBusy={telegramAuthBusy}
       telegramAuthError={telegramAuthError}
       telegramStatus={telegramStatus}
-      geminiSettings={geminiSettings}
-      settingsKey={settingsKey}
-      settingsBusy={settingsBusy}
-      settingsError={settingsError}
-      onSettingsKeyChange={onSettingsKeyChange}
-      onSaveGeminiKey={onSaveGeminiKey}
-      onRemoveGeminiKey={onRemoveGeminiKey}
-      onToggleAssistant={onToggleAssistant}
       telegramCredentials={telegramCredentials}
       telegramApiId={telegramApiId}
       telegramApiHash={telegramApiHash}

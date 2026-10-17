@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { app, BrowserWindow, Tray, Menu, ipcMain, safeStorage, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } = require('electron');
 const { resolveAppDataRoot } = require('./app-data-path.cjs');
 
 const writableAppDataRoot = resolveAppDataRoot(path, process.env.LOCALAPPDATA || app.getPath('appData'), app.isPackaged);
@@ -17,11 +17,14 @@ app.setPath('sessionData', writableAppDataRoot);
 app.setPath('cache', writableCacheRoot);
 app.setPath('temp', writableTempRoot);
 app.commandLine.appendSwitch('disk-cache-dir', writableCacheRoot);
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222');
+}
 
 if (!app.isPackaged && process.env.npm_lifecycle_event !== 'start') {
   const developmentEnvironment = {};
   require('dotenv').config({ processEnv: developmentEnvironment });
-  for (const key of ['API_ID', 'API_HASH', 'GEMINI_MODEL']) {
+  for (const key of ['API_ID', 'API_HASH']) {
     if (process.env[key] === undefined && typeof developmentEnvironment[key] === 'string') {
       process.env[key] = developmentEnvironment[key];
     }
@@ -31,10 +34,7 @@ if (!app.isPackaged && process.env.npm_lifecycle_event !== 'start') {
 const {
   validateCancelPayload,
   validateChatId,
-  validateEnabled,
   validateDeleteSavedMessagePayload,
-  validateGeminiGeneratePayload,
-  validateGeminiKey,
   validateHistoryPayload,
   validateLoginPayload,
   validateTelegramCredentialsPayload,
@@ -129,83 +129,19 @@ function writeSecureConfig(data) {
   }
 }
 
-const GEMINI_KEY_FIELD = 'GEMINI_API_KEY_ENCRYPTED';
-const AI_ASSISTANT_ENABLED_FIELD = 'AI_ASSISTANT_ENABLED';
-
-function getGeminiKey() {
+function removeObsoleteSecureConfigFields() {
   const config = readSecureConfig();
-  const encryptedKey = config[GEMINI_KEY_FIELD];
-
-  if (!encryptedKey || !safeStorage.isEncryptionAvailable()) {
-    return '';
+  let changed = false;
+  for (const key of ['GEMINI_API_KEY_ENCRYPTED', 'AI_ASSISTANT_ENABLED']) {
+    if (Object.prototype.hasOwnProperty.call(config, key)) {
+      delete config[key];
+      changed = true;
+    }
   }
-
-  try {
-    return safeStorage.decryptString(Buffer.from(encryptedKey, 'base64')).trim();
-  } catch (error) {
-    console.error('Gemini key decryption failed:', error?.code || error?.name || 'unknown');
-    return '';
-  }
+  if (changed) writeSecureConfig(config);
 }
 
-function getGeminiKeyMask(key) {
-  return key ? `••••••••${key.slice(-4)}` : '';
-}
-
-function getGeminiSettings() {
-  const key = getGeminiKey();
-  const config = readSecureConfig();
-  const enabled = config[AI_ASSISTANT_ENABLED_FIELD] ?? true;
-
-  return {
-    hasKey: Boolean(key),
-    maskedKey: getGeminiKeyMask(key),
-    enabled: enabled === true,
-    encryptionAvailable: safeStorage.isEncryptionAvailable()
-  };
-}
-
-function saveGeminiKey(key) {
-  const normalizedKey = typeof key === 'string' ? key.trim() : '';
-
-  if (!normalizedKey) {
-    throw new Error('Gemini API key is required.');
-  }
-
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('Secure local storage is unavailable on this system.');
-  }
-
-  const config = readSecureConfig();
-  const encryptedKey = safeStorage.encryptString(normalizedKey).toString('base64');
-
-  writeSecureConfig({
-    ...config,
-    [GEMINI_KEY_FIELD]: encryptedKey
-  });
-
-  return getGeminiSettings();
-}
-
-function removeGeminiKey() {
-  const config = readSecureConfig();
-  const nextConfig = { ...config };
-
-  delete nextConfig[GEMINI_KEY_FIELD];
-  writeSecureConfig(nextConfig);
-
-  return getGeminiSettings();
-}
-
-function setGeminiEnabled(enabled) {
-  const config = readSecureConfig();
-  writeSecureConfig({
-    ...config,
-    [AI_ASSISTANT_ENABLED_FIELD]: Boolean(enabled)
-  });
-
-  return getGeminiSettings();
-}
+removeObsoleteSecureConfigFields();
 
 function shouldLoadProductionBuild() {
   const distIndexPath = path.join(__dirname, 'dist', 'index.html');
@@ -279,8 +215,6 @@ const {
   shutdownTelegram,
   setTelegramStatusCallback
 } = require('./telegram.cjs');
-const { generateGeminiContent } = require('./gemini.cjs');
-
 function telegramOperationFailure(error) {
   const classification = classifyTelegramError(error);
   const normalizedError = classification.error;
@@ -322,29 +256,15 @@ function getSafeTelegramAuthState() {
   };
 }
 
-function getGeminiErrorCode(error) {
-  const status = error && typeof error === 'object' ? error.status : undefined;
-  const details = error instanceof Error ? error.message : String(error);
-
-  if (
-    status === 429 ||
-    /\b429\b|quota|rate limit|resource exhausted|too many requests/i.test(details)
-  ) {
-    return 'quota';
-  }
-
-  return 'generic';
-}
-
-
 function createWindow() {
    mainWindow = new BrowserWindow({
     title: 'XMSGi Studio',
     icon: path.join(__dirname, 'build', 'icon.ico'),
     width: 900,
     height: 800,
-    minWidth: 858,
-    minHeight: 801,
+    minWidth: 780,
+    minHeight: 560,
+    resizable: true,
     backgroundColor: '#11110f',
     autoHideMenuBar: true,
     show: false,
@@ -423,101 +343,6 @@ function createTray() {
   ]));
   tray.on('double-click', showMainWindow);
 }
-
-ipcMain.handle('gemini-generate', async (event, data = {}) => {
-  assertTrustedRenderer(
-    event,
-    mainWindow?.webContents,
-    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
-  );
-  const validated = validateGeminiGeneratePayload(data);
-
-  try {
-    const apiKey = getGeminiKey();
-
-    if (!apiKey) {
-      return { success: false, errorCode: 'setup_required' };
-    }
-
-    const result = await generateGeminiContent(validated.prompt, {
-      context: validated.context,
-      apiKey
-    });
-
-    return {
-      success: true,
-      intent: result
-    };
-  } catch (error) {
-    console.error('Gemini generation error:', error?.status || error?.code || error?.name || 'unknown');
-
-    return {
-      success: false,
-      errorCode: getGeminiErrorCode(error)
-    };
-  }
-});
-
-ipcMain.handle('gemini-settings-status', async (event) => {
-  assertTrustedRenderer(
-    event,
-    mainWindow?.webContents,
-    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
-  );
-  return getGeminiSettings();
-});
-
-ipcMain.handle('gemini-save-key', async (event, key) => {
-  assertTrustedRenderer(
-    event,
-    mainWindow?.webContents,
-    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
-  );
-  const validatedKey = validateGeminiKey(key);
-
-  try {
-    return { success: true, settings: saveGeminiKey(validatedKey) };
-  } catch (error) {
-    console.error('Gemini key save failed:', error?.code || error?.name || 'unknown');
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Gemini key could not be saved.'
-    };
-  }
-});
-
-ipcMain.handle('gemini-remove-key', async (event) => {
-  assertTrustedRenderer(
-    event,
-    mainWindow?.webContents,
-    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
-  );
-  try {
-    return { success: true, settings: removeGeminiKey() };
-  } catch (error) {
-    console.error('Gemini key removal failed:', error?.code || error?.name || 'unknown');
-    return { success: false, error: 'Gemini key could not be removed.' };
-  }
-});
-
-ipcMain.handle('gemini-set-enabled', async (event, enabled) => {
-  assertTrustedRenderer(
-    event,
-    mainWindow?.webContents,
-    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
-  );
-  const validatedEnabled = validateEnabled(enabled);
-
-  try {
-    return { success: true, settings: setGeminiEnabled(validatedEnabled) };
-  } catch (error) {
-    console.error('AI Assistant setting update failed:', error?.code || error?.name || 'unknown');
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'AI Assistant setting could not be updated.'
-    };
-  }
-});
 
 ipcMain.handle('chat-storage-load', async (event) => {
   assertTrustedRenderer(
@@ -777,6 +602,11 @@ ipcMain.handle('draft-store:restore-backup', (event, index) => {
 ipcMain.handle('draft-store:copy-attachment', (event, sourcePath) => {
   assertDraftStorageRenderer(event);
   return draftStore.copyAttachment(sourcePath);
+});
+
+ipcMain.handle('draft-store:write-attachment', (event, payload) => {
+  assertDraftStorageRenderer(event);
+  return draftStore.writeAttachment(payload?.name, payload?.bytes);
 });
 
 ipcMain.handle('draft-store:export', async (event) => {

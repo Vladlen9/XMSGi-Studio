@@ -1,5 +1,5 @@
 import type { Chat, RichTextEntity, ScheduledMessage } from '@/types';
-import type { DraftColor, PersistedDraftStore, SavedDraft } from '$studio';
+import type { DraftColor, PersistedDraftStore, SavedDraft } from '@shared/types';
 import { normalizeTelegramMessage } from '@shared/telegramText.cjs';
 
 export type HistorySource = 'personal' | 'workspace';

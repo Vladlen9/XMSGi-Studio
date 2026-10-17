@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react';
 import type {
   Chat,
   InlineKeyboardMarkup,
@@ -23,6 +24,7 @@ export interface StudioSchedulePayload {
   date: string;
   time: string;
   attachments?: string[];
+  attachmentGroups?: string[][];
   entities?: RichTextEntity[];
   replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;
@@ -51,6 +53,7 @@ export interface StudioSchedulerActions {
     attachments?: string[],
     entities?: RichTextEntity[],
     replyMarkup?: InlineKeyboardMarkup,
+    attachmentGroups?: string[][],
   ) => Promise<boolean>;
   handleSendNow: (message: ScheduledMessage) => void | Promise<void>;
   handleDeleteMessage: (message: ScheduledMessage) => void | Promise<void>;
@@ -85,6 +88,8 @@ export interface StudioHistoryBridgeCallbacks {
 export interface StudioBridgeProps extends StudioHistoryBridgeCallbacks {
   connected?: boolean;
   chats?: Chat[];
+  selectedChat?: Chat | null;
+  onSelectChat?: Dispatch<SetStateAction<Chat | null>>;
   scheduler?: StudioSchedulerRuntime;
   activeAccountId?: 'account-1' | 'account-2';
 }

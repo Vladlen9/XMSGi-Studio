@@ -231,7 +231,7 @@ export function useTelegramAuth({
    * microtask-батче, что и setConnected(true), без промежуточных IPC-запросов
    * (иначе Planner мелькает перед показом Studio).
    */
-  const handleWelcomeBack = useCallback(async (): Promise<boolean> => {
+  const handleWelcomeBack = useCallback(async (onRestored?: () => void): Promise<boolean> => {
     if (authBusy) return false;
 
     setAuthBusy(true);
@@ -255,6 +255,7 @@ export function useTelegramAuth({
         return false;
       }
 
+      onRestored?.();
       setSignedOut(false);
       setConnected(true);
       setShowAuthForm(false);

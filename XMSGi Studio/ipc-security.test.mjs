@@ -134,6 +134,29 @@ describe('IPC security validation', () => {
     })).toThrow('message is required');
   });
 
+  it('accepts up to 30 attachments for send and schedule IPC', () => {
+    const attachments = Array.from({ length: 30 }, (_, index) => `C:/media/photo-${index}.jpg`);
+
+    expect(validateSendPayload({ chatId: 'me', message: 'Album post', attachments }).attachments).toHaveLength(30);
+    expect(validateSchedulePayload({
+      chatId: 'me',
+      message: 'Album post',
+      targetTimestamp: 2052547200,
+      attachments,
+    }).attachments).toHaveLength(30);
+
+    expect(() => validateSendPayload({ chatId: 'me', message: 'Album post', attachments: [...attachments, 'C:/media/over.png'] }))
+      .toThrow('attachments cannot exceed 30');
+    expect(() => validateSchedulePayload({
+      chatId: 'me',
+      message: 'Album post',
+      targetTimestamp: 2052547200,
+      attachments: [...attachments, 'C:/media/over.png'],
+    })).toThrow('attachments cannot exceed 30');
+    expect(() => validateSendPayload({ chatId: 'me', message: 'Album post', attachments: {} }))
+      .toThrow('attachments must be an array');
+  });
+
   it('rejects invalid timestamps and scheduling payloads', () => {
     expect(() => validateTimestamp(1)).toThrow('targetTimestamp');
     expect(() => validateSchedulePayload({

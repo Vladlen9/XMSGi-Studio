@@ -67,9 +67,6 @@ function renderWorkspaceHistory(upcoming: ScheduledMessage[], sent: ScheduledMes
     composerEntities: entities,
     showNotification,
     setMessage,
-    setAssistantPrompt: vi.fn(),
-    setAssistantResponse: vi.fn(),
-    setAssistantIntent: vi.fn(),
   }), { wrapper });
 
   return {
@@ -117,9 +114,6 @@ describe('useScheduler native history', () => {
       message: '',
       showNotification: vi.fn(),
       setMessage: vi.fn(),
-      setAssistantPrompt: vi.fn(),
-      setAssistantResponse: vi.fn(),
-      setAssistantIntent: vi.fn(),
     }), { wrapper });
 
     await waitFor(() => expect(result.current.upcoming).toEqual(upcoming));
@@ -237,9 +231,6 @@ describe('useScheduler native history', () => {
       message: 'Wait for the account gate',
       showNotification,
       setMessage: vi.fn(),
-      setAssistantPrompt: vi.fn(),
-      setAssistantResponse: vi.fn(),
-      setAssistantIntent: vi.fn(),
     }), { wrapper });
 
     await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
@@ -314,6 +305,40 @@ describe('useScheduler native history', () => {
     });
     expect(schedule).toHaveBeenCalledTimes(2);
     expect(events.indexOf('persist')).toBeLessThan(events.indexOf('schedule-retry'));
+  });
+
+  it('schedules each attachment group as a separate Telegram message', async () => {
+    const chat = { id: 'chat-album-groups', name: 'Album group chat' };
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const date = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+    const time = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`;
+    const schedule = vi.fn()
+      .mockResolvedValueOnce({ success: true, confirmed: true, telegramMessageId: 'telegram-album-1' })
+      .mockResolvedValueOnce({ success: true, confirmed: true, telegramMessageId: 'telegram-album-2' });
+    const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 7 }];
+    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
+    const { result } = renderWorkspaceHistory([], [], { schedule }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      result.current.handleSchedule({
+        chatId: chat.id,
+        message: 'Caption',
+        date,
+        time,
+        attachments: ['one.png', 'two.png', 'three.png'],
+        attachmentGroups: [['one.png', 'two.png'], ['three.png']],
+        entities,
+        replyMarkup,
+      });
+    });
+
+    await waitFor(() => expect(schedule).toHaveBeenCalledTimes(2), { timeout: 5000 });
+    expect(schedule.mock.calls.map(([request]) => request)).toEqual([
+      expect.objectContaining({ message: 'Caption', attachments: ['one.png', 'two.png'], entities, replyMarkup }),
+      expect.objectContaining({ message: '', attachments: ['three.png'], entities: [], replyMarkup: undefined }),
+    ]);
+    await waitFor(() => expect(result.current.upcoming.filter((item) => item.status === 'scheduled')).toHaveLength(2));
   });
 
   it.each([
@@ -788,6 +813,38 @@ describe('useScheduler native history', () => {
       'account-1',
       expect.stringMatching(/^\d+:[a-z0-9]+$/i),
     );
+  });
+
+  it('sends each attachment group separately and keeps the caption on the first group', async () => {
+    const chat = { id: 'chat-send-album-groups', name: 'Album send chat' };
+    const send = vi.fn()
+      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-1' })
+      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-2' });
+    const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 7 }];
+    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
+    const setMessage = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat, setMessage);
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    await act(async () => {
+      const sent = await result.current.handleSendDraftNow(
+        chat,
+        'Caption',
+        ['one.png', 'two.png', 'three.png'],
+        entities,
+        replyMarkup,
+        [['one.png', 'two.png'], ['three.png']],
+      );
+      expect(sent).toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls.map((call) => call.slice(0, 6))).toEqual([
+      [chat.id, 'Caption', ['one.png', 'two.png'], entities, replyMarkup, false],
+      [chat.id, '', ['three.png'], [], undefined, false],
+    ]);
+    expect(setMessage).toHaveBeenCalledOnce();
+    expect(setMessage).toHaveBeenCalledWith('');
   });
 
   it('keeps composer attachments and entities when scheduling for the current minute', async () => {

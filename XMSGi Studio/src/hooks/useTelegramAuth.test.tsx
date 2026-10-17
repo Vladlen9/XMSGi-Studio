@@ -210,9 +210,14 @@ describe('useTelegramAuth', () => {
       }), { wrapper });
 
       await waitFor(() => expect(result.current.signedOut).toBe(true));
-      await act(async () => result.current.handleWelcomeBack());
+      const onRestored = vi.fn(() => {
+        expect(result.current.connected).toBe(false);
+        expect(result.current.signedOut).toBe(true);
+      });
+      await act(async () => result.current.handleWelcomeBack(onRestored));
 
       expect(welcomeBack).toHaveBeenCalledOnce();
+      expect(onRestored).toHaveBeenCalledOnce();
       await waitFor(() => expect(result.current.connected).toBe(true));
       expect(result.current.signedOut).toBe(false);
     } finally {

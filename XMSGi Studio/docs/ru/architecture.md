@@ -18,20 +18,18 @@ XMSGi Studio — настольное приложение на **Electron**.
 │  draft-store.cjs, schedule-history.cjs, chat-storage.cjs    │
 │  telegram-account-storage.cjs — защищённое хранение         │
 │  ipc-security.cjs — валидация всех входящих payload         │
-│  gemini.cjs — экспериментальный AI-ассистент                │
 └───────────────▲──────────────────────────────▲──────────────┘
                 │ IPC (invoke/handle)          │ IPC event
-                │ 43 канала                    │ 'telegram-status'
+                │ 38 каналов                   │ 'telegram-status'
 ┌───────────────┴──────────────────────────────┴──────────────┐
 │  PRELOAD (preload.cjs)                                      │
 │  contextBridge: window.telegram / window.draftStorage /     │
-│  window.gemini — whitelist API без доступа к Node           │
 └───────────────▲─────────────────────────────────────────────┘
                 │ window.* API
 ┌───────────────┴─────────────────────────────────────────────┐
 │  RENDERER (React 18 + TypeScript + Vite)                    │
-│  src/           — хост-приложение (Planner, AppShell)       │
-│  ../Studio/Studio module/ — встроенная студийная область    │
+│  src/           — приложение (Studio, Quick Planner)        │
+│  src/studio/    — внутренняя структура Studio               │
 │  packages/shared/ — общие типы, i18n, утилиты, bridge       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -46,10 +44,10 @@ XMSGi Studio — настольное приложение на **Electron**.
   в единый корень приложения (`app-data-path.cjs`):
   `%LOCALAPPDATA%\XMSGi` (packaged) или `XMSGi-Workspace` (dev).
   Это делает приложение переносимым и независимым от системы.
-- В dev-режиме читает `.env` (`API_ID`, `API_HASH`, `GEMINI_MODEL`).
+- В dev-режиме читает `.env` (`API_ID`, `API_HASH`).
   `.env` никогда не попадает в сборку и в Git.
 - Создаёт `BrowserWindow`, Tray, обрабатывает `second-instance`.
-- Регистрирует **43 IPC-хендлера** — см. [Справочник IPC](ipc-reference.md).
+- Регистрирует **38 IPC-хендлеров** — см. [Справочник IPC](ipc-reference.md).
 
 ### 2.2 Граница доверия
 
@@ -137,47 +135,44 @@ XMSGi Studio — настольное приложение на **Electron**.
 ### 4.1 Хост-приложение (`src/`)
 
 - `src/App.tsx` — маршрутизация (`/`, `/settings` через hash),
-  выбор режима `productView: 'studio' | 'planner'`
-  (ключ `xmsgi-product-view` в localStorage), composition хуков.
+  выбор режима `productView: 'studio' | 'planner'` и composition хуков.
 - `src/AppShell.tsx` / `src/workspace/AppShell.tsx` — оболочка.
-- `src/pages/SchedulePage.tsx` — простой режим (Planner).
-- `src/pages/SettingsPage.tsx`, `src/components/SettingsView.tsx` —
-  настройки: язык (en/ru), API-данные, Gemini-ключ, выход.
+- `src/pages/LoginPage.tsx` — авторизация и восстановление сессии.
+- `src/pages/SettingsPage.tsx` — настройки языка и Telegram аккаунта.
+- `src/components/SettingsView.tsx` — общие настройки приложения.
 - `src/hooks/` — `useTelegramAuth`, `useChats`, `useScheduler`,
-  `useNotifications`, `useAssistant`.
+  `useNotifications`.
 - `src/components/` — `QuickPlannerPage`, `ChatPicker`,
   `SettingsView`, `Notification`, `InlineKeyboardPreview` и др.
-- `src/workspace/` — интеграция Studio: `StudioMount.tsx`,
-  `studioLoader.ts` (ленивый `import('$studio')`),
+- `src/workspace/` — общий shell и связь страниц: `StudioMount.tsx`,
   `HistoryDrawer.tsx` (единая история), `historyModel.ts`.
 
-### 4.2 Studio-модуль (`../Studio/Studio module/`)
+### 4.2 Studio (`src/studio/`)
 
-Отдельный Vite/React-модуль, встраиваемый через алиас `$studio`
-(см. `vite.config.ts` → плагин `studio-aware-alias`):
+Внутренняя область того же React-приложения; Studio и Quick Planner
+используют общий runtime, shell и общие типы:
 
-- `src/App.tsx` — композиция workspace и scheduler;
-- `src/pages/WorkspacePage.tsx` — рабочая страница (редактор,
+- `src/studio/App.tsx` — композиция workspace и scheduler;
+- `src/studio/pages/WorkspacePage.tsx` — рабочая страница (редактор,
   черновики, шаблоны, выбор чата, расписание);
-- `src/components/` — стадии чата, расписания, черновика,
+- `src/studio/components/` — стадии чата, расписания, черновика,
   шаблонов, inline-кнопок, `RichTextEditor`, `ChatPreviewStand`;
-- `src/hooks/useStudioScheduler.ts` — fallback-планировщик;
-- `src/repositories/`, `src/services/` — доступ к данным
+- `src/studio/hooks/useStudioScheduler.ts` — fallback-планировщик;
+- `src/studio/repositories/`, `src/studio/services/` — доступ к данным
   и адаптация publishing-операций к Telegram-мосту.
-- `src/hooks/useStudioDrafts.ts` сохраняет `workspaceDraft` и до 30
+- `src/studio/hooks/useStudioDrafts.ts` сохраняет `workspaceDraft` и до 30
   предыдущих `documentHistories` на каждый `documentId` в том же
   атомарном `drafts.json` (`%LOCALAPPDATA%/XMSGi/drafts/` или
   `XMSGi-Workspace/drafts/` в dev). Версии не имеют суммарного лимита.
 - Вложения истории ссылаются на постоянные копии в каталоге черновиков;
   очистка истории удаляет только JSON-метаданные и не удаляет файлы.
 
-Алиасы: `$studio` → `../Studio/Studio module/src/App.tsx`,
-`@/` → `src/` (хоста или Studio — зависит от импортёра),
+Алиасы: `@/` → `src/`, `@studio/` → `src/studio/`,
 `@shared/` → `packages/shared/`.
 
 ### 4.3 Контракт моста (`packages/shared/bridge/`)
 
-Единственный способ общения хоста и Studio — версионированный
+Общая страница передаёт Studio host-owned runtime через типизированный
 React-props контракт:
 
 - `BRIDGE_PROTOCOL_VERSION = 1` (`protocol.ts`);
@@ -208,8 +203,8 @@ React-props контракт:
 ## 5. Данные и состояние в рендере
 
 - **localStorage**: скрытые чаты
-  (`awaitmsg_hidden_chats_v2`), черновик Planner, режим
-  `xmsgi-product-view`, локаль (`awaitmsg_locale`).
+  (`awaitmsg_hidden_chats_v2`), черновик Planner и локаль
+  (`awaitmsg_locale`).
 - **Черновики** — через `window.draftStorage` в файловую систему
   (main-процесс), не в localStorage.
 - **История** — `window.telegram.loadScheduleHistory(scope)`

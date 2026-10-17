@@ -67,16 +67,6 @@ function normalizeRestoredMessage(message: ScheduledMessage): ScheduledMessage {
   };
 }
 
-export type AssistantIntentLike = {
-  action: 'schedule' | 'clarify';
-  chat: string;
-  message: string;
-  date: string;
-  time: string;
-  clarification: string;
-  attachments?: string[];
-};
-
 export type UseSchedulerOptions = {
   historyScope?: MessageHistoryScope;
   accountId?: string;
@@ -94,9 +84,6 @@ export type UseSchedulerOptions = {
     durationMs?: number,
   ) => void;
   setMessage: Dispatch<SetStateAction<string>>;
-  setAssistantPrompt: Dispatch<SetStateAction<string>>;
-  setAssistantResponse: Dispatch<SetStateAction<string>>;
-  setAssistantIntent: Dispatch<SetStateAction<AssistantIntentLike | null>>;
   refreshChatPermissions?: (chatId: string) => Promise<unknown>;
 };
 
@@ -111,9 +98,6 @@ export function useScheduler({
   composerEntities = [],
   showNotification,
   setMessage,
-  setAssistantPrompt,
-  setAssistantResponse,
-  setAssistantIntent,
   refreshChatPermissions,
 }: UseSchedulerOptions) {
   const { t } = useLocale();
@@ -364,12 +348,13 @@ export function useScheduler({
     };
   }, [accountId, connected, historyReady, loadUpcoming, saveSent, saveUpcoming, showNotification, t]);
 
-  async function handleSchedule(assistantSchedule?: {
+  async function handleSchedule(scheduleRequest?: {
     chatId: string;
     message: string;
     date: string;
     time: string;
     attachments?: string[];
+    attachmentGroups?: string[][];
     entities?: RichTextEntity[];
     replyMarkup?: InlineKeyboardMarkup;
     silent?: boolean;
@@ -378,18 +363,22 @@ export function useScheduler({
   }, repeatOptions: ScheduleRepeatOptions = { mode: 'none', occurrences: 1 }) {
     if (!historyReady || scheduling || schedulingLockRef.current || typeof window.telegram?.schedule !== 'function') return;
 
-    const scheduleChat = assistantSchedule
-      ? chats.find((chat) => chat.id === assistantSchedule.chatId) || null
+    const scheduleChat = scheduleRequest
+      ? chats.find((chat) => chat.id === scheduleRequest.chatId) || null
       : selectedChat;
-    const scheduleMessage = assistantSchedule?.message ?? message;
-    const scheduleDate = assistantSchedule?.date ?? date;
-    const scheduleTime = assistantSchedule?.time ?? time;
-    const replaceMessage = assistantSchedule?.replaceMessage;
-    const scheduleAttachments = assistantSchedule
-      ? assistantSchedule.attachments ?? []
+    const scheduleMessage = scheduleRequest?.message ?? message;
+    const scheduleDate = scheduleRequest?.date ?? date;
+    const scheduleTime = scheduleRequest?.time ?? time;
+    const replaceMessage = scheduleRequest?.replaceMessage;
+    const scheduleAttachments = scheduleRequest
+      ? scheduleRequest.attachments ?? []
       : composerAttachments;
-    const scheduleEntities = assistantSchedule
-      ? assistantSchedule.entities ?? []
+    const suppliedScheduleGroups = scheduleRequest?.attachmentGroups?.filter((group) => group.length > 0) ?? [];
+    const scheduleGroups = suppliedScheduleGroups.length > 0
+      ? suppliedScheduleGroups
+      : scheduleAttachments.length > 0 ? [scheduleAttachments] : [[]];
+    const scheduleEntities = scheduleRequest
+      ? scheduleRequest.entities ?? []
       : composerEntities;
 
     if (!scheduleChat) {
@@ -465,14 +454,16 @@ export function useScheduler({
     }
 
     if (isCurrentTime) {
-      void handleSendDraftNow(
+      await handleSendDraftNow(
         scheduleChat,
         scheduleMessage,
         scheduleAttachments,
         scheduleEntities,
-        assistantSchedule?.replyMarkup,
-        assistantSchedule?.silent === true,
-        assistantSchedule?.effect,
+        scheduleRequest?.replyMarkup,
+        scheduleRequest?.silent === true,
+        scheduleRequest?.effect,
+        undefined,
+        scheduleGroups,
       );
       return;
     }
@@ -499,9 +490,9 @@ export function useScheduler({
     const text = scheduleMessage;
     const attachments = scheduleAttachments;
     const entities = scheduleEntities;
-    const replyMarkup = assistantSchedule?.replyMarkup;
-    const silent = assistantSchedule?.silent === true;
-    const effect = assistantSchedule?.effect;
+    const replyMarkup = scheduleRequest?.replyMarkup;
+    const silent = scheduleRequest?.silent === true;
+    const effect = scheduleRequest?.effect;
     const occurrenceDates = getScheduleOccurrences(whenDate, repeatOptions);
     const maximumScheduleTime = scheduleNow + MAX_SCHEDULE_FUTURE_DAYS * 24 * 60 * 60 * 1000;
     if (occurrenceDates.some((occurrenceDate) => occurrenceDate.getTime() > maximumScheduleTime)) {
@@ -522,16 +513,21 @@ export function useScheduler({
       );
       return;
     }
-    const candidateOperations = occurrenceDates.map((occurrenceDate) => ({
-      chatId,
-      message: text,
-      targetTimestamp: Math.floor(occurrenceDate.getTime() / 1000),
-      attachments,
-      entities,
-      replyMarkup,
-      silent,
-      effect,
-    }));
+    const candidateOperations = occurrenceDates.flatMap((occurrenceDate) => (
+      scheduleGroups.map((groupAttachments, groupIndex) => {
+        const isPrimaryGroup = groupIndex === 0;
+        return {
+          chatId,
+          message: isPrimaryGroup ? text : '',
+          targetTimestamp: Math.floor(occurrenceDate.getTime() / 1000),
+          attachments: groupAttachments,
+          entities: isPrimaryGroup ? entities : [],
+          replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
+          silent,
+          effect: isPrimaryGroup ? effect : undefined,
+        };
+      })
+    ));
 
     if (occurrenceDates.length >= MASS_SCHEDULE_WARNING_THRESHOLD) {
       showNotification(
@@ -549,9 +545,11 @@ export function useScheduler({
       return scheduledMessage.id !== replaceMessage?.id
         && scheduledMessage.status !== 'sent'
         && scheduledMessage.chatId === chatId
-        && scheduledMessage.text === text
         && candidateTimestamps.has(scheduledTimestamp)
-        && (scheduledMessage.attachments ?? []).length === attachments.length;
+        && candidateOperations.some((operation) => (
+          operation.message === scheduledMessage.text
+          && (scheduledMessage.attachments ?? []).length === operation.attachments.length
+        ));
     });
     const legacyUpcoming = comparableUpcoming.filter((scheduledMessage) => !scheduledMessage.operationIdentity);
     const identityOperations = [
@@ -643,20 +641,20 @@ export function useScheduler({
 
     setLastAction(null);
     setSuccessPulse(false);
-    const pendingMessages = occurrenceDates.map((occurrenceDate, index) => createPendingSchedule({
+    const pendingMessages = candidateOperations.map((operation, index) => createPendingSchedule({
       accountId,
       operationId: uid(),
       operationIdentity: candidateIdentities[index]!,
       chatId,
       chatName,
-      text,
-      attachments,
-      when: occurrenceDate.toISOString(),
+      text: operation.message,
+      attachments: operation.attachments,
+      when: new Date(operation.targetTimestamp * 1000).toISOString(),
       createdAt: new Date().toISOString(),
-      entities,
-      replyMarkup,
-      silent,
-      effect,
+      entities: operation.entities,
+      replyMarkup: operation.replyMarkup,
+      silent: operation.silent,
+      effect: operation.effect,
     })).map((pendingMessage) => replaceMessage
       ? { ...pendingMessage, replacementOfId: replaceMessage.id }
       : pendingMessage);
@@ -676,13 +674,13 @@ export function useScheduler({
           const result = await window.telegram.schedule({
             accountId,
             chatId,
-            message: text,
+            message: pendingMessage.text,
             targetTimestamp: Math.floor(new Date(pendingMessage.when).getTime() / 1000),
-            attachments,
-            entities,
-            replyMarkup,
-            silent,
-            effect,
+            attachments: pendingMessage.attachments ?? [],
+            entities: pendingMessage.entities ?? [],
+            replyMarkup: pendingMessage.replyMarkup,
+            silent: pendingMessage.silent,
+            effect: pendingMessage.effect,
           });
           results.push({ result, operationId: pendingMessage.operationId! });
         } catch (error) {
@@ -776,7 +774,9 @@ export function useScheduler({
         let replacementCancellationFailed = false;
         if (replaceMessage) {
           activePublishIdsRef.current.delete(replaceMessage.id);
-          if (confirmedSchedules.length === 1 && failedSchedules === 0 && replacementMessages.length === 1) {
+          if (confirmedSchedules.length === pendingMessages.length
+            && failedSchedules === 0
+            && replacementMessages.length === pendingMessages.length) {
             replacementCancellationFailed = !await handleCancelMessage(replaceMessage, replacementMessages, true);
           } else {
             replacementCancellationFailed = true;
@@ -784,9 +784,6 @@ export function useScheduler({
         }
 
         setMessage('');
-        setAssistantPrompt('');
-        setAssistantResponse('');
-        setAssistantIntent(null);
         const firstFailure = results.find(({ result }) => !result.success || result.confirmed !== true);
         const errorDetails = firstFailure
           ? normalizeTelegramBridgeError(firstFailure.result, 'publish', t('schedule.failed'))
@@ -1289,15 +1286,40 @@ export function useScheduler({
     attachments: string[] = [],
     entities: RichTextEntity[] = [],
     replyMarkup?: InlineKeyboardMarkup,
-    silent = false,
+    silent: boolean | string[][] = false,
     effect?: string,
     options: { clearMessageOnSuccess?: boolean } = {},
-  ) {
+    attachmentGroups?: string[][],
+  ): Promise<boolean> {
+    const suppliedGroups = Array.isArray(silent) ? silent : attachmentGroups;
+    if (suppliedGroups?.length) {
+      const groups = suppliedGroups.filter((group) => group.length > 0);
+      if (groups.length > 0) {
+        let allSent = true;
+        for (const [groupIndex, group] of groups.entries()) {
+          const isPrimaryGroup = groupIndex === 0;
+          const isLastGroup = groupIndex === groups.length - 1;
+          const sent: boolean = await handleSendDraftNow(
+            chat,
+            isPrimaryGroup ? text : '',
+            group,
+            isPrimaryGroup ? entities : [],
+            isPrimaryGroup ? replyMarkup : undefined,
+            typeof silent === 'boolean' ? silent : false,
+            isPrimaryGroup ? effect : undefined,
+            { clearMessageOnSuccess: isLastGroup && allSent && options.clearMessageOnSuccess !== false },
+          );
+          allSent &&= sent;
+        }
+        return allSent;
+      }
+    }
+    const sendSilently = typeof silent === 'boolean' ? silent : false;
     if (!historyReady || publishingDraftLockRef.current || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
 
     publishingDraftLockRef.current = true;
     setPublishingDraft(true);
-    const fingerprint = JSON.stringify([chat.id, text, attachments, entities, replyMarkup, silent, effect]);
+    const fingerprint = JSON.stringify([chat.id, text, attachments, entities, replyMarkup, sendSilently, effect]);
     if (!draftSendAttemptRef.current || draftSendAttemptRef.current.fingerprint !== fingerprint) {
       draftSendAttemptRef.current = { fingerprint, id: `${Date.now()}:${uid()}` };
     }
@@ -1306,7 +1328,7 @@ export function useScheduler({
     let sendErrorDetails: ReturnType<typeof normalizeTelegramBridgeError> | undefined;
     try {
       await waitForTelegramAccount();
-      const result = await window.telegram.send(chat.id, text, attachments, entities, replyMarkup, silent, effect, accountId, sendAttemptId);
+      const result = await window.telegram.send(chat.id, text, attachments, entities, replyMarkup, sendSilently, effect, accountId, sendAttemptId);
 
       if (!result.success) {
         sendErrorDetails = normalizeTelegramBridgeError(result, 'publish', t('schedule.sendFailed'));
@@ -1324,7 +1346,7 @@ export function useScheduler({
         status: 'sent',
         sentAt: new Date().toISOString(),
         entities,
-        silent,
+        silent: sendSilently,
         effect,
       };
 

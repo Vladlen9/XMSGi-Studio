@@ -11,8 +11,7 @@
 - Git
 - Windows для портативной desktop-сборки (остальные платформы собираются
   через electron-builder)
-- Для студийного модуля — доступ к соседнему каталогу
-  `../Studio/Studio module/` (встраивается через алиас `$studio`)
+- Studio входит в renderer основного приложения и использует его зависимости.
 
 ---
 
@@ -21,7 +20,7 @@
 ```
 XMSGi Studio/
 ├── main.cjs                  # Electron main: окно, Tray, IPC, валидация
-├── preload.cjs               # contextBridge: window.telegram/draftStorage/gemini
+├── preload.cjs               # contextBridge: window.telegram/draftStorage
 ├── ipc-security.cjs          # валидация всех IPC-payload
 ├── telegram.cjs              # ядро Telegram (teleproto, MTProto)
 ├── telegram-*.cjs            # lifecycle, errors, storage, search,
@@ -30,23 +29,22 @@ XMSGi Studio/
 ├── schedule-history.cjs      # нормализация/валидация истории планирования
 ├── chat-storage.cjs          # список чатов (избранное, скрытые)
 ├── app-data-path.cjs         # корень данных приложения + миграция имён
-├── gemini.cjs                # экспериментальный AI-ассистент
 ├── src/                      # рендерер-хост (React + TS)
 │   ├── App.tsx               # маршруты, режим studio/planner
-│   ├── pages/                # SchedulePage (Planner), SettingsPage
+│   ├── pages/                # LoginPage, SettingsPage
 │   ├── components/           # QuickPlannerPage, ChatPicker, SettingsView…
 │   ├── hooks/                # useTelegramAuth, useChats, useScheduler…
 │   ├── lib/                  # scheduling, richText, plannerDraft, i18n…
 │   ├── services/             # chatDomainService, adapters
-│   └── workspace/            # StudioMount, HistoryDrawer, studioLoader
+│   ├── workspace/            # AppShell, StudioMount, HistoryDrawer
+│   └── studio/               # Studio UI, hooks, services, repositories
 ├── packages/shared/          # общий код хоста и Studio
 │   ├── bridge/               # версионированный контракт моста (v1)
 │   ├── i18n/                 # переводы en/ru
 │   ├── types/, utils/
 │   └── telegramText.cjs      # rich-text утилиты для main-процесса
-├── ../Studio/Studio module/  # встраиваемый Studio-модуль (отдельный Vite app)
 ├── docs/                     # эта документация
-├── *.test.mjs, *.test.tsx    # тесты Vitest (корень, src, Studio)
+├── *.test.mjs, *.test.tsx    # тесты Vitest (main и renderer)
 └── package.json              # скрипты, конфиг electron-builder
 ```
 
@@ -67,12 +65,12 @@ XMSGi Studio/
 | `npm run dist` | `build` + `electron-builder --win` (портативный `.exe`) |
 | `npm run preview` | предпросмотр production-сборки Vite |
 
-### Studio-модуль отдельно
+### Проверки Studio
 
 ```bash
-npm --prefix "../Studio/Studio module" run typecheck
-npm --prefix "../Studio/Studio module" test
-npm --prefix "../Studio/Studio module" run build
+npm run typecheck
+npm test -- src/studio
+npm run build
 ```
 
 ---
@@ -81,13 +79,13 @@ npm --prefix "../Studio/Studio module" run build
 
 - Фреймворк: **Vitest** (+ Testing Library для React, jsdom).
 - Конфиг: `vitest.config.ts` — те же алиасы, что в `vite.config.ts`
-  (`$studio`, `@/`, `@shared/`).
+  (`@/`, `@studio/`, `@shared/`).
 - Покрытие включает:
   - main-модули (`*.test.mjs` в корне): IPC-безопасность, lifecycle
     Telegram, идемпотентность планирования, rate-limit, storage,
     миграции истории, packaging;
   - рендерер (`*.test.tsx` в `src/`): хуки, страницы, компоненты;
-  - Studio-модуль (в его каталоге).
+  - Studio renderer (`src/studio/`).
 - Отчёты прогона в репозиторий не коммитятся (см. `.gitignore`).
   При необходимости сохраните JSON-отчёт вручную:
   `npx vitest run --reporter=json --outputFile=vitest-report.json`.
@@ -143,8 +141,6 @@ npm run build
 |---|---|
 | `API_ID`, `API_HASH` | dev-креденшлы Telegram-приложения (можно задать и в UI: Настройки → Advanced API) |
 | `SESSION_STRING` | dev-сессия (не коммитить) |
-| `GEMINI_API_KEY` | ключ Gemini для dev (основной путь — хранение через safeStorage в UI) |
-| `GEMINI_MODEL` | переопределение модели (по умолчанию `gemini-3.6-flash`) |
 
 `.env` читается только в development-режиме (`!app.isPackaged`).
 

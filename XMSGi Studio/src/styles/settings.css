@@ -1,5 +1,6 @@
 .settings-view {
   --settings-font: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -14,9 +15,60 @@
   width: min(100%, 672px);
   margin: 0 auto;
   flex: 1;
+  min-height: 0;
   padding: 56px 24px 32px;
   display: flex;
   flex-direction: column;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+html.electron-runtime .settings-view-content {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+html.electron-runtime .settings-view-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.settings-scrollbar {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  background: rgba(154, 168, 184, 0.1);
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+.settings-scrollbar:focus-visible {
+  outline: 2px solid rgba(154, 168, 184, 0.5);
+  outline-offset: 1px;
+}
+
+.settings-scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  left: 2px;
+  right: 2px;
+  min-height: 32px;
+  border-radius: 999px;
+  background: rgba(154, 168, 184, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(240, 246, 250, 0.12), 0 0 3px rgba(154, 168, 184, 0.12);
+  cursor: default;
+}
+
+.settings-scrollbar:hover .settings-scrollbar-thumb,
+.settings-scrollbar:focus-visible .settings-scrollbar-thumb {
+  background: rgba(202, 214, 224, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(248, 251, 253, 0.2), 0 0 3px rgba(202, 214, 224, 0.16);
 }
 
 .settings-view-content h1 {

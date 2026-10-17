@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getPlannerSurface } from './plannerSurface';
 
 describe('getPlannerSurface', () => {
-  it('hides the legacy planner while startup connection state is unresolved', () => {
+  it('keeps product pages hidden while startup connection state is unresolved', () => {
     expect(getPlannerSurface({
       browserDraftMode: false,
       connected: false,
@@ -12,7 +12,7 @@ describe('getPlannerSurface', () => {
     })).toBe('pending');
   });
 
-  it('hides the legacy planner while restoring a signed-out session', () => {
+  it('keeps product pages hidden while restoring a signed-out session', () => {
     expect(getPlannerSurface({
       browserDraftMode: false,
       connected: false,
@@ -22,14 +22,25 @@ describe('getPlannerSurface', () => {
     })).toBe('pending');
   });
 
-  it('shows the legacy sign-in page after session state is resolved and signed out', () => {
+  it('keeps Welcome Back visible during an explicit reconnect action', () => {
+    expect(getPlannerSurface({
+      browserDraftMode: false,
+      connected: false,
+      signedOut: true,
+      connecting: true,
+      connectionResolved: true,
+      welcomeBackInProgress: true,
+    })).toBe('login');
+  });
+
+  it('shows the login screen after session state is resolved and signed out', () => {
     expect(getPlannerSurface({
       browserDraftMode: false,
       connected: false,
       signedOut: true,
       connecting: false,
       connectionResolved: true,
-    })).toBe('legacy');
+    })).toBe('login');
   });
 
   it('shows Quick Planner for connected and browser draft sessions', () => {

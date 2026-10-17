@@ -250,6 +250,9 @@ describe('shared History Drawer entry point', () => {
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
 
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledWith(false);
+
     fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
     expect(onDisconnect).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Forget me' }));

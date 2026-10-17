@@ -249,6 +249,58 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
       };
     },
 
+    writeAttachment(name, data) {
+      if (typeof name !== 'string' || !name.trim() || name.includes('\0')) {
+        return { success: false, error: 'Attachment name is invalid.' };
+      }
+
+      if (!Buffer.isBuffer(data) && !ArrayBuffer.isView(data) && !(data instanceof ArrayBuffer)) {
+        return { success: false, error: 'Attachment data is invalid.' };
+      }
+
+      const bytes = Buffer.isBuffer(data)
+        ? data
+        : data instanceof ArrayBuffer
+          ? Buffer.from(data)
+          : Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+      if (bytes.length === 0 || bytes.length > 50 * 1024 * 1024) {
+        return { success: false, error: 'Attachment size is not supported.' };
+      }
+
+      const sourceName = path.basename(name);
+      if (!sourceName || sourceName === '.' || sourceName === '..') {
+        return { success: false, error: 'Attachment name is invalid.' };
+      }
+
+      const parsedName = path.parse(sourceName);
+      let destination;
+      let collisionIndex = 0;
+
+      while (!destination) {
+        const fileName = collisionIndex === 0
+          ? sourceName
+          : `${parsedName.name} (${collisionIndex})${parsedName.ext}`;
+        const candidate = path.join(storeDirectory, fileName);
+        try {
+          fs.writeFileSync(candidate, bytes, { flag: 'wx', mode: 0o600 });
+          destination = candidate;
+        } catch (error) {
+          if (error?.code !== 'EEXIST') throw error;
+          collisionIndex += 1;
+        }
+      }
+
+      return {
+        success: true,
+        destinationPath: destination,
+        attachment: {
+          name: path.basename(destination),
+          path: destination,
+          size: bytes.length,
+        },
+      };
+    },
+
     exportTo(filePath) {
       const store = readStore(storeDirectory);
       fs.writeFileSync(filePath, JSON.stringify(store, null, 2));

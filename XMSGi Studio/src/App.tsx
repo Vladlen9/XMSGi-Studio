@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useAssistant, useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
+import { useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
-import type { PersistedDraftStore, SavedDraft, StudioScheduledMessage } from '$studio';
+import type { PersistedDraftStore, SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
 import { createStudioSchedulerRuntime } from '@shared/bridge';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 
 import { AppShell, StudioMount } from './workspace';
-import { preloadStudioApp } from './workspace/studioLoader';
 import { hasPlannerPayloadContent } from './workspace/plannerText';
 import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
-import { SchedulePage } from './pages/SchedulePage';
+import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
   readPlannerDraft,
@@ -24,7 +23,7 @@ import {
   writeSavedPlannerDrafts,
   SAVED_PLANNER_DRAFTS_UPDATED_EVENT,
 } from './lib/plannerDraft';
-import { readLastProductView, writeLastProductView, type ProductView } from './lib/productView';
+import { getInitialProductView, type ProductView } from './lib/productView';
 
 type AppRoute = '/' | '/settings';
 type DraftStorageWindow = Window & {
@@ -77,7 +76,8 @@ function App() {
   const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [route, setRoute] = useState<AppRoute>(getCurrentHashPath());
-  const [productView, setProductView] = useState<ProductView>(() => browserDraftMode ? 'planner' : readLastProductView());
+  const [productView, setProductView] = useState<ProductView>(() => getInitialProductView(browserDraftMode));
+  const [welcomeBackInProgress, setWelcomeBackInProgress] = useState(false);
   const settingsReturnViewRef = useRef<ProductView | null>(null);
   const [activeAccountId] = useState<'account-1' | 'account-2'>(() => 'account-1');
   const [telegramApiId, setTelegramApiId] = useState('');
@@ -90,10 +90,6 @@ function App() {
     connected: false,
     signedOut: false,
   });
-
-  useEffect(() => {
-    void preloadStudioApp();
-  }, []);
 
   useEffect(() => {
     const updateSavedPlannerDrafts = () => setSavedPlannerDraftRevision((revision) => revision + 1);
@@ -180,15 +176,11 @@ function App() {
     },
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (connectionResolved && !connected) {
       setProductView('planner');
     }
-  }, [connected, connectionResolved]);
-
-  useEffect(() => {
-    if (route !== '/settings') writeLastProductView(productView);
-  }, [productView, route]);
+  }, [connected, connectionResolved, setProductView]);
 
   const {
     chats,
@@ -209,38 +201,10 @@ function App() {
   }, [setChats, setSelectedChat]);
 
   const {
-    assistantPrompt,
-    setAssistantPrompt,
-    assistantResponse,
-    setAssistantResponse,
-    displayedAssistantResponse,
-    assistantIntent,
-    setAssistantIntent,
-    assistantExampleIndex,
-    isThinking,
-    geminiSettings,
-    settingsKey,
-    setSettingsKey,
-    settingsBusy,
-    settingsError,
-    assistantExamples,
-    handleSaveGeminiKey,
-    handleRemoveGeminiKey,
-    handleToggleAssistant,
-    handleAssistantSubmit,
-  } = useAssistant({ chats });
-
-  const {
-    date: personalDate,
-    time: personalTime,
     upcoming: personalUpcoming,
     sent: personalSent,
     scheduling: personalScheduling,
     publishingDraft: personalPublishingDraft,
-    successPulse: personalSuccessPulse,
-    dateEditedRef: personalDateEditedRef,
-    timeEditedRef: personalTimeEditedRef,
-    openPickerRef: personalOpenPickerRef,
     handleSchedule: handlePersonalSchedule,
     handleCancelMessage: handlePersonalCancelMessage,
     handleCancelMessages: handlePersonalCancelMessages,
@@ -248,8 +212,6 @@ function App() {
     handleSendDraftNow: handlePersonalSendDraftNow,
     handleDeleteMessage: handlePersonalDeleteMessage,
     handleClearSent: handlePersonalClearSent,
-    setDate: setPersonalDate,
-    setTime: setPersonalTime,
   } = useScheduler({
     historyScope: 'personal',
     connected,
@@ -261,9 +223,6 @@ function App() {
     composerEntities: messageEntities,
     showNotification,
     setMessage,
-    setAssistantPrompt,
-    setAssistantResponse,
-    setAssistantIntent,
   });
 
   const studioScheduler = useScheduler({
@@ -276,9 +235,6 @@ function App() {
     message: studioMessage,
     showNotification: studioNotifications.showNotification,
     setMessage: setStudioMessage,
-    setAssistantPrompt,
-    setAssistantResponse,
-    setAssistantIntent,
   });
 
   const studioBridgeScheduler = createStudioSchedulerRuntime(
@@ -506,7 +462,10 @@ function App() {
     signedOut,
     connecting,
     connectionResolved,
+    welcomeBackInProgress,
   });
+  const studioSurfaceVisible = productView === 'studio'
+    && (browserDraftMode || (connectionResolved && connected && !signedOut));
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -586,14 +545,14 @@ function App() {
   };
 
   const handleWelcomeBackFromReturn = async () => {
-    const restored = await handleWelcomeBack();
-    if (restored) {
-      // Переключаем вид в том же microtask-батче, что и setConnected(true)
-      // внутри хука: между ними нет macrotask (IPC), поэтому React отрисует
-      // Studio сразу, не успев показать Planner.
-      setProductView('studio');
-      return;
+    setWelcomeBackInProgress(true);
+    let restored = false;
+    try {
+      restored = await handleWelcomeBack(() => setProductView('studio'));
+    } finally {
+      setWelcomeBackInProgress(false);
     }
+    if (restored) return;
     if (await finishWelcomeBack()) return;
     if (typeof window.telegram?.getConfig !== 'function') return;
 
@@ -620,7 +579,7 @@ function App() {
     if (await finishWelcomeBack()) navigate('/');
   };
 
-  const handleTelegramAuthFromPlanner = async () => {
+  const handleTelegramAuthFromLogin = async () => {
     const signedIn = await handleTelegramAuth();
     if (signedIn) {
       setProductView('studio');
@@ -653,14 +612,6 @@ function App() {
       telegramAuthBusy={authBusy}
       telegramAuthError={authError}
       telegramStatus={telegramStatus}
-      geminiSettings={geminiSettings}
-      settingsKey={settingsKey}
-      settingsBusy={settingsBusy}
-      settingsError={settingsError}
-      onSettingsKeyChange={setSettingsKey}
-      onSaveGeminiKey={handleSaveGeminiKey}
-      onRemoveGeminiKey={handleRemoveGeminiKey}
-      onToggleAssistant={handleToggleAssistant}
       telegramCredentials={telegramCredentials}
       telegramApiId={telegramApiId}
       telegramApiHash={telegramApiHash}
@@ -760,12 +711,14 @@ function App() {
       onHistoryClearDrafts={clearHistoryDrafts}
       onHistoryCancelQueue={cancelHistoryQueue}
     >
-      <div className={`product-view ${productView === 'studio' ? 'is-active' : ''}`} aria-hidden={productView !== 'studio'}>
-        {productView === 'studio' ? (
+      <div className={`product-view ${studioSurfaceVisible ? 'is-active' : ''}`} aria-hidden={!studioSurfaceVisible}>
+        {studioSurfaceVisible ? (
           <StudioMount
             connected={studioConnected}
             activeAccountId={activeAccountId}
             chats={studioConnected ? chats : []}
+            selectedChat={selectedChat}
+            onSelectChat={setSelectedChat}
             scheduler={studioBridgeScheduler}
             onRegisterPlannerTextOpener={registerPlannerTextOpener}
             onRegisterHistoryDraftOpener={registerHistoryDraftOpener}
@@ -822,70 +775,28 @@ function App() {
               notification={notification}
               closeNotification={closeNotification}
             />
-          ) : <SchedulePage
-          message={message}
-          setMessage={setMessage}
-          isSettingsOpen={isSettingsOpen}
-          setIsSettingsOpen={setIsSettingsOpen}
-          notification={notification}
-          closeNotification={closeNotification}
-          connected={connected}
-          signedOut={signedOut}
-          returningUserName={returningUserName}
-          returningUserUsername={returningUserUsername}
-          connecting={connecting}
-          connectionResolved={connectionResolved}
-          authStep={authStep}
-          showAuthForm={showAuthForm}
-          phoneNumber={phoneNumber}
-          phoneCode={phoneCode}
-          twoFactorPassword={twoFactorPassword}
-          authBusy={authBusy}
-          authError={authError}
-          setShowAuthForm={setShowAuthForm}
-          setAuthStep={setAuthStep}
-          setPhoneNumber={setPhoneNumber}
-          setPhoneCode={setPhoneCode}
-          setTwoFactorPassword={setTwoFactorPassword}
-          setAuthError={setAuthError}
-          handleTelegramAuth={handleTelegramAuthFromPlanner}
-          handleWelcomeBack={handleWelcomeBackFromReturn}
-          chats={chats}
-          selectedChat={selectedChat}
-          selectedChatPermissions={selectedChatPermissions}
-          setSelectedChat={setSelectedChat}
-          handleAddChat={handleAddChat}
-          handleRemoveChat={handleRemoveChat}
-          assistantPrompt={assistantPrompt}
-          setAssistantPrompt={setAssistantPrompt}
-          assistantResponse={assistantResponse}
-          setAssistantResponse={setAssistantResponse}
-          displayedAssistantResponse={displayedAssistantResponse}
-          assistantIntent={assistantIntent}
-          setAssistantIntent={setAssistantIntent}
-          assistantExampleIndex={assistantExampleIndex}
-          isThinking={isThinking}
-          geminiSettings={geminiSettings}
-          settingsKey={settingsKey}
-          setSettingsKey={setSettingsKey}
-          settingsBusy={settingsBusy}
-          settingsError={settingsError}
-          assistantExamples={assistantExamples}
-          handleSaveGeminiKey={handleSaveGeminiKey}
-          handleRemoveGeminiKey={handleRemoveGeminiKey}
-          handleToggleAssistant={handleToggleAssistant}
-          handleAssistantSubmit={handleAssistantSubmit}
-          date={personalDate}
-          time={personalTime}
-          scheduling={personalScheduling}
-          successPulse={personalSuccessPulse}
-          dateEditedRef={personalDateEditedRef}
-          timeEditedRef={personalTimeEditedRef}
-          openPickerRef={personalOpenPickerRef}
-          handleSchedule={handlePersonalSchedule}
-          setDate={setPersonalDate}
-          setTime={setPersonalTime}
-            showNotification={showNotification}
+          ) : <LoginPage
+            connecting={connecting}
+            notification={notification}
+            closeNotification={closeNotification}
+            signedOut={signedOut}
+            returningUserName={returningUserName}
+            returningUserUsername={returningUserUsername}
+            authStep={authStep}
+            showAuthForm={showAuthForm}
+            phoneNumber={phoneNumber}
+            phoneCode={phoneCode}
+            twoFactorPassword={twoFactorPassword}
+            authBusy={authBusy}
+            authError={authError}
+            setShowAuthForm={setShowAuthForm}
+            setAuthStep={setAuthStep}
+            setPhoneNumber={setPhoneNumber}
+            setPhoneCode={setPhoneCode}
+            setTwoFactorPassword={setTwoFactorPassword}
+            setAuthError={setAuthError}
+            handleTelegramAuth={handleTelegramAuthFromLogin}
+            handleWelcomeBack={handleWelcomeBackFromReturn}
           />
         )}
       </div>

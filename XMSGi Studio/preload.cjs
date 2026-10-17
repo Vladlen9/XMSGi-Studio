@@ -142,22 +142,13 @@ contextBridge.exposeInMainWorld('draftStorage', {
   importBackup: () => ipcRenderer.invoke('draft-store:import'),
   exportText: (text, format) => ipcRenderer.invoke('editor-text:export', { text, format }),
   importText: () => ipcRenderer.invoke('editor-text:import'),
-  copyAttachment: (file) => {
+  copyAttachment: async (file) => {
     const sourcePath = webUtils.getPathForFile(file);
-    return ipcRenderer.invoke('draft-store:copy-attachment', sourcePath);
+    if (sourcePath) return ipcRenderer.invoke('draft-store:copy-attachment', sourcePath);
+    return ipcRenderer.invoke('draft-store:write-attachment', {
+      name: file.name,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
   },
   copyAttachmentPath: (sourcePath) => ipcRenderer.invoke('draft-store:copy-attachment', sourcePath),
-});
-
-contextBridge.exposeInMainWorld('gemini', {
-  generate: (prompt, context) =>
-    ipcRenderer.invoke('gemini-generate', { prompt, context }),
-  getSettings: () =>
-    ipcRenderer.invoke('gemini-settings-status'),
-  saveKey: (key) =>
-    ipcRenderer.invoke('gemini-save-key', key),
-  removeKey: () =>
-    ipcRenderer.invoke('gemini-remove-key'),
-  setEnabled: (enabled) =>
-    ipcRenderer.invoke('gemini-set-enabled', enabled)
 });

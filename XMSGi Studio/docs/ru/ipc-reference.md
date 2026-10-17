@@ -4,7 +4,7 @@
 Источник истины: `main.cjs` (хендлеры), `preload.cjs` (API рендера),
 `ipc-security.cjs` (валидация). Соответствует версии **1.1.0**.
 
-**Всего: 43 `ipcMain.handle` + 1 `ipcRenderer.sendSync`
+**Всего: 38 `ipcMain.handle` + 1 `ipcRenderer.sendSync`
 + 1 push-событие.**
 
 ---
@@ -15,7 +15,7 @@
 
 - **`assertTrustedRenderer`** — вызывать может только главный
   `BrowserWindow`, загрузивший локальный `dist/index.html`;
-  используется для Telegram-, Gemini- и chat-storage-каналов.
+   используется для Telegram- и chat-storage-каналов.
 - **`assertDraftStorageRenderer`** — узкий допуск для
   черновиков и истории.
 
@@ -113,19 +113,7 @@ network/retrying | error`.
 
 ---
 
-## 8. Gemini-ассистент (`window.gemini`)
-
-| Канал | Payload / заметки |
-|---|---|
-| `gemini-generate` | `{ prompt, context }` — валидируется длина prompt (MAX_PROMPT_LENGTH); требует включённой функции и ключа |
-| `gemini-settings-status` | `{ maskedKey, enabled, encryptionAvailable }` |
-| `gemini-save-key` | ключ → шифруется `safeStorage` |
-| `gemini-remove-key` | удаление ключа |
-| `gemini-set-enabled` | `enabled: boolean` |
-
----
-
-## 9. Соответствие API рендера
+## 8. Соответствие API рендера
 
 `preload.cjs` разворачивает каналы в три объекта:
 
@@ -135,15 +123,13 @@ window.telegram       // getConfig, login, connect, getChats, send,
 window.draftStorage   // load, save, flush, migrate, restoreBackup,
                       // exportBackup, importBackup, exportText,
                       // importText, copyAttachment, copyAttachmentPath, getFilePath
-window.gemini         // generate, getSettings, saveKey, removeKey,
-                      // setEnabled
 ```
 
 Типы объявлены в `src/telegram.d.ts`.
 
 ---
 
-## 10. Как добавить новый канал
+## 9. Как добавить новый канал
 
 1. Добавьте `ipcMain.handle('<name>', ...)` в `main.cjs`
    с `assertTrustedRenderer` (или `assertDraftStorageRenderer`)

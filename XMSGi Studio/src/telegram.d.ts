@@ -32,61 +32,6 @@ declare global {
   }
 
   interface Window {
-    gemini: {
-      generate: (prompt: string, context: {
-        currentDate: string;
-        currentTime: string;
-        chats: { id: string; name: string }[];
-      }) => Promise<{
-        success: boolean;
-        intent?: {
-          action: 'schedule' | 'clarify';
-          chat: string;
-          message: string;
-          date: string;
-          time: string;
-          clarification: string;
-        };
-        errorCode?: 'quota' | 'generic' | 'setup_required';
-        error?: string;
-      }>;
-      getSettings: () => Promise<{
-        hasKey: boolean;
-        maskedKey: string;
-        enabled: boolean;
-        encryptionAvailable: boolean;
-      }>;
-      saveKey: (key: string) => Promise<{
-        success: boolean;
-        settings?: {
-          hasKey: boolean;
-          maskedKey: string;
-          enabled: boolean;
-          encryptionAvailable: boolean;
-        };
-        error?: string;
-      }>;
-      removeKey: () => Promise<{
-        success: boolean;
-        settings?: {
-          hasKey: boolean;
-          maskedKey: string;
-          enabled: boolean;
-          encryptionAvailable: boolean;
-        };
-        error?: string;
-      }>;
-      setEnabled: (enabled: boolean) => Promise<{
-        success: boolean;
-        settings?: {
-          hasKey: boolean;
-          maskedKey: string;
-          enabled: boolean;
-          encryptionAvailable: boolean;
-        };
-        error?: string;
-      }>;
-    };
     telegram: {
       getStatus: () => Promise<{
         success: boolean;

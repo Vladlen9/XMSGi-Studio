@@ -24,7 +24,7 @@
 
 ```
 Renderer (недоверенный)
-   │  window.telegram.* / window.draftStorage.* / window.gemini.*
+  │  window.telegram.* / window.draftStorage.*
    ▼
 Preload — contextBridge, только ipcRenderer.invoke/sendSync
    │
@@ -36,7 +36,7 @@ Main process
    └─ telegram.cjs — единственное место, где живёт сессия
 ```
 
-- Каждый из **43 IPC-хендлеров** проходит проверку доверенного
+- Каждый из **38 IPC-хендлеров** проходит проверку доверенного
   отправителя (46 мест вызова проверок в `main.cjs`).
 - Payload: `API_ID` — только цифры, `API_HASH`/`SESSION_STRING` —
   ограниченной длины и формата, chatId, даты, диапазоны scope/field —
@@ -55,7 +55,6 @@ Main process
 | Данные | Файл | Защита |
 |---|---|---|
 | `API_ID`, `API_HASH`, `SESSION_STRING` | `xmsgi-studio-secure-config.json` | **Шифрование `safeStorage`** (Electron), поля `*_ENCRYPTED`; при недоступности safeStorage запись/чтение секретов блокируется с ошибкой |
-| Ключ Gemini | тот же secure-config | `safeStorage`, в UI показывается только маска |
 | Список чатов, избранное | `xmsgi-studio-chats.json` | локальный JSON, атомарная запись |
 | История планирования | `xmsgi-studio-schedule-history.json` | атомарная запись, лимит 8 МБ, валидация схемы (до 2000 записей) |
 | Черновики, вложения | `drafts/drafts.json` + `drafts/backups/` | атомарная запись (tmp → fsync → rename), права `0600`, ротация бэкапов, восстановление при повреждении (`DRAFT_STORE_CORRUPT`) |
@@ -99,7 +98,6 @@ Legacy-файлы `awaitmsg-*` автоматически переименовы
 | Направление | Назначение | Когда |
 |---|---|---|
 | Telegram DC (MTProto) | авторизация, чаты, отправка, планирование | всегда, когда приложение подключено |
-| Google Gemini API | генерация текста ассистентом | **только** при включённой функции и наличии пользовательского ключа; ключ хранится в secure-config, модель по умолчанию `gemini-3.6-flash` |
 
 Прокси/SOCKS поддерживается стеком `teleproto`.
 Таймауты запросов — `withTimeout` в `telegram.cjs`;

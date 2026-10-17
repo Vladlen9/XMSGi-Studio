@@ -135,15 +135,15 @@ npm run dist
 <details>
 <summary>🏗️ <b>Studio architecture</b> · for developers</summary>
 
-The Electron host owns the window, Telegram session and IPC bridge. The React host mounts Studio through `src/workspace/StudioMount.tsx`; the Vite `$studio` alias resolves that import to the shared `../Studio/Studio module/src/App.tsx`.
+The Electron host owns the window, Telegram session and IPC bridge. Studio and Quick Planner are pages in the same React application. Studio is composed in `src/studio/App.tsx` and mounted through `src/workspace/StudioMount.tsx` with the host-owned scheduler runtime.
 
-The embedded Studio source is kept as a separate Vite/React module:
+Studio's internal feature structure lives under `src/studio/`:
 
-- `../Studio/Studio module/src/App.tsx` composes the Studio workspace and scheduler.
-- `../Studio/Studio module/src/pages/WorkspacePage.tsx` owns the workspace page.
-- `../Studio/Studio module/src/components/stages/` contains the chat, schedule, draft, template and inline-button stages.
-- `../Studio/Studio module/src/services/` adapts publishing operations to the Telegram bridge.
-- `packages/shared/` provides types, translations and utilities used by both host and Studio.
+- `src/studio/App.tsx` composes the workspace and scheduler.
+- `src/studio/pages/WorkspacePage.tsx` owns the workspace page.
+- `src/studio/components/stages/` contains the chat, schedule, draft, template and inline-button stages.
+- `src/studio/services/` adapts publishing operations to the Telegram bridge.
+- `packages/shared/` provides types, translations and utilities shared across the application.
 - `XMSGi/telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
 
 Studio's locale context is provided by the host. Keep `StudioMount` under the host's `LocaleProvider`, and pass the existing connection, chats, account ID and scheduler runtime:
@@ -157,13 +157,13 @@ Studio's locale context is provided by the host. Keep `StudioMount` under the ho
 />
 ```
 
-The `$studio`, `@/` and `@shared/` aliases are configured by the host Vite plugin. The Studio module is embedded from this repository's source tree rather than consumed as a separately published npm package. To check it directly, run `npm --prefix "Studio/Studio module" run typecheck`, `npm --prefix "Studio/Studio module" test` and `npm --prefix "Studio/Studio module" run build` from the repository root.
+The `@/`, `@studio/` and `@shared/` aliases are configured by the host Vite and TypeScript settings. Run `npm run typecheck`, `npm test` and `npm run build` from the application root to validate the complete app, including Studio.
 
 ### Scheduler ownership
 
 When Studio is embedded, the Host `useScheduler` runtime is authoritative for scheduling history, cancellation, retry state and FloodWait pauses. Studio receives that runtime through the versioned React-props contract in `packages/shared/bridge/`; History/Archive callbacks are part of the same contract. There is no separate event stream.
 
-If the scheduler prop is omitted, Studio uses `useStudioScheduler` as a standalone fallback. It is a separate, simpler implementation and is not the source of truth for embedded History/Archive workflows. Keep changes to the two paths aligned and covered independently; do not combine them into one scheduler until standalone support requirements are decided.
+If the scheduler prop is omitted in a preview or isolated component test, Studio uses `useStudioScheduler` as a fallback. The Electron application always passes the host runtime, which is authoritative for scheduling history, cancellation, retry state and FloodWait pauses.
 
 </details>
 
@@ -198,7 +198,7 @@ Please report vulnerabilities privately through the repository security process.
 
 ## 📄 License
 
-This project is licensed under the MIT License. The canonical license text is in [LICENSE](LICENSE); the Studio module also declares `MIT` in its package metadata.
+This project is licensed under the MIT License. The canonical license text is in [LICENSE](LICENSE).
 
 ---
 XMSGi Studio keeps Telegram scheduling simple, local, and reliable.

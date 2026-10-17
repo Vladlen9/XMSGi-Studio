@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Chat, NotificationState, RichTextEntity, ScheduledMessage } from '@/types';
-import type { SavedDraft, StudioScheduledMessage, StudioSchedulerRuntime } from '$studio';
+import type { SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
 import { BRIDGE_PROTOCOL_VERSION } from '@shared/bridge';
-import type { StudioPlannerTextPayload } from '@shared/bridge';
+import type { StudioPlannerTextPayload, StudioSchedulerRuntime } from '@shared/bridge';
 import { AppShell, StudioMount } from './workspace';
 import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -153,7 +153,7 @@ export default function DevPreviewHarness() {
   const [plannerEntities, setPlannerEntities] = useState<RichTextEntity[]>([]);
   const [plannerAttachments, setPlannerAttachments] = useState<string[]>([]);
   const [plannerChats, setPlannerChats] = useState(demoChats);
-  const [plannerSelectedChat, setPlannerSelectedChat] = useState<Chat | null>(demoChats[0]);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(demoChats[0]);
   const [plannerUpcoming, setPlannerUpcoming] = useState(demoHistoryMessages);
   const plannerTextOpenerRef = useRef<((payload: StudioPlannerTextPayload) => Promise<boolean>) | null>(null);
   const pendingPlannerTextRef = useRef<StudioPlannerTextPayload | null>(null);
@@ -211,14 +211,6 @@ export default function DevPreviewHarness() {
       telegramAuthBusy={false}
       telegramAuthError=""
       telegramStatus={{ accountId: 'dev-preview', status: 'normal' }}
-      geminiSettings={{ hasKey: false, maskedKey: '', enabled: false, encryptionAvailable: true }}
-      settingsKey=""
-      settingsBusy={false}
-      settingsError=""
-      onSettingsKeyChange={noOperation}
-      onSaveGeminiKey={noOperation}
-      onRemoveGeminiKey={noOperation}
-      onToggleAssistant={noOperation}
       telegramCredentials={{ hasCredentials: true, hasSession: true, connected: true, signedOut: false }}
       telegramApiId=""
       telegramApiHash=""
@@ -262,9 +254,9 @@ export default function DevPreviewHarness() {
       {isSettingsOpen ? previewSettingsPage : view === 'planner' ? (
         <QuickPlannerPage
           chats={plannerChats}
-          selectedChat={plannerSelectedChat}
+          selectedChat={selectedChat}
           selectedChatPermissions={null}
-          onSelectChat={setPlannerSelectedChat}
+          onSelectChat={setSelectedChat}
           onAddChat={(chat) => setPlannerChats((current) => (
             current.some((existing) => existing.id === chat.id) ? current : [...current, chat]
           ))}
@@ -288,7 +280,7 @@ export default function DevPreviewHarness() {
           isSending={false}
           isScheduling={false}
           onSendNow={async (text, attachments, _entities) => {
-            if (!plannerSelectedChat || (!text.trim() && attachments.length === 0)) return false;
+            if (!selectedChat || (!text.trim() && attachments.length === 0)) return false;
             setPlannerMessage('');
             setPlannerEntities([]);
             setPlannerAttachments([]);
@@ -328,6 +320,8 @@ export default function DevPreviewHarness() {
             connected={false}
             activeAccountId="account-1"
             chats={demoChats}
+            selectedChat={selectedChat}
+            onSelectChat={setSelectedChat}
             scheduler={demoScheduler}
             onRegisterPlannerTextOpener={registerPlannerTextOpener}
             onRegisterHistoryDraftOpener={(handler) => { historyDraftOpenerRef.current = handler; }}

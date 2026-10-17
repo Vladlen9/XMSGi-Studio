@@ -53,7 +53,6 @@
 - No breaking changes are intended for existing users.
 - Existing Telegram sessions and locally stored scheduled message data are preserved when using Logout.
 - Forget account removes the saved account data from the device.
-- The experimental Gemini prototype requires a user-provided Gemini API key in Settings.
 
 ### Known limitations
 

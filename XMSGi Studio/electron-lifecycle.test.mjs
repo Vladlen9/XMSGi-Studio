@@ -15,10 +15,16 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain("tray.on('double-click', showMainWindow)");
   });
 
-  it('uses the current Electron window size as the minimum for both product views', () => {
+  it('keeps a practical desktop minimum size for both product views', () => {
     expect(mainSource).toContain('width: 900');
-    expect(mainSource).toContain('minWidth: 858');
-    expect(mainSource).toContain('minHeight: 801');
+    expect(mainSource).toContain('minWidth: 780');
+    expect(mainSource).toContain('minHeight: 560');
+    expect(mainSource).toContain('resizable: true');
+  });
+
+  it('opens the CDP endpoint only for unpackaged Electron development', () => {
+    expect(mainSource).toContain("if (!app.isPackaged) {");
+    expect(mainSource).toContain("app.commandLine.appendSwitch('remote-debugging-port', '9222')");
   });
 
   it('hides the window on close while preserving the Telegram lifecycle', () => {

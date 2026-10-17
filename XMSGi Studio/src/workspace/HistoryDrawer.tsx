@@ -4,7 +4,7 @@ import { CalendarOff, Download, Ellipsis, FileText, Maximize2, Minimize2, Paperc
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
-import type { PersistedDraftStore } from '$studio';
+import type { PersistedDraftStore } from '@shared/types';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
 import type { HistoryItem } from './historyModel';
 

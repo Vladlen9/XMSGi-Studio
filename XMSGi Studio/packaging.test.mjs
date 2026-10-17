@@ -25,7 +25,6 @@ describe('production packaging', () => {
       'preload.cjs',
       'chat-storage.cjs',
       'app-data-path.cjs',
-      'gemini.cjs',
       'telegram.cjs',
       'telegram-dialogs.cjs',
       'telegram-inline-keyboard.cjs',

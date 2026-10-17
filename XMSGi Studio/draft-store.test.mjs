@@ -36,6 +36,25 @@ describe('draft attachment storage', () => {
     expect(readFileSync(result.attachment.path)).toEqual(readFileSync(sourcePath));
   });
 
+  it('persists bytes for attachments created in the renderer without a source path', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
+    temporaryDirectories.push(directory);
+    const storeDirectory = path.join(directory, 'drafts');
+    const bytes = Buffer.from('converted png bytes');
+
+    const result = createDraftStore({ directory: storeDirectory }).writeAttachment('photo.png', new Uint8Array(bytes));
+
+    expect(result).toMatchObject({
+      success: true,
+      attachment: {
+        name: 'photo.png',
+        path: path.join(storeDirectory, 'photo.png'),
+        size: bytes.length,
+      },
+    });
+    expect(readFileSync(result.attachment.path)).toEqual(bytes);
+  });
+
   it('reports missing source files without an attachment result', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
     temporaryDirectories.push(directory);

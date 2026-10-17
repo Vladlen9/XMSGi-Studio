@@ -14,12 +14,11 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "electron": "electron . --no-sandbox",
+    "electron": "electron . --no-sandbox --remote-debugging-port=9222",
     "start": "npm run build && npm run electron",
     "dist": "npm run build && electron-builder --win"
   },
   "dependencies": {
-    "@google/genai": "^2.21.0",
     "dotenv": "^17.4.2",
     "lucide-react": "^0.446.0",
     "react": "^18.3.1",
@@ -70,7 +69,6 @@
       "chat-storage.cjs",
       "app-data-path.cjs",
       "draft-store.cjs",
-      "gemini.cjs",
       "telegram.cjs",
       "telegram-dialogs.cjs",
       "telegram-inline-keyboard.cjs",
@@ -96,30 +94,40 @@
     },
     "linux": {
       "maintainer": "XMSGi Studio",
-      "icon": "../Studio/Studio module/src/assets/logo.png",
+      "icon": "src/studio/assets/logo.png",
       "category": "Utility",
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
     "mac": {
-      "icon": "../Studio/Studio module/src/assets/logo.png",
+      "icon": "src/studio/assets/logo.png",
       "category": "public.app-category.productivity",
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ]
     },

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { ChevronRight, Send, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import {
@@ -11,13 +11,6 @@ import { useLocale } from '@/lib/i18n';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { getTelegramStatusPresentation } from '@/workspace/AppShell';
 import type { EditorAppearanceMode, EditorAppearancePreferences } from '@shared/editorAppearance';
-
-type GeminiSettings = {
-  hasKey: boolean;
-  maskedKey: string;
-  enabled: boolean;
-  encryptionAvailable: boolean;
-};
 
 type SettingsViewProps = {
   onClose: () => void;
@@ -32,14 +25,6 @@ type SettingsViewProps = {
   telegramAuthBusy: boolean;
   telegramAuthError: string;
   telegramStatus: TelegramStatusSnapshot;
-  geminiSettings: GeminiSettings;
-  settingsKey: string;
-  settingsBusy: boolean;
-  settingsError: string;
-  onSettingsKeyChange: (value: string) => void;
-  onSaveGeminiKey: () => void;
-  onRemoveGeminiKey: () => void;
-  onToggleAssistant: () => void;
   telegramCredentials: { hasCredentials: boolean; hasSession: boolean; connected: boolean; signedOut: boolean };
   telegramApiId: string;
   telegramApiHash: string;
@@ -69,14 +54,6 @@ export function SettingsView({
   telegramAuthBusy,
   telegramAuthError,
   telegramStatus,
-  geminiSettings,
-  settingsKey,
-  settingsBusy,
-  settingsError,
-  onSettingsKeyChange,
-  onSaveGeminiKey,
-  onRemoveGeminiKey,
-  onToggleAssistant,
   telegramCredentials,
   telegramApiId,
   telegramApiHash,
@@ -93,11 +70,31 @@ export function SettingsView({
   onTelegramDisconnect,
 }: SettingsViewProps) {
   const { locale, setLocale, t } = useLocale();
-  const [isEditingKey, setIsEditingKey] = useState(false);
-  const [isConfirmingRemoval, setIsConfirmingRemoval] = useState(false);
+  const settingsViewRef = useRef<HTMLDivElement | null>(null);
+  const settingsContentRef = useRef<HTMLElement | null>(null);
+  const scrollbarDragRef = useRef<{ startY: number; startScrollTop: number } | null>(null);
+  const [settingsScrollMetrics, setSettingsScrollMetrics] = useState({
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+    trackHeight: 0,
+  });
+  const isElectronRuntime = typeof document !== 'undefined'
+    && document.documentElement.classList.contains('electron-runtime');
   const [isTelegramManagementOpen, setIsTelegramManagementOpen] = useState(false);
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
   const [editorAppearanceSaveFailed, setEditorAppearanceSaveFailed] = useState(false);
+  const settingsScrollRange = Math.max(0, settingsScrollMetrics.scrollHeight - settingsScrollMetrics.clientHeight);
+  const settingsScrollbarThumbHeight = settingsScrollMetrics.scrollHeight > 0
+    ? Math.min(
+      settingsScrollMetrics.trackHeight,
+      Math.max(32, settingsScrollMetrics.trackHeight * settingsScrollMetrics.clientHeight / settingsScrollMetrics.scrollHeight),
+    )
+    : 0;
+  const settingsScrollbarMaxOffset = Math.max(0, settingsScrollMetrics.trackHeight - settingsScrollbarThumbHeight);
+  const settingsScrollbarThumbOffset = settingsScrollRange > 0
+    ? settingsScrollbarMaxOffset * settingsScrollMetrics.scrollTop / settingsScrollRange
+    : 0;
   const statusPresentation = getTelegramStatusPresentation(telegramStatus);
   const statusMessage = telegramStatus.status === 'rate-limited'
     ? t(statusPresentation.messageKey, { wait: telegramStatus.waitSecondsText || '?' })
@@ -113,6 +110,103 @@ export function SettingsView({
     { id: 'schedule', label: t('settings.editorModeSchedule') },
     { id: 'draft', label: t('settings.editorModeDraft') },
   ];
+
+  const handleSettingsScrollbarPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const content = settingsContentRef.current;
+    if (!content || settingsScrollbarMaxOffset <= 0 || settingsScrollRange <= 0) return;
+
+    const clickedThumb = Boolean((event.target as HTMLElement).closest('.settings-scrollbar-thumb'));
+    if (!clickedThumb) {
+      const trackRect = event.currentTarget.getBoundingClientRect();
+      const desiredThumbOffset = Math.min(
+        settingsScrollbarMaxOffset,
+        Math.max(0, event.clientY - trackRect.top - settingsScrollbarThumbHeight / 2),
+      );
+      content.scrollTop = desiredThumbOffset / settingsScrollbarMaxOffset * settingsScrollRange;
+    }
+
+    scrollbarDragRef.current = { startY: event.clientY, startScrollTop: content.scrollTop };
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  };
+
+  const handleSettingsScrollbarPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const content = settingsContentRef.current;
+    const drag = scrollbarDragRef.current;
+    if (!content || !drag || settingsScrollbarMaxOffset <= 0) return;
+
+    const scrollDelta = (event.clientY - drag.startY) / settingsScrollbarMaxOffset * settingsScrollRange;
+    content.scrollTop = Math.max(0, Math.min(settingsScrollRange, drag.startScrollTop + scrollDelta));
+  };
+
+  const handleSettingsScrollbarPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    scrollbarDragRef.current = null;
+    if (
+      typeof event.currentTarget.hasPointerCapture === 'function'
+      && event.currentTarget.hasPointerCapture(event.pointerId)
+    ) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const handleSettingsScrollbarKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const content = settingsContentRef.current;
+    if (!content) return;
+
+    const pageStep = Math.max(40, content.clientHeight * 0.8);
+    const keySteps: Record<string, number> = {
+      ArrowDown: 40,
+      ArrowUp: -40,
+      PageDown: pageStep,
+      PageUp: -pageStep,
+      Home: -content.scrollTop,
+      End: settingsScrollRange - content.scrollTop,
+    };
+    if (!(event.key in keySteps)) return;
+
+    event.preventDefault();
+    content.scrollTop += keySteps[event.key];
+  };
+
+  useEffect(() => {
+    const settingsView = settingsViewRef.current;
+    const content = settingsContentRef.current;
+    if (!settingsView || !content) return;
+
+    const updateScrollMetrics = () => {
+      const nextMetrics = {
+        scrollTop: content.scrollTop,
+        scrollHeight: content.scrollHeight,
+        clientHeight: content.clientHeight,
+        trackHeight: settingsView.clientHeight,
+      };
+      setSettingsScrollMetrics((current) => (
+        current.scrollTop === nextMetrics.scrollTop
+        && current.scrollHeight === nextMetrics.scrollHeight
+        && current.clientHeight === nextMetrics.clientHeight
+        && current.trackHeight === nextMetrics.trackHeight
+          ? current
+          : nextMetrics
+      ));
+    };
+
+    updateScrollMetrics();
+    content.addEventListener('scroll', updateScrollMetrics, { passive: true });
+    window.addEventListener('resize', updateScrollMetrics);
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollMetrics);
+    resizeObserver?.observe(settingsView);
+    resizeObserver?.observe(content);
+    const sections = content.querySelector('.settings-sections');
+    if (sections) resizeObserver?.observe(sections);
+
+    return () => {
+      content.removeEventListener('scroll', updateScrollMetrics);
+      window.removeEventListener('resize', updateScrollMetrics);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -143,8 +237,8 @@ export function SettingsView({
   }, [telegramCredentials.hasCredentials, telegramCredentials.hasSession, telegramCredentials.signedOut]);
 
   return (
-    <div className="settings-view">
-      <main className="settings-view-content">
+    <div className="settings-view" ref={settingsViewRef}>
+      <main id="settings-view-content" className="settings-view-content" ref={settingsContentRef}>
         <h1>{t('settings.title')}</h1>
 
         <div className="settings-sections">
@@ -419,113 +513,6 @@ export function SettingsView({
               document.body,
             )}
           </section>
-          <section className="settings-view-section" style={{ display: 'none' }}>
-            <h2>{t('settings.aiAssistant')}</h2>
-            <p className="settings-view-description">
-              {t('settings.aiDescription')}
-            </p>
-            <button
-              type="button"
-              className={`settings-toggle-line ${geminiSettings.enabled ? 'is-on' : ''}`}
-              onClick={onToggleAssistant}
-              disabled={settingsBusy}
-              aria-pressed={geminiSettings.enabled}
-            >
-              <span>{t('settings.aiAssistant')}</span>
-              <span className={`settings-toggle-state ${geminiSettings.enabled ? 'is-on' : 'is-off'}`}>
-                {geminiSettings.enabled ? t('settings.on') : t('settings.off')}
-              </span>
-            </button>
-          </section>
-
-          <section className="settings-view-section" style={{ display: 'none' }}>
-            <div className="settings-section-heading-row">
-              <h2>{t('settings.geminiKey')}</h2>
-              <span className={`settings-status ${geminiSettings.hasKey ? 'is-ready' : 'is-missing'}`}>
-                {geminiSettings.hasKey ? t('settings.keyReady') : t('settings.noKey')}
-              </span>
-            </div>
-            <p className="settings-view-description">{t('settings.keyDescription')}</p>
-
-            {isEditingKey ? (
-              <form
-                className="settings-key-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onSaveGeminiKey();
-                  setIsEditingKey(false);
-                }}
-              >
-                <input
-                  type="password"
-                  value={settingsKey}
-                  onChange={(event) => onSettingsKeyChange(event.target.value)}
-                  placeholder={t('settings.keyPlaceholder')}
-                  autoFocus
-                  disabled={settingsBusy}
-                />
-                <button type="submit" disabled={settingsBusy || !settingsKey.trim()}>
-                  {t('common.save')}
-                </button>
-              </form>
-            ) : (
-              <div className="settings-key-row">
-                <span className="settings-key-value">
-                  {geminiSettings.hasKey ? geminiSettings.maskedKey : t('settings.noKeyYet')}
-                </span>
-                <span className="settings-key-actions">
-                  <button type="button" onClick={() => setIsEditingKey(true)} disabled={settingsBusy}>
-                    {t('settings.changeKey')}
-                  </button>
-                  {geminiSettings.hasKey && (
-                    <button
-                      type="button"
-                      onClick={() => setIsConfirmingRemoval(true)}
-                      disabled={settingsBusy}
-                    >
-                      {t('common.remove')}
-                    </button>
-                  )}
-                </span>
-              </div>
-            )}
-
-            {isConfirmingRemoval && geminiSettings.hasKey && (
-              <div className="settings-remove-confirmation">
-                <span>{t('settings.removeThisKey')}</span>
-                <span className="settings-key-actions">
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingRemoval(false)}
-                    disabled={settingsBusy}
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRemoveGeminiKey();
-                      setIsConfirmingRemoval(false);
-                    }}
-                    disabled={settingsBusy}
-                  >
-                      {t('settings.removeKey')}
-                  </button>
-                </span>
-              </div>
-            )}
-
-            <a
-              className="settings-api-link"
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t('settings.getKey')} <span aria-hidden="true">→</span>
-            </a>
-            {settingsError && <p className="settings-view-error">{settingsError}</p>}
-          </section>
-
           <section className="settings-view-section settings-about-section">
             <h2>{t('settings.about')}</h2>
             <p className="settings-view-description">
@@ -535,6 +522,33 @@ export function SettingsView({
           </section>
         </div>
       </main>
+      {isElectronRuntime && settingsScrollRange > 0 && (
+        <div
+          className="settings-scrollbar"
+          role="scrollbar"
+          aria-label={t('settings.title')}
+          aria-controls="settings-view-content"
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={settingsScrollRange}
+          aria-valuenow={Math.round(settingsScrollMetrics.scrollTop)}
+          tabIndex={0}
+          onPointerDown={handleSettingsScrollbarPointerDown}
+          onPointerMove={handleSettingsScrollbarPointerMove}
+          onPointerUp={handleSettingsScrollbarPointerUp}
+          onPointerCancel={handleSettingsScrollbarPointerUp}
+          onKeyDown={handleSettingsScrollbarKeyDown}
+        >
+          <span
+            className="settings-scrollbar-thumb"
+            aria-hidden="true"
+            style={{
+              height: `${settingsScrollbarThumbHeight}px`,
+              transform: `translateY(${settingsScrollbarThumbOffset}px)`,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -71,6 +71,17 @@ export function AppShell({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
   useEffect(() => {
+    if (!isConfirmingLogout || authBusy) return undefined;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setIsConfirmingLogout(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [authBusy, isConfirmingLogout, setIsConfirmingLogout]);
+
+  useEffect(() => {
     let active = true;
 
     if (!connected || typeof window.telegram?.getAccountAvatar !== 'function') {
@@ -110,7 +121,7 @@ export function AppShell({
         <div className="topbar topbar-placeholder" aria-hidden="true" />
       )}
       {connected && (
-        <header className="topbar">
+        <header className={`topbar${settingsOpen ? ' settings-topbar' : ''}`}>
           <div className="topbar-identity">
             <span className="brand" aria-label="XMSGi"><span>XMSGi</span></span>
           </div>

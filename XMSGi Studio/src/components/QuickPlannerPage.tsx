@@ -50,12 +50,12 @@ const plannerModes = (t: ReturnType<typeof useLocale>['t']) => [
   { id: 'draft' as const, label: t('quickplanner.mode.draft'), icon: FileText },
 ];
 
-const scheduleQuickOptions = [
-  { group: 'now', label: 'Сейчас', ariaLabel: 'Сейчас', minutes: 0 },
-  { group: 'time', label: '+30 мин', ariaLabel: 'Через 30 минут', minutes: 30 },
-  { group: 'time', label: '+1 ч', ariaLabel: 'Через 1 час', minutes: 60 },
-  { group: 'days', label: '+1 день', ariaLabel: 'Через 1 день', days: 1 },
-  { group: 'days', label: '+1 неделя', ariaLabel: 'Через 1 неделю', days: 7 },
+const scheduleQuickOptions = (t: ReturnType<typeof useLocale>['t']) => [
+  { group: 'now', label: t('quickplanner.schedule.now'), ariaLabel: t('quickplanner.schedule.now'), minutes: 0 },
+  { group: 'time', label: t('quickplanner.schedule.in30Minutes'), ariaLabel: t('quickplanner.schedule.in30MinutesLabel'), minutes: 30 },
+  { group: 'time', label: t('quickplanner.schedule.in1Hour'), ariaLabel: t('quickplanner.schedule.in1HourLabel'), minutes: 60 },
+  { group: 'days', label: t('quickplanner.schedule.in1Day'), ariaLabel: t('quickplanner.schedule.in1DayLabel'), days: 1 },
+  { group: 'days', label: t('quickplanner.schedule.in1Week'), ariaLabel: t('quickplanner.schedule.in1WeekLabel'), days: 7 },
 ];
 
 const scheduleTimeOptions = Array.from({ length: 96 }, (_, index) => {
@@ -487,6 +487,7 @@ export function QuickPlannerPage({
     const modes = plannerModes(t);
     return draftOnlyMode ? modes.filter(({ id }) => id === 'draft') : modes;
   }, [draftOnlyMode, t]);
+  const scheduleQuickValues = useMemo(() => scheduleQuickOptions(t), [t]);
   const { currentSection, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
   const [previewPersistence] = useState(readPlannerPreviewState);
   const [sidebarMotivation] = useState(() => choosePlannerMotivation(locale));
@@ -517,7 +518,6 @@ export function QuickPlannerPage({
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [showAllAttachments, setShowAllAttachments] = useState(false);
-  const [plannerEditorBaseHeight, setPlannerEditorBaseHeight] = useState<number | null>(null);
   const [scheduleDateTime, setScheduleDateTime] = useState(() => {
     const defaultDate = new Date();
     defaultDate.setMinutes(defaultDate.getMinutes() + 1);
@@ -594,10 +594,12 @@ export function QuickPlannerPage({
   const [scheduleTimeDraft, setScheduleTimeDraft] = useState<string | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const [schedulePickerPosition, setSchedulePickerPosition] = useState({ top: 8, left: 8 });
+  const [schedulePickerPosition, setSchedulePickerPosition] = useState({ top: 8, left: 8, maxHeight: 276 });
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const scheduleDatePillRef = useRef<HTMLLabelElement | null>(null);
-  const scheduleTimePillRef = useRef<HTMLLabelElement | null>(null);
+  const scheduleTimePillRef = useRef<HTMLDivElement | null>(null);
+  const scheduleQuickValuesRef = useRef<HTMLDivElement | null>(null);
+  const scheduleDateTriggerRef = useRef<SVGSVGElement | null>(null);
   const scheduleDatePickerRef = useRef<HTMLDivElement | null>(null);
   const scheduleTimePickerRef = useRef<HTMLDivElement | null>(null);
   const minimumScheduleDateValue = minimumScheduleDateTime.slice(0, 10);
@@ -624,21 +626,19 @@ export function QuickPlannerPage({
     setTimePickerOpen(false);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!datePickerOpen && !timePickerOpen) return undefined;
 
     const updateSchedulePickerPosition = () => {
       const anchor = datePickerOpen ? scheduleDatePillRef.current : scheduleTimePillRef.current;
       if (!anchor) return;
       const bounds = anchor.getBoundingClientRect();
+      const quickValuesBounds = scheduleQuickValuesRef.current?.getBoundingClientRect();
       const width = datePickerOpen ? 246 : 172;
-      const height = datePickerOpen ? 276 : 272;
-      const topBelow = bounds.bottom + 6;
-      const top = topBelow + height + 8 > window.innerHeight
-        ? Math.max(8, bounds.top - height - 6)
-        : topBelow;
+      const top = Math.max(bounds.bottom, quickValuesBounds?.bottom ?? bounds.bottom) + 20;
       const left = Math.max(8, Math.min(bounds.left, window.innerWidth - width - 8));
-      setSchedulePickerPosition({ top, left });
+      const maxHeight = Math.max(80, window.innerHeight - top - 8);
+      setSchedulePickerPosition({ top, left, maxHeight });
     };
     const closeOnOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -690,7 +690,7 @@ export function QuickPlannerPage({
     targetOption?.scrollIntoView?.({ block: 'center' });
   }, [minimumScheduleDateTime, scheduleDate, scheduleTime, timePickerOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setDatePickerOpen(false);
     setTimePickerOpen(false);
     setScheduleDateDraft(null);
@@ -756,7 +756,6 @@ export function QuickPlannerPage({
   const [permissionWarningPulse, setPermissionWarningPulse] = useState(false);
   const [draftScrollbar, setDraftScrollbar] = useState({ height: 0, offset: 0, scrollable: false });
   const [previewScrollbar, setPreviewScrollbar] = useState({ height: 0, offset: 0, scrollable: false });
-  const plannerEditorRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftListRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftScrollbarRef = useRef<HTMLDivElement | null>(null);
   const plannerDraftScrollDragRef = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(null);
@@ -1060,23 +1059,10 @@ export function QuickPlannerPage({
     }, 2600);
   };
 
-  const capturePlannerEditorHeight = () => {
-    const height = plannerEditorRef.current?.getBoundingClientRect().height;
-    if (height) setPlannerEditorBaseHeight(height);
-  };
-
-  useLayoutEffect(() => {
-    if (composeResize.height <= 0 || !plannerEditorRef.current) return;
-    const editorHeight = plannerEditorRef.current.getBoundingClientRect().height;
-    if (!editorHeight) return;
-    setPlannerEditorBaseHeight(window.innerWidth <= 700 ? editorHeight - composeResize.height : editorHeight);
-  }, [composeResize.height]);
-
   const handleComposeResizePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    capturePlannerEditorHeight();
     composeResizeStartRef.current = {
       pointerId: event.pointerId,
       y: event.clientY,
@@ -1104,20 +1090,14 @@ export function QuickPlannerPage({
     const resizeStep = event.shiftKey ? 2 : 10;
     if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault();
-    if (composeResize.height === 0) capturePlannerEditorHeight();
     const height = clampComposeResize(composeResize.height + (event.key === 'ArrowUp' ? resizeStep : -resizeStep), MAX_COMPOSE_RESIZE);
     composeResizeHeightRef.current = height;
     setComposeResize({ height });
     save(COMPOSE_RESIZE_STORAGE_KEY, height);
   };
 
-  const plannerEditorResizeStyle = composeResize.height > 0 && plannerEditorBaseHeight !== null
-    ? { height: `${plannerEditorBaseHeight}px` } as CSSProperties
-    : undefined;
-
   const composeResizeStyle = {
     '--quick-planner-resize-height': `${composeResize.height}px`,
-    '--quick-planner-resize-half-height': `${composeResize.height / 2}px`,
   } as CSSProperties;
 
   const runPlannerAction = async () => {
@@ -1606,7 +1586,7 @@ export function QuickPlannerPage({
             <p className="quick-planner-sidebar-note">{sidebarMotivation}</p>
             </aside>
 
-            <div ref={plannerEditorRef} className="quick-planner-editor" style={plannerEditorResizeStyle}>
+            <div className="quick-planner-editor">
               <div className="quick-planner-clock">
                 <div className="quick-planner-clock-body">
                   <div className="quick-planner-clock-date">
@@ -1858,6 +1838,7 @@ export function QuickPlannerPage({
                     <div className="quick-planner-schedule-controls" role="group" aria-label="Schedule date and time">
                       <label ref={scheduleDatePillRef} className="quick-planner-schedule-date" title="Schedule date">
                         <CalendarDays
+                          ref={scheduleDateTriggerRef}
                           size={15}
                           role="button"
                           tabIndex={0}
@@ -1885,7 +1866,11 @@ export function QuickPlannerPage({
                           onPaste={handleScheduleDatePaste}
                         />
                       </label>
-                      <label ref={scheduleTimePillRef} className="quick-planner-schedule-clock" title="Schedule time">
+                      <div
+                        ref={scheduleTimePillRef}
+                        className="quick-planner-schedule-clock"
+                        title="Schedule time"
+                      >
                         <Clock
                           size={15}
                           role="button"
@@ -1893,10 +1878,7 @@ export function QuickPlannerPage({
                           aria-label="Open time picker"
                           aria-haspopup="dialog"
                           aria-expanded={timePickerOpen}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleScheduleTimePicker();
-                          }}
+                          onClick={toggleScheduleTimePicker}
                           onKeyDown={(event) => {
                             if (event.key !== 'Enter' && event.key !== ' ') return;
                             event.preventDefault();
@@ -1913,7 +1895,7 @@ export function QuickPlannerPage({
                           onBlur={handleScheduleTimeBlur}
                           onPaste={handleScheduleTimePaste}
                         />
-                      </label>
+                      </div>
                     </div>
                   )}
                   {datePickerOpen && createPortal(
@@ -1925,6 +1907,7 @@ export function QuickPlannerPage({
                       style={{
                         top: schedulePickerPosition.top,
                         left: schedulePickerPosition.left,
+                        maxHeight: schedulePickerPosition.maxHeight,
                         '--quick-planner-accent': quickPlannerAccent,
                       } as CSSProperties}
                     >
@@ -1989,6 +1972,7 @@ export function QuickPlannerPage({
                       style={{
                         top: schedulePickerPosition.top,
                         left: schedulePickerPosition.left,
+                        maxHeight: schedulePickerPosition.maxHeight,
                         '--quick-planner-accent': quickPlannerAccent,
                       } as CSSProperties}
                     >
@@ -2040,7 +2024,7 @@ export function QuickPlannerPage({
                     document.body,
                   )}
                   {publishMode === 'schedule' && (
-                    <div className="quick-planner-schedule-quick-values" role="group" aria-label="Quick schedule times">
+                    <div ref={scheduleQuickValuesRef} className="quick-planner-schedule-quick-values" role="group" aria-label="Quick schedule times">
                       {(['now', 'days', 'time'] as const).map((group) => (
                         <div
                           key={group}
@@ -2048,7 +2032,7 @@ export function QuickPlannerPage({
                           role="group"
                           aria-label={group === 'now' ? 'Quick now choice' : group === 'time' ? 'Time quick choices' : 'Day quick choices'}
                         >
-                          {scheduleQuickOptions.filter((option) => option.group === group).map(({ label, ariaLabel, minutes, days }) => (
+                          {scheduleQuickValues.filter((option) => option.group === group).map(({ label, ariaLabel, minutes, days }) => (
                             <button
                               key={label}
                               type="button"

@@ -1,4 +1,4 @@
-export type PlannerSurface = 'quick' | 'pending' | 'legacy';
+export type PlannerSurface = 'quick' | 'pending' | 'login';
 
 export type PlannerSurfaceState = {
   browserDraftMode: boolean;
@@ -6,6 +6,7 @@ export type PlannerSurfaceState = {
   signedOut: boolean;
   connecting: boolean;
   connectionResolved: boolean;
+  welcomeBackInProgress?: boolean;
 };
 
 export function getPlannerSurface({
@@ -14,8 +15,10 @@ export function getPlannerSurface({
   signedOut,
   connecting,
   connectionResolved,
+  welcomeBackInProgress = false,
 }: PlannerSurfaceState): PlannerSurface {
   if (browserDraftMode || (connected && !signedOut)) return 'quick';
+  if (signedOut && welcomeBackInProgress) return 'login';
   if (!connectionResolved || connecting) return 'pending';
-  return 'legacy';
+  return 'login';
 }

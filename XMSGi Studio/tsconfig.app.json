@@ -18,6 +18,7 @@
        baseUrl omitted: deprecated in TS 6/7; paths entries resolve relative to this tsconfig. */
     "paths": {
       "@/*": ["./src/*"],
+      "@studio/*": ["./src/studio/*"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "@shared/*": ["./packages/shared/*"]
     },

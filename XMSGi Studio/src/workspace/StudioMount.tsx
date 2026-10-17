@@ -1,11 +1,11 @@
-import { Suspense, lazy, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
+import StudioApp from '@studio/App';
 import type { StudioBridgeProps, StudioSchedulerActions, StudioSchedulerRuntime } from '@shared/bridge';
-import { preloadStudioApp } from './studioLoader';
-
-const StudioApp = lazy(preloadStudioApp);
 
 type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAccountId' | 'chats' | 'scheduler'>>
   & Pick<StudioBridgeProps,
+    | 'selectedChat'
+    | 'onSelectChat'
     | 'onRegisterPlannerTextOpener'
     | 'onRegisterHistoryDraftOpener'
     | 'onRegisterHistoryDraftUseHandler'
@@ -67,23 +67,23 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
   ]);
 }
 
-export function StudioMount({ connected, activeAccountId, chats, scheduler, onRegisterPlannerTextOpener, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
+export function StudioMount({ connected, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
   const stableScheduler = useStableSchedulerRuntime(scheduler);
 
   return (
-    <Suspense fallback={null}>
-      <StudioApp
-        connected={connected}
-        activeAccountId={activeAccountId}
-        chats={chats}
-        scheduler={stableScheduler}
-        onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
-        onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
-        onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
-        onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}
-        onRegisterHistoryDraftDeleteHandler={onRegisterHistoryDraftDeleteHandler}
-        onRegisterHistoryRescheduleHandler={onRegisterHistoryRescheduleHandler}
-      />
-    </Suspense>
+    <StudioApp
+      connected={connected}
+      activeAccountId={activeAccountId}
+      chats={chats}
+      selectedChat={selectedChat}
+      onSelectChat={onSelectChat}
+      scheduler={stableScheduler}
+      onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
+      onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
+      onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
+      onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}
+      onRegisterHistoryDraftDeleteHandler={onRegisterHistoryDraftDeleteHandler}
+      onRegisterHistoryRescheduleHandler={onRegisterHistoryRescheduleHandler}
+    />
   );
 }

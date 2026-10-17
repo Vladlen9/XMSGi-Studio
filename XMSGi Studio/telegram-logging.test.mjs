@@ -34,7 +34,7 @@ function capturedOutput() {
     .join('\n');
 }
 
-function installTelegramMocks() {
+function installTelegramMocks({ sendMessageDelayMs = 0 } = {}) {
   const scheduled = [];
   const sendCalls = [];
   const invokeCalls = [];
@@ -91,6 +91,9 @@ function installTelegramMocks() {
 
     async sendMessage(_target, options) {
       sendCalls.push(options);
+      if (sendMessageDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, sendMessageDelayMs));
+      }
       if (options.message === 'PRIVATE_FAILURE_TEXT') {
         const error = new Error(options.message);
         error.code = 'FAKE_SEND_FAILED';
@@ -153,12 +156,31 @@ function installTelegramMocks() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   nodeModule._load = originalLoad;
   consoleSpies.splice(0).forEach((spy) => spy.mockRestore());
   vi.resetModules();
 });
 
 describe('Telegram operation log privacy', () => {
+  it('allows media uploads to exceed the text request timeout', async () => {
+    vi.resetModules();
+    installTelegramMocks({ sendMessageDelayMs: 20_000 });
+    const { createTelegramCore } = await import('./telegram.cjs');
+    const core = createTelegramCore({ apiId: 1, apiHash: 'hash', sessionString: 'session' });
+    await core.connectTelegram();
+    vi.useFakeTimers();
+
+    try {
+      const send = core.sendMessage('me', 'Album caption', ['/tmp/first.png', '/tmp/second.png']);
+      await vi.advanceTimersByTimeAsync(20_000);
+      await expect(send).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+      await core.shutdownTelegram();
+    }
+  });
+
   it('omits message text, button data, and file paths from send, schedule, and error logs', async () => {
     vi.resetModules();
     const { sendCalls, invokeCalls } = installTelegramMocks();

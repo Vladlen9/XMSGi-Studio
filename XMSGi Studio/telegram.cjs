@@ -569,7 +569,12 @@ let invalidSessionCleanupPromise = null;
 let shutdownPromise = null;
 
 const REQUEST_TIMEOUT = 15000;
+const MEDIA_REQUEST_TIMEOUT = 120000;
 const INVALID_SESSION_MESSAGE = 'Telegram session expired or revoked. Please sign in again.';
+
+function getTelegramRequestTimeout(attachments) {
+  return attachments.length > 0 ? MEDIA_REQUEST_TIMEOUT : REQUEST_TIMEOUT;
+}
 
 function assertTelegramRunning() {
   assertLifecycleRunning(lifecycleState);
@@ -2325,8 +2330,8 @@ async function sendMessageInternal(
 
       await withTelegramInvokeDiagnostics(clientAtStart, 'send', () => telegramRequest(() => withTimeout(
         sendOperation(),
-        REQUEST_TIMEOUT,
-        'Sending Telegram message'
+        getTelegramRequestTimeout(attachments),
+        attachments.length > 0 ? 'Sending Telegram media' : 'Sending Telegram message'
       )), idempotencyKey);
 
     if (client !== clientAtStart) {
@@ -2482,6 +2487,7 @@ async function scheduleMessageInternal(
 
   logTelegramOperation('schedule', message, attachments, replyMarkup);
 
+  const scheduleRequestTimeout = getTelegramRequestTimeout(attachments);
   let telegramMessageIds = [];
   let scheduleConfirmedByResponse = false;
   let sentImmediatelyByResponse = false;
@@ -2513,8 +2519,8 @@ async function scheduleMessageInternal(
   try {
     sendResult = await withTelegramInvokeDiagnostics(client, 'schedule', () => telegramRequest(() => withTimeout(
       scheduleOperation(),
-      REQUEST_TIMEOUT,
-      'Scheduling Telegram message'
+      scheduleRequestTimeout,
+      attachments.length > 0 ? 'Scheduling Telegram media' : 'Scheduling Telegram message'
     )), scheduleIdempotencyKey, captureScheduleResponse);
   } catch (error) {
     if (attachments.length < 2 || !isInvalidMediaAlbumError(error)) throw error;
@@ -2537,7 +2543,7 @@ async function scheduleMessageInternal(
         const attachmentIdempotencyKey = `${scheduleIdempotencyKey}:attachment:${index}`;
         const result = await withTelegramInvokeDiagnostics(client, 'schedule', () => telegramRequest(() => withTimeout(
           client.sendMessage(target, attachmentOptions),
-          REQUEST_TIMEOUT,
+          MEDIA_REQUEST_TIMEOUT,
           'Scheduling Telegram attachment'
         )), attachmentIdempotencyKey, captureScheduleResponse);
         individualResults.push(result);
