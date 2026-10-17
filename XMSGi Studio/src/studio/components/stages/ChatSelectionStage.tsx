@@ -12,7 +12,7 @@ interface Props {
   chats: Chat[];
   selectedChats: Chat[];
   onChatSelectionChange: (chats: Chat[]) => void;
-  onChatSelectionDone: () => void;
+  onChatSelectionDone: (chat?: Chat) => void;
   onChatSelectionBack: () => void;
   onChatError: (message: string) => void;
   onAddChat: (chat: Chat) => void;
@@ -89,9 +89,10 @@ export function ChatSelectionStage({
   });
   const toggleChat = (chat: Chat) => {
     onChatSelectionChange([chat]);
+    onChatSelectionDone(chat);
   };
   const activateChatOption = (chat: Chat, selected: boolean) => {
-    if (selected) onChatSelectionDone();
+    if (selected) onChatSelectionDone(chat);
     else toggleChat(chat);
   };
   const toggleFavoriteChat = (chat: Chat) => {

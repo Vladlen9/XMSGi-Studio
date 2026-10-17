@@ -405,9 +405,10 @@
 }
 
 .chat-preview-stand.is-mobile .chat-preview-wallpaper-quick-picker {
-  top: calc(56px + 8px - 30px);
+  top: 50%;
   right: max(14px, calc((100% - 320px) / 2 + 8px));
   gap: 4px;
+  transform: translateY(-50%);
 }
 
 .chat-preview-wallpaper-quick-choice {

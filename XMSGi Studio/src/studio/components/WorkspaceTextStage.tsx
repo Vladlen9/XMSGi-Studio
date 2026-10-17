@@ -18,7 +18,7 @@ interface Props {
   chats: Chat[];
   selectedChats: Chat[];
   onChatSelectionChange: (chats: Chat[]) => void;
-  onChatSelectionDone: () => void;
+  onChatSelectionDone: (chat?: Chat) => void;
   onChatSelectionBack: () => void;
   onChatError: (message: string) => void;
   onAddChat: (chat: Chat) => void;

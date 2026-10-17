@@ -208,11 +208,14 @@ function positionHistoryGlassIndicator(container: HTMLDivElement | null) {
     }
   }
 
+  const scaleX = container.offsetWidth > 0 ? containerBounds.width / container.offsetWidth : 1;
+  const scaleY = container.offsetHeight > 0 ? containerBounds.height / container.offsetHeight : 1;
+
   indicator.dataset.activeFilter = nextFilter;
-  indicator.style.setProperty('--history-glass-x', `${activeBounds.left - containerBounds.left - container.clientLeft}px`);
-  indicator.style.setProperty('--history-glass-y', `${activeBounds.top - containerBounds.top - container.clientTop}px`);
-  indicator.style.width = `${activeBounds.width}px`;
-  indicator.style.height = `${activeBounds.height}px`;
+  indicator.style.setProperty('--history-glass-x', `${(activeBounds.left - containerBounds.left) / scaleX - container.clientLeft}px`);
+  indicator.style.setProperty('--history-glass-y', `${(activeBounds.top - containerBounds.top) / scaleY - container.clientTop}px`);
+  indicator.style.width = `${activeBounds.width / scaleX}px`;
+  indicator.style.height = `${activeBounds.height / scaleY}px`;
   indicator.style.opacity = '1';
 }
 
@@ -241,19 +244,23 @@ function bounceHistoryGlassIndicator(container: HTMLDivElement | null, filter: H
 function scrollHistoryRecordIntoView(list: HTMLDivElement, record: HTMLElement) {
   const listBounds = list.getBoundingClientRect();
   const recordBounds = record.getBoundingClientRect();
+  const scaleY = list.offsetHeight > 0 && listBounds.height > 0
+    ? listBounds.height / list.offsetHeight
+    : 1;
   const stickyDateHeading = list.querySelector<HTMLElement>('.history-date-heading');
   const stickyDateHeight = stickyDateHeading?.getBoundingClientRect().height ?? 0;
-  const visibleTop = listBounds.top + list.clientTop + stickyDateHeight;
-  const visibleBottom = listBounds.top + list.clientTop + list.clientHeight;
+  const visibleTop = listBounds.top + list.clientTop * scaleY + stickyDateHeight;
+  const visibleBottom = listBounds.top + (list.clientTop + list.clientHeight) * scaleY;
   const recordHeight = recordBounds.height;
+  const visibleHeight = list.clientHeight * scaleY;
   let nextScrollTop = list.scrollTop;
 
-  if (recordHeight >= list.clientHeight) {
-    nextScrollTop += recordBounds.bottom - visibleBottom;
+  if (recordHeight >= visibleHeight) {
+    nextScrollTop += (recordBounds.bottom - visibleBottom) / scaleY;
   } else if (recordBounds.top < visibleTop) {
-    nextScrollTop += recordBounds.top - visibleTop;
+    nextScrollTop += (recordBounds.top - visibleTop) / scaleY;
   } else if (recordBounds.bottom > visibleBottom) {
-    nextScrollTop += recordBounds.bottom - visibleBottom;
+    nextScrollTop += (recordBounds.bottom - visibleBottom) / scaleY;
   } else {
     return;
   }
@@ -626,7 +633,7 @@ export function HistoryDrawer({
       return;
     }
     const expandedRecord = expandedRecordRef.current;
-    if (list && expandedRecord) scrollHistoryRecordIntoView(list, expandedRecord);
+    if (list && expandedRecord) return alignHistoryScroll(list, expandedRecord);
   }, [isOpen, selectedRecord]);
 
   useLayoutEffect(() => {

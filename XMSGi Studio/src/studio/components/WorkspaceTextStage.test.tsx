@@ -851,7 +851,7 @@ describe('WorkspaceTextStage editor flows', () => {
     unmountChat();
   });
 
-  it('selects a chat from the chat picker and confirms the choice', () => {
+  it('selects and confirms a chat from the chat picker with one click', () => {
     const onChatSelectionChange = vi.fn();
     const onChatSelectionDone = vi.fn();
 
@@ -873,25 +873,16 @@ describe('WorkspaceTextStage editor flows', () => {
     });
 
     expect(onChatSelectionChange).toHaveBeenCalledWith([chatA]);
-
-    const doneButton = document.querySelector('.workspace-page-chat-stage-footer .workspace-page-stage-primary') as HTMLButtonElement;
-
-    expect(doneButton).toBeTruthy();
-
-    act(() => {
-      doneButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(onChatSelectionDone).toHaveBeenCalledTimes(1);
+    expect(onChatSelectionDone).toHaveBeenCalledWith(chatA);
     unmount();
   });
 
-  it('confirms the chat when the selected option is activated again', () => {
+  it('confirms an already selected chat when its option is activated', () => {
     const onChatSelectionChange = vi.fn();
     const onChatSelectionDone = vi.fn();
-    const { rerender, unmount } = renderStage({
+    const { unmount } = renderStage({
       mode: 'chat',
-      selectedChats: [],
+      selectedChats: [chatA],
       onChatSelectionChange,
       onChatSelectionDone,
     });
@@ -902,16 +893,19 @@ describe('WorkspaceTextStage editor flows', () => {
     act(() => {
       chatOption!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(onChatSelectionChange).toHaveBeenCalledWith([chatA]);
-    expect(onChatSelectionDone).not.toHaveBeenCalled();
+    expect(onChatSelectionChange).not.toHaveBeenCalled();
+    expect(onChatSelectionDone).toHaveBeenCalledWith(chatA);
+    unmount();
+  });
 
-    rerender({ mode: 'chat', selectedChats: [chatA], onChatSelectionChange, onChatSelectionDone });
-    const selectedOption = document.querySelector('[role="option"][aria-selected="true"]')!;
-    act(() => {
-      selectedOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
+  it('keeps the Done button as a fallback for the selected chat', () => {
+    const onChatSelectionDone = vi.fn();
+    const { unmount } = renderStage({ mode: 'chat', selectedChats: [chatA], onChatSelectionDone });
+    const doneButton = document.querySelector('.workspace-page-chat-stage-footer .workspace-page-stage-primary') as HTMLButtonElement;
 
-    expect(onChatSelectionDone).toHaveBeenCalledOnce();
+    act(() => doneButton.click());
+
+    expect(onChatSelectionDone).toHaveBeenCalledTimes(1);
     unmount();
   });
 

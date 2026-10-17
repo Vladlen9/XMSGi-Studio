@@ -814,12 +814,20 @@ export function WorkspacePage({
 
       const editorBounds = editor.getBoundingClientRect();
       const previewBounds = previewWindow.getBoundingClientRect();
+      const previewPanelBounds = previewPanel.getBoundingClientRect();
       const workspaceBounds = workspaceMain.getBoundingClientRect();
       if (!editorBounds.width || !previewBounds.width) return;
 
       const offset = Number.parseFloat(previewPanel.style.getPropertyValue(offsetProperty)) || 0;
+      const previewWidthReserve = Number.parseFloat(getComputedStyle(previewPanel).getPropertyValue('--workspace-page-preview-window-width-reserve')) || 0;
+      const previewShell = previewPanel.querySelector<HTMLElement>('.chat-preview-window-shell');
+      const previewScale = previewPanel.offsetWidth > 0 ? previewPanelBounds.width / previewPanel.offsetWidth : 1;
+      const alignedPreviewWidth = previewWidthReserve > 0 && previewShell
+        ? Math.min(previewWindow.offsetWidth, Math.max(0, previewShell.clientWidth - previewWidthReserve))
+        : previewWindow.offsetWidth;
       const editorGap = previewBounds.left - editorBounds.right;
-      const viewportGap = workspaceBounds.right - previewBounds.right;
+      const viewportGap = workspaceBounds.right - previewBounds.right
+        + (previewWindow.offsetWidth - alignedPreviewWidth) * previewScale;
       const nextOffset = offset - (editorGap - viewportGap) / 2;
       if (Math.abs(nextOffset - offset) > 0.25) {
         previewPanel.style.setProperty(offsetProperty, `${nextOffset}px`);
@@ -1943,8 +1951,9 @@ export function WorkspacePage({
     setStageTab('editor');
   };
 
-  const completeChatSelection = () => {
-    const availableChats = workspaceSelectedChats.filter((chat) => chats.some((item) => item.id === chat.id));
+  const completeChatSelection = (chosenChat?: Chat) => {
+    const selectedChats = chosenChat ? [chosenChat] : workspaceSelectedChats;
+    const availableChats = selectedChats.filter((chat) => chats.some((item) => item.id === chat.id));
     setWorkspaceSelectedChats(availableChats);
     setSelectedChat(availableChats[0] ?? null);
     workspaceChatOriginRef.current = null;

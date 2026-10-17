@@ -1861,6 +1861,11 @@ body:has(.product-shell.studio-shell) {
   flex: 0 0 auto;
 }
 
+html.electron-runtime .product-section-title-detached {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (max-width: 1100px) {
   .product-section-title-detached {
     top: 77px;
@@ -1871,12 +1876,6 @@ body:has(.product-shell.studio-shell) {
 @media (min-width: 701px) and (max-width: 860px) {
   .product-section-title-detached {
     font-size: 17px;
-  }
-}
-
-@media (max-width: 840px) {
-  html.electron-runtime .product-section-title-detached {
-    display: none;
   }
 }
 
@@ -8382,7 +8381,57 @@ textarea:active,
   white-space: nowrap;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 840px) {
+  .history-source-filters {
+    width: min(100%, 360px);
+    min-width: 0;
+  }
+
+  .history-source-filters .history-filter {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .history-source-filters .history-glass-indicator,
+  .history-drawer-footer .history-glass-indicator {
+    display: none;
+  }
+
+  .history-source-filters .history-filter,
+  .history-drawer-footer .history-status-tab {
+    border: 1px solid rgba(154, 168, 184, 0.1);
+    border-radius: 8px;
+    background: rgba(154, 168, 184, 0.035);
+  }
+
+  .history-source-filters .history-filter.is-active,
+  .history-drawer-footer .history-status-tab.is-active {
+    border-color: rgba(194, 207, 219, 0.24);
+    background: rgba(154, 168, 184, 0.16);
+    color: #f2f6f9;
+  }
+
+  .history-drawer-footer .history-status-filters {
+    box-sizing: border-box;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid rgba(154, 168, 184, 0.1);
+    border-radius: 10px;
+    background: rgba(4, 6, 9, 0.35);
+  }
+
+  .history-drawer-footer .history-status-tab {
+    width: 100%;
+    min-height: 44px;
+    margin: 0;
+    gap: 4px;
+    padding: 0 4px;
+  }
+
   .history-drawer-footer .history-status-label {
     display: none;
   }
@@ -8392,8 +8441,12 @@ textarea:active,
   }
 
   .history-drawer-footer .history-export-button {
-    width: 36px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
     padding: 0;
+    justify-content: center;
   }
 
   .history-drawer-footer .history-export-button > span {

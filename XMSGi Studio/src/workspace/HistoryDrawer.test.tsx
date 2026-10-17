@@ -241,24 +241,25 @@ describe('history filter glass indicators', () => {
   });
 });
 
-function mockHistoryRecordScroll(container: HTMLElement, recordBounds = { top: 350, height: 100 }) {
+function mockHistoryRecordScroll(container: HTMLElement, recordBounds = { top: 350, height: 100 }, scale = 1) {
   const list = container.querySelector('.history-record-list') as HTMLDivElement;
   const record = list.querySelector('.history-record') as HTMLElement;
   const dateHeading = list.querySelector('.history-date-heading') as HTMLElement;
   const scrollTo = vi.fn();
   Object.defineProperties(list, {
     clientHeight: { configurable: true, value: 300 },
+    offsetHeight: { configurable: true, value: 300 },
     scrollTop: { configurable: true, writable: true, value: 20 },
-    getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 100, 400, 300) },
+    getBoundingClientRect: { configurable: true, value: () => new DOMRect(0, 100 * scale, 400 * scale, 300 * scale) },
     scrollTo: { configurable: true, value: scrollTo },
   });
   Object.defineProperty(record, 'getBoundingClientRect', {
     configurable: true,
-    value: () => new DOMRect(0, recordBounds.top, 400, recordBounds.height),
+    value: () => new DOMRect(0, recordBounds.top * scale, 400 * scale, recordBounds.height * scale),
   });
   Object.defineProperty(dateHeading, 'getBoundingClientRect', {
     configurable: true,
-    value: () => new DOMRect(0, 100, 400, 34),
+    value: () => new DOMRect(0, 100 * scale, 400 * scale, 34 * scale),
   });
   return scrollTo;
 }
@@ -1358,6 +1359,7 @@ describe('HistoryDrawer search', () => {
       status: null,
       trigger: 'Открыть публикацию: XMSGi Updates',
       bounds: { top: 350, height: 100 },
+      scale: 1,
       expectedScrollTop: 70,
     },
     {
@@ -1366,6 +1368,7 @@ describe('HistoryDrawer search', () => {
       status: 'Отправлено',
       trigger: 'Открыть публикацию: Личные заметки',
       bounds: { top: 350, height: 100 },
+      scale: 1,
       expectedScrollTop: 70,
     },
     {
@@ -1374,6 +1377,7 @@ describe('HistoryDrawer search', () => {
       status: 'Отправлено',
       trigger: 'Показать полностью: Личные заметки',
       bounds: { top: 350, height: 100 },
+      scale: 1,
       expectedScrollTop: 70,
     },
     {
@@ -1382,12 +1386,22 @@ describe('HistoryDrawer search', () => {
       status: 'Отправлено',
       trigger: 'Показать полностью: Личные заметки',
       bounds: { top: 250, height: 480 },
+      scale: 1,
       expectedScrollTop: 350,
     },
-  ])('keeps $name visible by scrolling only the history list', ({ record, status, trigger, bounds, expectedScrollTop }) => {
+    {
+      name: 'full-view action at Electron zoom',
+      record: completedRecord,
+      status: 'Отправлено',
+      trigger: 'Показать полностью: Личные заметки',
+      bounds: { top: 350, height: 100 },
+      scale: 0.7,
+      expectedScrollTop: 70,
+    },
+  ])('keeps $name visible by scrolling only the history list', ({ record, status, trigger, bounds, scale, expectedScrollTop }) => {
     const view = renderHistory([record]);
     if (status) fireEvent.click(screen.getByRole('tab', { name: status }));
-    const scrollTo = mockHistoryRecordScroll(view.container, bounds);
+    const scrollTo = mockHistoryRecordScroll(view.container, bounds, scale);
 
     fireEvent.click(screen.getByRole('button', { name: trigger }));
 
@@ -1402,6 +1416,26 @@ describe('HistoryDrawer search', () => {
     getBoundingClientRect.mockImplementation(function (this: HTMLElement) {
       return this.classList.contains('history-record-action-menu')
         ? new DOMRect(0, 350, 170, 100)
+        : originalGetBoundingClientRect.call(this);
+    });
+
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Ещё' }));
+
+      expect(scrollTo).toHaveBeenCalledWith({ top: 70, behavior: 'smooth' });
+    } finally {
+      getBoundingClientRect.mockRestore();
+    }
+  });
+
+  it('scrolls the history list to keep the opened actions menu visible at Electron zoom', () => {
+    const view = renderHistory([upcomingRecord]);
+    const scrollTo = mockHistoryRecordScroll(view.container, { top: 350, height: 100 }, 0.7);
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    const getBoundingClientRect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+    getBoundingClientRect.mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('history-record-action-menu')
+        ? new DOMRect(0, 245, 119, 70)
         : originalGetBoundingClientRect.call(this);
     });
 
