@@ -1,8 +1,9 @@
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
-import xmsgiLogoMaster from '@/assets/xmsgi-logo-master.png';
+import { ArrowRight } from 'lucide-react';
+import { useLayoutEffect, useRef } from 'react';
 import { Notification } from '@/components/Notification';
 import type { NotificationState } from '@/types';
 import { useLocale } from '@/lib/i18n';
+import './LoginPage.css';
 
 type AuthStep = 'phone' | 'code' | 'password';
 
@@ -34,9 +35,6 @@ export function LoginPage({
   connecting,
   notification,
   closeNotification,
-  signedOut,
-  returningUserName,
-  returningUserUsername,
   authStep,
   showAuthForm,
   phoneNumber,
@@ -51,9 +49,20 @@ export function LoginPage({
   setTwoFactorPassword,
   setAuthError,
   handleTelegramAuth,
-  handleWelcomeBack,
 }: LoginPageProps) {
   const { locale, setLocale, t } = useLocale();
+  const loginFormRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const form = loginFormRef.current;
+    if (!form) return;
+
+    if (showAuthForm) {
+      form.style.setProperty('--login-form-open-height', `${form.scrollHeight}px`);
+    } else {
+      form.style.removeProperty('--login-form-open-height');
+    }
+  }, [authError, authStep, locale, showAuthForm]);
 
   return (
     <>
@@ -70,7 +79,7 @@ export function LoginPage({
       />
 
       <div className="app">
-        <section className={`auth-panel ${showAuthForm ? 'is-auth-open' : ''} ${signedOut ? 'is-returning' : ''}`}>
+        <section className={`auth-panel auth-screen ${showAuthForm ? 'is-auth-open' : ''}`} lang={locale}>
           <div className="auth-language-switch" role="group" aria-label={t('language.title')}>
             <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
               EN
@@ -80,44 +89,84 @@ export function LoginPage({
               RU
             </button>
           </div>
-          <div className="auth-intro">
-            <div className="auth-hero-copy" aria-label={t('hero.signInIntro')}>
-              <span className="auth-hero-line auth-hero-line-main" role="img" aria-label="XMSGi">
-                <img className="auth-hero-logo-x" src={xmsgiLogoMaster} alt="" aria-hidden="true" />
-                <span aria-hidden="true">{t('auth.loginHeroMain')}</span>
-              </span>
-              <span className="auth-hero-line auth-hero-line-sub">{t('auth.loginHeroSub')}</span>
-              <span className="auth-hero-tagline">{t('auth.loginHeroTagline')}</span>
-              <span className="auth-hero-tagline-sub">{t('auth.loginHeroTaglineSub')}</span>
-            </div>
+          <main className="login-layout">
+            <section className="login-brand" aria-label="MSGi Studio">
+              <h1 className="login-wordmark">
+                <span className="login-wordmark-top">
+                  <span className="login-mark" aria-hidden="true" />
+                  <span>{t('auth.loginHeroMain')}</span>
+                </span>
+                <span className="login-wordmark-bottom">{t('auth.loginHeroSub')}</span>
+              </h1>
+              <p className="login-tagline">
+                <span>{t('auth.loginHeroTagline')}</span>
+                <span>{t('auth.loginHeroTaglineSub')}</span>
+              </p>
+            </section>
 
-            <div className="auth-access">
-              {!signedOut && (
+            <button
+              className="login-divider"
+              type="button"
+              aria-label={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+              aria-expanded={showAuthForm}
+              aria-controls="telegram-login-form"
+              title={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+              onClick={() => {
+                setShowAuthForm((current) => !current);
+                setAuthStep('phone');
+                setAuthError('');
+              }}
+            />
+
+            <section className="login-panel" aria-label={t('hero.signInIntro')}>
+              <div className="login-method">
                 <button
                   type="button"
-                  className="auth-cta"
+                  className="login-method-action"
                   aria-label={t('auth.continueTelegram')}
+                  aria-expanded={showAuthForm}
+                  aria-controls="telegram-login-form"
                   onClick={() => {
                     setShowAuthForm((current) => !current);
                     setAuthStep('phone');
                     setAuthError('');
                   }}
                 >
-                  <span>{t('auth.continue')}</span>
-                  <ArrowRight size={17} aria-hidden="true" />
-                  <span>{t('auth.telegram')}</span>
+                  {t('auth.continue')}
                 </button>
-              )}
+                <ArrowRight className="login-arrow" size={25} aria-hidden="true" />
+                <button
+                  type="button"
+                  className="login-method-action"
+                  aria-expanded={showAuthForm}
+                  aria-controls="telegram-login-form"
+                  onClick={() => {
+                    setShowAuthForm((current) => !current);
+                    setAuthError('');
+                  }}
+                >
+                  {t('auth.telegram')}
+                </button>
+              </div>
 
-              <div className={`auth-form ${showAuthForm ? 'is-visible' : ''}`}>
+              <div id="telegram-login-form" ref={loginFormRef} className={`login-form ${showAuthForm ? 'is-visible' : ''}`} aria-hidden={!showAuthForm}>
+                <div className="login-error-slot" aria-live="polite">
+                  {authError && <p className="login-error" role="alert">{authError}</p>}
+                </div>
+
                 {authStep === 'phone' && (
-                  <div className="field">
-                    <label htmlFor="login-phone">{t('auth.phone')}</label>
+                  <div className="login-field">
+                    <label className="login-field-label" htmlFor="login-phone">{t('auth.phone')}</label>
                     <input
+                      className="login-field-input"
                       id="login-phone"
                       type="tel"
                       value={phoneNumber}
-                      onChange={(event) => setPhoneNumber(event.target.value)}
+                      onChange={(event) => {
+                        const nextPhoneNumber = event.target.value;
+                        const addInternationalPrefix = phoneNumber.length === 0 && /^\d/.test(nextPhoneNumber);
+                        setPhoneNumber(addInternationalPrefix ? `+${nextPhoneNumber}` : nextPhoneNumber);
+                      }}
                       placeholder={t('auth.phonePlaceholder')}
                       autoComplete="tel"
                     />
@@ -125,9 +174,10 @@ export function LoginPage({
                 )}
 
                 {authStep !== 'phone' && (
-                  <div className="field">
-                    <label htmlFor="login-code">{t('auth.loginCode')}</label>
+                  <div className="login-field">
+                    <label className="login-field-label" htmlFor="login-code">{t('auth.loginCode')}</label>
                     <input
+                      className="login-field-input"
                       id="login-code"
                       type="text"
                       value={phoneCode}
@@ -140,9 +190,10 @@ export function LoginPage({
                 )}
 
                 {authStep === 'password' && (
-                  <div className="field">
-                    <label htmlFor="login-password">{t('auth.twoFactorPassword')}</label>
+                  <div className="login-field">
+                    <label className="login-field-label" htmlFor="login-password">{t('auth.twoFactorPassword')}</label>
                     <input
+                      className="login-field-input"
                       id="login-password"
                       type="password"
                       value={twoFactorPassword}
@@ -153,10 +204,8 @@ export function LoginPage({
                   </div>
                 )}
 
-                {authError && <p className="auth-error" role="alert">{authError}</p>}
-
                 <button
-                  className="action-button"
+                  className="login-submit"
                   onClick={handleTelegramAuth}
                   disabled={authBusy || (authStep === 'phone' ? !phoneNumber.trim() : !phoneCode.trim())}
                 >
@@ -171,7 +220,7 @@ export function LoginPage({
 
                 {authStep !== 'phone' && (
                   <button
-                    className="auth-back-button"
+                    className="login-back-button"
                     onClick={() => {
                       setAuthStep('phone');
                       setPhoneCode('');
@@ -183,28 +232,9 @@ export function LoginPage({
                     {t('auth.startOver')}
                   </button>
                 )}
-              </div>
-
-              {signedOut && (
-                <aside className="returning-user-panel" aria-label={t('auth.returningUser')}>
-                  <div className="returning-user-copy">
-                    <span className="returning-user-greeting">{t('auth.welcomeBack')}</span>
-                    <button
-                      type="button"
-                      className="returning-user-name"
-                      onClick={handleWelcomeBack}
-                      disabled={authBusy}
-                      aria-label={t('auth.returnToApp', { name: returningUserName || returningUserUsername || t('auth.returningUser') })}
-                      title={t('auth.returnToApp', { name: returningUserName || returningUserUsername || t('auth.returningUser') })}
-                    >
-                      <span>{returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'))}</span>
-                      <ArrowUpRight className="returning-user-arrow" size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-                </aside>
-              )}
             </div>
-          </div>
+            </section>
+          </main>
         </section>
       </div>
     </>

@@ -467,7 +467,8 @@ html.electron-runtime .quick-planner-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .quick-planner-nav-item {
+  .quick-planner-nav-item,
+  .quick-planner-mode-switch button {
     transition: none;
   }
 }
@@ -491,10 +492,12 @@ html.electron-runtime .quick-planner-page {
   justify-self: center;
   border: 1px solid rgba(var(--quick-planner-accent), 0.62);
   box-shadow:
+    0 0 10px rgba(var(--quick-planner-accent), 0.13),
+    0 0 28px rgba(var(--quick-planner-accent), 0.045),
     0 20px 36px rgba(0, 0, 0, 0.16);
   transition: border-color 180ms ease, box-shadow 180ms ease;
   transform: translateX(-35px) translateY(-5px);
-  width: calc(min(100%, 760px) + 40px);
+  width: min(100%, 800px);
   height: 489px;
   min-height: 0;
   overflow: visible;
@@ -617,6 +620,13 @@ html.electron-runtime .quick-planner-page {
   font-size: 22px;
   line-height: 1.2;
   cursor: pointer;
+  transition: color 140ms ease;
+}
+
+.quick-planner-mode-switch button:hover:not(.is-selected),
+.quick-planner-mode-switch button:focus-visible:not(.is-selected) {
+  color: #edf5f8;
+  outline: none;
 }
 
 .quick-planner-mode-switch button.is-selected {
@@ -799,12 +809,27 @@ html.electron-runtime .quick-planner-page {
   cursor: pointer;
 }
 
+.quick-planner-schedule-clock > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  color: #edf5f8;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  cursor: default;
+}
+
 .quick-planner-schedule-date {
   margin-left: 0;
 }
 
 .quick-planner-schedule-date input {
-  width: 88px;
+  width: 96px;
   text-align: left;
 }
 
@@ -835,6 +860,11 @@ html.electron-runtime .quick-planner-page {
   padding: 0;
   outline: none;
   cursor: text;
+  text-align: left;
+}
+
+.quick-planner-schedule-clock > [role="textbox"] {
+  min-width: 42px;
   text-align: left;
 }
 
@@ -1538,6 +1568,7 @@ html.electron-runtime .quick-planner-page {
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-action-group {
     top: 51px;
+    pointer-events: none;
     transform: translateX(5px);
   }
 
@@ -1647,6 +1678,37 @@ html.electron-runtime .quick-planner-page {
   }
 }
 
+@container quick-planner (max-width: 1200px) {
+  html.electron-runtime .quick-planner-header {
+    min-height: 0;
+    margin: 0 auto 8px;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-layout {
+    grid-template-areas: "editor";
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 8px;
+  }
+
+  html.electron-runtime .quick-planner-upcoming-column,
+  html.electron-runtime .quick-planner-sidebar {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-editor {
+    justify-self: center;
+    width: min(100%, 800px);
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    margin: 0 auto;
+    transform: none;
+  }
+}
+
 @container quick-planner (max-width: 850px) {
   html.electron-runtime .quick-planner-layout {
     grid-template-areas: "editor";
@@ -1660,9 +1722,9 @@ html.electron-runtime .quick-planner-page {
 
   html.electron-runtime .quick-planner-editor {
     justify-self: center;
-    width: min(100%, 920px);
+    width: min(100%, 800px);
     max-width: 100%;
-    height: 449px;
+    height: auto;
     margin: 0;
     transform: none;
   }
@@ -3492,22 +3554,25 @@ html.electron-runtime .quick-planner-page {
   }
 
   html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
-    flex-wrap: wrap;
-    overflow: visible;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
   }
 
   html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
-    max-width: 100%;
+    flex: 0 0 auto;
+    max-width: none;
   }
 
   html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
-    flex: 1 1 300px;
-    width: auto;
-    min-width: 0;
-    max-width: 100%;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: max-content;
+    max-width: none;
+    flex-wrap: nowrap;
     gap: 6px;
-    margin: 4px 0 0;
+    margin: 0;
     overflow: visible;
     transform: none;
   }
@@ -3529,5 +3594,104 @@ html.electron-runtime .quick-planner-page {
     height: auto;
     padding: 8px 2px 2px;
     font-size: 22px;
+  }
+}
+
+@container quick-planner (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page .quick-planner-editor-heading {
+    position: absolute;
+    top: -22px;
+    right: auto;
+    left: 8px;
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor-heading > .quick-planner-section-label {
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-clock {
+    position: absolute;
+    top: 16px;
+    right: auto;
+    left: 16px;
+    align-self: auto;
+    margin: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-editor > .quick-planner-heading-actions {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    left: auto;
+    z-index: 2;
+    width: auto;
+    max-width: calc(100% - 220px);
+    padding: 0;
+    align-items: center;
+    justify-content: flex-end;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    flex: 0 0 auto;
+    font-size: 9px;
+    line-height: 1.2;
+    transform: none;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 32px;
+    height: 32px;
+    align-items: center;
+    gap: 4px;
+    padding: 0 1px;
+    font-size: 15px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker {
+    margin-top: 62px;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker-placeholder {
+    display: block;
+    align-self: flex-end;
+    width: min(100%, 320px);
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 34px;
+    margin: 62px 0 0;
   }
 }

@@ -1,7 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LocaleProvider } from '@/lib/i18n';
+import { LocaleProvider, useLocale, type Locale } from '@/lib/i18n';
 import { useTelegramAuth } from './useTelegramAuth';
+
+let setTestLocale: ((locale: Locale) => void) | undefined;
+
+function LocaleSetterCapture() {
+  setTestLocale = useLocale().setLocale;
+  return null;
+}
 
 describe('useTelegramAuth', () => {
   it('handles a missing Telegram bridge gracefully', async () => {
@@ -118,7 +125,7 @@ describe('useTelegramAuth', () => {
 
     try {
       const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <LocaleProvider>{children}</LocaleProvider>
+        <LocaleProvider><LocaleSetterCapture />{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
         showNotification: vi.fn(),
@@ -130,8 +137,12 @@ describe('useTelegramAuth', () => {
       await waitFor(() => expect(result.current.connectionResolved).toBe(true));
       await act(async () => result.current.handleTelegramAuth());
 
-      expect(result.current.authError).toBe('Проверьте номер телефона и код страны.');
+      expect(result.current.authError).toBe('Проверьте номер телефона, включая код страны.');
       expect(result.current.authError).not.toContain('auth.SendCode');
+      await act(async () => setTestLocale?.('en'));
+      expect(result.current.authError).toBe('Check the phone number and include the country code.');
+      await act(async () => setTestLocale?.('ru'));
+      expect(result.current.authError).toBe('Проверьте номер телефона, включая код страны.');
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');

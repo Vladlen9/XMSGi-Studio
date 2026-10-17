@@ -70,7 +70,7 @@ const russianEditorialOverrides: Partial<Record<TranslationKey, string>> = {
   'auth.rememberMe': 'Запомнить',
   'auth.forgetMe': 'Забыть',
   'auth.desktopBridgeRequired': 'Вход через Telegram доступен только в настольном приложении XMSGi.',
-  'auth.invalidPhone': 'Проверьте номер телефона и код страны.',
+  'auth.invalidPhone': 'Проверьте номер телефона, включая код страны.',
   'auth.invalidCode': 'Код неверный. Проверьте сообщение от Telegram и попробуйте ещё раз.',
   'auth.expiredCode': 'Срок действия кода истёк. Запросите новый код.',
   'auth.invalidPassword': 'Пароль двухэтапной проверки неверный. Проверьте его и повторите попытку.',

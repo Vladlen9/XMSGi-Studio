@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Chat, NotificationType } from '@/types';
 import { savePersistentChats } from '@/lib/storage';
-import { useLocale } from '@/lib/i18n';
+import { useLocale, type TranslationKey } from '@/lib/i18n';
 
 export type TelegramAuthOptions = {
   showNotification: (message: string, type: NotificationType, title: string) => void;
@@ -27,16 +27,16 @@ function sameTelegramStatus(left: TelegramStatusSnapshot, right: TelegramStatusS
     && left.waitSecondsText === right.waitSecondsText;
 }
 
-function getFriendlyAuthError(error: string, t: (key: import('@/lib/i18n').TranslationKey) => string) {
-  if (/PHONE_NUMBER_INVALID|phone number.{0,24}invalid/i.test(error)) return t('auth.invalidPhone');
-  if (/PHONE_CODE_EXPIRED|phone code.{0,24}expired/i.test(error)) return t('auth.expiredCode');
-  if (/PHONE_CODE_INVALID|phone code.{0,24}invalid/i.test(error)) return t('auth.invalidCode');
-  if (/PASSWORD_HASH_INVALID|password.{0,24}invalid/i.test(error)) return t('auth.invalidPassword');
+function getFriendlyAuthError(error: string): TranslationKey {
+  if (/PHONE_NUMBER_INVALID|phone number.{0,24}invalid/i.test(error)) return 'auth.invalidPhone';
+  if (/PHONE_CODE_EXPIRED|phone code.{0,24}expired/i.test(error)) return 'auth.expiredCode';
+  if (/PHONE_CODE_INVALID|phone code.{0,24}invalid/i.test(error)) return 'auth.invalidCode';
+  if (/PASSWORD_HASH_INVALID|password.{0,24}invalid/i.test(error)) return 'auth.invalidPassword';
   if (/PHONE_NUMBER_FLOOD|PHONE_PASSWORD_FLOOD|FLOOD_WAIT|too many attempts/i.test(error)) {
-    return t('auth.tooManyAttempts');
+    return 'auth.tooManyAttempts';
   }
-  if (/NETWORK|TIMEOUT|ECONN|CONNECTION/i.test(error)) return t('auth.networkSignInError');
-  return t('auth.genericSignInError');
+  if (/NETWORK|TIMEOUT|ECONN|CONNECTION/i.test(error)) return 'auth.networkSignInError';
+  return 'auth.genericSignInError';
 }
 
 type TelegramStatusApiResult = {
@@ -76,7 +76,17 @@ export function useTelegramAuth({
   const [phoneCode, setPhoneCode] = useState('');
   const [twoFactorPassword, setTwoFactorPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
-  const [authError, setAuthError] = useState('');
+  const [authError, setAuthErrorValue] = useState('');
+  const [authErrorTranslationKey, setAuthErrorTranslationKey] = useState<TranslationKey | null>(null);
+  const setAuthError = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    setAuthErrorTranslationKey(null);
+    setAuthErrorValue(value);
+  }, []);
+  const setLocalizedAuthError = useCallback((key: TranslationKey) => {
+    setAuthErrorTranslationKey(key);
+    setAuthErrorValue(t(key));
+  }, [t]);
+  const visibleAuthError = authErrorTranslationKey ? t(authErrorTranslationKey) : authError;
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatusSnapshot>({
     accountId: '',
@@ -127,7 +137,7 @@ export function useTelegramAuth({
 
     try {
       if (typeof window.telegram?.login !== 'function') {
-        setAuthError(t('auth.desktopBridgeRequired'));
+        setLocalizedAuthError('auth.desktopBridgeRequired');
         return false;
       }
 
@@ -145,9 +155,9 @@ export function useTelegramAuth({
           /password|2fa|session_password_needed/i.test(error)
         ) {
           setAuthStep('password');
-          setAuthError(t('auth.enterTwoFactor'));
+          setLocalizedAuthError('auth.enterTwoFactor');
         } else {
-          setAuthError(getFriendlyAuthError(error, t));
+          setLocalizedAuthError(getFriendlyAuthError(error));
         }
 
         return false;
@@ -155,7 +165,7 @@ export function useTelegramAuth({
 
       if (result.requiresPassword || result.nextStep === 'password') {
         setAuthStep('password');
-        setAuthError(t('auth.enterTwoFactor'));
+        setLocalizedAuthError('auth.enterTwoFactor');
         return false;
       }
 
@@ -182,7 +192,7 @@ export function useTelegramAuth({
       setAuthError('');
       return true;
     } catch (error) {
-      setAuthError(getFriendlyAuthError(error instanceof Error ? error.message : '', t));
+      setLocalizedAuthError(getFriendlyAuthError(error instanceof Error ? error.message : ''));
       return false;
     } finally {
       setAuthBusy(false);
@@ -508,7 +518,7 @@ export function useTelegramAuth({
     setTwoFactorPassword,
     authBusy,
     setAuthBusy,
-    authError,
+    authError: visibleAuthError,
     telegramStatus,
     setAuthError,
     isConfirmingLogout,

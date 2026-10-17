@@ -1885,16 +1885,14 @@ export function QuickPlannerPage({
                             toggleScheduleTimePicker();
                           }}
                         />
-                        <input
-                          aria-label="Schedule time"
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          value={scheduleTimeDraft ?? scheduleTime}
-                          onChange={handleScheduleTimeChange}
-                          onBlur={handleScheduleTimeBlur}
-                          onPaste={handleScheduleTimePaste}
-                        />
+                          <span
+                            role="textbox"
+                            aria-label="Schedule time"
+                            aria-readonly="true"
+                            tabIndex={-1}
+                          >
+                            {scheduleTimeDraft ?? scheduleTime}
+                          </span>
                       </div>
                     </div>
                   )}

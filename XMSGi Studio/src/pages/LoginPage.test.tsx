@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
@@ -36,6 +37,21 @@ function renderLogin(overrides: Partial<ComponentProps<typeof LoginPage>> = {}) 
   };
 }
 
+function renderToggleLogin() {
+  const props = renderLoginProps({});
+
+  function LoginHarness() {
+    const [showAuthForm, setShowAuthForm] = useState(false);
+    return (
+      <LocaleProvider>
+        <LoginPage {...props} showAuthForm={showAuthForm} setShowAuthForm={setShowAuthForm} />
+      </LocaleProvider>
+    );
+  }
+
+  return render(<LoginHarness />);
+}
+
 describe('LoginPage', () => {
   it('opens Telegram sign-in and resets the form to the phone step', () => {
     const { props } = renderLogin();
@@ -45,6 +61,72 @@ describe('LoginPage', () => {
     expect(props.setShowAuthForm).toHaveBeenCalledOnce();
     expect(props.setAuthStep).toHaveBeenCalledWith('phone');
     expect(props.setAuthError).toHaveBeenCalledWith('');
+  });
+
+  it('adds the international prefix when phone entry starts with digits', () => {
+    const { props } = renderLogin();
+
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '14155550123' } });
+
+    expect(props.setPhoneNumber).toHaveBeenCalledWith('+14155550123');
+  });
+
+  it('allows removing the automatically added phone prefix', () => {
+    const { props } = renderLogin({ phoneNumber: '+14155550123' });
+
+    fireEvent.change(screen.getByLabelText('Phone'), { target: { value: '14155550123' } });
+
+    expect(props.setPhoneNumber).toHaveBeenCalledWith('14155550123');
+  });
+
+  it('does not show a generic hint before an auth message exists', () => {
+    const { container } = renderLogin({ showAuthForm: true });
+
+    expect(container.querySelector('.login-error')).not.toBeInTheDocument();
+  });
+
+  it('keeps auth errors inside the expandable form above the fields', () => {
+    const { container } = renderLogin({ showAuthForm: true, authError: 'Check the phone number.' });
+
+    const status = container.querySelector('.login-error');
+    const form = container.querySelector('.login-form');
+    const slot = container.querySelector('.login-error-slot');
+
+    expect(status).toHaveTextContent('Check the phone number.');
+    expect(form?.firstElementChild).toBe(slot);
+    expect(slot?.firstElementChild).toBe(status);
+  });
+
+  it('closes the form when Continue is clicked a second time', () => {
+    const { container } = renderToggleLogin();
+    const continueButton = screen.getByRole('button', { name: 'Continue with Telegram' });
+    const form = container.querySelector('.login-form');
+
+    expect(continueButton).toHaveAttribute('aria-controls', 'telegram-login-form');
+    expect(continueButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(continueButton);
+    expect(form).toHaveClass('is-visible');
+    expect(continueButton).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(continueButton);
+    expect(form).not.toHaveClass('is-visible');
+    expect(continueButton).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the form when Telegram is clicked a second time', () => {
+    const { container } = renderToggleLogin();
+    const telegramButton = screen.getByRole('button', { name: 'TELEGRAM' });
+    const form = container.querySelector('.login-form');
+
+    expect(telegramButton).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(telegramButton);
+    expect(form).toHaveClass('is-visible');
+    expect(telegramButton).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(telegramButton);
+    expect(form).not.toHaveClass('is-visible');
+    expect(telegramButton).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows code and two-factor fields for their respective auth steps', () => {
@@ -59,19 +141,15 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Two-step password')).toBeInTheDocument();
   });
 
-  it('offers one-click Welcome Back for a signed-out account', () => {
-    const { props } = renderLogin({
+  it('keeps the Log In screen for a signed-out account', () => {
+    renderLogin({
       signedOut: true,
       returningUserName: 'Alex Example',
     });
-    const accountButton = screen.getByRole('button', { name: /return to app.*Alex Example/i });
 
-    expect(screen.getByText('WELCOME BACK,')).toBeInTheDocument();
-    expect(accountButton).toHaveTextContent('Alex Example');
-    expect(accountButton.querySelector('.returning-user-arrow')).toBeInTheDocument();
-    fireEvent.click(accountButton);
-    expect(props.handleWelcomeBack).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('button', { name: 'Continue with Telegram' })).not.toBeInTheDocument();
+    expect(screen.queryByText('WELCOME BACK,')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue with Telegram' })).toBeInTheDocument();
+    expect(screen.queryByText('Alex Example')).not.toBeInTheDocument();
   });
 });
 

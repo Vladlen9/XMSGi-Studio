@@ -133,12 +133,28 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(plannerStyles).toMatch(/\.quick-planner-page\s*\{[^}]*container-name:\s*quick-planner;[^}]*container-type:\s*inline-size;/);
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*850px\)[\s\S]*?\.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
     expect(plannerStyles).toMatch(/\.quick-planner-upcoming-column,[\s\S]*?\.quick-planner-sidebar\s*\{[^}]*display:\s*none;/);
-    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-editor\s*\{[^}]*justify-self:\s*center;[^}]*width:\s*min\(100%,\s*920px\)/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-editor\s*\{[^}]*justify-self:\s*center;[^}]*width:\s*min\(100%,\s*800px\)/);
     expect(plannerStyles).toMatch(/@container quick-planner \(min-width:\s*851px\) and \(max-width:\s*1200px\)[\s\S]*?\.quick-planner-mode-switch button\s*\{[^}]*font-size:\s*16px/);
     expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch button\s*\{[^}]*font-size:\s*22px/);
     expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?\.quick-planner-mode-switch > \.quick-planner-mode-caption\s*\{[^}]*font-size:\s*12px/);
-    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-tools\s*\{[^}]*flex-wrap:\s*wrap;[^}]*overflow:\s*visible/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-tools\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto/);
+    expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-schedule-quick-values\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*margin:\s*0/);
     expect(plannerStyles).toMatch(/html\.electron-runtime \.quick-planner-page\[data-publish-mode="schedule"\] \.quick-planner-schedule-quick-values button\s*\{[^}]*font-size:\s*12px/);
+  });
+
+  it('fits the Planner content into a compact Electron window', () => {
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-header\s*\{[^}]*margin:\s*0 auto 8px;[^}]*padding:\s*0/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-editor\s*\{[^}]*min-width:\s*0;[^}]*height:\s*auto;/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-editor\s*\{[^}]*width:\s*min\(100%,\s*800px\)/);
+  });
+
+  it('keeps compact Electron action modes in the top row without clipping', () => {
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor-heading\s*\{[^}]*top:\s*-22px/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-editor > \.quick-planner-heading-actions\s*\{[^}]*position:\s*absolute;[^}]*top:\s*8px;[^}]*right:\s*16px/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page\[lang\] \.quick-planner-mode-switch\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor > \.quick-planner-chat-picker\s*\{[^}]*margin-top:\s*62px/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-page \.quick-planner-editor > \.quick-planner-chat-picker-placeholder\s*\{[^}]*display:\s*block;[^}]*height:\s*34px;[^}]*margin:\s*62px 0 0/);
   });
 
   it('opens browser draft mode with only local draft actions available', () => {
@@ -428,7 +444,7 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(editorRules).toMatch(/grid-area:\s*editor/);
     expect(editorRules).toMatch(/transform:\s*translateX\(-35px\)/);
     expect(editorRules).toMatch(/translateY\(-5px\)/);
-    expect(editorRules).toMatch(/width:\s*calc\(min\(100%,\s*760px\)\s*\+\s*40px\)/);
+    expect(editorRules).toMatch(/width:\s*min\(100%,\s*800px\)/);
     expect(editorRules).toMatch(/height:\s*489px/);
     expect(getCssRules('.quick-planner-editor > .quick-planner-clock')[0]).toMatch(/top:\s*17px/);
     expect(getCssRules('.quick-planner-editor > .quick-planner-clock')[0]).toMatch(/left:\s*14px/);
@@ -446,8 +462,8 @@ describe('QuickPlannerPage layout positioning', () => {
     const mobileEditorRules = editorRules.find((rules) => /height:\s*auto/.test(rules) && /transform:\s*none/.test(rules));
     const mobileComposeRules = composeRules.find((rules) => /position:\s*static/.test(rules));
 
-    expect(mobileEditorRules).toMatch(/justify-self:\s*stretch/);
-    expect(mobileEditorRules).toMatch(/width:\s*100%/);
+    expect(mobileEditorRules).toMatch(/justify-self:\s*center/);
+    expect(mobileEditorRules).toMatch(/width:\s*min\(100%,\s*800px\)/);
     expect(mobileEditorRules).toMatch(/min-width:\s*0/);
     expect(mobileEditorRules).toMatch(/transform:\s*none/);
     expect(mobileLayoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
@@ -541,6 +557,13 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(quickValuesRules).toMatch(/flex:\s*0\s+0\s+auto/);
     expect(quickValuesRules).toMatch(/flex-wrap:\s*nowrap/);
     expect(footerRules).toBeTruthy();
+  });
+
+  it('hides the side panels early while keeping schedule controls visible at medium widths', () => {
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-layout\s*\{[^}]*grid-template-areas:\s*"editor";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(plannerStyles).toMatch(/@container quick-planner \(max-width:\s*1200px\)[\s\S]*?html\.electron-runtime \.quick-planner-upcoming-column,[\s\S]*?\.quick-planner-sidebar\s*\{[^}]*display:\s*none/);
+    expect(plannerStyles).not.toMatch(/@container quick-planner \(min-width:\s*701px\) and \(max-width:\s*1200px\)[\s\S]*?\.quick-planner-schedule-quick-values\s*\{[^}]*display:\s*none/);
+    expect(plannerStyles).toMatch(/\.quick-planner-schedule-date input\s*\{[^}]*width:\s*96px/);
   });
 
   it('keeps the empty action-group area from intercepting quick schedule clicks', () => {
