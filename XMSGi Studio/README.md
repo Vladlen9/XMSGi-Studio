@@ -96,7 +96,7 @@ Full control over every post in the queue — right up to the moment it's sent.
 ## 🖼️ Screenshots
 
 <p align="center">
-  <img src="../screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
+  <img src="../screenshots/03.png" alt="XMSGi Studio sign-in screen" width="32%" />
   <img src="../screenshots/02.png" alt="Telegram chat selection" width="32%" />
   <img src="../screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
 </p>
