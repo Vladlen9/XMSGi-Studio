@@ -21,6 +21,14 @@
   to XMSGi Studio, so the version was reset for the new product name.
   History under `2.1.7` below refers to the previous XMSGi releases.
 
+## 1.2.2 - 2026-10-18
+
+### Fixes and stability
+
+- Fixed Telegram message direction when rebuilding chat history after restart.
+- Fixed Live Preview scrolling so loaded history reaches the true bottom.
+- Fixed composer placeholder and emoji layout and removed stray markers from loaded message bubbles.
+
 ## 1.1.0 - 2026-10-07
 
 ### Highlights

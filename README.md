@@ -56,13 +56,13 @@ For setup and workflow details, see the [user guide](XMSGi%20Studio/docs/ru/user
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.2.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio.1.2.1.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.2.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.2.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/xmsgi-studio_1.2.1_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.2.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.2.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.2.2.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio.1.2.2.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.2.2.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.2.2_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/xmsgi-studio_1.2.2_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.2.2.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.2.2-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2-arm64.dmg) |
 
-All builds for v1.2.1 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.1) page.
+All builds for v1.2.2 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.2) page.
 
 ### First launch on macOS
 

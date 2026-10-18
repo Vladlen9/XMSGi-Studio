@@ -54,7 +54,7 @@ describe('SettingsView Telegram integration', () => {
     renderSettings();
 
     expect(screen.getByText('XMSGi Studio — Create messages, save ideas, schedule posts, and keep everything under control in one convenient workspace.')).toBeInTheDocument();
-    expect(screen.getByText('Version 1.2.1')).toBeInTheDocument();
+    expect(screen.getByText('Version 1.2.2')).toBeInTheDocument();
   });
 
   it('shows the requested Russian Studio description in About', () => {
