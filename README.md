@@ -116,8 +116,8 @@ Full control over every post in the queue — right up to the moment it's sent.
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.2.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio.1.2.1.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.2.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1.AppImage) |
+| Windows | Portable `.exe` | [XMSGi Studio 1.2.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio%201.2.1.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi Studio-1.2.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1.AppImage) |
 | Linux | `.deb` (x64) | [xmsgi-studio_1.2.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/xmsgi-studio_1.2.1_amd64.deb) |
 | macOS | `.dmg` (Intel, unsigned) | [XMSGi Studio-1.2.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1.dmg) |
 | macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi Studio-1.2.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1-arm64.dmg) |
