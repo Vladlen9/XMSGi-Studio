@@ -11,17 +11,19 @@
   <a href="https://github.com/molodoy01/XMSGi-Studio/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/molodoy01/XMSGi-Studio?style=flat-square"></a>
 </p>
 
-<img src="screenshots/01.png" alt="XMSGi Studio workspace" width="880" />
-
 **XMSGi Studio** делает планирование встреч и создание публикаций в Telegram простым, локальным и **надежным**.
 
-<br>
+<p align="center">
+  <a href="https://github.com/molodoy01/XMSGi-Studio/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇%20Download-latest-6c7cff?style=for-the-badge"></a>
+</p>
 
-<a href="https://github.com/molodoy01/XMSGi-Studio/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇%20Download-latest-6c7cff?style=for-the-badge"></a>
-&nbsp;
-<a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
-&nbsp;
-<a href="https://github.com/molodoy01/XMSGi-Studio"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github"></a>
+<img src="screenshots/01.png" alt="XMSGi Studio workspace" width="760" />
+
+<p align="center">
+  <a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
+  &nbsp;
+  <a href="https://github.com/molodoy01/XMSGi-Studio"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github"></a>
+</p>
 
 </div>
 
@@ -30,77 +32,15 @@
 ## ✨ Features
 
 ### ⚡ Studio first, Quick Planner when speed matters
-Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; its drafts can be continued in Studio and revisited in Posts/History.
+Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts that can be continued in Studio or revisited in Posts/History.
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <b>💬 Telegram, your way</b><br>
-      Pick chats, groups and channels straight from your own account — no bot.
-    </td>
-    <td width="50%" valign="top">
-      <b>⏰ Send now or later</b><br>
-      One-time and future messages scheduled for a chosen date and time.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>✍️ Compose fully</b><br>
-      Attachments, rich text formatting and inline buttons.
-    </td>
-    <td valign="top">
-      <b>🗂️ Organize in Studio</b><br>
-      Keep color-coded drafts and document history in one workspace.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>🔒 Private by design</b><br>
-      Sessions stay on the device, protected with Electron <code>safeStorage</code>.
-    </td>
-    <td valign="top">
-      <b>📦 Portable Windows build</b><br>
-      No installation, no setup — runs from anywhere.
-    </td>
-  </tr>
-</table>
+- **Publish:** send from your own Telegram account to chats, groups, and channels. No bot required.
+- **Compose and schedule:** rich text, attachments, inline buttons, one-time posts, and recurring messages.
+- **Stay organized:** color-coded drafts, reusable templates, and document history.
+- **Keep control:** edit, reschedule, or cancel queued posts; FloodWait limits retry automatically.
+- **Keep data local:** sessions stay on the device and use Electron <code>safeStorage</code> where supported. Portable Windows build available.
 
-## 🎛️ Control
-
-Full control over every post in the queue — right up to the moment it's sent.
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <b>✏️ Edit before sending</b><br>
-      Change the text and media of an already scheduled post — it goes out in the new version.
-    </td>
-    <td width="50%" valign="top">
-      <b>🗓️ Reschedule or cancel</b><br>
-      Shift the date and time or cancel delivery in one click.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>🔁 Repeats</b><br>
-      Daily, by weekdays or monthly — up to 15 repeats.
-    </td>
-    <td valign="top">
-      <b>📝 Templates</b><br>
-      Frequent phrases in one click. Stored locally.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>🎨 Colored drafts</b><br>
-      Organize ideas by color. Bring them back to the editor any time.
-    </td>
-    <td valign="top">
-      <b>🚦 FloodWait auto-retry</b><br>
-      On a Telegram flood limit the send pauses and retries by itself.
-    </td>
-  </tr>
-</table>
+For setup and workflow details, see the [user guide](XMSGi%20Studio/docs/ru/user-guide.md).
 
 ## 🖼️ Screenshots
 
