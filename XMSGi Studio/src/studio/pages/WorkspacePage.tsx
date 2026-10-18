@@ -2821,7 +2821,9 @@ export function WorkspacePage({
                           key={file.id}
                           className={`workspace-page-attachment-card ${file.unavailable ? 'is-unavailable' : ''}`}
                           data-position={file.position}
-                          title={`${file.name} · ${file.mimeType} · ${formatAttachmentSize(file.size)}${file.unavailable ? ` · ${t('studio.historyAttachmentUnavailable', { name: file.name })}` : ''}`}
+                          title={file.unavailable || !isImageAttachment(file)
+                            ? `${file.name} · ${file.mimeType} · ${formatAttachmentSize(file.size)}${file.unavailable ? ` · ${t('studio.historyAttachmentUnavailable', { name: file.name })}` : ''}`
+                            : undefined}
                           aria-label={file.unavailable ? t('studio.historyAttachmentUnavailable', { name: file.name }) : undefined}
                         >
                           {file.unavailable ? (

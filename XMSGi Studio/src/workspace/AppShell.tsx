@@ -10,6 +10,25 @@ import type { HistoryItem, HistorySource } from './historyModel';
 export { getTelegramStatusPresentationFromModule as getTelegramStatusPresentation };
 /* eslint-enable react-refresh/only-export-components */
 
+const ACCOUNT_AVATAR_CACHE_KEY = 'xmsgi-account-avatar-cache-v1';
+
+function readCachedAccountAvatar() {
+  try {
+    const cachedAvatar = window.localStorage.getItem(ACCOUNT_AVATAR_CACHE_KEY);
+    return cachedAvatar?.startsWith('data:image/') ? cachedAvatar : '';
+  } catch {
+    return '';
+  }
+}
+
+function cacheAccountAvatar(avatarDataUrl: string) {
+  try {
+    window.localStorage.setItem(ACCOUNT_AVATAR_CACHE_KEY, avatarDataUrl);
+  } catch {
+    // Keep the topbar usable when local storage is unavailable.
+  }
+}
+
 type AppShellProps = PropsWithChildren<{
   view: 'studio' | 'planner';
   onViewChange: (view: 'studio' | 'planner') => void;
@@ -67,7 +86,7 @@ export function AppShell({
   const { t } = useLocale();
   const nextViewLabel = view === 'planner' ? t('product.studio') : t('product.planner');
   const sectionLabel = view === 'planner' ? t('product.planner') : t('product.studio');
-  const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState('');
+  const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
   useEffect(() => {
@@ -85,17 +104,16 @@ export function AppShell({
     let active = true;
 
     if (!connected || typeof window.telegram?.getAccountAvatar !== 'function') {
-      setAccountAvatarDataUrl('');
-      return;
+      return undefined;
     }
 
     window.telegram.getAccountAvatar()
       .then((result) => {
-        if (active) setAccountAvatarDataUrl(result.success ? result.avatarDataUrl || '' : '');
+        if (!active || !result.success || !result.avatarDataUrl) return;
+        setAccountAvatarDataUrl(result.avatarDataUrl);
+        cacheAccountAvatar(result.avatarDataUrl);
       })
-      .catch(() => {
-        if (active) setAccountAvatarDataUrl('');
-      });
+      .catch(() => setAccountAvatarDataUrl(readCachedAccountAvatar()));
 
     return () => {
       active = false;
@@ -182,7 +200,7 @@ export function AppShell({
                 <img className="topbar-logout-photo-image" src={accountAvatarDataUrl} alt="" />
               ) : (
                 <span className="topbar-logout-photo-fallback" aria-hidden="true">
-                  <CircleUserRound size={19} strokeWidth={1.7} />
+                  <CircleUserRound size={38} strokeWidth={1.5} />
                 </span>
               )}
               <span className="topbar-logout-photo-ring" aria-hidden="true" />

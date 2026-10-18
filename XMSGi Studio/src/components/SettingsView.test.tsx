@@ -70,21 +70,33 @@ describe('SettingsView Telegram integration', () => {
     }
   });
 
-  it('labels the automatic editor palette Monochrome in English and Russian', () => {
+  it('labels the default editor palette in English and Russian', () => {
     const originalLocale = window.localStorage.getItem('awaitmsg_locale');
 
     try {
       window.localStorage.setItem('awaitmsg_locale', 'en');
       const english = renderSettings();
-      expect(within(english.container).getByRole('button', { name: 'Monochrome' })).toBeInTheDocument();
+      expect(within(english.container).getByRole('button', { name: 'Default' })).toBeInTheDocument();
 
       window.localStorage.setItem('awaitmsg_locale', 'ru');
       const russian = renderSettings();
-      expect(within(russian.container).getByRole('button', { name: 'Монохром' })).toBeInTheDocument();
+      expect(within(russian.container).getByRole('button', { name: 'По умолчанию' })).toBeInTheDocument();
     } finally {
       if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', originalLocale);
     }
+  });
+
+  it('uses the blue monochrome accent for all editor modes by default', () => {
+    const { container } = renderSettings();
+    const appearance = screen.getByRole('region', { name: 'Editor appearance' });
+    const modeRows = appearance.querySelectorAll('.settings-editor-mode-color-row');
+
+    expect(modeRows).toHaveLength(3);
+    modeRows.forEach((row) => expect(row).toHaveTextContent('#239DFB'));
+    expect(appearance).not.toHaveTextContent('Saved on this device');
+    expect(container.querySelector('.settings-editor-palette-switch [aria-pressed="true"]'))
+      .toHaveTextContent('Default');
   });
 
   it('persists custom action colors and updates the editor preview', () => {
@@ -104,7 +116,7 @@ describe('SettingsView Telegram integration', () => {
     const savedAppearance = JSON.parse(localStorage.getItem(EDITOR_APPEARANCE_STORAGE_KEY) || '{}');
     expect(savedAppearance).toMatchObject({
       palette: 'custom',
-      modeColors: { send: '#ffffff', schedule: '#287fa6', draft: '#ffffff' },
+      modeColors: { send: '#239dfb', schedule: '#287fa6', draft: '#239dfb' },
     });
     expect(preview).toHaveAttribute('data-palette', 'custom');
     const scheduleRow = within(preview).getByText('Schedule').closest<HTMLElement>('.settings-editor-preview-mode');
@@ -120,7 +132,7 @@ describe('SettingsView Telegram integration', () => {
     const summary = screen.getByRole('button', { name: /alex_example/ });
     expect(summary).toHaveTextContent('Manage');
     expect(summary.querySelector('.settings-telegram-mark')).not.toBeInTheDocument();
-    expect(summary.parentElement?.firstElementChild).toHaveClass('settings-telegram-mark');
+    expect(container.querySelector('.settings-telegram-mark')).not.toBeInTheDocument();
     expect(container.querySelector('.telegram-credentials-form')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('API_ID')).not.toBeInTheDocument();
   });

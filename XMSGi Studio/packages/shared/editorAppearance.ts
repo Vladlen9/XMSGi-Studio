@@ -21,9 +21,9 @@ export const DEFAULT_EDITOR_APPEARANCE: EditorAppearancePreferences = {
   style: 'outline',
   palette: 'automatic',
   modeColors: {
-    send: '#ffffff',
-    schedule: '#ffffff',
-    draft: '#ffffff',
+    send: '#239dfb',
+    schedule: '#239dfb',
+    draft: '#239dfb',
   },
 };
 

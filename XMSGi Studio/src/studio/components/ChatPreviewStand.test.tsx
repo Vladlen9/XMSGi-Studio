@@ -23,14 +23,20 @@ function renderChatPreviewStand(
   const onToggleChatList = vi.fn();
   const previewFeedRef: { current: HTMLDivElement | null } = { current: null };
 
-  const render = (nextDraftText = draftText, nextDraftEntities = draftEntities, nextChatListOpen = false) => act(() => {
+  const render = (
+    nextDraftText = draftText,
+    nextDraftEntities = draftEntities,
+    nextChatListOpen = false,
+    nextPreviewHistory = previewHistory,
+    nextPreviewHistoryLoading = false,
+  ) => act(() => {
     root.render(
       <LocaleProvider>
         <ChatPreviewStand
           chats={[chat]}
           selectedChat={chat}
-          previewHistory={previewHistory}
-          previewHistoryLoading={false}
+          previewHistory={nextPreviewHistory}
+          previewHistoryLoading={nextPreviewHistoryLoading}
           previewFeedRef={previewFeedRef}
           draftText={nextDraftText}
           draftEntities={nextDraftEntities}
@@ -52,6 +58,9 @@ function renderChatPreviewStand(
     onToggleChatList,
     previewFeedRef,
     rerender: render,
+    rerenderHistory(nextPreviewHistory: PreviewChatHistory | null, loading = false) {
+      render(undefined, undefined, false, nextPreviewHistory, loading);
+    },
     unmount() {
       act(() => root.unmount());
       container.remove();
@@ -148,6 +157,66 @@ describe('ChatPreviewStand wallpaper picker', () => {
 
     try {
       expect(container.querySelector('.chat-preview-message')?.innerHTML).toBe('A<strong>B</strong>');
+    } finally {
+      unmount();
+    }
+  });
+
+  it('keeps outgoing and incoming messages on their Telegram sides', () => {
+    const previewHistory: PreviewChatHistory = {
+      chat: { id: chat.id, title: chat.name },
+      messages: [
+        { id: 'in', text: 'Incoming', date: '2026-10-11T12:00:00.000Z', outgoing: false },
+        { id: 'out', text: 'Outgoing', date: '2026-10-11T12:01:00.000Z', outgoing: true },
+      ],
+    };
+    const { container, unmount } = renderChatPreviewStand([], '', [], previewHistory);
+
+    try {
+      const entries = Array.from(container.querySelectorAll('.chat-preview-history-entry'));
+      expect(entries).toHaveLength(2);
+      expect(entries[0].classList.contains('is-incoming')).toBe(true);
+      expect(entries[1].classList.contains('is-outgoing')).toBe(true);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('hides the empty-preview hint when live history already contains messages', () => {
+    const previewHistory: PreviewChatHistory = {
+      chat: { id: chat.id, title: chat.name },
+      messages: [{ id: 'history-1', text: 'History exists', date: '2026-10-11T12:00:00.000Z', outgoing: false }],
+    };
+    const { container, unmount } = renderChatPreviewStand([], '', [], previewHistory);
+
+    try {
+      expect(container.querySelector('.chat-preview-empty')).toBeNull();
+      const composerInput = container.querySelector('.chat-preview-composer-input');
+      expect(composerInput?.textContent?.trim()).not.toBe('');
+      expect(composerInput?.querySelector('.chat-preview-composer-emoji')).not.toBeNull();
+      expect(container.querySelectorAll('.chat-preview-composer > .chat-preview-composer-action')).toHaveLength(2);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('scrolls to the bottom after selected chat history finishes loading', () => {
+    const previewHistory: PreviewChatHistory = {
+      chat: { id: chat.id, title: chat.name },
+      messages: [{ id: 'history-1', text: 'History exists', date: '2026-10-11T12:00:00.000Z', outgoing: false }],
+    };
+    const { previewFeedRef, rerenderHistory, unmount } = renderChatPreviewStand();
+    const feed = previewFeedRef.current as HTMLDivElement;
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, value: 900 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, value: 200 });
+
+    try {
+      rerenderHistory(previewHistory, true);
+      expect(feed.scrollTop).toBe(0);
+
+      rerenderHistory(previewHistory);
+
+      expect(feed.scrollTop).toBe(700);
     } finally {
       unmount();
     }

@@ -538,7 +538,7 @@ describe('WorkspacePage main-screen flows', () => {
     const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
 
     expect(editorShell.dataset.editorAppearance).toBe('outline');
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
 
     await act(async () => {
       writeEditorAppearancePreferences({
@@ -585,12 +585,12 @@ describe('WorkspacePage main-screen flows', () => {
     expect(dividerRule).toMatch(/filter:\s*none/);
   });
 
-  it('updates publish actions without changing the light editor outline', async () => {
+  it('updates publish actions without changing the blue editor outline', async () => {
     const { unmount } = await renderWorkspacePage();
     const publishButton = document.querySelector('.workspace-page-publish-main')!;
     const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
     const menuToggle = document.querySelector<HTMLButtonElement>('.workspace-page-publish-menu-toggle')!;
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
     expect(publishButton.classList.contains('is-send')).toBe(true);
     expect(editorShell.classList.contains('is-scheduled')).toBe(false);
     expect(editorShell.classList.contains('is-draft')).toBe(false);
@@ -601,7 +601,7 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => scheduleOption.click());
     expect(publishButton.classList.contains('is-scheduled')).toBe(true);
     expect(editorShell.classList.contains('is-scheduled')).toBe(true);
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
 
     await act(async () => menuToggle.click());
     const draftOption = Array.from(document.querySelectorAll('.workspace-page-publish-option'))
@@ -609,7 +609,7 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => draftOption.click());
     expect(publishButton.classList.contains('is-draft')).toBe(true);
     expect(editorShell.classList.contains('is-draft')).toBe(true);
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('255, 255, 255');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
     unmount();
   });
 
@@ -3359,6 +3359,8 @@ describe('WorkspacePage main-screen flows', () => {
     const thumbnail = document.querySelector('.workspace-page-attachment-thumbnail') as HTMLImageElement;
 
     expect(thumbnail).toBeTruthy();
+    expect(thumbnail.closest('.workspace-page-attachment-card')).not.toHaveAttribute('title');
+    expect(thumbnail.closest('.workspace-page-attachment-card')?.querySelector('.workspace-page-attachment-name')).toHaveTextContent('photo.png');
     vi.useFakeTimers();
     await act(async () => {
       thumbnail.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));

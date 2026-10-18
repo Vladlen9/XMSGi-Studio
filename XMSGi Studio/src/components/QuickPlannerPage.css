@@ -1,5 +1,5 @@
 ﻿.quick-planner-page {
-  --quick-planner-accent: 255, 255, 255;
+  --quick-planner-accent: 35, 157, 251;
   --quick-planner-accent-soft: rgba(255, 255, 255, 0.12);
   --quick-planner-surface: rgba(11, 18, 23, 0.9);
   --quick-planner-border: rgba(146, 168, 182, 0.17);
@@ -85,7 +85,7 @@ html.electron-runtime .quick-planner-page {
   padding: 0 28px 0 8px;
   border: 1px solid rgba(var(--quick-planner-accent), 0.34);
   border-radius: 8px;
-  background: rgba(var(--quick-planner-accent), 0.08);
+  background: rgba(var(--quick-planner-accent), 0.05);
   color: rgb(var(--quick-planner-accent));
   font-size: 11px;
   letter-spacing: 0;
@@ -499,7 +499,7 @@ html.electron-runtime .quick-planner-page {
   box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
   transition: border-color 180ms ease, box-shadow 180ms ease;
   transform: translateY(-5px);
-  width: min(100%, 800px);
+  width: min(100%, 760px);
   height: 489px;
   min-height: 0;
   overflow: visible;
@@ -508,7 +508,7 @@ html.electron-runtime .quick-planner-page {
   gap: 18px;
   padding: 22px 22px 18px;
   background:
-    radial-gradient(126% 86% at 96% 94%, rgba(var(--quick-planner-accent), 0.08) 0%, rgba(var(--quick-planner-accent), 0.025) 42%, transparent 72%),
+    radial-gradient(126% 86% at 96% 94%, rgba(var(--quick-planner-accent), 0.045) 0%, rgba(var(--quick-planner-accent), 0.014) 42%, transparent 72%),
     linear-gradient(180deg, rgba(10, 15, 20, 0.98), rgba(9, 13, 18, 0.94));
 }
 
@@ -652,13 +652,13 @@ html.electron-runtime .quick-planner-page {
   justify-content: space-between;
   flex: none;
   width: 100%;
-  height: calc(110px + var(--quick-planner-resize-height, 0px));
+  height: calc(240px + var(--quick-planner-resize-height, 0px));
   min-height: 0;
-  padding: 10px 14px 8px;
-  border: 1px solid rgba(var(--quick-planner-accent), 0.56);
-  border-radius: 9px;
-  background: rgba(7, 13, 18, 0.72);
-  box-shadow: 0 0 0 1px rgba(var(--quick-planner-accent), 0.1);
+  padding: 8px 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   transition: box-shadow 180ms ease, background-color 180ms ease;
 }
 
@@ -785,9 +785,9 @@ html.electron-runtime .quick-planner-page {
   padding: 0 12px;
   transform: translateY(3px);
   color: #edf5f8;
-  border: 0;
-  border-radius: 10px;
-  background: rgba(var(--quick-planner-accent), 0.14);
+  border: 1px solid rgba(var(--quick-planner-accent), 0.5);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease;
 }
@@ -845,8 +845,9 @@ html.electron-runtime .quick-planner-page {
   padding: 0 12px;
   transform: translateY(3px);
   color: #edf5f8;
-  border-radius: 10px;
-  background: rgba(var(--quick-planner-accent), 0.14);
+  border: 1px solid rgba(var(--quick-planner-accent), 0.5);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
   cursor: pointer;
   transition: color 140ms ease, background-color 140ms ease;
   white-space: nowrap;
@@ -1156,9 +1157,9 @@ html.electron-runtime .quick-planner-page {
 }
 
 .quick-planner-compose:focus-within {
-  border-color: rgba(var(--quick-planner-accent), 0.55);
-  background: rgba(9, 16, 22, 0.92);
-  box-shadow: 0 0 0 2px rgba(var(--quick-planner-accent), 0.16);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 .quick-planner-compose-input-row {
@@ -1457,8 +1458,8 @@ html.electron-runtime .quick-planner-page {
   outline: 0;
   background: transparent;
   font: inherit;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 15px;
+  line-height: 24px;
 }
 
 .quick-planner-compose textarea::placeholder {
@@ -1470,20 +1471,24 @@ html.electron-runtime .quick-planner-page {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  margin-top: 8px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin-top: 12px;
   border-top: 1px solid rgba(140, 163, 176, 0.12);
-  padding-top: 8px;
-  padding-right: 134px;
-  padding-bottom: 3px;
+  padding: 10px 0 2px;
   overflow: visible;
+}
+
+.quick-planner-compose-footer .quick-planner-tools {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 @media (max-width: 700px) {
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-compose {
     height: auto;
-    min-height: calc(110px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(240px + var(--quick-planner-resize-height, 0px));
   }
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-compose-footer {
@@ -1572,9 +1577,11 @@ html.electron-runtime .quick-planner-page {
   }
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-action-group {
-    top: 51px;
+    position: static;
+    top: auto;
+    right: auto;
     pointer-events: none;
-    transform: translateX(5px);
+    transform: none;
   }
 
   .quick-planner-editor > .quick-planner-clock {
@@ -1587,7 +1594,7 @@ html.electron-runtime .quick-planner-page {
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-compose {
     height: auto;
-    min-height: calc(110px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(240px + var(--quick-planner-resize-height, 0px));
   }
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-compose-footer {
@@ -1955,36 +1962,48 @@ html.electron-runtime .quick-planner-page {
 }
 
 .quick-planner-send {
-  display: grid;
-  flex: 0 0 40px;
-  place-items: center;
-  width: 40px;
-  height: 34px;
-  padding: 0;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 118px;
+  width: auto;
+  height: 38px;
+  margin-inline: 4px;
+  padding: 0 10px;
   color: rgb(var(--quick-planner-accent));
   border: 1px solid rgba(var(--quick-planner-accent), 0.5);
   border-radius: 8px;
-  background: var(--quick-planner-accent-soft);
-  box-shadow: 0 0 6px rgba(var(--quick-planner-accent), 0.14);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: none;
   cursor: pointer;
-  transform: translate(5px, -2px);
+  transform: translateY(3px);
+  transform-origin: center;
   transition: color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
+.quick-planner-send-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .quick-planner-action-group {
-  position: absolute;
-  top: calc(50% + 10px);
-  right: 0;
+  position: static;
   z-index: 2;
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  min-width: 120px;
+  min-width: 0;
   white-space: nowrap;
   pointer-events: none;
-  transform: translate(5px, -52%);
+  transform: none;
 }
 
 .quick-planner-action-group > * {
@@ -2149,6 +2168,7 @@ html.electron-runtime .quick-planner-page {
 
 .quick-planner-page.is-browser-draft-only .quick-planner-editor {
   height: 489px;
+  max-width: 920px;
 }
 
 .quick-planner-page.is-browser-draft-only .quick-planner-draft-open,
@@ -3056,7 +3076,7 @@ html.electron-runtime .quick-planner-page {
     width: 100%;
     min-width: 0;
     height: auto;
-    min-height: calc(110px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(240px + var(--quick-planner-resize-height, 0px));
   }
 
   .quick-planner-editor > .messages-panel-wrapper {
@@ -3113,7 +3133,7 @@ html.electron-runtime .quick-planner-page {
 
   .quick-planner-page[data-publish-mode="draft"] .quick-planner-compose {
     height: auto;
-    min-height: calc(110px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(240px + var(--quick-planner-resize-height, 0px));
   }
 
   .quick-planner-page[data-publish-mode="draft"] .quick-planner-compose-footer {
@@ -3426,17 +3446,17 @@ html.electron-runtime .quick-planner-page {
     position: relative;
     width: 100%;
     height: auto;
-    min-height: calc(148px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(240px + var(--quick-planner-resize-height, 0px));
     flex: 0 0 auto;
   }
 
   .quick-planner-page[data-publish-mode="schedule"] .quick-planner-compose {
-    min-height: calc(184px + var(--quick-planner-resize-height, 0px));
+    min-height: calc(260px + var(--quick-planner-resize-height, 0px));
   }
 
   .quick-planner-page[data-publish-mode] .quick-planner-compose-footer {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) max-content;
     align-items: end;
     gap: 8px;
     min-height: 0;
@@ -3444,7 +3464,7 @@ html.electron-runtime .quick-planner-page {
   }
 
   .quick-planner-page[data-publish-mode="draft"] .quick-planner-compose-footer {
-    grid-template-columns: minmax(0, 1fr) 164px;
+    grid-template-columns: minmax(0, 1fr) max-content;
   }
 
   .quick-planner-page[data-publish-mode] .quick-planner-tools {
@@ -3513,19 +3533,20 @@ html.electron-runtime .quick-planner-page {
     grid-row: 1;
     align-self: center;
     justify-self: end;
-    width: 40px;
-    min-width: 40px;
+    width: max-content;
+    min-width: 0;
     transform: none;
     pointer-events: auto;
   }
 
   .quick-planner-page[data-publish-mode="draft"] .quick-planner-action-group {
-    width: 164px;
-    min-width: 164px;
+    width: max-content;
+    min-width: 0;
   }
 
   .quick-planner-page .quick-planner-send {
-    transform: none;
+    transform: translateY(3px);
+    transform-origin: center;
   }
 
   .quick-planner-page .quick-planner-editor > .messages-panel-wrapper {
@@ -4073,7 +4094,7 @@ html.electron-runtime .quick-planner-page {
   html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker,
   html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker-placeholder {
     position: absolute;
-    top: clamp(44px, calc(18vh / var(--electron-ui-scale, 1)), 120px);
+    top: var(--quick-planner-chat-picker-top);
     right: clamp(12px, calc(4% - 12px), 24px);
     left: auto;
     z-index: 6;
@@ -4087,24 +4108,6 @@ html.electron-runtime .quick-planner-page {
 
   html.electron-runtime .quick-planner-page .quick-planner-chat-picker-placeholder {
     display: block;
-  }
-
-  html.electron-runtime .quick-planner-page .quick-planner-compose-anchor {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    grid-column: 1 / -1;
-    grid-row: 3;
-    align-self: end;
-    justify-self: center;
-    width: calc(92% + 24px);
-    max-width: 100%;
-    min-width: 0;
-    margin-inline: auto;
-    padding-top: 0;
-    transform: none;
   }
 
   html.electron-runtime .quick-planner-page .quick-planner-editor > .messages-panel-wrapper {
@@ -4160,5 +4163,140 @@ html.electron-runtime .quick-planner-page {
     padding-right: 6px;
     padding-left: 6px;
     font-size: clamp(10px, calc(0.95vw / var(--electron-ui-scale, 1)), 12px);
+  }
+}
+
+html.electron-runtime .quick-planner-page {
+  --quick-planner-chat-picker-top: clamp(44px, calc(18vh / var(--electron-ui-scale, 1)), 120px);
+  --quick-planner-chat-compose-gap: 30px;
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker,
+html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker-placeholder {
+  top: var(--quick-planner-chat-picker-top);
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-compose-anchor {
+  position: absolute;
+  top: calc(var(--quick-planner-chat-picker-top) + 34px + var(--quick-planner-chat-compose-gap));
+  right: clamp(12px, calc(4% - 12px), 24px);
+  bottom: auto;
+  left: clamp(12px, calc(4% - 12px), 24px);
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  padding-top: 0;
+  transform: none;
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-type-controls-spacer {
+  display: none;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode] .quick-planner-compose {
+  height: auto;
+  min-height: 0;
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-compose-input-row {
+  flex: 0 0 auto;
+  height: calc(100px + var(--quick-planner-resize-height, 0px));
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
+  column-gap: 4px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
+  gap: 4px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls label,
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-clock {
+  height: 34px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-date input,
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-clock > span {
+  font-size: 14.5px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-date {
+  padding-right: 8px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+  gap: 3px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group {
+  gap: 4px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group + .quick-planner-schedule-quick-group {
+  margin-left: 4px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group.is-time {
+  padding-left: 8px;
+}
+
+html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values button {
+  height: 28px;
+  padding: 0 5.5px;
+  font-size: 9.5px;
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-tools > button[aria-label="Add emoji"],
+html.electron-runtime .quick-planner-page .quick-planner-tools > button[aria-label="Add attachment"] {
+  height: 34px;
+  transform: translateY(3px);
+}
+
+html.electron-runtime .quick-planner-page .quick-planner-tools > button[aria-label="Add emoji"] svg,
+html.electron-runtime .quick-planner-page .quick-planner-tools > button[aria-label="Add attachment"] svg {
+  width: 22px;
+  height: 22px;
+}
+
+.quick-planner-page[data-publish-mode="draft"] .quick-planner-tools > button[aria-label="Add attachment"] svg,
+.quick-planner-page[data-publish-mode="draft"] .quick-planner-draft small:not(.quick-planner-draft-tag) > svg {
+  position: relative;
+  left: -1px;
+}
+
+.quick-planner-page[data-publish-mode="draft"] .quick-planner-draft small:not(.quick-planner-draft-tag) > svg {
+  left: -0.5px;
+}
+
+.quick-planner-page[data-publish-mode="send"] .quick-planner-tools > button[aria-label="Add attachment"] svg {
+  position: relative;
+  left: -1px;
+}
+
+@media (min-width: 1301px) {
+  html.electron-runtime .quick-planner-page .quick-planner-editor-heading > .quick-planner-section-label {
+    font-size: 11px;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    font-size: 20px;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1300px) and (max-height: 820px) {
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button.is-selected::after {
+    top: calc(-1 * clamp(14px, calc(1.5vw / var(--electron-ui-scale, 1)), 24px));
+    bottom: auto;
+    height: 2px;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls label,
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-clock {
+    transform: none;
   }
 }

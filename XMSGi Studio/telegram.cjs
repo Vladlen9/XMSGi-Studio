@@ -36,6 +36,7 @@ const { findDialogByTitle } = require('./telegram-dialog-search.cjs');
 const { deriveChatPermissions, isPermissionError } = require('./telegram-permissions.cjs');
 const { applyTelegramIdempotency } = require('./telegram-idempotency.cjs');
 const { findRecentSentMessage } = require('./schedule-history.cjs');
+const { normalizeHistoryMessage, resolveMessageDirection } = require('./telegram-message-direction.cjs');
 
 function normalizeSessionString(value) {
   return typeof value === 'string'
@@ -1489,6 +1490,12 @@ async function getChatHistoryInternal(chatId, limit = 50) {
     REQUEST_TIMEOUT,
     'Resolving Telegram chat for history'
   ));
+  const currentUser = await telegramRequest(() => withTimeout(
+    client.getMe(),
+    REQUEST_TIMEOUT,
+    'Loading current Telegram account'
+  ));
+  const currentUserId = currentUser?.id != null ? String(currentUser.id) : '';
   const messages = await telegramRequest(() => withTimeout(
     client.getMessages(entity, { limit }),
     REQUEST_TIMEOUT,
@@ -1515,6 +1522,7 @@ async function getChatHistoryInternal(chatId, limit = 50) {
   const normalizedMessages = (await Promise.all([...(messages || [])]
     .filter((message) => message && message.id !== undefined)
     .map(async (message) => {
+      const normalizedMessage = normalizeHistoryMessage(message, currentUserId);
       const photoSize = toPreviewNumber(message.file?.size);
       const includeOriginalPhoto = Boolean(
         message.photo
@@ -1524,16 +1532,13 @@ async function getChatHistoryInternal(chatId, limit = 50) {
         && photoSize <= originalPhotoBytesRemaining,
       );
       if (includeOriginalPhoto) originalPhotoBytesRemaining -= photoSize;
-      const rawDate = message.date instanceof Date
-        ? message.date
-        : new Date(Number(message.date || 0) * 1000);
 
       return {
-        id: String(message.id),
-        text: String(message.message || message.text || ''),
-        date: Number.isNaN(rawDate.getTime()) ? new Date(0).toISOString() : rawDate.toISOString(),
-        outgoing: message.out === true,
-        senderName: getEntityDisplayName(message.sender),
+        id: String(normalizedMessage.id),
+        text: String(normalizedMessage.text || ''),
+        date: normalizedMessage.date,
+        outgoing: resolveMessageDirection(message, currentUserId),
+        senderName: getEntityDisplayName(message.sender) || normalizedMessage.senderName,
         entities: (message.entities || []).flatMap((entity) => {
           const typeByClassName = {
             MessageEntityBold: 'bold',
@@ -2873,7 +2878,9 @@ function cancelScheduledMessage(chatId, messageId, message, targetTimestamp) {
     waitForTelegramRateLimit,
     shutdownTelegram,
     setTelegramStatusCallback,
-    lifecycleState
+    lifecycleState,
+    resolveMessageDirection,
+    normalizeHistoryMessage,
   };
 }
 
@@ -2911,5 +2918,7 @@ module.exports = {
   getTelegramStatus: (...args) => defaultCore.getTelegramStatus(...args),
   waitForTelegramRateLimit: (...args) => defaultCore.waitForTelegramRateLimit(...args),
   shutdownTelegram: (...args) => defaultCore.shutdownTelegram(...args),
-  setTelegramStatusCallback: (...args) => defaultCore.setTelegramStatusCallback(...args)
+  setTelegramStatusCallback: (...args) => defaultCore.setTelegramStatusCallback(...args),
+  resolveMessageDirection,
+  normalizeHistoryMessage,
 };

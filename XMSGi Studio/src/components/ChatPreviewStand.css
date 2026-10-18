@@ -596,22 +596,6 @@ img.chat-preview-avatar {
   line-height: 1.5;
 }
 
-.chat-preview-history-entry::before {
-  position: absolute;
-  top: 14px;
-  left: -4px;
-  width: 7px;
-  height: 7px;
-  border: 2px solid #172127;
-  border-radius: 50%;
-  background: #78c7aa;
-  content: '';
-}
-
-.chat-preview-history-entry.is-outgoing::before {
-  background: #8db8d0;
-}
-
 .chat-preview-history-entry.is-outgoing {
   align-self: flex-end;
 }

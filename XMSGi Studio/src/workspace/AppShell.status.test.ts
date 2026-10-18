@@ -9,6 +9,7 @@ const baseStatus = {
   accountId: 'telegram-session:active-account',
   status: 'normal' as const,
 };
+const accountAvatarCacheKey = 'xmsgi-account-avatar-cache-v1';
 
 function QuickPlannerNavigationTestButtons() {
   const { currentSection, openQuickPlan, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
@@ -160,12 +161,16 @@ describe('shared History Drawer entry point', () => {
     expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
   });
 
-  it('shows the Telegram account photo in the topbar avatar', async () => {
+  it('shows the current Telegram profile photo in the topbar', async () => {
+    window.localStorage.removeItem(accountAvatarCacheKey);
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
-    const avatarDataUrl = 'data:image/jpeg;base64,account-photo';
+    let resolveAvatar: ((value: { success: boolean; avatarDataUrl: string }) => void) | undefined;
+    const getAccountAvatar = vi.fn(() => new Promise<{ success: boolean; avatarDataUrl: string }>((resolve) => {
+      resolveAvatar = resolve;
+    }));
     Object.defineProperty(window, 'telegram', {
       configurable: true,
-      value: { getAccountAvatar: vi.fn().mockResolvedValue({ success: true, avatarDataUrl }) },
+      value: { getAccountAvatar },
     });
     const onOpenSettings = vi.fn();
     const setIsConfirmingLogout = vi.fn();
@@ -190,9 +195,15 @@ describe('shared History Drawer entry point', () => {
     }, createElement('div', null, 'Current screen'))));
 
     try {
+      const loadingIcon = view.container.querySelector('.topbar-logout-photo-fallback svg');
+      expect(loadingIcon).toHaveAttribute('width', '38');
+      expect(loadingIcon).toHaveAttribute('height', '38');
+      resolveAvatar?.({ success: true, avatarDataUrl: 'data:image/jpeg;base64,account-photo' });
       await waitFor(() => {
-        expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', avatarDataUrl);
+        expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', 'data:image/jpeg;base64,account-photo');
       });
+      expect(getAccountAvatar).toHaveBeenCalledOnce();
+      expect(window.localStorage.getItem(accountAvatarCacheKey)).toBe('data:image/jpeg;base64,account-photo');
 
       const labels = Array.from(view.container.querySelectorAll('.topbar-actions .action-label'))
         .map((label) => label.textContent);
@@ -214,6 +225,48 @@ describe('shared History Drawer entry point', () => {
       expect(studioHeading?.querySelector('svg')).not.toBeNull();
     } finally {
       view.unmount();
+      window.localStorage.removeItem(accountAvatarCacheKey);
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
+  it('shows the cached Telegram photo immediately while refreshing it', () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const cachedAvatar = 'data:image/jpeg;base64,cached-account-photo';
+    const getAccountAvatar = vi.fn(() => new Promise<{ success: boolean; avatarDataUrl: string }>(() => undefined));
+    window.localStorage.setItem(accountAvatarCacheKey, cachedAvatar);
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getAccountAvatar },
+    });
+
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'studio',
+      onViewChange: vi.fn(),
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement('div', null, 'Current screen'))));
+
+    try {
+      expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', cachedAvatar);
+      expect(getAccountAvatar).toHaveBeenCalledOnce();
+    } finally {
+      view.unmount();
+      window.localStorage.removeItem(accountAvatarCacheKey);
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');
     }

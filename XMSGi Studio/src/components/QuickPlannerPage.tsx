@@ -356,8 +356,8 @@ const plannerEmojis = ['😀', '😂', '😥', '😍', '😎', '🤔', '😭', '
 const MAX_PLANNER_ATTACHMENTS = 7;
 const MAX_VISIBLE_ATTACHMENT_CHIPS = 5;
 const MAX_PLANNER_TEXT = 1023;
-const MAX_COMPOSE_RESIZE = 70;
-const COMPOSE_RESIZE_STORAGE_KEY = 'xmsgi-quick-planner-compose-height';
+const MAX_COMPOSE_RESIZE = 50;
+const COMPOSE_RESIZE_STORAGE_KEY = 'xmsgi-quick-planner-compose-height-v2';
 const REMINDER_TYPE_STORAGE_KEY = 'xmsgi-quick-planner-reminder-type';
 function clampComposeResize(value: number, maximum: number) {
   return Math.min(maximum, Math.max(0, value));
@@ -423,7 +423,7 @@ function formatToday(value: Date) {
 }
 
 function formatCurrentTime(value: Date) {
-  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(value);
+  return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(value);
 }
 
 function updateEntitiesForTextChange(entities: RichTextEntity[], previousText: string, nextText: string) {
@@ -1041,6 +1041,13 @@ export function QuickPlannerPage({
       : actionFeedback === 'failed'
         ? 'Action failed'
         : null;
+  const visibleActionLabel = actionButtonLabel ?? t(
+    publishMode === 'send'
+      ? 'quickplanner.mode.send'
+      : publishMode === 'schedule'
+        ? 'quickplanner.mode.schedule'
+        : 'quickplanner.mode.draft',
+  );
   const actionButtonSucceeded = Boolean(actionFeedback && actionFeedback !== 'failed');
   const progressStatus = isSending || isScheduling || sendingNow
     ? { message: publishMode === 'schedule' ? 'Scheduling message…' : 'Sending message…', type: 'info' as const }
@@ -1095,7 +1102,7 @@ export function QuickPlannerPage({
   const handleComposeResizePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const start = composeResizeStartRef.current;
     if (!start || start.pointerId !== event.pointerId) return;
-    const height = clampComposeResize(start.height - (event.clientY - start.y) * 2, MAX_COMPOSE_RESIZE);
+    const height = clampComposeResize(start.height + (event.clientY - start.y), MAX_COMPOSE_RESIZE);
     composeResizeHeightRef.current = height;
     setComposeResize({ height });
   };
@@ -1111,7 +1118,7 @@ export function QuickPlannerPage({
     const resizeStep = event.shiftKey ? 2 : 10;
     if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault();
-    const height = clampComposeResize(composeResize.height + (event.key === 'ArrowUp' ? resizeStep : -resizeStep), MAX_COMPOSE_RESIZE);
+    const height = clampComposeResize(composeResize.height + (event.key === 'ArrowDown' ? resizeStep : -resizeStep), MAX_COMPOSE_RESIZE);
     composeResizeHeightRef.current = height;
     setComposeResize({ height });
     save(COMPOSE_RESIZE_STORAGE_KEY, height);
@@ -2110,6 +2117,9 @@ export function QuickPlannerPage({
                           : publishMode === 'schedule'
                             ? <CalendarDays size={18} aria-hidden="true" />
                             : <FileText size={18} aria-hidden="true" />}
+                      <span className="quick-planner-send-label" aria-hidden="true">
+                        {visibleActionLabel}
+                      </span>
                   </button>
                 </div>
               </div>

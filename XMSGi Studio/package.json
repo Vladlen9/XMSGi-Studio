@@ -71,6 +71,7 @@
       "app-data-path.cjs",
       "draft-store.cjs",
       "telegram.cjs",
+      "telegram-message-direction.cjs",
       "telegram-dialogs.cjs",
       "telegram-inline-keyboard.cjs",
       "telegram-errors.cjs",

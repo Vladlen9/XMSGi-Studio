@@ -110,14 +110,9 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 }
 
 .settings-telegram-entry {
-  --telegram-mark-size: 36px;
-  --telegram-mark-space: 36px;
-  --telegram-entry-offset: calc(var(--telegram-mark-size) + var(--telegram-mark-space));
   display: flex;
   align-items: center;
-  gap: var(--telegram-mark-space);
-  width: calc(100% + var(--telegram-entry-offset));
-  margin-left: calc(0px - var(--telegram-entry-offset));
+  width: 100%;
   margin-top: 20px;
 }
 
@@ -152,23 +147,6 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 .settings-telegram-summary:focus-visible {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2), 0 0 16px rgba(255, 255, 255, 0.15);
   filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.22));
-}
-
-.settings-telegram-mark {
-  width: var(--telegram-mark-size);
-  height: var(--telegram-mark-size);
-  flex: 0 0 var(--telegram-mark-size);
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(154, 168, 184, 0.22);
-  border-radius: 50%;
-  color: rgba(203, 212, 220, 0.78);
-  transition: color 150ms ease, border-color 150ms ease;
-}
-
-.settings-telegram-entry.is-connected .settings-telegram-mark {
-  border-color: rgba(119, 200, 138, 0.26);
-  color: #9fcba8;
 }
 
 .settings-telegram-summary-open {

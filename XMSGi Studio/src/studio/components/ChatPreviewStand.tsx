@@ -1,5 +1,5 @@
 import { ArrowLeft, BatteryFull, ImagePlus, MessageCircle, Mic, Monitor, Paperclip, Search, Send, Signal, SlidersHorizontal, Smartphone, Smile, Wifi, X } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, MutableRefObject } from 'react';
 import { ChatAvatar } from './ChatAvatar';
@@ -469,6 +469,14 @@ export function ChatPreviewStand({
     () => groupHistory(activePreviewHistory?.messages ?? []),
     [activePreviewHistory?.messages],
   );
+
+  useLayoutEffect(() => {
+    const feed = previewFeedRef.current;
+    if (collapsed || previewHistoryLoading || !activePreviewHistory || !feed) return;
+
+    feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight);
+  }, [activePreviewHistory, collapsed, previewFeedRef, previewHistoryLoading]);
+
   const imageAttachments = attachments.filter(isImageAttachment);
   const documentAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
   const normalizedDraft = normalizeTelegramMessage(draftText, draftEntities);
@@ -479,6 +487,8 @@ export function ChatPreviewStand({
     || `${chat.name} ${chat.username ?? ''} ${chat.type ?? ''}`.toLocaleLowerCase().includes(normalizedChatSearch)
   )) : [];
   const hasDraft = Boolean(normalizedDraft.message.trim() || attachments.length);
+  const hasHistoryMessages = Boolean(activePreviewHistory?.messages.length);
+  const shouldShowEmptyPreviewHint = !hasDraft && !hasHistoryMessages;
   const wallpaperImage = customWallpaperImage;
   const wallpaperStyle = {
     ...(wallpaperTheme === 'custom' && wallpaperImage
@@ -849,7 +859,7 @@ export function ChatPreviewStand({
                   )}
                 </article>
               ) : (
-                <div className="chat-preview-empty">{t('studio.emptyPreview')}</div>
+                shouldShowEmptyPreviewHint ? <div className="chat-preview-empty">{t('studio.emptyPreview')}</div> : null
               )}
             </div>
           </div>
@@ -857,8 +867,10 @@ export function ChatPreviewStand({
         {!collapsed && (
           <div className="chat-preview-composer" aria-hidden="true">
             <span className="chat-preview-composer-action"><Paperclip size={19} strokeWidth={1.8} /></span>
-            <span className="chat-preview-composer-input">{t('studio.messagePlaceholder')}</span>
-            <span className="chat-preview-composer-action"><Smile size={19} strokeWidth={1.8} /></span>
+            <span className="chat-preview-composer-input">
+              {t('studio.messagePlaceholder')}
+              <span className="chat-preview-composer-emoji"><Smile size={19} strokeWidth={1.8} /></span>
+            </span>
             <span className="chat-preview-composer-action">
               {hasDraft
                 ? <Send size={18} strokeWidth={1.9} />

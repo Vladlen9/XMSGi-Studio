@@ -290,9 +290,11 @@ export function SettingsView({
                 <div className="settings-editor-control-group">
                   <div className="settings-editor-control-heading">
                     <span className="settings-editor-control-label">{t('settings.editorAppearancePalette')}</span>
-                    <span className={`settings-editor-preview-badge${editorAppearanceSaveFailed ? ' is-error' : ''}`} role="status">
-                      {editorAppearanceSaveFailed ? t('settings.editorAppearanceSaveFailed') : t('settings.editorAppearanceSaved')}
-                    </span>
+                    {editorAppearanceSaveFailed && (
+                      <span className="settings-editor-preview-badge is-error" role="status">
+                        {t('settings.editorAppearanceSaveFailed')}
+                      </span>
+                    )}
                   </div>
                   <div className="settings-editor-style-switch settings-editor-palette-switch" role="group" aria-label={t('settings.editorAppearancePalette')}>
                     <button
@@ -351,9 +353,6 @@ export function SettingsView({
           </section>
           <section className="settings-view-section settings-telegram-section">
             <div className={`settings-telegram-entry ${telegramConnected ? 'is-connected' : ''}`}>
-              <span className="settings-telegram-mark" aria-hidden="true">
-                <Send size={17} strokeWidth={1.8} />
-              </span>
               <button
                 type="button"
                 className="settings-telegram-summary"
