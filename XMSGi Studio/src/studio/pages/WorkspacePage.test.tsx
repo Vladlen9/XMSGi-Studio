@@ -511,7 +511,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-chat-stage\.is-active\)\s*\{\s*height:\s*100%;\s*min-height:\s*0;\s*max-height:\s*calc\(100% - 25px\);\s*margin-bottom:\s*-20px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-chat-stage\.is-active \.workspace-page-chat-stage-main\s*\{\s*flex:\s*1 1 0%;\s*min-height:\s*0;\s*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-editor-canvas:has\(\.workspace-page-rich-text-schedule-stage\.is-active:is\(\.is-time-focus, \.is-repeat-focus\)\) \.workspace-page-form-row-body\s*\{/);
-    expect(workspacePageStyles).toMatch(/\.workspace-page-editor-shell:has\(\.workspace-page-rich-text-schedule-stage\.is-active:is\(\.is-time-focus, \.is-repeat-focus\)\) \.workspace-page-draft-footer\s*\{/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-editor-shell:has\(\.workspace-page-rich-text-schedule-stage\.is-active\)\s*\{\s*width:\s*min\(100%, 760px\);/);
 
     unmount();
   });
@@ -520,11 +520,15 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/@media \(max-width: 840px\)[\s\S]*?html\.electron-runtime \.workspace-page-action-left-group \.workspace-page-schedule-compact-button\s*\{[^}]*flex:\s*0 0 80px !important;[^}]*width:\s*80px !important;[^}]*min-width:\s*80px !important;[^}]*font-size:\s*14px !important;/);
   });
 
+  it('keeps the Electron post input inset and centered inside the editor stage', () => {
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage > \.workspace-page-textarea\.workspace-page-rich-text-stage-view\.is-active\s*\{[^}]*justify-self:\s*center;[^}]*width:\s*min\(calc\(92% \+ 24px\), 720px\);[^}]*max-width:\s*720px/);
+  });
+
   it('keeps the Time picker and quick actions usable at the minimum Electron height', () => {
-    expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\) and \(max-height: 540px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-time-focus\)\s*\{[^}]*min-height:\s*170px;[^}]*max-height:\s*170px;/);
+    expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\) and \(max-height: 540px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-time-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{[^}]*grid-template-rows:\s*36px minmax\(0, 1fr\);[^}]*grid-template-areas:[\s\S]*?'date-time date-time'[\s\S]*?'quick-date quick-time';[^}]*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-quick-date-panel,[\s\S]*?\.workspace-page-schedule-quick-time-panel\s*\{[^}]*display:\s*grid;/);
-    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-repeat-focus\)\s*\{[^}]*min-height:\s*170px;[^}]*max-height:\s*170px;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-repeat-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-repeat-focus \.workspace-page-schedule-main\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
   });
 

@@ -17,7 +17,7 @@
 
 <br>
 
-<a href="https://github.com/molodoy01/XMSGi-Studio/releases"><img alt="Download" src="https://img.shields.io/badge/⬇%20Download-v1.1.0-6c7cff?style=for-the-badge"></a>
+<a href="https://github.com/molodoy01/XMSGi-Studio/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇%20Download-latest-6c7cff?style=for-the-badge"></a>
 &nbsp;
 <a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
 &nbsp;
@@ -28,6 +28,9 @@
 ---
 
 ## ✨ Features
+
+### ⚡ Studio first, Quick Planner when speed matters
+Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; its drafts can be continued in Studio and revisited in Posts/History.
 
 <table>
   <tr>
@@ -46,8 +49,8 @@
       Attachments, rich text formatting and inline buttons.
     </td>
     <td valign="top">
-      <b>🗂️ Stay on top of it</b><br>
-      Drafts, the scheduled queue and delivery outcomes in a single history.
+      <b>🗂️ Organize in Studio</b><br>
+      Keep color-coded drafts and document history in one workspace.
     </td>
   </tr>
   <tr>
@@ -102,22 +105,32 @@ Full control over every post in the queue — right up to the moment it's sent.
 ## 🖼️ Screenshots
 
 <p align="center">
-  <img src="XMSGi%20Studio/website/screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
-  <img src="XMSGi%20Studio/website/screenshots/02.png" alt="Telegram chat selection" width="32%" />
-  <img src="XMSGi%20Studio/website/screenshots/03.png" alt="Message composition and preview" width="32%" />
+  <img src="screenshots/03.png" alt="Quick Planner composer" width="32%" />
+  <img src="screenshots/02.png" alt="Telegram chat selection" width="32%" />
+  <img src="screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
 </p>
 
 ## 📥 Download
 
+**[Download the latest release and choose your platform](https://github.com/molodoy01/XMSGi-Studio/releases/latest).**
+
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.1.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.1.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.1.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb) |
-| macOS | `.dmg` (Intel) | [XMSGi.Studio-1.1.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg) |
-| macOS | `.dmg` (Apple Silicon) | [XMSGi.Studio-1.1.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.2.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio.1.2.1.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.2.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.2.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/xmsgi-studio_1.2.1_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi Studio-1.2.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi Studio-1.2.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1-arm64.dmg) |
 
-All builds for v1.1.0 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.1.0) page.
+All builds for v1.2.1 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.1) page.
+
+### First launch on macOS
+
+macOS builds are unsigned and not notarized unless Apple Developer signing and
+notarization credentials are configured for the release workflow. For an unsigned
+build, Control-click XMSGi Studio in Finder, choose **Open**, then confirm **Open**.
+If macOS still blocks it, go to **System Settings → Privacy & Security → Open Anyway**.
+Only bypass this warning for a copy downloaded from the official releases page.
 
 ## 🚀 Quick start
 

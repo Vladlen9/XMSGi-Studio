@@ -17,7 +17,7 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 
 <br>
 
-<a href="https://github.com/molodoy01/XMSGi-Studio/releases"><img alt="Download" src="https://img.shields.io/badge/⬇%20Download-v1.1.0-6c7cff?style=for-the-badge"></a>
+<a href="https://github.com/molodoy01/XMSGi-Studio/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇%20Download-latest-6c7cff?style=for-the-badge"></a>
 &nbsp;
 <a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
 &nbsp;
@@ -38,18 +38,21 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 - **Repeat options**: Daily, weekly, or monthly repeats (up to 15 times).
 - **Reschedule/cancel**: Easily adjust or cancel messages in the queue.
 
+### ⚡ Studio first, Quick Planner for speed
+Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; Planner drafts can be continued in Studio and revisited in Posts/History.
+
 ### 🖋️ Message Composition
 - **Rich formatting**: Use bold, italic, links, and more.
 - **Inline buttons**: Add interactive buttons to your messages.
 - **Attachments**: Support for images, documents, and other media.
 
 ### 🗂️ Organization & History
-- **Color-coded drafts**: Organize ideas visually with color tags.
-- **Unified history**: Track drafts, scheduled messages, and delivery outcomes in one place.
+- **Studio drafts**: Organize documents with color tags and revisit their edit history.
+- **Posts/History**: Review schedules and delivery outcomes from both work surfaces.
 - **Templates**: Save frequent phrases for quick access.
 
 ### 🔒 Security & Privacy
-- **Local storage**: All data is stored on your device, never uploaded.
+- **Local drafts and session**: Drafts and account session are stored on your device. Message content and attachments are sent to Telegram when you send or schedule them.
 - **No bot dependency**: Avoid third-party intermediaries for message delivery.
 - **Secure session handling**: Leverage platform-specific secure storage where available.
 
@@ -93,22 +96,31 @@ Full control over every post in the queue — right up to the moment it's sent.
 ## 🖼️ Screenshots
 
 <p align="center">
-  <img src="website/screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
-  <img src="website/screenshots/02.png" alt="Telegram chat selection" width="32%" />
-  <img src="website/screenshots/03.png" alt="Message composition and preview" width="32%" />
+  <img src="../screenshots/01.png" alt="XMSGi Studio workspace" width="32%" />
+  <img src="../screenshots/02.png" alt="Telegram chat selection" width="32%" />
+  <img src="../screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
 </p>
 
 ## 📥 Download
 
+**[Download the latest release and choose your platform](https://github.com/molodoy01/XMSGi-Studio/releases/latest).**
+
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.1.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio.1.1.0.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.1.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.1.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/xmsgi-studio_1.1.0_amd64.deb) |
-| macOS | `.dmg` (Intel) | [XMSGi.Studio-1.1.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0.dmg) |
-| macOS | `.dmg` (Apple Silicon) | [XMSGi.Studio-1.1.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.1.0/XMSGi.Studio-1.1.0-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.2.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio.1.2.1.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.2.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi.Studio-1.2.1.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.2.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/xmsgi-studio_1.2.1_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi Studio-1.2.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi Studio-1.2.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.1/XMSGi%20Studio-1.2.1-arm64.dmg) |
 
-All builds for v1.1.0 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.1.0) page.
+All builds for v1.2.1 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.1) page.
+
+### First launch on macOS
+
+macOS builds are unsigned and not notarized. Control-click XMSGi Studio in Finder,
+choose **Open**, then confirm **Open**.
+If macOS still blocks it, go to **System Settings → Privacy & Security → Open Anyway**.
+Only bypass this warning for a copy downloaded from the official releases page.
 
 ## 🚀 Quick start
 
@@ -116,7 +128,7 @@ Requirements:
 
 - Node.js 20+
 - npm
-- Windows for the packaged desktop experience
+- A supported desktop target: Windows, Linux (x64), or macOS (x64 / arm64)
 
 Run locally:
 

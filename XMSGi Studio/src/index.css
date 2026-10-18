@@ -11,7 +11,7 @@
 
 .history-drawer {
   position: fixed;
-  inset: 12px 12px 12px auto;
+  inset: 12px 0 12px auto;
   z-index: 1201;
   display: flex;
   width: min(580px, calc(100vw - 24px));
@@ -780,7 +780,7 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (max-width: 560px) {
   .history-drawer {
-    inset: 8px;
+    inset: 8px 0 8px 8px;
     width: auto;
   }
 }

@@ -9,7 +9,10 @@ const mainSource = fs.readFileSync(path.join(projectRoot, 'main.cjs'), 'utf8');
 describe('Electron tray lifecycle contract', () => {
   it('creates one tray with Open and Exit actions', () => {
     expect(mainSource).toContain('if (tray) return;');
-    expect(mainSource).toContain("new Tray(path.join(__dirname, 'build', 'icon.ico'))");
+    expect(mainSource).toContain('new Tray(appIconPath)');
+    expect(mainSource).toContain("process.platform === 'win32'");
+    expect(mainSource).toContain("path.join(__dirname, 'build', 'icon.ico')");
+    expect(mainSource).toContain("path.join(__dirname, 'src', 'studio', 'assets', 'logo.png')");
     expect(mainSource).toContain("label: 'Open XMSGi Studio'");
     expect(mainSource).toContain("label: 'Exit'");
     expect(mainSource).toContain("tray.on('double-click', showMainWindow)");
@@ -53,6 +56,18 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain('if (tray) return;');
     expect(mainSource).toContain("app.on('second-instance'");
     expect(mainSource).toContain('showMainWindow();');
+  });
+
+  it('restores the existing window when the app is activated', () => {
+    const activateHandler = mainSource.match(/app\.on\('activate',[\s\S]*?\n\s{2}\}\);/)?.[0];
+
+    expect(activateHandler).toContain('BrowserWindow.getAllWindows().length === 0');
+    expect(activateHandler).toContain('showMainWindow();');
+  });
+
+  it('sets the macOS dock icon', () => {
+    expect(mainSource).toContain("process.platform === 'darwin' && app.dock");
+    expect(mainSource).toContain('app.dock.setIcon(appIconPath);');
   });
 
   it('focuses the existing window for a second instance', () => {

@@ -71,6 +71,14 @@ describe('LoginPage', () => {
     expect(props.setPhoneNumber).toHaveBeenCalledWith('+14155550123');
   });
 
+  it('submits the phone number through the login form submit handler', () => {
+    const { container, props } = renderLogin({ showAuthForm: true, phoneNumber: '+14155550123' });
+
+    fireEvent.submit(container.querySelector('.login-form')!);
+
+    expect(props.handleTelegramAuth).toHaveBeenCalledOnce();
+  });
+
   it('allows removing the automatically added phone prefix', () => {
     const { props } = renderLogin({ phoneNumber: '+14155550123' });
 

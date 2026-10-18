@@ -244,7 +244,7 @@ export function ChatSelectionStage({
           >
             <Star size={13} strokeWidth={1.8} fill={showFavoritesOnly ? 'currentColor' : 'none'} /> {t('studio.favorites')}
           </button>
-          <button type="button" className="workspace-page-stage-primary" onClick={onChatSelectionDone}>{t('studio.done')}</button>
+          <button type="button" className="workspace-page-stage-primary" onClick={() => onChatSelectionDone()}>{t('studio.done')}</button>
         </div>
       </div>
     </div>

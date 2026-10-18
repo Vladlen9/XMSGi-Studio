@@ -1,5 +1,5 @@
-# Root ignores — nested project + personal site
-personal-website/
+# Root ignores — nested project + standalone website clone
+website XMSGi Studio/
 XMSGi Studio/node_modules/
 XMSGi Studio/dist/
 XMSGi Studio/release/

@@ -16,6 +16,7 @@ function createFakeStorage(initialConfig = {}, options = {}) {
   ]);
   const safeStorage = {
     isEncryptionAvailable: () => options.encryptionAvailable !== false,
+    getSelectedStorageBackend: () => options.backend || 'gnome_libsecret',
     encryptString: (value) => Buffer.from(`encrypted:${value}`),
     decryptString: (value) => {
       if (options.rejectUnknownCiphertext && !value.toString().startsWith('encrypted:')) {
@@ -47,7 +48,8 @@ function createFakeStorage(initialConfig = {}, options = {}) {
     fs,
     path: { join: () => getConfigPath() },
     app: { getPath: () => 'C:\\temp' },
-    safeStorage
+    safeStorage,
+    platform: options.platform
   });
 
   return { adapter, files, fs };
@@ -393,6 +395,26 @@ describe('telegram account storage adapter', () => {
       .toThrow('Secure local storage is unavailable');
     expect(files.get(getConfigPath())).toBe(originalConfig);
     expect(fs.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects the insecure basic_text backend on Linux', () => {
+    const { adapter, fs } = createFakeStorage({}, {
+      platform: 'linux',
+      backend: 'basic_text'
+    });
+
+    expect(() => adapter.saveAccountSecrets({ SESSION_STRING: 'session' }))
+      .toThrow('Set up GNOME Keyring, KWallet, or another Secret Service');
+    expect(fs.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it('allows encrypted secret storage with a Linux keyring backend', () => {
+    const { adapter } = createFakeStorage({}, {
+      platform: 'linux',
+      backend: 'gnome_libsecret'
+    });
+
+    expect(adapter.saveAccountSecrets({ SESSION_STRING: 'session' })).toBe(true);
   });
 
   it('preserves both changes from concurrent saves', async () => {

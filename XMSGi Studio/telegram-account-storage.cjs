@@ -7,7 +7,7 @@ const SECRET_FIELDS = {
   SESSION_STRING: 'SESSION_STRING_ENCRYPTED'
 };
 
-function createAccountStorageAdapter({ fs, path, app, safeStorage } = {}) {
+function createAccountStorageAdapter({ fs, path, app, safeStorage, platform = process.platform } = {}) {
   const fileSystem = fs || require('fs');
   const pathModule = path || defaultPath;
   const electron = app && safeStorage
@@ -25,16 +25,24 @@ function createAccountStorageAdapter({ fs, path, app, safeStorage } = {}) {
   }
 
   function isSafeStorageAvailable() {
-    return Boolean(
-      electron.safeStorage &&
-      typeof electron.safeStorage.isEncryptionAvailable === 'function' &&
-      electron.safeStorage.isEncryptionAvailable()
+    const storage = electron.safeStorage;
+    if (!storage || typeof storage.isEncryptionAvailable !== 'function' || !storage.isEncryptionAvailable()) {
+      return false;
+    }
+
+    return !(
+      platform === 'linux' &&
+      typeof storage.getSelectedStorageBackend === 'function' &&
+      storage.getSelectedStorageBackend() === 'basic_text'
     );
   }
 
   function encryptSecret(secret) {
     if (!isSafeStorageAvailable()) {
-      throw new Error('Secure local storage is unavailable on this system.');
+      const message = platform === 'linux'
+        ? 'Secure local storage is unavailable. Set up GNOME Keyring, KWallet, or another Secret Service and restart XMSGi Studio.'
+        : 'Secure local storage is unavailable on this system.';
+      throw new Error(message);
     }
 
     return electron.safeStorage.encryptString(String(secret ?? '')).toString('base64');

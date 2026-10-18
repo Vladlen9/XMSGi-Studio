@@ -488,7 +488,6 @@ export function useScheduler({
     const chatId = scheduleChat.id;
     const chatName = scheduleChat.name;
     const text = scheduleMessage;
-    const attachments = scheduleAttachments;
     const entities = scheduleEntities;
     const replyMarkup = scheduleRequest?.replyMarkup;
     const silent = scheduleRequest?.silent === true;
@@ -1288,34 +1287,52 @@ export function useScheduler({
     replyMarkup?: InlineKeyboardMarkup,
     silent: boolean | string[][] = false,
     effect?: string,
-    options: { clearMessageOnSuccess?: boolean } = {},
+    options: { clearMessageOnSuccess?: boolean; isNestedBatchGroup?: boolean } = {},
     attachmentGroups?: string[][],
   ): Promise<boolean> {
+    const isNestedBatchGroup = Boolean(options.isNestedBatchGroup);
     const suppliedGroups = Array.isArray(silent) ? silent : attachmentGroups;
     if (suppliedGroups?.length) {
       const groups = suppliedGroups.filter((group) => group.length > 0);
-      if (groups.length > 0) {
-        let allSent = true;
-        for (const [groupIndex, group] of groups.entries()) {
-          const isPrimaryGroup = groupIndex === 0;
-          const isLastGroup = groupIndex === groups.length - 1;
-          const sent: boolean = await handleSendDraftNow(
-            chat,
-            isPrimaryGroup ? text : '',
-            group,
-            isPrimaryGroup ? entities : [],
-            isPrimaryGroup ? replyMarkup : undefined,
-            typeof silent === 'boolean' ? silent : false,
-            isPrimaryGroup ? effect : undefined,
-            { clearMessageOnSuccess: isLastGroup && allSent && options.clearMessageOnSuccess !== false },
-          );
-          allSent &&= sent;
+      if (groups.length > 1) {
+        const shouldManageBatchState = !publishingDraftLockRef.current;
+        if (shouldManageBatchState) {
+          publishingDraftLockRef.current = true;
+          setPublishingDraft(true);
         }
-        return allSent;
+
+        let allSent = true;
+        try {
+          for (const [groupIndex, group] of groups.entries()) {
+            const isPrimaryGroup = groupIndex === 0;
+            const isLastGroup = groupIndex === groups.length - 1;
+            const sent: boolean = await handleSendDraftNow(
+              chat,
+              isPrimaryGroup ? text : '',
+              group,
+              isPrimaryGroup ? entities : [],
+              isPrimaryGroup ? replyMarkup : undefined,
+              false,
+              isPrimaryGroup ? effect : undefined,
+              { clearMessageOnSuccess: isLastGroup && allSent && options.clearMessageOnSuccess !== false, isNestedBatchGroup: true },
+              [group],
+            );
+            allSent &&= sent;
+          }
+          return allSent;
+        } finally {
+          if (shouldManageBatchState) {
+            publishingDraftLockRef.current = false;
+            setPublishingDraft(false);
+          }
+        }
       }
     }
     const sendSilently = typeof silent === 'boolean' ? silent : false;
-    if (!historyReady || publishingDraftLockRef.current || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
+    if (!historyReady || (!text.trim() && attachments.length === 0) || typeof window.telegram?.send !== 'function') return false;
+    if (publishingDraftLockRef.current && !Array.isArray(silent) && !attachmentGroups && !isNestedBatchGroup) {
+      return false;
+    }
 
     publishingDraftLockRef.current = true;
     setPublishingDraft(true);
@@ -1374,8 +1391,10 @@ export function useScheduler({
       );
       return false;
     } finally {
-      publishingDraftLockRef.current = false;
-      setPublishingDraft(false);
+      if (!isNestedBatchGroup && !attachmentGroups) {
+        publishingDraftLockRef.current = false;
+        setPublishingDraft(false);
+      }
     }
   }
 

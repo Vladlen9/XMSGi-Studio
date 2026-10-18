@@ -92,7 +92,7 @@ function installTelegramMocks({ sendMessageDelayMs = 0 } = {}) {
     async sendMessage(_target, options) {
       sendCalls.push(options);
       if (sendMessageDelayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, sendMessageDelayMs));
+        await new Promise((resolve) => globalThis.setTimeout(resolve, sendMessageDelayMs));
       }
       if (options.message === 'PRIVATE_FAILURE_TEXT') {
         const error = new Error(options.message);

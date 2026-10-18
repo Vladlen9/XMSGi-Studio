@@ -1,7 +1,7 @@
 # Разработка и сборка XMSGi Studio
 
 Инструкции для контрибьюторов и разработчиков.
-Соответствует версии **1.1.0**.
+Соответствует версии **1.2.1**.
 
 ---
 
@@ -30,7 +30,8 @@ XMSGi Studio/
 ├── chat-storage.cjs          # список чатов (избранное, скрытые)
 ├── app-data-path.cjs         # корень данных приложения + миграция имён
 ├── src/                      # рендерер-хост (React + TS)
-│   ├── App.tsx               # маршруты, режим studio/planner
+│   ├── App.tsx               # маршруты, Quick Planner/Studio, runtime composition
+│   ├── appState.ts           # reducer сообщения, действия и операций приложения
 │   ├── pages/                # LoginPage, SettingsPage
 │   ├── components/           # QuickPlannerPage, ChatPicker, SettingsView…
 │   ├── hooks/                # useTelegramAuth, useChats, useScheduler…
@@ -116,20 +117,27 @@ npm run build
 
 ### Особенности, о которых нужно помнить
 
-1. **Два планировщика.** `useScheduler` (хост, авторитетный при
-   встроенной Studio) и `useStudioScheduler` (standalone-fallback).
-   Изменения в одном нужно покрывать тестами в обоих путях;
-   не объединять их без явного решения.
-2. **Контракт моста версионирован.** При изменении
+1. **Quick Planner и Studio используют разные scheduler scopes.** Хост
+  `useScheduler` обслуживает personal flow Quick Planner и workspace flow
+  встроенной Studio. `useStudioScheduler` — standalone fallback для запуска
+  Studio без host runtime. При изменении планирования проверяйте оба пути;
+  не подменяйте host runtime fallback-планировщиком.
+2. **Черновики связаны на уровне workflow, не файла хранения.** Planner autosave
+  и коллекция быстрых черновиков находятся в `src/lib/plannerDraft.ts` и
+  используют `localStorage`; документы Studio управляются `useStudioDrafts`
+  через `window.draftStorage`. `HistoryDrawer` объединяет обе коллекции, а
+  Planner payload можно передать в Studio.
+3. **Контракт моста версионирован.** При изменении
    `packages/shared/bridge/` поднимайте осознанно
    `BRIDGE_PROTOCOL_VERSION` и обновляйте обе стороны.
-3. **Каждый новый IPC-канал** обязан иметь проверку
+4. **Каждый новый IPC-канал** обязан иметь проверку
    `assertTrustedRenderer`/`assertDraftStorageRenderer` и валидацию
    payload в `ipc-security.cjs` + тест в `ipc-security.test.mjs`.
-4. **Миграции данных.** Файлы в userData переименованы
+5. **Миграции данных.** Файлы в userData переименованы
    из `awaitmsg-*` в `xmsgi-studio-*`; миграция —
    `app-data-path.cjs` (автоперименование legacy-файла).
-   Новые схемы — с версией (`DRAFT_STORE_SCHEMA_VERSION = 2`).
+  Схема Studio draft store версионируется константой
+  `DRAFT_STORE_SCHEMA_VERSION` в `src/studio/lib/draftStoreVersion.ts`.
 
 ---
 
@@ -151,20 +159,24 @@ npm run build
 CI описан в `.github/workflows/` (дерево репозитория — оболочка, приложение в
 подкаталоге `XMSGi Studio/`).
 
-- `.github/workflows/release-check.yml` — проверки хоста и Studio-модуля
-  (lint, typecheck, тесты и отдельная сборка модуля) на push в `main`, на PR
-  и вручную. Артефакты релиза не публикует.
+- `.github/workflows/release-check.yml` — lint, typecheck и полный набор тестов
+  на push в `main`, на PR и вручную. Артефакты релиза не публикует.
 - `.github/workflows/release.yml` — авто-релиз desktop-приложения. Срабатывает
   **только по тегу вида `v*`** (или вручную через `workflow_dispatch`), собирает
   артефакты для Windows/Linux/macOS через electron-builder и публикует их в
   GitHub Release для этого тега — Release создаётся автоматически, если его ещё
-  нет (`softprops/action-gh-release`). Сам тег создаётся и пушится локально:
-  `git tag v1.2.0 && git push origin v1.2.0`.
+  нет (`softprops/action-gh-release`). Перед matrix-сборками этот workflow
+  выполняет `npm ci`, lint, typecheck и полный test suite; при ошибке проверок
+  сборка и публикация не запускаются. Сам тег создаётся и пушится локально:
+  `git tag v1.2.1 && git push origin v1.2.1`.
 - `.github/workflows/static.yml` — деплой статического сайта на GitHub Pages
   (ветка `main`, каталог `XMSGi Studio/website`).
 
 Сборки desktop-релизов используют electron-builder-таргеты из `package.json`
 (см. [Архитектура §7](architecture.md#7-сборка-и-упаковка)).
+
+macOS-релизы выпускаются без подписи и notarization; для первого запуска
+пользователю нужно вручную разрешить приложение в настройках безопасности macOS.
 
 ---
 

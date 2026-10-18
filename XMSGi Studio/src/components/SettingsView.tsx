@@ -301,7 +301,7 @@ export function SettingsView({
                       onClick={() => saveEditorAppearance({ ...editorAppearance, palette: 'automatic' })}
                       aria-pressed={editorAppearance.palette === 'automatic'}
                     >
-                      {t('settings.editorAppearanceAutomatic')}
+                      {t('settings.editorAppearanceMonochrome')}
                     </button>
                     <button
                       type="button"

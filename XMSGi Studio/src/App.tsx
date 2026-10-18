@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
 import type { PersistedDraftStore, SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
@@ -24,8 +24,7 @@ import {
   SAVED_PLANNER_DRAFTS_UPDATED_EVENT,
 } from './lib/plannerDraft';
 import { getInitialProductView, type ProductView } from './lib/productView';
-
-type AppRoute = '/' | '/settings';
+import { appStateReducer, createInitialAppState, createMessageSession, type AppRoute } from './appState';
 type DraftStorageWindow = Window & {
   draftStorage?: {
     load: () => Promise<{ success: boolean; store?: PersistedDraftStore }>;
@@ -46,40 +45,90 @@ function getCurrentHashPath(): AppRoute {
 
 function App() {
   const browserDraftMode = typeof window.telegram?.login !== 'function';
-  const [message, setMessageState] = useState(readPlannerDraft);
+  const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const initialMessageSession = createMessageSession({
+    text: readPlannerDraft(),
+    attachments: readPlannerDraftAttachments(),
+    entities: readPlannerDraftEntities(),
+  });
+  const [appState, dispatch] = useReducer(
+    appStateReducer,
+    createInitialAppState({
+      route: getCurrentHashPath(),
+      productView: getInitialProductView(browserDraftMode),
+      activeAccountId: 'account-1',
+      messageSession: initialMessageSession,
+    }),
+  );
+  const { route, productView, activeAccountId, currentAction, messageSession } = appState;
+  const message = messageSession.text;
+  const messageEntities = messageSession.entities as RichTextEntity[];
+  const plannerAttachments = messageSession.attachments;
   const messageRef = useRef(message);
-  messageRef.current = message;
-  const [messageEntities, setMessageEntitiesState] = useState(readPlannerDraftEntities);
   const messageEntitiesRef = useRef(messageEntities);
-  messageEntitiesRef.current = messageEntities;
-  const [plannerAttachments, setPlannerAttachmentsState] = useState(readPlannerDraftAttachments);
   const plannerAttachmentsRef = useRef(plannerAttachments);
-  plannerAttachmentsRef.current = plannerAttachments;
+  const selectedChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+  useEffect(() => {
+    messageEntitiesRef.current = messageEntities;
+  }, [messageEntities]);
+  useEffect(() => {
+    plannerAttachmentsRef.current = plannerAttachments;
+  }, [plannerAttachments]);
   const setMessage = useCallback((nextMessage: React.SetStateAction<string>) => {
     const resolvedMessage = typeof nextMessage === 'function'
       ? nextMessage(messageRef.current)
       : nextMessage;
     messageRef.current = resolvedMessage;
     writePlannerDraft(resolvedMessage, messageEntitiesRef.current, plannerAttachmentsRef.current);
-    setMessageState(resolvedMessage);
-  }, []);
+    dispatch({
+      type: 'SET_MESSAGE_DRAFT',
+      text: resolvedMessage,
+      attachments: plannerAttachmentsRef.current,
+      entities: messageEntitiesRef.current,
+      chatId: selectedChatIdRef.current,
+    });
+  }, [dispatch]);
   const setMessageEntities = useCallback((nextEntities: RichTextEntity[]) => {
     messageEntitiesRef.current = nextEntities;
     writePlannerDraft(messageRef.current, nextEntities, plannerAttachmentsRef.current);
-    setMessageEntitiesState(nextEntities);
-  }, []);
+    dispatch({
+      type: 'SET_MESSAGE_DRAFT',
+      text: messageRef.current,
+      attachments: plannerAttachmentsRef.current,
+      entities: nextEntities,
+      chatId: selectedChatIdRef.current,
+    });
+  }, [dispatch]);
   const setPlannerAttachments = useCallback((nextAttachments: string[]) => {
     plannerAttachmentsRef.current = nextAttachments;
     writePlannerDraft(messageRef.current, messageEntitiesRef.current, nextAttachments);
-    setPlannerAttachmentsState(nextAttachments);
+    dispatch({
+      type: 'SET_MESSAGE_DRAFT',
+      text: messageRef.current,
+      attachments: nextAttachments,
+      entities: messageEntitiesRef.current,
+      chatId: selectedChatIdRef.current,
+    });
+  }, [dispatch]);
+  const setProductView = useCallback((view: ProductView) => {
+    dispatch({ type: 'SET_PRODUCT_VIEW', view });
   }, []);
-  const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [route, setRoute] = useState<AppRoute>(getCurrentHashPath());
-  const [productView, setProductView] = useState<ProductView>(() => getInitialProductView(browserDraftMode));
+  const setRoute = useCallback((nextRoute: AppRoute) => {
+    dispatch({ type: 'SET_ROUTE', route: nextRoute });
+  }, []);
+  const setCurrentAction = useCallback((action: 'send-now' | 'schedule' | 'draft') => {
+    dispatch({ type: 'SET_CURRENT_ACTION', action });
+  }, []);
+  const setMessageSessionStatus = useCallback((status: 'draft' | 'preview' | 'sending' | 'scheduled' | 'sent' | 'failed' | 'cancelled') => {
+    dispatch({ type: 'SET_MESSAGE_STATUS', status });
+  }, []);
   const [welcomeBackInProgress, setWelcomeBackInProgress] = useState(false);
   const settingsReturnViewRef = useRef<ProductView | null>(null);
-  const [activeAccountId] = useState<'account-1' | 'account-2'>(() => 'account-1');
   const [telegramApiId, setTelegramApiId] = useState('');
   const [telegramApiHash, setTelegramApiHash] = useState('');
   const [telegramCredentialsBusy, setTelegramCredentialsBusy] = useState(false);
@@ -194,6 +243,11 @@ function App() {
   } = useChats({ connected });
 
   useEffect(() => {
+    selectedChatIdRef.current = selectedChat?.id ?? null;
+    dispatch({ type: 'SET_SELECTED_CHAT', chatId: selectedChat?.id ?? null });
+  }, [selectedChat, dispatch]);
+
+  useEffect(() => {
     chatsApiRef.current = {
       setChats,
       setSelectedChat,
@@ -255,6 +309,8 @@ function App() {
       attachments: [...payload.attachments],
       entities: payload.entities.map((entity) => ({ ...entity })),
     };
+    setCurrentAction('draft');
+    setMessageSessionStatus('preview');
     setProductView('studio');
   };
 
@@ -290,6 +346,18 @@ function App() {
   }, [productView, showNotification, studioPlannerTextOpenerVersion]);
 
   const plannerDraftRecord = normalizePlannerDraft(message, selectedChat, readPlannerDraftUpdatedAt(), messageEntities, plannerAttachments);
+
+  useEffect(() => {
+    if (!selectedChat?.id && messageSession.chatId) {
+      dispatch({
+        type: 'SET_MESSAGE_DRAFT',
+        text: messageSession.text,
+        attachments: messageSession.attachments,
+        entities: messageSession.entities,
+        chatId: null,
+      });
+    }
+  }, [dispatch, messageSession, selectedChat]);
   const savedPlannerDraftRecords = useMemo(
     () => readSavedPlannerDrafts().map(normalizeSavedPlannerDraft),
     [savedPlannerDraftRevision],
@@ -734,6 +802,10 @@ function App() {
           plannerSurface === 'pending' ? null : plannerSurface === 'quick' ? (
             <QuickPlannerPage
               draftOnlyMode={browserDraftMode}
+              currentAction={currentAction === 'send-now' ? 'send' : currentAction}
+              onCurrentActionChange={(nextMode) => {
+                setCurrentAction(nextMode === 'send' ? 'send-now' : nextMode);
+              }}
               chats={chats}
               selectedChat={selectedChat}
               selectedChatPermissions={selectedChatPermissions}

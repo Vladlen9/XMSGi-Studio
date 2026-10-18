@@ -386,6 +386,8 @@ function readSavedComposeHeight() {
 
 type QuickPlannerPageProps = {
   draftOnlyMode?: boolean;
+  currentAction?: QuickPlannerMode;
+  onCurrentActionChange?: (action: QuickPlannerMode) => void;
   chats: Chat[];
   selectedChat: Chat | null;
   selectedChatPermissions: ChatPermissions | null;
@@ -457,6 +459,8 @@ function updateEntitiesForTextChange(entities: RichTextEntity[], previousText: s
 
 export function QuickPlannerPage({
   draftOnlyMode = false,
+  currentAction,
+  onCurrentActionChange,
   chats,
   selectedChat,
   selectedChatPermissions,
@@ -497,8 +501,17 @@ export function QuickPlannerPage({
       ? 'draft'
       : plannerModeOptions.some(({ id }) => id === previewPersistence.publishMode)
       ? previewPersistence.publishMode as QuickPlannerMode
-      : 'send'
+      : currentAction ?? 'send'
   ));
+  useEffect(() => {
+    if (currentAction && currentAction !== publishMode) {
+      setPublishMode(currentAction);
+    }
+  }, [currentAction, publishMode]);
+  const handlePublishModeChange = (nextMode: QuickPlannerMode) => {
+    setPublishMode(nextMode);
+    onCurrentActionChange?.(nextMode);
+  };
   const [reminderType, setReminderType] = useState<ReminderType | null>(readSavedReminderType);
   const [savedPlannerDrafts, setSavedPlannerDrafts] = useState<SavedPlannerDraft[]>(readSavedPlannerDrafts);
   const [historyMockGroups, setHistoryMockGroups] = useState<PlannerPreviewGroup[]>(() => restorePreviewGroups(previewPersistence.historyMockGroups, historyPreviewData));
@@ -1620,7 +1633,7 @@ export function QuickPlannerPage({
                       aria-pressed={publishMode === id}
                       className={publishMode === id ? 'is-selected' : ''}
                       onClick={() => {
-                        setPublishMode(id);
+                        handlePublishModeChange(id);
                         if (id !== 'draft') setIsReminderTypePanelOpen(false);
                       }}
                     >

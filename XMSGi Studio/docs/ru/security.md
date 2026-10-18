@@ -1,7 +1,7 @@
 # Безопасность и приватность XMSGi Studio
 
 Документ описывает модель угроз, хранение данных и границы доверия.
-Соответствует версии **1.1.0**.
+Соответствует версии **1.2.1**.
 Политика отчётов об уязвимостях — [`SECURITY.md`](../../SECURITY.md).
 
 ---
@@ -57,8 +57,14 @@ Main process
 | `API_ID`, `API_HASH`, `SESSION_STRING` | `xmsgi-studio-secure-config.json` | **Шифрование `safeStorage`** (Electron), поля `*_ENCRYPTED`; при недоступности safeStorage запись/чтение секретов блокируется с ошибкой |
 | Список чатов, избранное | `xmsgi-studio-chats.json` | локальный JSON, атомарная запись |
 | История планирования | `xmsgi-studio-schedule-history.json` | атомарная запись, лимит 8 МБ, валидация схемы (до 2000 записей) |
-| Черновики, вложения | `drafts/drafts.json` + `drafts/backups/` | атомарная запись (tmp → fsync → rename), права `0600`, ротация бэкапов, восстановление при повреждении (`DRAFT_STORE_CORRUPT`) |
-| Шаблоны, локаль, режим UI | `localStorage` рендера | только неконфиденциальные данные |
+| Studio drafts, текущий workspace-документ, версии | `drafts/drafts.json` + `drafts/backups/` | атомарная запись (tmp → fsync → rename), права `0600`, ротация бэкапов, восстановление при повреждении (`DRAFT_STORE_CORRUPT`) |
+| Текущий и сохранённые Planner drafts | `localStorage` рендера (`xmsgi-planner-draft-snapshot-v1`, `xmsgi-quick-planner-saved-draft`) | локально в профиле приложения; **не шифруется `safeStorage`** |
+| Шаблоны, локаль, режим UI | `localStorage` рендера | локальные данные профиля приложения |
+
+Planner и Studio drafts доступны через общий интерфейс Posts/History и могут
+переноситься между поверхностями, но сохраняются в разных хранилищах. Доступ
+к Planner-черновикам определяется защитой пользовательского профиля ОС; не
+сохраняйте в них секреты, если другие пользователи имеют доступ к этому профилю.
 
 Legacy-файлы `awaitmsg-*` автоматически переименовываются
 в `xmsgi-studio-*` (`app-data-path.cjs`).

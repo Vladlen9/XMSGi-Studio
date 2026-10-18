@@ -178,6 +178,13 @@
   }
 }
 
+html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea.workspace-page-rich-text-stage-view.is-active {
+  justify-self: center;
+  width: min(calc(92% + 24px), 720px);
+  max-width: 720px;
+  margin-inline: auto;
+}
+
 .workspace-page-preview-panel {
   display: flex;
   flex-direction: column;

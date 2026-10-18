@@ -57,7 +57,7 @@ export function LoginPage({
   const { locale, setLocale, t } = useLocale();
   const returningUserLabel = returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'));
   const returningUserActionLabel = t('auth.returnToApp', { name: returningUserLabel });
-  const loginFormRef = useRef<HTMLDivElement>(null);
+  const loginFormRef = useRef<HTMLFormElement>(null);
 
   useLayoutEffect(() => {
     const form = loginFormRef.current;
@@ -191,7 +191,17 @@ export function LoginPage({
                 </button>
               )}
 
-              <div id="telegram-login-form" ref={loginFormRef} className={`login-form ${showAuthForm ? 'is-visible' : ''}`} aria-hidden={!showAuthForm}>
+              <form
+                id="telegram-login-form"
+                ref={loginFormRef}
+                className={`login-form ${showAuthForm ? 'is-visible' : ''}`}
+                aria-hidden={!showAuthForm}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (authBusy || (authStep === 'phone' ? !phoneNumber.trim() : !phoneCode.trim())) return;
+                  void handleTelegramAuth();
+                }}
+              >
                 <div className="login-error-slot" aria-live="polite">
                   {authError && <p className="login-error" role="alert">{authError}</p>}
                 </div>
@@ -248,7 +258,7 @@ export function LoginPage({
 
                 <button
                   className="login-submit"
-                  onClick={handleTelegramAuth}
+                  type="submit"
                   disabled={authBusy || (authStep === 'phone' ? !phoneNumber.trim() : !phoneCode.trim())}
                 >
                   {authBusy
@@ -262,6 +272,7 @@ export function LoginPage({
 
                 {authStep !== 'phone' && (
                   <button
+                    type="button"
                     className="login-back-button"
                     onClick={() => {
                       setAuthStep('phone');
@@ -274,7 +285,7 @@ export function LoginPage({
                     {t('auth.startOver')}
                   </button>
                 )}
-            </div>
+              </form>
             </section>
           </main>
         </section>

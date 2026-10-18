@@ -3622,11 +3622,13 @@ html.electron-runtime .quick-planner-page {
 
   html.electron-runtime .quick-planner-page .quick-planner-compose-anchor {
     position: absolute;
-    top: 50%;
+    top: auto;
+    right: 16px;
+    bottom: 16px;
     left: 16px;
     width: calc(100% - 32px);
     padding-top: 0;
-    transform: translateY(-50%);
+    transform: none;
   }
 
   html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
@@ -3663,6 +3665,35 @@ html.electron-runtime .quick-planner-page {
     height: 22px;
     min-height: 22px;
     transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker {
+    position: absolute;
+    top: clamp(62px, calc(50% - 90px), 120px);
+    right: calc(4% - 12px);
+    left: auto;
+    z-index: 6;
+    width: min(372px, calc(100% - 13px));
+    max-width: min(372px, calc(100% - 13px));
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    margin: 0;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker-placeholder {
+    display: block;
+    position: absolute;
+    top: clamp(62px, calc(50% - 90px), 120px);
+    right: calc(4% - 12px);
+    left: auto;
+    z-index: 6;
+    width: min(372px, calc(100% - 13px));
+    max-width: min(372px, calc(100% - 13px));
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    margin: 0;
   }
 
   html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-clock {
@@ -3845,5 +3876,289 @@ html.electron-runtime .quick-planner-page {
   html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
     width: 11px;
     height: 11px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1200px) {
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
+    flex-wrap: nowrap;
+    column-gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: max-content;
+    max-width: none;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 0;
+    overflow: visible;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group + .quick-planner-schedule-quick-group {
+    margin-left: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group.is-time {
+    padding-left: 6px;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values button {
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: 10px;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1300px) {
+  html.electron-runtime .quick-planner-page {
+    --quick-planner-electron-card-limit: clamp(800px, calc(2100px - 100vw), 900px);
+    container-type: normal;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding-inline: clamp(10px, calc(1.5vw / var(--electron-ui-scale, 1)), 22px);
+  }
+
+  html.electron-runtime .quick-planner-header {
+    flex: 0 0 auto;
+    min-height: 0;
+    margin: 0 auto 8px;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-layout {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: clamp(8px, calc(1.2vh / var(--electron-ui-scale, 1)), 16px) 0;
+    gap: 0;
+  }
+
+  html.electron-runtime .quick-planner-sidebar,
+  html.electron-runtime .quick-planner-upcoming-column {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-editor {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto minmax(42px, auto);
+    align-items: stretch;
+    justify-self: auto;
+    align-self: center;
+    width: min(
+      calc(82vw / var(--electron-ui-scale, 1)),
+      calc(var(--quick-planner-electron-card-limit) / var(--electron-ui-scale, 1)),
+      calc((100dvh - 120px) / var(--electron-ui-scale, 1) * 1.64)
+    );
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1.64 / 1;
+    margin: 0;
+    padding: clamp(14px, calc(1.5vw / var(--electron-ui-scale, 1)), 24px);
+    gap: 0;
+    overflow: visible;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-editor-heading {
+    position: absolute;
+    top: -22px;
+    right: auto;
+    left: 8px;
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-editor-heading > .quick-planner-section-label {
+    height: 22px;
+    min-height: 22px;
+    transform: none;
+    font-size: clamp(9px, calc(0.9vw / var(--electron-ui-scale, 1)), 12px);
+  }
+
+  html.electron-runtime .quick-planner-editor > .quick-planner-clock {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    justify-self: start;
+    margin: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-editor > .quick-planner-heading-actions {
+    position: static;
+    grid-column: 2;
+    grid-row: 1;
+    z-index: 2;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: clamp(4px, calc(0.6vw / var(--electron-ui-scale, 1)), 8px);
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch > .quick-planner-mode-caption {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: clamp(8px, calc(0.9vw / var(--electron-ui-scale, 1)), 11px);
+    line-height: 1.2;
+    transform: none;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button {
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: clamp(28px, calc(2.8vw / var(--electron-ui-scale, 1)), 36px);
+    height: clamp(28px, calc(2.8vw / var(--electron-ui-scale, 1)), 36px);
+    align-items: center;
+    gap: clamp(3px, calc(0.35vw / var(--electron-ui-scale, 1)), 5px);
+    padding: 0 1px;
+    font-size: clamp(12px, calc(1.5vw / var(--electron-ui-scale, 1)), 18px);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > svg {
+    width: clamp(10px, calc(1.05vw / var(--electron-ui-scale, 1)), 13px);
+    height: clamp(10px, calc(1.05vw / var(--electron-ui-scale, 1)), 13px);
+    flex: 0 0 auto;
+  }
+
+  html.electron-runtime .quick-planner-page[lang] .quick-planner-mode-switch button > span {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker,
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .quick-planner-chat-picker-placeholder {
+    position: absolute;
+    top: clamp(44px, calc(18vh / var(--electron-ui-scale, 1)), 120px);
+    right: clamp(12px, calc(4% - 12px), 24px);
+    left: auto;
+    z-index: 6;
+    width: min(372px, calc(100% - 32px));
+    max-width: min(372px, calc(100% - 32px));
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    margin: 0;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-chat-picker-placeholder {
+    display: block;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-compose-anchor {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: end;
+    justify-self: center;
+    width: calc(92% + 24px);
+    max-width: 100%;
+    min-width: 0;
+    margin-inline: auto;
+    padding-top: 0;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page .quick-planner-editor > .messages-panel-wrapper {
+    position: relative;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    align-self: end;
+    justify-self: stretch;
+    width: 100%;
+    min-height: 42px;
+    margin: 0;
+    padding: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools {
+    flex-wrap: nowrap;
+    column-gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
+    flex: 0 0 auto;
+    max-width: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: max-content;
+    max-width: none;
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 0;
+    overflow: visible;
+    transform: none;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group + .quick-planner-schedule-quick-group {
+    margin-left: 0;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-group.is-time {
+    padding-left: 6px;
+  }
+
+  html.electron-runtime .quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values button {
+    padding-right: 6px;
+    padding-left: 6px;
+    font-size: clamp(10px, calc(0.95vw / var(--electron-ui-scale, 1)), 12px);
   }
 }

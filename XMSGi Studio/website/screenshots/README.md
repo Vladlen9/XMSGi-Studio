@@ -4,11 +4,14 @@ Product screenshots of the **XMSGi Studio** desktop application, used by the web
 
 | File | What it shows |
 | --- | --- |
-| `01.png` | Main workspace (hero, primary screen). |
-| `02.png` | Selecting Telegram chats and channels. |
-| `03.png` | Sign-in / authentication screen. |
+| `01.png` / `01.webp` | Main Studio editor and message preview. |
+| `02.png` / `02.webp` | Selecting Telegram chats and channels. |
+| `03.png` / `03.webp` | XMSGi Studio sign-in screen. |
+| `04.png` / `04.webp` | Quick Planner composer. |
+| `05.png` / `05.webp` | XMSGi Studio brand artwork (not shown in the gallery). |
 
-These images back the hero shot and gallery on the website's `index.html`.
+The hero uses 01, followed by 02, 03, and 04 in the gallery. Each image has
+WebP as its preferred source and PNG as a fallback.
 
 ---
 
@@ -18,5 +21,7 @@ These images back the hero shot and gallery on the website's `index.html`.
 
 ![Selecting Telegram chats and channels](02.png)
 
-![Sign-in screen](03.png)
+![XMSGi Studio sign-in screen](03.webp)
+
+![XMSGi Studio Quick Planner](04.webp)
 

@@ -389,7 +389,7 @@ describe('WorkspaceTextStage editor flows', () => {
   it('renders a compact Studio date selector with day, month, year and an inline time panel', () => {
     const { unmount } = renderStage({ mode: 'schedule', date: '2026-01-10', time: '09:00' });
 
-    expect(document.querySelector('input[type="date"]')).toBeTruthy();
+    expect(document.querySelector('.workspace-page-schedule-date-value')).toBeTruthy();
     expect(document.querySelector<HTMLInputElement>('[aria-label="Hours"]')?.value).toBe('09');
     expect(document.querySelector<HTMLInputElement>('[aria-label="Minutes"]')?.value).toBe('00');
     expect(document.querySelector('.workspace-page-schedule-header-time')).toBeTruthy();
@@ -428,28 +428,19 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
-  it('opens the native date picker from the calendar icon in the Studio schedule row', () => {
-    const showPickerMock = vi.fn();
-    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
-      configurable: true,
-      value: showPickerMock,
-    });
-
+  it('opens the Studio calendar from the calendar icon in the schedule row', () => {
     const { unmount } = renderStage({ mode: 'schedule', date: '2026-01-10', time: '09:00' });
 
-    const calendarButton = document.querySelector('.workspace-page-schedule-icon-button') as HTMLButtonElement;
-    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    const calendarButton = document.querySelector('button[aria-haspopup="dialog"]') as HTMLButtonElement;
 
     expect(calendarButton).toBeTruthy();
-    expect(dateInput).toBeTruthy();
+    expect(document.querySelector('.quick-planner-date-picker')).toBeNull();
 
     act(() => {
       calendarButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(showPickerMock).toHaveBeenCalledTimes(1);
-    const inputProto = HTMLInputElement.prototype as typeof HTMLInputElement.prototype & { showPicker?: unknown };
-    Reflect.deleteProperty(inputProto, 'showPicker');
+    expect(document.querySelector('.quick-planner-date-picker')).toBeTruthy();
     unmount();
   });
 

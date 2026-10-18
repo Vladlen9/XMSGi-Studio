@@ -54,7 +54,7 @@ describe('SettingsView Telegram integration', () => {
     renderSettings();
 
     expect(screen.getByText('XMSGi Studio — Create messages, save ideas, schedule posts, and keep everything under control in one convenient workspace.')).toBeInTheDocument();
-    expect(screen.getByText('Version 1.1.0')).toBeInTheDocument();
+    expect(screen.getByText('Version 1.2.1')).toBeInTheDocument();
   });
 
   it('shows the requested Russian Studio description in About', () => {
@@ -64,6 +64,23 @@ describe('SettingsView Telegram integration', () => {
     try {
       renderSettings();
       expect(screen.getByText('XMSGi Studio — Создавайте сообщения, храните идеи, планируйте отправку и держите всё под контролем — в одном удобном рабочем пространстве.')).toBeInTheDocument();
+    } finally {
+      if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', originalLocale);
+    }
+  });
+
+  it('labels the automatic editor palette Monochrome in English and Russian', () => {
+    const originalLocale = window.localStorage.getItem('awaitmsg_locale');
+
+    try {
+      window.localStorage.setItem('awaitmsg_locale', 'en');
+      const english = renderSettings();
+      expect(within(english.container).getByRole('button', { name: 'Monochrome' })).toBeInTheDocument();
+
+      window.localStorage.setItem('awaitmsg_locale', 'ru');
+      const russian = renderSettings();
+      expect(within(russian.container).getByRole('button', { name: 'Монохром' })).toBeInTheDocument();
     } finally {
       if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', originalLocale);

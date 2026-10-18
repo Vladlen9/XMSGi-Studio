@@ -1,7 +1,7 @@
 {
   "name": "xmsgi-studio",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "A local desktop workspace for writing, scheduling, and reviewing Telegram messages.",
   "author": "XMSGi Studio",
   "license": "MIT",
@@ -64,6 +64,7 @@
     "files": [
       "dist/**/*",
       "build/icon.ico",
+      "src/studio/assets/logo.png",
       "main.cjs",
       "preload.cjs",
       "chat-storage.cjs",

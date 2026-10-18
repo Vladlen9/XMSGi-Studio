@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Added a Quick Planner workflow for immediate sending, Telegram scheduling, and saved drafts, with transfer into Studio and reuse from shared Posts/History.
+
 ### Changed
 
 - Kept the light outline and glow as the default, with optional per-action custom colors in editor settings.

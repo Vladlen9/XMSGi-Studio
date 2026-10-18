@@ -1,7 +1,7 @@
 # Архитектура XMSGi Studio
 
 Техническое описание приложения для разработчиков.
-Соответствует версии **1.1.0**.
+Соответствует версии **1.2.1**.
 
 ---
 
@@ -135,7 +135,11 @@ XMSGi Studio — настольное приложение на **Electron**.
 ### 4.1 Хост-приложение (`src/`)
 
 - `src/App.tsx` — маршрутизация (`/`, `/settings` через hash),
-  выбор режима `productView: 'studio' | 'planner'` и composition хуков.
+  выбор поверхности `productView: 'studio' | 'planner'` и composition хуков.
+- `src/appState.ts` — reducer для маршрута, выбранного аккаунта/чата,
+  текущего действия, message session (текст, entities, вложения) и журнала операций.
+- `src/components/QuickPlannerPage.tsx` — быстрый composer с действиями
+  send-now, schedule и draft; Telegram-операции передаются host scheduler.
 - `src/AppShell.tsx` / `src/workspace/AppShell.tsx` — оболочка.
 - `src/pages/LoginPage.tsx` — авторизация и восстановление сессии.
 - `src/pages/SettingsPage.tsx` — настройки языка и Telegram аккаунта.
@@ -146,6 +150,12 @@ XMSGi Studio — настольное приложение на **Electron**.
   `SettingsView`, `Notification`, `InlineKeyboardPreview` и др.
 - `src/workspace/` — общий shell и связь страниц: `StudioMount.tsx`,
   `HistoryDrawer.tsx` (единая история), `historyModel.ts`.
+
+Quick Planner использует personal scope планировщика. Studio получает через
+`StudioMount` host-owned scheduler с workspace scope. `HistoryDrawer` показывает
+запланированные и отправленные записи обоих scope вместе с текущими и сохранёнными
+Planner-черновиками и сохранёнными Studio-документами. Planner-черновик можно
+восстановить в Planner или передать в Studio.
 
 ### 4.2 Studio (`src/studio/`)
 
@@ -160,12 +170,17 @@ XMSGi Studio — настольное приложение на **Electron**.
 - `src/studio/hooks/useStudioScheduler.ts` — fallback-планировщик;
 - `src/studio/repositories/`, `src/studio/services/` — доступ к данным
   и адаптация publishing-операций к Telegram-мосту.
-- `src/studio/hooks/useStudioDrafts.ts` сохраняет `workspaceDraft` и до 30
-  предыдущих `documentHistories` на каждый `documentId` в том же
-  атомарном `drafts.json` (`%LOCALAPPDATA%/XMSGi/drafts/` или
+- `src/studio/hooks/useStudioDrafts.ts` сохраняет коллекцию Studio drafts,
+  `workspaceDraft` и до 30 предыдущих `documentHistories` на каждый
+  `documentId` в одном атомарном `drafts.json` (`%LOCALAPPDATA%/XMSGi/drafts/` или
   `XMSGi-Workspace/drafts/` в dev). Версии не имеют суммарного лимита.
 - Вложения истории ссылаются на постоянные копии в каталоге черновиков;
   очистка истории удаляет только JSON-метаданные и не удаляет файлы.
+
+Planner хранит автоматически сохраняемый текущий текст, entities и вложения,
+а также коллекцию быстрых черновиков в `localStorage`. Это отдельный persisted
+store от Studio `drafts.json`; общий UI обеспечивает перенос Planner-черновиков
+в Studio и доступ к обеим коллекциям через Posts/History.
 
 Алиасы: `@/` → `src/`, `@studio/` → `src/studio/`,
 `@shared/` → `packages/shared/`.
@@ -203,12 +218,15 @@ React-props контракт:
 ## 5. Данные и состояние в рендере
 
 - **localStorage**: скрытые чаты
-  (`awaitmsg_hidden_chats_v2`), черновик Planner и локаль
-  (`awaitmsg_locale`).
-- **Черновики** — через `window.draftStorage` в файловую систему
-  (main-процесс), не в localStorage.
-- **История** — `window.telegram.loadScheduleHistory(scope)`
-  со scope `upcoming | sent | snapshot`.
+  (`awaitmsg_hidden_chats_v2`), локаль (`awaitmsg_locale`), текущий и
+  сохранённые Planner-черновики (`xmsgi-planner-draft-snapshot-v1`,
+  `xmsgi-quick-planner-saved-draft`).
+- **Studio drafts** — через `window.draftStorage` в main-owned файловый store;
+  renderer fallback использует `localStorage`, когда bridge недоступен.
+- Корневой reducer хранит message session и действие приложения; Studio document
+  дополнительно имеет собственный workspace state и draft lifecycle.
+- **История расписаний** — `window.telegram.loadScheduleHistory(scope)`
+  со scope `personal | workspace`; renderer объединяет записи для Posts/History.
 
 ---
 

@@ -3,6 +3,9 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } = require('electron');
 const { resolveAppDataRoot } = require('./app-data-path.cjs');
+const appIconPath = process.platform === 'win32'
+  ? path.join(__dirname, 'build', 'icon.ico')
+  : path.join(__dirname, 'src', 'studio', 'assets', 'logo.png');
 
 const writableAppDataRoot = resolveAppDataRoot(path, process.env.LOCALAPPDATA || app.getPath('appData'), app.isPackaged);
 const writableCacheRoot = path.join(writableAppDataRoot, 'Cache');
@@ -259,7 +262,7 @@ function getSafeTelegramAuthState() {
 function createWindow() {
    mainWindow = new BrowserWindow({
     title: 'XMSGi Studio',
-    icon: path.join(__dirname, 'build', 'icon.ico'),
+  icon: appIconPath,
     width: 900,
     height: 800,
     minWidth: 780,
@@ -333,7 +336,7 @@ function requestQuit() {
 function createTray() {
   if (tray) return;
 
-  tray = new Tray(path.join(__dirname, 'build', 'icon.ico'));
+  tray = new Tray(appIconPath);
   tray.setToolTip('XMSGi Studio');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'XMSGi Studio', enabled: false },
@@ -1201,6 +1204,9 @@ ipcMain.handle('telegram-cancel', async (event, data) => {
 app.whenReady().then(() => {
 
   console.log('XMSGi Studio started.');
+  if (process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(appIconPath);
+  }
   createWindow();
   createTray();
 
@@ -1208,6 +1214,8 @@ app.whenReady().then(() => {
 
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else {
+      showMainWindow();
     }
 
     createTray();

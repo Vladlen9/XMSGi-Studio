@@ -9,10 +9,11 @@ const packageJson = JSON.parse(
 );
 
 describe('production packaging', () => {
-  it('publishes the XMSGi Studio 1.1.0 portable package metadata', () => {
-    expect(packageJson.version).toBe('1.1.0');
+  it('publishes the XMSGi Studio 1.2.1 portable package metadata', () => {
+    expect(packageJson.version).toBe('1.2.1');
     expect(packageJson.build.productName).toBe('XMSGi Studio');
     expect(packageJson.build.icon).toBe('build/icon.ico');
+    expect(packageJson.build.files).toContain('src/studio/assets/logo.png');
     expect(packageJson.build.win.target).toEqual(['portable']);
     expect(packageJson.build.linux.maintainer).toBe('XMSGi Studio');
     expect(packageJson.build.asar).toBe(true);
