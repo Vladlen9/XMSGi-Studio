@@ -1,10 +1,13 @@
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { CircleUserRound, FileText, LogOut, X, Zap } from 'lucide-react';
+import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
 import { useLocale } from '@/lib/i18n';
+import type { ProductView } from '@/lib/productView';
 import { telegramGetAccountAvatar } from '@/services/telegramAppService';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
+import type { QuickPlannerPostsFilter } from './QuickPlannerNavigationContext';
 import type { HistoryItem, HistorySource } from './historyModel';
 
 /* eslint-disable react-refresh/only-export-components */
@@ -31,8 +34,8 @@ function cacheAccountAvatar(avatarDataUrl: string) {
 }
 
 type AppShellProps = PropsWithChildren<{
-  view: 'studio' | 'planner';
-  onViewChange: (view: 'studio' | 'planner') => void;
+  view: ProductView;
+  onViewChange: (view: ProductView) => void;
   settingsOpen?: boolean;
   onCloseSettings?: () => void;
   browserDraftMode?: boolean;
@@ -85,11 +88,17 @@ export function AppShell({
   onHistoryCancelQueue,
 }: AppShellProps) {
   const { t } = useLocale();
-  const nextViewLabel = view === 'planner' ? t('product.studio') : t('product.planner');
-  const sectionLabel = view === 'planner' ? t('product.planner') : t('product.studio');
+  const previousProductViewRef = useRef<ProductView>(view === 'planner' ? 'planner' : 'studio');
+  const nextProductView = view === 'planner'
+    ? 'studio'
+    : view === 'studio'
+      ? 'planner'
+      : previousProductViewRef.current;
+  const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
+  const sectionLabel = view === 'planner' ? t('product.planner') : view === 'posts' ? t('history.title') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
+  const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
   useEffect(() => {
     if (!isConfirmingLogout || authBusy) return undefined;
 
@@ -121,16 +130,30 @@ export function AppShell({
     };
   }, [connected]);
 
-  const updateHistoryOpen = (nextIsOpen: boolean, sourceFilterOnOpen?: 'personal') => {
-    setHistorySourceFilterOnOpen(nextIsOpen ? sourceFilterOnOpen : undefined);
-    setIsHistoryOpen(nextIsOpen);
+  const openPosts = (statusFilter?: QuickPlannerPostsFilter) => {
+    if (view !== 'posts') previousProductViewRef.current = view;
+    setHistorySourceFilterOnOpen('personal');
+    setHistoryStatusFilterOnOpen(statusFilter);
+    onViewChange('posts');
   };
-  const changeView = (nextView: 'studio' | 'planner') => {
-    updateHistoryOpen(false);
-    onViewChange(nextView);
+  const closePosts = () => {
+    setHistorySourceFilterOnOpen(undefined);
+    setHistoryStatusFilterOnOpen(undefined);
+    onViewChange(previousProductViewRef.current === 'posts' ? 'studio' : previousProductViewRef.current);
+  };
+  const changeView = (nextView: ProductView) => {
+    if (nextView === 'posts') {
+      openPosts();
+      return;
+    }
+    previousProductViewRef.current = nextView;
+    setHistorySourceFilterOnOpen(undefined);
+    setHistoryStatusFilterOnOpen(undefined);
+    if (view === 'posts') closePosts();
+    else onViewChange(nextView);
   };
   const openSettings = () => {
-    updateHistoryOpen(false);
+    if (view === 'posts') closePosts();
     onOpenSettings();
   };
 
@@ -151,7 +174,7 @@ export function AppShell({
               className="settings-action product-mode-switch"
               aria-label={nextViewLabel}
               aria-pressed={view === 'planner'}
-              onClick={() => changeView(view === 'planner' ? 'studio' : 'planner')}
+              onClick={() => changeView(nextProductView)}
             >
               <span className="action-label">{nextViewLabel}</span>
             </button>
@@ -166,10 +189,11 @@ export function AppShell({
               <>
             <button
               type="button"
-              className="settings-action"
-              onClick={() => updateHistoryOpen(true)}
+              className={`settings-action${view === 'posts' ? ' is-active' : ''}`}
+              onClick={() => view === 'posts' ? closePosts() : openPosts()}
               title={t('history.title')}
               aria-label={t('history.title')}
+              aria-current={view === 'posts' ? 'page' : undefined}
             >
               <span className="action-label">{t('history.title')}</span>
             </button>
@@ -212,6 +236,7 @@ export function AppShell({
           </div>
         </header>
       )}
+      {!settingsOpen && view === 'planner' && (connected || browserDraftMode) && <LocalDateTimeClock />}
       {!settingsOpen && (connected || (view === 'planner' && browserDraftMode)) && (
         <div className="product-section-title product-section-title-detached" aria-current="page">
           {view === 'planner' ? (
@@ -223,26 +248,24 @@ export function AppShell({
         </div>
       )}
       <QuickPlannerNavigationContext.Provider value={{
-        currentSection: settingsOpen ? 'settings' : isHistoryOpen ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',
+        currentSection: settingsOpen ? 'settings' : view === 'posts' ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',
         openQuickPlan: () => {
-          updateHistoryOpen(false);
           changeView('planner');
         },
         openStudio: () => {
-          updateHistoryOpen(false);
           changeView('studio');
         },
-        openPosts: () => {
-          updateHistoryOpen(true, 'personal');
-        },
+        openPosts,
         openSettings,
       }}>
         <main className="product-shell-content">{children}</main>
       </QuickPlannerNavigationContext.Provider>
       <HistoryDrawer
-        isOpen={isHistoryOpen}
+        isOpen={view === 'posts'}
+        pageMode={view === 'posts'}
         sourceFilterOnOpen={historySourceFilterOnOpen}
-        onClose={() => updateHistoryOpen(false)}
+        statusFilterOnOpen={historyStatusFilterOnOpen}
+        onClose={closePosts}
         records={historyRecords}
         onCancel={onHistoryCancel}
         onReschedule={onHistoryReschedule}
@@ -289,18 +312,18 @@ export function AppShell({
                 <button
                   type="button"
                   className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
-                  onClick={handleDisconnect}
-                  disabled={authBusy}
-                >
-                  {t('auth.rememberMe')}
-                </button>
-                <button
-                  type="button"
-                  className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
                   onClick={handleForgetAccount}
                   disabled={authBusy}
                 >
                   {t('auth.forgetMe')}
+                </button>
+                <button
+                  type="button"
+                  className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
+                  onClick={handleDisconnect}
+                  disabled={authBusy}
+                >
+                  {t('auth.rememberMe')}
                 </button>
               </div>
             </div>

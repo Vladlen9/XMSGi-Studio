@@ -7,7 +7,15 @@ const appIconPath = process.platform === 'win32'
   ? path.join(__dirname, 'build', 'icon.ico')
   : path.join(__dirname, 'src', 'studio', 'assets', 'logo.png');
 
-const writableAppDataRoot = resolveAppDataRoot(path, process.env.LOCALAPPDATA || app.getPath('appData'), app.isPackaged);
+const devServerEnabled = process.env.ELECTRON_DEV_SERVER === '1' || process.env.ELECTRON_DEV_SERVER === 'true';
+const isolatedUserDataRoot = !app.isPackaged
+  ? process.env.XMSGI_STUDIO_USER_DATA_DIR || (devServerEnabled
+    ? path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'XMSGi-Workspace-Agent')
+    : null)
+  : null;
+const writableAppDataRoot = isolatedUserDataRoot
+  ? path.resolve(isolatedUserDataRoot)
+  : resolveAppDataRoot(path, process.env.LOCALAPPDATA || app.getPath('appData'), app.isPackaged);
 const writableCacheRoot = path.join(writableAppDataRoot, 'Cache');
 const writableTempRoot = path.join(writableAppDataRoot, 'Temp');
 
@@ -21,7 +29,8 @@ app.setPath('cache', writableCacheRoot);
 app.setPath('temp', writableTempRoot);
 app.commandLine.appendSwitch('disk-cache-dir', writableCacheRoot);
 if (!app.isPackaged) {
-  app.commandLine.appendSwitch('remote-debugging-port', '9222');
+  const remoteDebuggingPort = process.env.XMSGI_STUDIO_REMOTE_DEBUGGING_PORT || '9222';
+  app.commandLine.appendSwitch('remote-debugging-port', remoteDebuggingPort);
 }
 
 if (!app.isPackaged && process.env.npm_lifecycle_event !== 'start') {

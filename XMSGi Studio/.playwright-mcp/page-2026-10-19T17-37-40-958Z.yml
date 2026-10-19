@@ -1,0 +1,14 @@
+- generic [ref=f14e3]:
+  - banner [ref=f14e4]:
+    - generic "XMSGi" [ref=f14e5]
+    - button "Планер" [ref=f14e7] [cursor=pointer]
+    - generic [ref=f14e9]:
+      - button "Публикации" [ref=f14e10] [cursor=pointer]
+      - button "Настройки" [ref=f14e12] [cursor=pointer]
+      - button "Выйти" [ref=f14e14] [cursor=pointer]
+  - generic "Current local date and time":
+    - generic: MONDAY, OCT 19
+    - time: 20:37
+    - generic: LOCAL TIME
+  - generic: Студия
+  - main [ref=f14e15]

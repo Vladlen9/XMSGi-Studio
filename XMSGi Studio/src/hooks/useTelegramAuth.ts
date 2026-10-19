@@ -209,7 +209,7 @@ export function useTelegramAuth({
     } finally {
       setAuthBusy(false);
     }
-  }, [authStep, phoneCode, phoneNumber, twoFactorPassword, t]);
+  }, [authStep, phoneCode, phoneNumber, setAuthError, setLocalizedAuthError, twoFactorPassword, t]);
 
   const handleDisconnect = useCallback(async () => {
     setAuthBusy(true);
@@ -245,7 +245,7 @@ export function useTelegramAuth({
     } finally {
       setAuthBusy(false);
     }
-  }, [returningUserName, returningUserUsername, setChats, setIsSettingsOpen, setSelectedChat, t]);
+  }, [returningUserName, returningUserUsername, setAuthError, setChats, setIsSettingsOpen, setSelectedChat, t]);
 
   /**
    * Однократный возврат в аккаунт (Welcome back).
@@ -296,7 +296,7 @@ export function useTelegramAuth({
       setConnecting(false);
       setAuthBusy(false);
     }
-  }, [authBusy, returningUserName, returningUserUsername, showNotification, t]);
+  }, [authBusy, returningUserName, returningUserUsername, setAuthError, showNotification, t]);
 
   const handleForgetAccount = useCallback(async () => {
     if (authBusy) return;
@@ -334,7 +334,7 @@ export function useTelegramAuth({
     } finally {
       setAuthBusy(false);
     }
-  }, [authBusy, setChats, setSelectedChat, t]);
+  }, [authBusy, setAuthError, setChats, setSelectedChat, t]);
 
   useEffect(() => {
     const loadAuth = async () => {
@@ -388,7 +388,7 @@ export function useTelegramAuth({
     };
 
     loadAuth();
-  }, [t]);
+  }, [setAuthError, t]);
 
   useEffect(() => {
     if (!hasTelegramBridge()) return;
@@ -490,7 +490,7 @@ export function useTelegramAuth({
     };
 
     return telegramOnStatus(handleStatus);
-  }, [t]);
+  }, [setAuthError, t]);
 
   useEffect(() => {
     if (!hasTelegramBridge()) {

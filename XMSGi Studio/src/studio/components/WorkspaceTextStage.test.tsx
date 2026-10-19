@@ -589,8 +589,8 @@ describe('WorkspaceTextStage editor flows', () => {
       const quickDatePanel = document.querySelector('.workspace-page-schedule-quick-date-panel') as HTMLElement;
       const quickTimePanel = document.querySelector('.workspace-page-schedule-quick-time-panel') as HTMLElement;
       const timeRow = document.querySelector('.workspace-page-schedule-inline-row') as HTMLElement;
-      expect(timeRow.nextElementSibling).toBe(quickDatePanel);
-      expect(quickDatePanel.nextElementSibling).toBe(quickTimePanel);
+      expect(timeRow.nextElementSibling).toBe(quickTimePanel);
+      expect(quickTimePanel.nextElementSibling).toBe(quickDatePanel);
       expect(document.querySelector('.workspace-page-schedule-summary')).toBeNull();
 
       act(() => (document.querySelector('[aria-label="Set time: Now"]') as HTMLButtonElement).click());
@@ -1833,7 +1833,10 @@ describe('WorkspaceTextStage editor flows', () => {
     act(() => clearTextButton.click());
     expect(onChange).toHaveBeenLastCalledWith('', []);
     act(() => renderEditor(''));
-    expect(container.querySelector('[aria-label="Clear editor text"]')).toBeNull();
+    const hiddenClearTextButton = container.querySelector('[aria-label="Clear editor text"]') as HTMLButtonElement;
+    expect(hiddenClearTextButton).toBeDisabled();
+    expect(hiddenClearTextButton).toHaveAttribute('aria-hidden', 'true');
+    expect(hiddenClearTextButton).toHaveClass('is-hidden');
 
     act(() => {
       animation.onfinish?.call(animation, {} as AnimationPlaybackEvent);

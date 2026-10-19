@@ -79,6 +79,7 @@ export interface StudioPlannerTextPayload {
 
 export interface StudioHistoryBridgeCallbacks {
   onRegisterPlannerTextOpener?: RegisterHandler<(payload: StudioPlannerTextPayload) => Promise<boolean>>;
+  onRegisterBeforeLeaveStudio?: RegisterHandler<() => Promise<boolean>>;
   onRegisterHistoryDraftOpener?: RegisterHandler<(draft: SavedDraft) => void>;
   onRegisterHistoryDraftUseHandler?: RegisterHandler<(draft: SavedDraft) => void>;
   onRegisterHistoryDraftClearHandler?: RegisterHandler<() => Promise<boolean>>;

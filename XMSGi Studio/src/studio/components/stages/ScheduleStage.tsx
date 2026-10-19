@@ -526,34 +526,6 @@ export function ScheduleStage({
 
         {activeScheduleFocus === 'time' ? (
           <>
-            <div className="workspace-page-schedule-quick-panel workspace-page-schedule-quick-date-panel">
-              <div className="workspace-page-schedule-options-heading">{t('studio.quickDate')}</div>
-              <div className="workspace-page-schedule-quick-row">
-                {quickDatePresets.map((preset) => (
-                  <button key={preset.id} type="button" aria-label={t('studio.setDate', { date: preset.label })} onClick={() => {
-                    setFollowCurrentTime(false);
-                    const selectedDate = preset.days === 0
-                      ? new Date()
-                      : date ? new Date(`${date}T12:00:00`) : new Date();
-                    if (Number.isNaN(selectedDate.getTime())) return;
-
-                    if (preset.months) {
-                      const originalDay = selectedDate.getDate();
-                      selectedDate.setDate(1);
-                      selectedDate.setMonth(selectedDate.getMonth() + preset.months);
-                      const finalDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-                      selectedDate.setDate(Math.min(originalDay, finalDay));
-                    } else if (preset.days) {
-                      selectedDate.setDate(selectedDate.getDate() + preset.days);
-                    }
-
-                    setDate(formatLocalDate(selectedDate));
-                  }}>
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <div className="workspace-page-schedule-quick-panel workspace-page-schedule-quick-time-panel">
               <div className="workspace-page-schedule-options-heading">{t('studio.quickTime')}</div>
               <div className="workspace-page-schedule-quick-row">
@@ -588,6 +560,34 @@ export function ScheduleStage({
                     selectedSchedule.setMinutes(selectedSchedule.getMinutes() + preset.minutes);
                     setDate(formatLocalDate(selectedSchedule));
                     setTime(`${String(selectedSchedule.getHours()).padStart(2, '0')}:${String(selectedSchedule.getMinutes()).padStart(2, '0')}`);
+                  }}>
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="workspace-page-schedule-quick-panel workspace-page-schedule-quick-date-panel">
+              <div className="workspace-page-schedule-options-heading">{t('studio.quickDate')}</div>
+              <div className="workspace-page-schedule-quick-row">
+                {quickDatePresets.map((preset) => (
+                  <button key={preset.id} type="button" aria-label={t('studio.setDate', { date: preset.label })} onClick={() => {
+                    setFollowCurrentTime(false);
+                    const selectedDate = preset.days === 0
+                      ? new Date()
+                      : date ? new Date(`${date}T12:00:00`) : new Date();
+                    if (Number.isNaN(selectedDate.getTime())) return;
+
+                    if (preset.months) {
+                      const originalDay = selectedDate.getDate();
+                      selectedDate.setDate(1);
+                      selectedDate.setMonth(selectedDate.getMonth() + preset.months);
+                      const finalDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+                      selectedDate.setDate(Math.min(originalDay, finalDay));
+                    } else if (preset.days) {
+                      selectedDate.setDate(selectedDate.getDate() + preset.days);
+                    }
+
+                    setDate(formatLocalDate(selectedDate));
                   }}>
                     {preset.label}
                   </button>

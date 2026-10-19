@@ -8,14 +8,16 @@
   "repository": "https://github.com/molodoy01/XMSGi-Studio",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1 --strictPort",
+    "dev:electron": "concurrently --kill-others \"npm:dev\" \"wait-on http://127.0.0.1:5173 && npm run electron:dev\"",
+    "electron:dev": "cross-env ELECTRON_DEV_SERVER=1 XMSGI_STUDIO_REMOTE_DEBUGGING_PORT=9223 electron . --no-sandbox",
     "build": "vite build",
     "test": "vitest run",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "electron": "electron . --no-sandbox --remote-debugging-port=9222",
-    "start": "npm run build && npm run electron",
+    "electron": "electron . --no-sandbox",
+    "start": "npm run dev:electron",
     "dist": "npm run build && electron-builder --win"
   },
   "dependencies": {
@@ -32,6 +34,8 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
     "electron": "^44.2.0",
     "electron-builder": "^26.15.3",
     "eslint": "^9.9.1",
@@ -42,7 +46,8 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "wait-on": "^9.5.1"
   },
   "overrides": {
     "socks": {

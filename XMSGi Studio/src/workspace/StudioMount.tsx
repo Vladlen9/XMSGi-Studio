@@ -7,6 +7,7 @@ type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAc
     | 'selectedChat'
     | 'onSelectChat'
     | 'onRegisterPlannerTextOpener'
+    | 'onRegisterBeforeLeaveStudio'
     | 'onRegisterHistoryDraftOpener'
     | 'onRegisterHistoryDraftUseHandler'
     | 'onRegisterHistoryDraftClearHandler'
@@ -67,7 +68,7 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
   ]);
 }
 
-export function StudioMount({ connected, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
+export function StudioMount({ connected, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterBeforeLeaveStudio, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
   const stableScheduler = useStableSchedulerRuntime(scheduler);
 
   return (
@@ -79,6 +80,7 @@ export function StudioMount({ connected, activeAccountId, chats, selectedChat, o
       onSelectChat={onSelectChat}
       scheduler={stableScheduler}
       onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
+      onRegisterBeforeLeaveStudio={onRegisterBeforeLeaveStudio}
       onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
       onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
       onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}

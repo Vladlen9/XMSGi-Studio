@@ -363,6 +363,61 @@ describe('useScheduler native history', () => {
     expect(events.indexOf('persist')).toBeLessThan(events.indexOf('schedule-retry'));
   });
 
+  it('keeps a Telegram-confirmed retry scheduled when its final history write fails', async () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    try {
+      const chat = { id: 'retry-history-write-chat', name: 'Retry history chat' };
+      const failedRecord: ScheduledMessage = {
+        id: 'retry-history-write-record',
+        chatId: chat.id,
+        chatName: chat.name,
+        text: 'Confirmed by Telegram on retry',
+        when: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+        status: 'failed',
+        retryAction: 'schedule',
+      };
+      const schedule = vi.fn().mockResolvedValue({
+        success: true,
+        confirmed: true,
+        telegramMessageId: 'telegram-confirmed-on-retry',
+      });
+      const saveScheduleHistory = vi.fn(async ({ messages }: { messages: ScheduledMessage[] }) => ({
+        success: !messages.some((message) => message.status === 'scheduled'),
+        error: 'Disk full',
+      }));
+      const showNotification = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory(
+        [failedRecord],
+        [],
+        { schedule, saveScheduleHistory },
+        showNotification,
+        'workspace',
+        chat,
+      );
+
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      await act(async () => result.current.handleRetry(result.current.upcoming[0]));
+
+      expect(schedule).toHaveBeenCalledOnce();
+      expect(result.current.upcoming[0]).toMatchObject({
+        status: 'scheduled',
+        telegramMessageId: 'telegram-confirmed-on-retry',
+      });
+      expect(showNotification).toHaveBeenCalledWith(
+        'Telegram confirmed the schedule, but its history could not be saved. Check the queue before retrying.',
+        'warning',
+        'Error',
+      );
+      expect(showNotification).not.toHaveBeenCalledWith('Message scheduled in Telegram.', 'success', 'Scheduled');
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
+  });
+
   it('keeps a Telegram-confirmed schedule visible and warns when its final history commit fails', async () => {
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'en');
@@ -1003,8 +1058,8 @@ describe('useScheduler native history', () => {
       const chat = { id: 'chat-send-history-failure', name: 'Send history failure chat' };
       const send = vi.fn().mockResolvedValue({ success: true });
       const saveScheduleHistory = vi.fn(async ({ field }: { field: string }) => ({
-        success: field !== 'sent',
-        error: field === 'sent' ? 'Disk full' : undefined,
+        success: field !== 'snapshot',
+        error: field === 'snapshot' ? 'Disk full' : undefined,
       }));
       const showNotification = vi.fn();
       const { result, loadScheduleHistory } = renderWorkspaceHistory(
@@ -1233,6 +1288,36 @@ describe('useScheduler native history', () => {
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[1][8]).toBe(firstAttemptKey);
     expect(result.current.sent).toHaveLength(1);
+  });
+
+  it('restores and reuses a persisted draft-send attempt ID after remount', async () => {
+    const chat = { id: 'draft-restart-retry', name: 'Draft restart chat' };
+    const send = vi.fn()
+      .mockResolvedValueOnce({ success: false, error: 'Network response was lost.', code: 'ETIMEDOUT', category: 'network', retryable: true })
+      .mockResolvedValueOnce({ success: true, messageId: 'draft-restart-message' });
+    const firstRun = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(firstRun.result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(firstRun.result.current.handleSendDraftNow(chat, 'Persist this attempt')).resolves.toBe(false);
+    });
+    const interruptedAttempt = firstRun.result.current.upcoming[0];
+    const originalAttemptId = interruptedAttempt.sendAttemptId;
+    expect(interruptedAttempt).toMatchObject({ status: 'failed', retryAction: 'send' });
+    expect(originalAttemptId).toEqual(expect.stringMatching(/^\d+:[a-z0-9]+$/i));
+    firstRun.unmount();
+
+    const restarted = renderWorkspaceHistory([interruptedAttempt], [], { send }, vi.fn(), 'workspace', chat);
+    await waitFor(() => expect(restarted.result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(restarted.result.current.handleSendDraftNow(chat, 'Persist this attempt')).resolves.toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][8]).toBe(originalAttemptId);
+    expect(restarted.result.current.sent).toHaveLength(1);
+    expect(restarted.result.current.upcoming).toHaveLength(0);
+    restarted.unmount();
   });
 
   it('ignores a duplicate immediate draft-send while the first request is in flight', async () => {

@@ -95,6 +95,7 @@ type WorkspacePageProps = {
   handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void) => Promise<boolean>;
   publishingDraft: boolean;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
+  onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftOpener?: (opener: ((draft: SavedDraft) => void) | null) => void;
   onRegisterHistoryDraftUseHandler?: (handler: ((draft: SavedDraft) => void) | null) => void;
   onRegisterHistoryDraftClearHandler?: (handler: (() => Promise<boolean>) | null) => void;
@@ -628,6 +629,7 @@ export function WorkspacePage({
   handleSendDraftNow,
   publishingDraft,
   onRegisterPlannerTextOpener,
+  onRegisterBeforeLeaveStudio,
   onRegisterHistoryDraftOpener,
   onRegisterHistoryDraftUseHandler,
   onRegisterHistoryDraftClearHandler,
@@ -955,6 +957,7 @@ export function WorkspacePage({
     setSavedAt,
     persistDraftStore,
     cancelPendingAutosave,
+    flushWorkspaceDraftNow,
     createWorkspaceDraftSnapshot,
     prepareWorkspaceVersionSnapshot,
     recordWorkspaceVersion,
@@ -1053,7 +1056,7 @@ export function WorkspacePage({
     return () => window.clearTimeout(timer);
   }, [closeNotification, notification.message, notification.type, notification.visible]);
 
-  const showPublishFeedback = (message: string, kind: 'warning' | 'success' = 'warning', detail = '') => {
+  const showPublishFeedback = useCallback((message: string, kind: 'warning' | 'success' = 'warning', detail = '') => {
     if (publishFeedbackTimerRef.current !== null) {
       window.clearTimeout(publishFeedbackTimerRef.current);
     }
@@ -1066,7 +1069,27 @@ export function WorkspacePage({
       setPublishFeedbackDetail('');
       publishFeedbackTimerRef.current = null;
     }, kind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess);
-  };
+  }, []);
+
+  const flushBeforeLeaveStudio = useCallback(async () => {
+    try {
+      const result = await flushWorkspaceDraftNow();
+      if (!result.success) showPublishFeedback(result.error, 'warning');
+      return result.success;
+    } catch {
+      showPublishFeedback(t('studio.draftsCouldNotSave'), 'warning');
+      return false;
+    }
+  }, [flushWorkspaceDraftNow, showPublishFeedback, t]);
+
+  useLayoutEffect(() => {
+    if (!onRegisterBeforeLeaveStudio) return;
+    onRegisterBeforeLeaveStudio(flushBeforeLeaveStudio);
+    return () => onRegisterBeforeLeaveStudio(null);
+  }, [flushBeforeLeaveStudio, onRegisterBeforeLeaveStudio]);
+
+  const createWorkspaceDraftSnapshotRef = useRef(createWorkspaceDraftSnapshot);
+  createWorkspaceDraftSnapshotRef.current = createWorkspaceDraftSnapshot;
 
   useEffect(() => {
     if (draftBody.length <= maxDraftLength) return;
@@ -1185,8 +1208,8 @@ export function WorkspacePage({
 
   useEffect(() => {
     if (!successPulse) return;
+    const currentSnapshot = createWorkspaceDraftSnapshotRef.current();
     attachmentSelectionGenerationRef.current += 1;
-    const currentSnapshot = createWorkspaceDraftSnapshot();
     void (async () => {
       const checkpoint = await recordWorkspaceVersionRef.current(currentSnapshot, 'publish');
       if (!checkpoint.success && !plannerRestoreRef.current) {
@@ -1206,7 +1229,7 @@ export function WorkspacePage({
       setInlineButtons([]);
       setWorkspaceDocumentId(uid());
     })();
-  }, [successPulse]);
+  }, [showPublishFeedback, successPulse, t]);
 
   useEffect(() => {
     saveTemplates(templates);
@@ -2212,6 +2235,7 @@ export function WorkspacePage({
     selectedChat,
     showPublishFeedback,
     stageMode,
+    t,
     time,
     workspaceDocumentId,
   ]);

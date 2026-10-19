@@ -1,12 +1,13 @@
 import { createContext } from 'react';
 
 export type QuickPlannerSection = 'quick-plan' | 'studio' | 'posts' | 'settings';
+export type QuickPlannerPostsFilter = 'scheduled' | 'sent' | 'drafts';
 
 export type QuickPlannerNavigationActions = {
   currentSection: QuickPlannerSection;
   openQuickPlan: () => void;
   openStudio: () => void;
-  openPosts: () => void;
+  openPosts: (filter?: QuickPlannerPostsFilter) => void;
   openSettings: () => void;
 };
 

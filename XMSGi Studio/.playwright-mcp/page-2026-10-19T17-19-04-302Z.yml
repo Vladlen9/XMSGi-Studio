@@ -1,0 +1,68 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - generic "XMSGi" [ref=f2e5]
+    - button "Planner" [active] [ref=f2e256] [cursor=pointer]
+    - generic [ref=f2e9]:
+      - button "Posts" [ref=f2e10] [cursor=pointer]
+      - button "Settings" [ref=f2e12] [cursor=pointer]
+      - button "Log out" [ref=f2e14] [cursor=pointer]
+  - generic "Current local date and time":
+    - generic: MONDAY, OCT 19
+    - time: 20:19
+    - generic: LOCAL TIME
+  - generic: Studio
+  - main [ref=f2e20]:
+    - generic "Post workspace" [ref=f2e257]:
+      - main [ref=f2e259]:
+        - generic [ref=f2e260]:
+          - generic [ref=f2e261]: Create post
+          - generic [ref=f2e264]:
+            - generic [ref=f2e265]:
+              - generic [ref=f2e266]: Current action
+              - strong [ref=f2e267]: Send now
+            - generic [ref=f2e268]:
+              - generic [ref=f2e269]:
+                - generic "Channel selector"
+                - button "Choose chat" [ref=f2e271] [cursor=pointer]:
+                  - generic [ref=f2e273]:
+                    - strong [ref=f2e274]: Saved Messages
+                    - generic [ref=f2e275]: Saved Messages
+              - generic [ref=f2e279]:
+                - textbox "Post content" [ref=f2e281]: Start writing your post…
+                - toolbar "Text formatting" [ref=f2e282]:
+                  - generic [ref=f2e283]: "4096"
+                  - group "Text formatting" [ref=f2e284]:
+                    - button "Bold" [ref=f2e285] [cursor=pointer]
+                    - button "Italic" [ref=f2e288] [cursor=pointer]
+                    - button "Underline" [ref=f2e291] [cursor=pointer]
+                    - button "Strikethrough" [ref=f2e294] [cursor=pointer]
+                    - button "Insert link" [ref=f2e299] [cursor=pointer]
+                    - button "Open version history" [ref=f2e305] [cursor=pointer]
+                    - button "Export editor text" [ref=f2e311] [cursor=pointer]
+                    - button "Add photo album" [ref=f2e316] [cursor=pointer]
+            - generic [ref=f2e321]:
+              - button "Add file" [ref=f2e323] [cursor=pointer]
+              - generic [ref=f2e324]:
+                - button "Hide preview" [pressed] [ref=f2e325] [cursor=pointer]
+                - button "Templates" [ref=f2e326] [cursor=pointer]
+                - button "Draft" [ref=f2e327] [cursor=pointer]
+              - generic [ref=f2e328]:
+                - button "Send now" [ref=f2e329] [cursor=pointer]
+                - button "More publish options" [ref=f2e331] [cursor=pointer]
+        - generic [ref=f2e340]:
+          - generic [ref=f2e341]:
+            - generic [ref=f2e342]: Live preview
+            - button "Choose File" [ref=f2e343]
+          - generic [ref=f2e345]:
+            - generic [ref=f2e347]: 9:41
+            - generic [ref=f2e356]:
+              - button "Back to chats" [ref=f2e357] [cursor=pointer]
+              - generic [ref=f2e361]:
+                - strong [ref=f2e362]: Saved Messages
+                - generic [ref=f2e363]: online
+              - button "Preview settings" [ref=f2e365] [cursor=pointer]
+            - generic [ref=f2e368]:
+              - button "Open chat list" [ref=f2e369] [cursor=pointer]: Today
+              - generic [ref=f2e370]: Loading history…
+              - generic [ref=f2e371]: Your message will appear here as you write.
+            - generic [ref=f2e376]: Message

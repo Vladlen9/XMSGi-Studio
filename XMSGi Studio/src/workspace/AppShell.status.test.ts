@@ -42,6 +42,38 @@ describe('shared History Drawer entry point', () => {
     window.localStorage.removeItem('xmsgi-history-drawer-open');
   });
 
+  it('hides local time on the login screen but keeps it in app surfaces', () => {
+    const shellProps = {
+      view: 'planner' as const,
+      onViewChange: vi.fn(),
+      browserDraftMode: false,
+      connected: false,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    };
+    const { rerender } = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Login'))));
+
+    expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
+
+    rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, connected: true }, createElement('div', null, 'Planner'))));
+    expect(screen.getByLabelText('Current local date and time')).toBeInTheDocument();
+
+    rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, browserDraftMode: true }, createElement('div', null, 'Local planner'))));
+    expect(screen.getByLabelText('Current local date and time')).toBeInTheDocument();
+  });
+
   it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {
     const onOpenSettings = vi.fn();
     const onViewChange = vi.fn();
@@ -302,6 +334,9 @@ describe('shared History Drawer entry point', () => {
     expect(view.container.querySelector('.topbar-logout-modal-backdrop')).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    expect(Array.from(modal.querySelectorAll('.topbar-logout-modal-exit-choices button'))
+      .map((button) => button.textContent?.trim()))
+      .toEqual(['Forget me', 'Remember me']);
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledWith(false);

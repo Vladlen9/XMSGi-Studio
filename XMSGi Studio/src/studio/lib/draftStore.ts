@@ -31,6 +31,9 @@ export type WorkspaceDraft = {
   repeatMode?: ScheduleRepeatOptions['mode'];
   repeatDays?: string[];
   repeatOccurrences?: number;
+  sendAttemptId?: string;
+  sendAttemptFingerprint?: string;
+  sendAttemptRecordId?: string;
 };
 
 function normalizeDraftChat(value: unknown): Chat | null {

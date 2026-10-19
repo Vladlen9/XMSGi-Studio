@@ -241,6 +241,59 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     autosaveTimeoutRef.current = null;
   };
 
+  const flushWorkspaceDraftNow = async () => {
+    if (!drafts.draftStoreReady || !draftStateHydrated) {
+      return { success: false, error: t('studio.waitForDrafts') };
+    }
+
+    cancelPendingAutosave();
+    const workspaceDraft = createWorkspaceDraftSnapshot();
+    if (workspaceDraft) setSavedAt(workspaceDraft.savedAt);
+    const previousSnapshot = lastPersistedWorkspaceSnapshotRef.current;
+    const documentId = workspaceDraft?.documentId ?? '';
+    if (activeEditDocumentIdRef.current !== documentId) {
+      if (documentId) editHistoryCheckpointedDocumentsRef.current.delete(documentId);
+      activeEditDocumentIdRef.current = documentId;
+    }
+    const shouldCheckpointEdit = Boolean(
+      previousSnapshot
+      && !areWorkspaceSnapshotsEqual(previousSnapshot, workspaceDraft)
+      && previousSnapshot.documentId
+      && !editHistoryCheckpointedDocumentsRef.current.has(previousSnapshot.documentId),
+    );
+    let nextSnapshot = previousSnapshot;
+    if (shouldCheckpointEdit && previousSnapshot) {
+      const archived = await makeHistorySnapshot(previousSnapshot, false);
+      nextSnapshot = archived.snapshot ?? previousSnapshot;
+      if (archived.error) drafts.setDraftStoreError(archived.error);
+    }
+
+    const success = await drafts.persistDraftStore(
+      () => drafts.savedDraftsRef.current,
+      workspaceDraft,
+      (histories) => {
+        if (histories !== drafts.documentHistoriesRef.current) drafts.replaceDocumentHistories(histories);
+        lastPersistedWorkspaceSnapshotRef.current = workspaceDraft ? persistableWorkspaceSnapshot(workspaceDraft) : null;
+        if (shouldCheckpointEdit && previousSnapshot?.documentId) {
+          editHistoryCheckpointedDocumentsRef.current.add(previousSnapshot.documentId);
+        }
+      },
+      () => shouldCheckpointEdit && previousSnapshot && nextSnapshot
+        ? appendWorkspaceDocumentVersion(
+            drafts.documentHistoriesRef.current,
+            previousSnapshot.documentId ?? workspaceDraft?.documentId ?? '',
+            nextSnapshot,
+            'edit',
+          )
+        : drafts.documentHistoriesRef.current,
+    );
+    if (!success) {
+      return { success: false, error: drafts.draftStoreError || t('studio.draftsCouldNotSave') };
+    }
+
+    return { success: true, error: '' };
+  };
+
   const makeHistorySnapshot = async (snapshot: WorkspaceDraft, strict: boolean) => {
     if (!snapshot.attachments.length) return { snapshot, error: '' };
     const storage = getDraftStorageApi();
@@ -614,6 +667,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     createWorkspaceDraftSnapshot,
     applyPersistedDraftStore,
     cancelPendingAutosave,
+    flushWorkspaceDraftNow,
     handleRestoreDraftBackup,
     handleExportDrafts,
     handleImportDrafts,

@@ -9,8 +9,6 @@ export type EditorToolbarFormat = 'bold' | 'italic' | 'underline' | 'strike';
 
 interface Props {
   stageMode: StageMode;
-  remainingCharacters: number;
-  counterClassName: string;
   activeFormats: EditorFormats;
   linkPopoverOpen: boolean;
   linkPopover?: ReactNode;
@@ -22,7 +20,7 @@ interface Props {
   onOpenVersionHistory?: () => void;
 }
 
-export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, activeFormats, linkPopoverOpen, linkPopover, onFormat, onOpenAlbum, albumDisabled = false, onToggleLink, onExportText, onOpenVersionHistory }: Props) {
+export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkPopover, onFormat, onOpenAlbum, albumDisabled = false, onToggleLink, onExportText, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [albumInfoVisible, setAlbumInfoVisible] = useState(false);
@@ -75,7 +73,6 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
 
   return (
     <div className="workspace-page-rich-text-toolbar is-airy" role="toolbar" aria-label={t('studio.formattingTools')} aria-orientation="horizontal">
-      <span className={counterClassName} aria-live="polite">{remainingCharacters}</span>
       <div className="workspace-page-rich-text-toolbar-actions" role="group" aria-label={t('studio.formattingTools')}>
         {formatOptions.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" className="workspace-page-rich-text-format-option" onMouseDown={(event) => event.preventDefault()} onClick={() => onFormat(id)} aria-label={label} aria-pressed={activeFormats[id]} title={label}>

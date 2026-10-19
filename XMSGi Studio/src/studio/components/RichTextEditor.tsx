@@ -427,6 +427,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
 
   const remainingCharacters = getRemainingMessageLength(text.length, maxLength);
   const counterTone = getMessageCounterTone(remainingCharacters);
+  const hasEditorText = Boolean(text.trim());
   useEffect(() => {
     const updateHighlightFromPointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof Element)) return;
@@ -481,6 +482,29 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {stageMode === 'editor' && (
+        <div className="workspace-page-rich-text-meta-row">
+          <span
+            className={`workspace-page-character-count ${counterTone === 'critical' ? 'is-critical' : counterTone === 'warning' ? 'is-warning' : ''}`}
+            aria-live="polite"
+          >
+            {remainingCharacters}
+          </span>
+          <button
+            type="button"
+            className={`workspace-page-rich-text-clear${hasEditorText ? '' : ' is-hidden'}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={clearEditorText}
+            aria-label={t('studio.clearEditorText')}
+            aria-hidden={!hasEditorText}
+            disabled={!hasEditorText}
+            tabIndex={hasEditorText ? 0 : -1}
+            title={t('studio.clearText')}
+          >
+            <Eraser size={16} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <div className="workspace-page-rich-text-stage">
         <div
           ref={(element) => {
@@ -545,26 +569,12 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           state={logoState}
           setState={setLogoState}
         />
-        {stageMode === 'editor' && Boolean(text.trim()) && (
-          <button
-            type="button"
-            className="workspace-page-rich-text-clear"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={clearEditorText}
-            aria-label={t('studio.clearEditorText')}
-            title={t('studio.clearText')}
-          >
-            <Eraser size={16} strokeWidth={1.8} aria-hidden="true" />
-          </button>
-        )}
         <div className="workspace-page-rich-text-stage-content">
           {stageContent}
         </div>
       </div>
       <EditorToolbar
         stageMode={stageMode}
-        remainingCharacters={remainingCharacters}
-        counterClassName={`workspace-page-character-count ${counterTone === 'critical' ? 'is-critical' : counterTone === 'warning' ? 'is-warning' : ''}`}
         activeFormats={activeFormats}
         linkPopoverOpen={linkPopoverOpen}
         albumDisabled={albumDisabled}

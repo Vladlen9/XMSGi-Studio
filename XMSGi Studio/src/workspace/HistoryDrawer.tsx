@@ -127,7 +127,7 @@ function getPlannerReminderTypePresentation(type: PlannerReminderType, t: Histor
 }
 
 function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) {
-  if (record.status === 'failed') return false;
+  if (record.status === 'failed') return filter === 'scheduled';
 
   if (filter === 'notes') return isSavedMessagesRecord(record);
 
@@ -138,6 +138,20 @@ function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) 
   }
   if (filter === 'sent') return record.status === 'sent';
   return record.status === 'draft';
+}
+
+function getVisibleHistoryError(message: string | undefined, t: HistoryTranslate) {
+  if (!message) return '';
+  if (/^(?:Error invoking remote method|Invalid IPC input:)/i.test(message)) {
+    return t('history.statusFailed');
+  }
+  return message;
+}
+
+function getRetryActionLabel(record: HistoryItem, t: HistoryTranslate) {
+  if (record.retryAction === 'cancel') return t('history.retryCancelAction');
+  if (record.retryAction === 'schedule') return t('history.retrySchedule');
+  return t('history.retrySend');
 }
 
 function isQueueCancellationCandidate(record: HistoryItem) {
@@ -477,7 +491,9 @@ function exportHistoryRecords(
 
 export function HistoryDrawer({
   isOpen,
+  pageMode = false,
   sourceFilterOnOpen,
+  statusFilterOnOpen,
   onClose,
   records,
   onCancel,
@@ -490,7 +506,9 @@ export function HistoryDrawer({
   onCancelQueue,
 }: {
   isOpen: boolean;
+  pageMode?: boolean;
   sourceFilterOnOpen?: HistorySourceFilter;
+  statusFilterOnOpen?: Exclude<HistoryStatusFilter, 'notes'>;
   onClose: () => void;
   records: HistoryItem[];
   onCancel: (record: HistoryItem) => void;
@@ -509,6 +527,8 @@ export function HistoryDrawer({
   const [statusFilter, setStatusFilter] = useState<HistoryStatusFilter>(savedFilters.statusFilter);
   const sourceFilterBeforeOverrideRef = useRef<HistorySourceFilter | null>(null);
   const sourceFilterOverrideChangedRef = useRef(false);
+  const statusFilterBeforeOverrideRef = useRef<HistoryStatusFilter | null>(null);
+  const statusFilterOverrideChangedRef = useRef(false);
   const [query, setQuery] = useState('');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null);
@@ -549,7 +569,25 @@ export function HistoryDrawer({
       sourceFilterOverrideChangedRef.current = false;
       if (!sourceFilterWasChanged) setSourceFilter(previousSourceFilter);
     }
-  }, [isOpen, sourceFilterOnOpen]);
+  }, [isOpen, sourceFilter, sourceFilterOnOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen && statusFilterOnOpen && !statusFilterOverrideChangedRef.current) {
+      if (statusFilterBeforeOverrideRef.current === null) {
+        statusFilterBeforeOverrideRef.current = statusFilter;
+      }
+      if (statusFilter !== statusFilterOnOpen) setStatusFilter(statusFilterOnOpen);
+      return;
+    }
+
+    if (!isOpen && statusFilterBeforeOverrideRef.current !== null) {
+      const previousStatusFilter = statusFilterBeforeOverrideRef.current;
+      const statusFilterWasChanged = statusFilterOverrideChangedRef.current;
+      statusFilterBeforeOverrideRef.current = null;
+      statusFilterOverrideChangedRef.current = false;
+      if (!statusFilterWasChanged) setStatusFilter(previousStatusFilter);
+    }
+  }, [isOpen, statusFilter, statusFilterOnOpen]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
@@ -579,9 +617,12 @@ export function HistoryDrawer({
       const savedSourceFilter = sourceFilterBeforeOverrideRef.current !== null && !sourceFilterOverrideChangedRef.current
         ? sourceFilterBeforeOverrideRef.current
         : sourceFilter;
+      const savedStatusFilter = statusFilterBeforeOverrideRef.current !== null && !statusFilterOverrideChangedRef.current
+        ? statusFilterBeforeOverrideRef.current
+        : statusFilter;
       window.localStorage.setItem(HISTORY_FILTER_STORAGE_KEY, JSON.stringify({
         sourceFilter: savedSourceFilter,
-        statusFilter,
+        statusFilter: savedStatusFilter,
       }));
     } catch {
       // Keep history usable when local storage is unavailable.
@@ -881,7 +922,7 @@ export function HistoryDrawer({
       ? t('history.cancelSchedulePrompt', { title: confirmActionRecord.title })
       : confirmAction.type === 'send-now'
         ? t('history.sendPrompt', {
-          action: t(confirmActionRecord.status === 'failed' ? 'history.retrySendAction' : 'history.sendAction'),
+          action: confirmActionRecord.status === 'failed' ? getRetryActionLabel(confirmActionRecord, t) : t('history.sendAction'),
           title: confirmActionRecord.title,
         })
         : confirmActionRecord.status === 'failed'
@@ -1105,15 +1146,15 @@ export function HistoryDrawer({
   return (
     <>
       <div
-        className="history-drawer-backdrop"
+        className={`history-drawer-backdrop${pageMode ? ' is-page' : ''}`}
         aria-hidden="true"
         onClick={onClose}
       />
 
       <aside
-        className="history-drawer"
+        className={`history-drawer${pageMode ? ' is-page' : ''}`}
         role="dialog"
-        aria-modal="true"
+        aria-modal={pageMode ? undefined : true}
         aria-label={t('history.title')}
       >
         <header className="history-drawer-header">
@@ -1129,7 +1170,7 @@ export function HistoryDrawer({
             aria-label={t('history.close')}
             className="history-drawer-close"
           >
-            <X size={20} strokeWidth={1.7} />
+            <X size={18} aria-hidden="true" />
           </button>
         </header>
 
@@ -1196,7 +1237,7 @@ export function HistoryDrawer({
               const replyMarkup = scheduleMessage?.replyMarkup;
               const canReschedule = record.source === 'workspace' && record.status === 'scheduled' && scheduleMessage;
               const primaryAction = record.status === 'failed'
-                ? { label: t('history.retrySend'), handler: () => confirmSendNow(record), type: 'send-now' }
+                ? { label: getRetryActionLabel(record, t), handler: () => confirmSendNow(record), type: 'send-now' }
                 : record.status === 'scheduled'
                   ? canReschedule
                     ? { label: t('history.edit'), handler: () => { onReschedule(record); onClose(); }, type: 'reschedule' }
@@ -1324,7 +1365,7 @@ export function HistoryDrawer({
 
                   {channelDetail && <span className="history-record-chat">{channelDetail}</span>}
                   {!isExpanded && <span className="history-record-text">{record.text}</span>}
-                  {!isExpanded && record.lastError && <span className="history-record-error-preview">{record.lastError}</span>}
+                  {!isExpanded && getVisibleHistoryError(record.lastError, t) && <span className="history-record-error-preview">{getVisibleHistoryError(record.lastError, t)}</span>}
                 </button>
                 {isExpanded && (
                   <div
@@ -1342,7 +1383,7 @@ export function HistoryDrawer({
                       <time dateTime={timestamp}>{formatTime(timestamp, locale)}</time>
                       <span>{getHistoryStatusLabel(record.status, t)}</span>
                     </div>
-                    {record.lastError && <p className="history-record-error" role="alert">{record.lastError}</p>}
+                    {getVisibleHistoryError(record.lastError, t) && <p className="history-record-error" role="alert">{getVisibleHistoryError(record.lastError, t)}</p>}
                     <div className="history-post-bubble">
                       {Boolean(record.attachments.length) && (
                         <div className="history-post-attachments" aria-label={t('history.attachmentsLabel')}>
@@ -1568,6 +1609,7 @@ export function HistoryDrawer({
                       if (statusFilter === item) {
                         bounceHistoryGlassIndicator(statusFiltersRef.current, item);
                       } else {
+                        if (statusFilterBeforeOverrideRef.current !== null) statusFilterOverrideChangedRef.current = true;
                         setStatusFilter(item);
                       }
                       setBulkDeleteCategory(null);

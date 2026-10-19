@@ -27,7 +27,18 @@ describe('Electron tray lifecycle contract', () => {
 
   it('opens the CDP endpoint only for unpackaged Electron development', () => {
     expect(mainSource).toContain("if (!app.isPackaged) {");
-    expect(mainSource).toContain("app.commandLine.appendSwitch('remote-debugging-port', '9222')");
+    expect(mainSource).toContain("process.env.XMSGI_STUDIO_REMOTE_DEBUGGING_PORT || '9222'");
+    expect(mainSource).toContain("app.commandLine.appendSwitch('remote-debugging-port', remoteDebuggingPort)");
+  });
+
+  it('allows an isolated user data directory for a second development instance', () => {
+    expect(mainSource).toContain('process.env.XMSGI_STUDIO_USER_DATA_DIR');
+    expect(mainSource).toContain('path.resolve(isolatedUserDataRoot)');
+  });
+
+  it('uses the agent workspace profile when the Vite development server is enabled', () => {
+    expect(mainSource).toContain("process.env.ELECTRON_DEV_SERVER === '1'");
+    expect(mainSource).toContain("'XMSGi-Workspace-Agent'");
   });
 
   it('hides the window on close while preserving the Telegram lifecycle', () => {

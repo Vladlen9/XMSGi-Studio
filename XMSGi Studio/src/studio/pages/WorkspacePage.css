@@ -174,7 +174,7 @@
   .workspace-page .workspace-page-editor-panel {
     height: min(100%, 720px);
     max-height: 720px;
-    align-self: center;
+    align-self: flex-start;
   }
 }
 
@@ -463,14 +463,14 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   margin-bottom: 16px;
   width: min(100%, 760px);
   min-height: 0;
-  border: 1px solid rgba(var(--editor-outline), 0.62);
+  border: 1px solid rgba(var(--editor-outline), 0.34);
   border-radius: 12px;
   background:
     radial-gradient(ellipse 88% 48% at 50% 0%, rgba(var(--editor-outline), 0.035), transparent 74%),
     linear-gradient(155deg, rgba(17, 19, 22, 0.96), rgba(10, 11, 13, 0.94));
   box-shadow:
-    inset 0 0 0 1px rgba(var(--editor-outline), 0.16),
-    0 0 9px rgba(var(--editor-outline), 0.14),
+    inset 0 0 0 1px rgba(var(--editor-outline), 0.08),
+    0 0 9px rgba(var(--editor-outline), 0.05),
     0 10px 22px rgba(0, 0, 0, 0.12);
   overflow: visible;
 }
@@ -503,46 +503,46 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   position: absolute;
   inset: -1px;
   z-index: 2;
-  border: 1px solid rgba(var(--editor-outline), 0.68);
+  border: 1px solid rgba(var(--editor-outline), 0.38);
   border-radius: 13px;
   background: transparent;
   content: '';
   opacity: 1;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.24), 0 0 7px rgba(var(--editor-outline), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.12), 0 0 7px rgba(var(--editor-outline), 0.06);
 }
 
 .workspace-page-editor-shell:has(.workspace-page-rich-text-editor.is-toolbar-active)::after {
   opacity: 1;
-  border-color: rgba(var(--editor-outline), 0.68);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.24), 0 0 7px rgba(var(--editor-outline), 0.16);
+  border-color: rgba(var(--editor-outline), 0.44);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.16), 0 0 7px rgba(var(--editor-outline), 0.08);
 }
 
 .workspace-page-editor-shell:has(.workspace-page-rich-text-editor.is-toolbar-active) {
-  border-color: rgba(var(--editor-outline), 0.62);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.16), 0 0 9px rgba(var(--editor-outline), 0.14), 0 10px 22px rgba(0, 0, 0, 0.12);
+  border-color: rgba(var(--editor-outline), 0.4);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.1), 0 0 9px rgba(var(--editor-outline), 0.07), 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 .workspace-page-editor-shell[data-editor-appearance='outline'] {
-  border-color: rgba(var(--editor-outline), 0.62);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.1), 0 10px 22px rgba(0, 0, 0, 0.12);
+  border-color: rgba(var(--editor-outline), 0.34);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.06), 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 .workspace-page-editor-shell[data-editor-appearance='outline']::after {
-  opacity: 0.55;
-  border-color: rgba(var(--editor-outline), 0.48);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.1);
+  opacity: 0.5;
+  border-color: rgba(var(--editor-outline), 0.26);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.06);
 }
 
 .workspace-page-editor-shell[data-editor-appearance='outline']:has(.workspace-page-rich-text-editor.is-toolbar-active) {
-  border-color: rgba(var(--editor-outline), 0.62);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.1), 0 10px 22px rgba(0, 0, 0, 0.12);
+  border-color: rgba(var(--editor-outline), 0.34);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.06), 0 10px 22px rgba(0, 0, 0, 0.12);
 }
 
 .workspace-page-editor-shell[data-editor-appearance='outline']:has(.workspace-page-rich-text-editor.is-toolbar-active)::after {
-  opacity: 0.55;
-  border-color: rgba(var(--editor-outline), 0.48);
-  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.1);
+  opacity: 0.5;
+  border-color: rgba(var(--editor-outline), 0.26);
+  box-shadow: inset 0 0 0 1px rgba(var(--editor-outline), 0.06);
 }
 
 .workspace-page-editor-shell[data-editor-appearance='outline'] .workspace-page-rich-text-stage::after {
@@ -1167,29 +1167,57 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   filter: var(--workspace-rich-text-underline-shadow);
 }
 
+.workspace-page-rich-text-meta-row {
+  display: flex;
+  flex: 0 0 28px;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-right: 12px;
+}
+
+.workspace-page-rich-text-meta-row .workspace-page-character-count {
+  height: auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(199, 214, 222, 0.6);
+  font-size: 12px;
+  opacity: 1;
+  text-align: left;
+}
+
 .workspace-page-rich-text-clear {
-  position: absolute;
-  z-index: 4;
-  top: 2px;
-  right: 36px;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 8px;
-  background: #171b1f;
-  color: #fff;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(199, 214, 222, 0.6);
   cursor: pointer;
-  opacity: 1;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .workspace-page-rich-text-clear:hover,
 .workspace-page-rich-text-clear:focus-visible {
-  background: #30363d;
-  color: var(--text);
+  background: rgba(var(--editor-outline), 0.08);
+  color: var(--editor-outline-bright);
+  outline: none;
+}
+
+.workspace-page-rich-text-clear.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .workspace-page-rich-text-stage-content {
@@ -3490,10 +3518,9 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   position: absolute;
   top: 24px;
   left: 3px;
-  color: var(--dim);
+  color: rgba(177, 194, 207, 0.72);
   font-size: 16px;
   line-height: 1.6;
-  opacity: 0.78;
   pointer-events: none;
 }
 
@@ -8807,7 +8834,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       'date-time date-time'
-      'quick-date quick-time';
+      'quick-time quick-date';
     align-content: start;
     gap: 4px 10px;
     overflow: hidden;
@@ -8930,7 +8957,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
     grid-template-rows: 30px minmax(0, 1fr);
     grid-template-areas:
       'date-time date-time'
-      'quick-date quick-time';
+      'quick-time quick-date';
     align-content: start;
     gap: 2px 6px;
     overflow: hidden;
@@ -9648,6 +9675,24 @@ html.electron-runtime .workspace-page-main {
   margin-inline: auto;
 }
 
+@media (min-width: 841px) {
+  html.electron-runtime .workspace-page .workspace-page-editor-panel {
+    height: min(100%, 655px);
+    max-height: 655px;
+    align-self: flex-start;
+  }
+
+  html.electron-runtime .workspace-page .workspace-page-editor-shell {
+    max-height: 575px;
+  }
+
+  html.electron-runtime .workspace-page .workspace-page-preview-panel:not([data-collapsed='true']) {
+    height: min(100%, 655px);
+    max-height: 655px;
+    align-self: flex-start;
+  }
+}
+
 html.electron-runtime .workspace-page .workspace-page-form-row-body .workspace-page-rich-text-input,
 html.electron-runtime .workspace-page .workspace-page-form-row-body .workspace-page-rich-text-input:focus,
 html.electron-runtime .workspace-page .workspace-page-form-row-body .workspace-page-rich-text-input:focus-visible {
@@ -9799,6 +9844,10 @@ html.electron-runtime .workspace-page .workspace-page-form-row-body .workspace-p
   font-weight: 400;
 }
 
+.workspace-page-version-history-dialog:focus {
+  outline: none;
+}
+
 .workspace-page-version-history-header,
 .workspace-page-version-history-footer {
   display: flex;
@@ -9929,6 +9978,11 @@ html.electron-runtime .workspace-page .workspace-page-form-row-body .workspace-p
   padding: 16px;
   border-right: 1px solid rgba(154, 168, 184, 0.12);
   background: rgba(7, 10, 13, 0.22);
+}
+
+.workspace-page-version-history-list.is-document-menu-open > .workspace-page-version-history-item,
+.workspace-page-version-history-list.is-document-menu-open > .workspace-page-version-history-empty {
+  display: none;
 }
 
 .workspace-page-version-history-document-picker {
@@ -10378,7 +10432,7 @@ html.electron-runtime .workspace-page-rich-text-link-controls.is-open .workspace
     grid-template-rows: 36px minmax(0, 1fr);
     grid-template-areas:
       'date-time date-time'
-      'quick-date quick-time';
+      'quick-time quick-date';
     height: auto;
     min-height: 0;
     overflow-x: hidden;

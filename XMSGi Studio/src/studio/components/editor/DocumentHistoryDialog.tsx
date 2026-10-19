@@ -144,7 +144,7 @@ export function DocumentHistoryDialog({
     if (!documentMenuOpen) return;
     const activeDocumentId = selectedDocumentId ?? documentOptions[0]?.[0];
     if (activeDocumentId) documentOptionRefs.current[activeDocumentId]?.focus();
-  }, [documentMenuOpen, histories, selectedDocumentId]);
+  }, [documentMenuOpen, documentOptions, histories, selectedDocumentId]);
 
   const handleDocumentOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
@@ -191,7 +191,7 @@ export function DocumentHistoryDialog({
         </header>
 
         <div className="workspace-page-version-history-content">
-          <div className="workspace-page-version-history-list" aria-label={t('studio.versionHistory')}>
+          <div className={`workspace-page-version-history-list${documentMenuOpen ? ' is-document-menu-open' : ''}`} aria-label={t('studio.versionHistory')}>
             {selectedDocument && (
               <div className="workspace-page-version-history-document-picker" ref={documentPickerRef}>
                 <span className="workspace-page-version-history-picker-label">{t('studio.historyDocument')}</span>

@@ -198,6 +198,42 @@ describe('history filter glass indicators', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
   });
 
+  it('opens the requested Posts category and restores the saved category on close', () => {
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
+      sourceFilter: 'all',
+      statusFilter: 'scheduled',
+    }));
+    const renderDrawer = (isOpen: boolean, statusFilterOnOpen?: 'sent' | 'scheduled' | 'drafts') => (
+      <LocaleProvider>
+        <HistoryDrawer
+          isOpen={isOpen}
+          statusFilterOnOpen={statusFilterOnOpen}
+          onClose={vi.fn()}
+          records={[upcomingRecord, completedRecord, workspaceSentRecord]}
+          onCancel={vi.fn()}
+          onReschedule={vi.fn()}
+          onSendNow={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenDraft={vi.fn()}
+          onClearSent={vi.fn()}
+          onClearDrafts={vi.fn().mockResolvedValue(true)}
+          onCancelQueue={vi.fn().mockResolvedValue(true)}
+        />
+      </LocaleProvider>
+    );
+    const { container, rerender } = render(renderDrawer(true, 'sent'));
+
+    expect(container.querySelector('[data-history-filter="sent"]')).toHaveAttribute('aria-selected', 'true');
+    expect(container.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'false');
+    expect(JSON.parse(window.localStorage.getItem('xmsgi-history-filters') ?? '{}').statusFilter).toBe('scheduled');
+
+    rerender(renderDrawer(false));
+    expect(JSON.parse(window.localStorage.getItem('xmsgi-history-filters') ?? '{}').statusFilter).toBe('scheduled');
+    rerender(renderDrawer(true));
+    expect(container.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
+    window.localStorage.removeItem('xmsgi-history-filters');
+  });
+
   it('bounces the selected status in place when clicked again', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
@@ -423,11 +459,11 @@ describe('HistoryDrawer search', () => {
     ], 'scheduled').map((record) => record.status)).toEqual(['scheduled', 'cancelled', 'failed']);
   });
 
-  it('hides failed retry attempts from the main scheduled history list', () => {
+  it('shows failed retry attempts and exposes their retry action in scheduled history', () => {
     const retryFailure = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-attempt-1',
-      text: 'Неудачная повторная отправка — не показывать в истории',
+      text: 'Неудачная повторная отправка',
       status: 'failed',
       lastError: 'Telegram rejected the previous attempt.',
       retryAction: 'send',
@@ -436,8 +472,9 @@ describe('HistoryDrawer search', () => {
     renderHistory([upcomingRecord, retryFailure]);
 
     expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
-    expect(screen.queryByText('Неудачная повторная отправка — не показывать в истории')).not.toBeInTheDocument();
-    expect(screen.queryByText('Telegram rejected the previous attempt.')).not.toBeInTheDocument();
+    expect(screen.getByText('Неудачная повторная отправка')).toBeInTheDocument();
+    expect(screen.getByText('Telegram rejected the previous attempt.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить отправку' })).toBeInTheDocument();
   });
 
   it('keeps drafts in a dedicated section instead of mixing them into the queue UI', async () => {
@@ -577,7 +614,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
-  it('shows attachment details without surfacing failed retry messages in compact rows', () => {
+  it('shows failed retry rows alongside attachment details', () => {
     const failedRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-compact-row',
@@ -603,9 +640,10 @@ describe('HistoryDrawer search', () => {
     fireEvent.error(attachmentPreview.querySelector('img') as HTMLImageElement);
     expect(attachmentPreview.querySelector('.history-record-attachment-image')).toHaveClass('is-unavailable');
     expect(screen.getAllByText(/Запланировано ·/)[0].parentElement).toHaveClass('history-record-meta');
-    expect(screen.queryByText('Telegram не подтвердил отправку.')).not.toBeInTheDocument();
+    expect(screen.getByText('Telegram не подтвердил отправку.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить отправку' })).toBeInTheDocument();
     expect(screen.getByText('Cancelled entry remains visible')).toBeInTheDocument();
-    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getAllByRole('article')).toHaveLength(3);
   });
 
   it('filters the single Posts list across All, Studio, and Planner sources', () => {
@@ -951,12 +989,12 @@ describe('HistoryDrawer search', () => {
     renderHistory([localFailure], undefined, onDelete, undefined, undefined, undefined, undefined, undefined, onCancelQueue);
 
     expect(screen.queryByText("Error invoking remote method 'telegram-schedule': Invalid IPC input: message is required")).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Удалить ошибочные записи из истории' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить планирование' })).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
     expect(onCancelQueue).not.toHaveBeenCalled();
   });
 
-  it('hides failed retry attempts from the scheduled history while keeping valid queued entries visible', () => {
+  it('shows failed schedule retries with valid queued entries and hides technical IPC details', () => {
     const queueRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       telegramMessageId: 'telegram-queue-mixed',
@@ -964,6 +1002,7 @@ describe('HistoryDrawer search', () => {
     const localFailure = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'ipc-schedule-failure-mixed',
+      text: 'Failed schedule that can be retried',
       status: 'failed' as const,
       retryAction: 'schedule' as const,
       telegramMessageId: undefined,
@@ -974,8 +1013,9 @@ describe('HistoryDrawer search', () => {
     renderHistory([queueRecord, localFailure], undefined, onDelete, undefined, undefined, undefined, undefined, undefined, onCancelQueue);
 
     expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
-    expect(screen.queryByText(/ipc-schedule-failure-mixed|Invalid IPC input|Ошибка/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Отменить запланированные публикации и удалить ошибки из истории' })).not.toBeInTheDocument();
+    expect(screen.getByText('Failed schedule that can be retried')).toBeInTheDocument();
+    expect(screen.queryByText(/Error invoking remote method|Invalid IPC input/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить планирование' })).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
     expect(onCancelQueue).not.toHaveBeenCalled();
   });
@@ -1012,7 +1052,7 @@ describe('HistoryDrawer search', () => {
     expect(container.querySelector('.history-delete-placeholder')).toBeInTheDocument();
   });
 
-  it('hides failed retry attempts from the main scheduled history while keeping cancelled entries visible', () => {
+  it('shows failed retry attempts and cancelled entries in scheduled history', () => {
     const failedRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       text: 'Failed entry for retry',
@@ -1031,9 +1071,9 @@ describe('HistoryDrawer search', () => {
     renderHistory([failedRecord, cancelledRecord], vi.fn(), vi.fn(), onSendNow);
 
     expect(screen.queryByRole('tab', { name: 'Ошибки' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Failed entry for retry')).not.toBeInTheDocument();
+    expect(screen.getByText('Failed entry for retry')).toBeInTheDocument();
     expect(screen.getByText('Cancelled entry remains visible')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Повторить отправку' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить отправку' })).toBeInTheDocument();
     expect(onSendNow).not.toHaveBeenCalled();
   });
 
@@ -1288,7 +1328,7 @@ describe('HistoryDrawer search', () => {
     expect(onDelete).toHaveBeenCalledWith(completedRecord);
   });
 
-  it('hides failed retry records from the main history actions menu', () => {
+  it('shows retry and history actions for failed records', () => {
     const failedRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-history-delete',
@@ -1300,9 +1340,9 @@ describe('HistoryDrawer search', () => {
 
     renderHistory([failedRecord], vi.fn(), onDelete);
 
-    expect(screen.queryByRole('button', { name: 'Ещё' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Telegram did not confirm that the reminder was saved.')).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: 'Удалить' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ещё' })).toBeInTheDocument();
+    expect(screen.getByText('Telegram did not confirm that the reminder was saved.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Повторить планирование' })).toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
   });
 

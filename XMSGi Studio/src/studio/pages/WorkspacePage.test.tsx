@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -194,6 +194,16 @@ describe('WorkspacePage main-screen flows', () => {
     try {
       const stageContent = document.querySelector('.workspace-page-rich-text-stage-content');
       expect(stageContent?.childElementCount).toBe(0);
+    } finally {
+      unmount();
+    }
+  });
+
+  it('does not show the local clock in Studio', async () => {
+    const { unmount } = await renderWorkspacePage();
+
+    try {
+      expect(document.querySelector('.local-date-time-clock')).toBeNull();
     } finally {
       unmount();
     }
@@ -480,15 +490,15 @@ describe('WorkspacePage main-screen flows', () => {
     const toolbarRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar\s*\{([^}]*)\}/)?.[1] ?? '';
 
     expect(editor.classList.contains('is-toolbar-active')).toBe(false);
-    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.62\)/);
-    expect(baseShellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\),\s*0\.14\)/);
+    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.34\)/);
+    expect(baseShellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\),\s*0\.05\)/);
     expect(baseShellRule).toMatch(/0 10px 22px rgba\(0, 0, 0, 0\.12\)/);
     expect(shellAfterRule).toMatch(/opacity:\s*1/);
-    expect(shellAfterRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.68\)/);
-    expect(outlineBaseRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.62\)/);
-    expect(outlineBaseRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\),\s*0\.1\)/);
-    expect(outlineAfterRule).toMatch(/opacity:\s*0\.55/);
-    expect(outlineAfterRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.48\)/);
+    expect(shellAfterRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.38\)/);
+    expect(outlineBaseRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.34\)/);
+    expect(outlineBaseRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\),\s*0\.06\)/);
+    expect(outlineAfterRule).toMatch(/opacity:\s*0\.5/);
+    expect(outlineAfterRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.26\)/);
     expect(toolbarRule).toMatch(/opacity:\s*1/);
     expect(toolbarRule).toMatch(/visibility:\s*visible/);
     expect(toolbarRule).toMatch(/transform:\s*none/);
@@ -516,7 +526,7 @@ describe('WorkspacePage main-screen flows', () => {
 
   it('keeps the Time picker and quick actions usable at the minimum Electron height', () => {
     expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\) and \(max-height: 540px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-time-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
-    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{[^}]*grid-template-rows:\s*36px minmax\(0, 1fr\);[^}]*grid-template-areas:[\s\S]*?'date-time date-time'[\s\S]*?'quick-date quick-time';[^}]*overflow-y:\s*auto;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{[^}]*grid-template-rows:\s*36px minmax\(0, 1fr\);[^}]*grid-template-areas:[\s\S]*?'date-time date-time'[\s\S]*?'quick-time quick-date';[^}]*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-quick-date-panel,[\s\S]*?\.workspace-page-schedule-quick-time-panel\s*\{[^}]*display:\s*grid;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-repeat-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-repeat-focus \.workspace-page-schedule-main\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
@@ -758,6 +768,12 @@ describe('WorkspacePage main-screen flows', () => {
     } finally {
       unmount();
     }
+  });
+
+  it('aligns Electron editor and preview panel heights on desktop', () => {
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-panel\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*575px;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-preview-panel:not\(\[data-collapsed='true'\]\)\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
   });
 
   it('registers the existing draft editor for History Drawer draft actions', async () => {
@@ -1157,12 +1173,14 @@ describe('WorkspacePage main-screen flows', () => {
     const dialogRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog\s*\{([^}]*)\}/)?.[1] ?? '';
     const headerRule = workspacePageStyles.match(/\.workspace-page-version-history-header\s*\{([^}]*)\}/)?.[1] ?? '';
     const dividerRule = workspacePageStyles.match(/\.workspace-page-version-history-list\s*\{([^}]*)\}/)?.[1] ?? '';
+    const dialogFocusRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog:focus\s*\{([^}]*)\}/)?.[1] ?? '';
     const hoverRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog button:hover:not\(:disabled\),\s*\.workspace-page-version-history-dialog button:active:not\(:disabled\)\s*\{([^}]*)\}/)?.[1] ?? '';
     const electronBackdropRule = workspacePageStyles.match(/html\.electron-runtime \.workspace-page-version-history-backdrop\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('40, 127, 166');
     expect(dialog.querySelector('.workspace-page-version-history-icon svg')).not.toBeNull();
     expect(headerRule).toMatch(/justify-content:\s*center/);
     expect(dialogRule).toMatch(/border:\s*1px solid rgba\(154, 168, 184, 0\.16\)/);
+    expect(dialogFocusRule).toMatch(/outline:\s*none/);
     expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(154, 168, 184, 0\.12\)/);
     expect(hoverRule).toMatch(/background:\s*transparent !important/);
     expect(hoverRule).toMatch(/box-shadow:\s*none !important/);
@@ -1183,12 +1201,16 @@ describe('WorkspacePage main-screen flows', () => {
     });
     expect(documentPicker.getAttribute('aria-expanded')).toBe('true');
     expect(dialog.querySelector('[role="listbox"]')).not.toBeNull();
+    const versionList = dialog.querySelector('.workspace-page-version-history-list')!;
+    expect(versionList).toHaveClass('is-document-menu-open');
+    expect(versionList.querySelector('.workspace-page-version-history-item')).not.toBeNull();
     const otherDocumentOption = dialog.querySelector(`[role="option"][value="${otherDocumentId}"]`) as HTMLButtonElement;
     await act(async () => {
       otherDocumentOption.click();
     });
 
     expect(documentPicker.getAttribute('aria-expanded')).toBe('false');
+    expect(versionList).not.toHaveClass('is-document-menu-open');
     expect(document.querySelector('.workspace-page-version-history-dialog')).not.toBeNull();
     expect(document.querySelector('.workspace-page-version-history-preview')?.textContent)
       .toContain('Other historical document');
@@ -1212,11 +1234,14 @@ describe('WorkspacePage main-screen flows', () => {
       documentPicker.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     });
     expect(documentPicker.getAttribute('aria-expanded')).toBe('true');
+    const versionList = dialog.querySelector('.workspace-page-version-history-list')!;
+    expect(versionList).toHaveClass('is-document-menu-open');
 
     await act(async () => {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(documentPicker.getAttribute('aria-expanded')).toBe('false');
+    expect(versionList).not.toHaveClass('is-document-menu-open');
     expect(document.querySelector('.workspace-page-version-history-dialog')).not.toBeNull();
 
     await act(async () => {
@@ -2647,9 +2672,12 @@ describe('WorkspacePage main-screen flows', () => {
     ));
     const historyTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-version-history-trigger');
     const exportTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-editor-export-trigger');
+    const editorMeta = document.querySelector('.workspace-page-rich-text-meta-row');
 
     expect(toolbar).not.toBeNull();
-    expect(toolbar!.querySelector('.workspace-page-character-count')).not.toBeNull();
+    expect(editorMeta?.querySelector('.workspace-page-character-count')).not.toBeNull();
+    expect(editorMeta?.querySelector('.workspace-page-rich-text-clear')).not.toBeNull();
+    expect(toolbar!.querySelector('.workspace-page-character-count')).toBeNull();
     expect(editingControls).toHaveLength(6);
     expect(toolbar!.querySelector('.workspace-page-rich-text-format-clear')).toBeNull();
     expect(editingControls.every((button) => !button.disabled)).toBe(true);
@@ -3827,6 +3855,50 @@ describe('WorkspacePage main-screen flows', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('resolves the registered Studio leave callback only after flushing the current draft', async () => {
+    let flushBeforeLeave: (() => Promise<boolean>) | null = null;
+    const registerFlush = vi.fn((flush: (() => Promise<boolean>) | null) => {
+      flushBeforeLeave = flush;
+    });
+    let resolveSave!: (result: { success: boolean; store?: PersistedDraftStore }) => void;
+    vi.mocked(window.draftStorage.save).mockImplementationOnce((store) => new Promise((resolve) => {
+      resolveSave = resolve;
+      void store;
+    }));
+    const { unmount } = await renderWorkspacePage({ onRegisterBeforeLeaveStudio: registerFlush });
+    const editor = document.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => {
+      editor.textContent = 'Persist before leaving Studio';
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(flushBeforeLeave).toBeTypeOf('function');
+    let flushCompleted = false;
+    let flushPromise!: Promise<boolean>;
+    await act(async () => {
+      flushPromise = flushBeforeLeave!().then((result) => {
+        flushCompleted = true;
+        return result;
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(window.draftStorage.save).toHaveBeenCalled());
+    expect(flushCompleted).toBe(false);
+    const saveCalls = vi.mocked(window.draftStorage.save).mock.calls;
+    const submittedStore = saveCalls[saveCalls.length - 1]?.[0];
+    expect(submittedStore?.workspaceDraft).toMatchObject({ body: 'Persist before leaving Studio' });
+    inMemoryDraftStore = submittedStore!;
+
+    await act(async () => {
+      resolveSave({ success: true, store: submittedStore });
+      await expect(flushPromise).resolves.toBe(true);
+    });
+
+    expect(getInMemoryWorkspaceDraft().body).toBe('Persist before leaving Studio');
+    unmount();
   });
 
   it('flushes the latest draft on unexpected close before debounce completes', async () => {
