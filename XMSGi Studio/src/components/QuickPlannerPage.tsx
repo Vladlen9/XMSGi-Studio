@@ -20,6 +20,7 @@ import {
   Send,
   Settings,
   Smile,
+  Sparkles,
   Trash2,
   X,
   Zap,
@@ -49,6 +50,13 @@ const plannerModes = (t: ReturnType<typeof useLocale>['t']) => [
   { id: 'send' as const, label: t('quickplanner.mode.send'), icon: Send },
   { id: 'schedule' as const, label: t('quickplanner.mode.schedule'), icon: CalendarDays },
   { id: 'draft' as const, label: t('quickplanner.mode.draft'), icon: FileText },
+];
+
+const plannerHints = [
+  { icon: Zap, title: '3 ways to work', text: 'Send, schedule, or save in just a few clicks.' },
+  { icon: Sparkles, title: 'Smart time presets', text: 'Choose a time quickly, without extra dialogs.' },
+  { icon: FileText, title: 'Continue in Studio', text: 'Open your current text in Studio and keep editing there.' },
+  { icon: Check, title: 'Everything in one place', text: 'Keep the essentials organized in a single workspace.' },
 ];
 
 const scheduleQuickOptions = (t: ReturnType<typeof useLocale>['t']) => [
@@ -1647,6 +1655,7 @@ export function QuickPlannerPage({
                     </button>
                   ))}
                 </div>
+                <span className="quick-planner-actions-caption">Create actions</span>
               </div>
               {publishMode !== 'draft' && (
                 <div className="quick-planner-chat-picker">
@@ -2157,6 +2166,26 @@ export function QuickPlannerPage({
               )}
             </div>
           </div>
+
+          <aside className="quick-planner-side-hints" aria-label="Planner hints">
+            <div className="quick-planner-side-hints-header">
+              <span>Telegram Scheduler</span>
+              <small>v2.0</small>
+            </div>
+            <ul className="quick-planner-side-hints-list">
+              {plannerHints.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="quick-planner-side-hint-item">
+                  <span className="quick-planner-side-hint-icon">
+                    <Icon size={15} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <strong>{title}</strong>
+                    <p>{text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </aside>
 
           {!hideEmptyQueuePreview && (
           <aside className="quick-planner-upcoming-column">

@@ -279,9 +279,9 @@ describe('QuickPlannerPage layout positioning', () => {
   it('keeps the editor accent border without an outer glow', () => {
     const editorRules = getCssRules('.quick-planner-editor')[0];
 
-    expect(editorRules).toMatch(/radial-gradient\(126% 86% at 96% 94%/);
-    expect(editorRules).toMatch(/rgba\(var\(--quick-planner-accent\),\s*0\.045\) 0%, rgba\(var\(--quick-planner-accent\),\s*0\.014\) 42%/);
-    expect(editorRules).toMatch(/border:\s*1px solid rgba\(var\(--quick-planner-accent\),\s*0\.62\)/);
+    expect(editorRules).toMatch(/background:\s*linear-gradient\(180deg, rgba\(7, 14, 21, 0\.94\), rgba\(8, 15, 20, 0\.9\)\)/);
+    expect(editorRules).toMatch(/border:\s*1px solid rgba\(var\(--quick-planner-accent\), 0\.28\)/);
+    expect(editorRules).toMatch(/box-shadow:\s*0 10px 28px rgba\(6, 12, 17, 0\.18\)/);
     expect(editorRules).not.toMatch(/0 0 (?:10|28)px rgba\(var\(--quick-planner-accent\)/);
     expect(plannerStyles).toMatch(/--quick-planner-accent:\s*35, 157, 251/);
     expect(plannerStyles).not.toMatch(/data-publish-mode="(?:schedule|draft)"\)\s*\{/);
@@ -368,7 +368,7 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(frameRules).toMatch(/width:\s*100%/);
     expect(frameRules).toMatch(/height:\s*calc\(240px\s*\+\s*var\(--quick-planner-resize-height,\s*0px\)\)/);
     expect(frameRules).toMatch(/min-height:\s*0/);
-    expect(composeAnchorRules).toMatch(/top:\s*calc\(50%\s*-\s*52\.5px\)/);
+    expect(composeAnchorRules).toMatch(/top:\s*110px/);
     expect(composeAnchorRules).not.toMatch(/resize-offset/);
     expect(composeAnchorRules).not.toMatch(/resize-half-height/);
 
@@ -498,8 +498,8 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(upcomingBottomLineRules).toMatch(/height:\s*1px/);
     expect(layoutRules).toMatch(/grid-template-areas:\s*"editor"/);
     expect(layoutRules).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-    expect(layoutRules).toMatch(/gap:\s*18px/);
-    expect(editorRules).toMatch(/transform:\s*translateY\(-5px\)/);
+    expect(layoutRules).toMatch(/gap:\s*20px/);
+    expect(editorRules).toMatch(/transform:\s*translateY\(0\)/);
     expect(getCssRules('.quick-planner-sidebar')[0]).toMatch(/min-height:\s*190px/);
     expect(getCssRules('.quick-planner-sidebar')[0]).toMatch(/padding:\s*12px\s+14px/);
     expect(sidebarRules).toMatch(/transform:\s*translate\(-28px,\s*-1px\)/);
@@ -531,10 +531,10 @@ describe('QuickPlannerPage layout positioning', () => {
     expect(getCssRules('.quick-planner-draft-scrollbar')[0]).toMatch(/right:\s*-12px/);
     expect(reminderListRules).toMatch(/scrollbar-width:\s*none/);
     expect(editorRules).toMatch(/grid-area:\s*editor/);
-    expect(editorRules).toMatch(/transform:\s*translateY\(-5px\)/);
+    expect(editorRules).toMatch(/transform:\s*translateY\(0\)/);
     expect(editorRules).not.toMatch(/translateX/);
     expect(editorRules).toMatch(/width:\s*min\(100%,\s*760px\)/);
-    expect(editorRules).toMatch(/height:\s*489px/);
+    expect(editorRules).toMatch(/height:\s*min\(100%,\s*500px\)/);
     expect(getCssRules('.quick-planner-editor > .quick-planner-clock')[0]).toMatch(/top:\s*17px/);
     expect(getCssRules('.quick-planner-editor > .quick-planner-clock')[0]).toMatch(/left:\s*14px/);
     expect(composeRules).toMatch(/position:\s*relative/);

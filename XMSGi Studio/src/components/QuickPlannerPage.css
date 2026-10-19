@@ -4,6 +4,12 @@
   --quick-planner-surface: rgba(11, 18, 23, 0.9);
   --quick-planner-border: rgba(146, 168, 182, 0.17);
   --quick-planner-muted: #a6b5bf;
+  --quick-planner-status-space: 136px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  height: 100%;
+  padding-bottom: var(--quick-planner-status-space);
   container-name: quick-planner;
   container-type: inline-size;
 }
@@ -280,21 +286,98 @@ html.electron-runtime .quick-planner-page {
 }
 
 .quick-planner-layout {
+  position: relative;
   display: grid;
   grid-template-areas: "editor";
   grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+  gap: 20px;
   width: min(100%, 1460px);
+  max-width: 1460px;
+  height: calc(100vh - 180px);
+  min-height: 540px;
   margin: 0 auto;
   padding-top: 20px;
+  padding-bottom: 12px;
   align-items: stretch;
 }
 
 .quick-planner-layout.is-queue-empty {
-  grid-template-areas:
-    "editor"
-    "sidebar";
+  grid-template-areas: "editor";
   grid-template-columns: minmax(0, 1fr);
+}
+
+.quick-planner-side-hints {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: min(280px, 24vw);
+  min-width: 0;
+  padding: 0;
+  font-family: "Orbitron", Arial, sans-serif;
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.quick-planner-side-hints-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  order: 1;
+  margin-top: 24px;
+  color: rgba(135, 154, 168, 0.55);
+  font-size: 7px;
+  font-weight: 400;
+}
+
+.quick-planner-side-hints-header small {
+  color: rgba(135, 154, 168, 0.55);
+}
+
+.quick-planner-side-hints-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 300px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quick-planner-side-hint-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+.quick-planner-side-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 3px;
+  color: rgb(var(--quick-planner-accent));
+}
+
+.quick-planner-side-hint-item strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #9aaab7;
+  font-family: "Orbitron", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.quick-planner-side-hint-item p {
+  margin: 0;
+  color: rgba(126, 145, 159, 0.72);
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .quick-planner-sidebar,
@@ -495,21 +578,20 @@ html.electron-runtime .quick-planner-page {
   display: flex;
   flex-direction: column;
   justify-self: center;
-  border: 1px solid rgba(var(--quick-planner-accent), 0.62);
-  box-shadow: 0 20px 36px rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(var(--quick-planner-accent), 0.28);
+  box-shadow: 0 10px 28px rgba(6, 12, 17, 0.18);
   transition: border-color 180ms ease, box-shadow 180ms ease;
-  transform: translateY(-5px);
+  transform: translateY(0);
   width: min(100%, 760px);
-  height: 489px;
-  min-height: 0;
-  overflow: visible;
+  height: min(100%, 500px);
+  min-height: 500px;
+  max-height: calc(100vh - 220px);
+  overflow: hidden;
   margin-top: 8px;
-  margin-bottom: -24px;
+  margin-bottom: 0;
   gap: 18px;
-  padding: 22px 22px 18px;
-  background:
-    radial-gradient(126% 86% at 96% 94%, rgba(var(--quick-planner-accent), 0.045) 0%, rgba(var(--quick-planner-accent), 0.014) 42%, transparent 72%),
-    linear-gradient(180deg, rgba(10, 15, 20, 0.98), rgba(9, 13, 18, 0.94));
+  padding: 22px 22px 16px;
+  background: linear-gradient(180deg, rgba(7, 14, 21, 0.94), rgba(8, 15, 20, 0.9));
 }
 
 .quick-planner-editor-heading {
@@ -586,14 +668,65 @@ html.electron-runtime .quick-planner-page {
   }
 }
 
+@media (min-width: 1201px) {
+  .quick-planner-page .quick-planner-editor > .quick-planner-heading-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    top: 12px;
+    right: 22px;
+    transform: none;
+  }
+
+  .quick-planner-page .quick-planner-mode-switch {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    padding-top: 0;
+  }
+
+  .quick-planner-page .quick-planner-mode-caption {
+    display: none;
+  }
+
+  .quick-planner-page .quick-planner-actions-caption {
+    display: block;
+    margin-top: 3px;
+    color: rgba(135, 154, 168, 0.72);
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .quick-planner-page .quick-planner-mode-switch button {
+    align-items: center;
+    min-height: 30px;
+    padding: 0 2px;
+    font-family: "Orbitron", Arial, sans-serif;
+    font-size: 16px;
+  }
+
+  .quick-planner-page .quick-planner-editor > .quick-planner-heading-actions .quick-planner-mode-switch button.is-selected::after {
+    top: -19px;
+    bottom: auto;
+    height: 2px;
+    background: rgb(var(--quick-planner-accent));
+  }
+}
+
 .quick-planner-mode-switch {
-  display: flex;
+  display: none;
   align-items: flex-end;
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-start;
   width: 100%;
   padding-top: 14px;
+}
+
+.quick-planner-actions-caption {
+  display: none;
 }
 
 .quick-planner-mode-caption {
@@ -722,13 +855,14 @@ html.electron-runtime .quick-planner-page {
 
 .quick-planner-compose-anchor {
   position: absolute;
-  top: calc(50% - 52.5px);
+  top: 110px;
   left: calc(4% - 12px);
   z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 0;
   width: calc(92% + 24px);
+  min-height: 0;
 }
 
 .quick-planner-editor:has(.chat-picker.is-open) .quick-planner-resize-handle {
@@ -766,12 +900,20 @@ html.electron-runtime .quick-planner-page {
 }
 
 .quick-planner-schedule-controls {
-  display: flex;
+  display: none;
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
   min-width: 0;
   margin-left: 0;
+}
+
+.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-controls {
+  display: flex;
+}
+
+.quick-planner-page[data-publish-mode="schedule"] .quick-planner-schedule-quick-values {
+  display: none;
 }
 
 .quick-planner-schedule-controls label {
@@ -1701,8 +1843,15 @@ html.electron-runtime .quick-planner-page {
     grid-template-areas: "editor";
     grid-template-columns: minmax(0, 1fr);
     height: calc(100% - 16px);
-    align-items: stretch;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
     padding-top: 8px;
+  }
+
+  html.electron-runtime .quick-planner-layout.is-queue-empty {
+    grid-template-areas: "editor";
+    grid-template-columns: minmax(0, 1fr);
   }
 
   html.electron-runtime .quick-planner-upcoming-column,
@@ -1722,12 +1871,23 @@ html.electron-runtime .quick-planner-page {
     margin: 0 auto;
     transform: none;
   }
+
+  html.electron-runtime .quick-planner-side-hints {
+    display: flex;
+    right: 0;
+    width: min(220px, 20vw);
+    max-width: 220px;
+  }
 }
 
 @container quick-planner (max-width: 850px) {
   html.electron-runtime .quick-planner-layout {
     grid-template-areas: "editor";
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  html.electron-runtime .quick-planner-side-hints {
+    display: none;
   }
 
   html.electron-runtime .quick-planner-upcoming-column,
@@ -3956,6 +4116,12 @@ html.electron-runtime .quick-planner-page {
     padding-inline: clamp(10px, calc(1.5vw / var(--electron-ui-scale, 1)), 22px);
   }
 
+
+@media (max-width: 1100px) {
+  html.electron-runtime .quick-planner-side-hints {
+    display: none;
+  }
+}
   html.electron-runtime .quick-planner-header {
     flex: 0 0 auto;
     min-height: 0;
@@ -3966,6 +4132,8 @@ html.electron-runtime .quick-planner-page {
   html.electron-runtime .quick-planner-layout {
     display: flex;
     flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     width: 100%;
@@ -3979,6 +4147,15 @@ html.electron-runtime .quick-planner-page {
   html.electron-runtime .quick-planner-sidebar,
   html.electron-runtime .quick-planner-upcoming-column {
     display: none;
+  }
+
+  html.electron-runtime .quick-planner-side-hints {
+    flex: 0 1 280px;
+    right: auto;
+    left: 0;
+    width: min(220px, 20vw);
+    max-width: 220px;
+    min-width: 0;
   }
 
   html.electron-runtime .quick-planner-editor {
