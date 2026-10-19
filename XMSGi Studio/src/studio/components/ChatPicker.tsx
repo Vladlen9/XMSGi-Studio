@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Chat } from '@studio/types';
+import { telegramFindChat } from '@/services/chatAppService';
 import { ChatAvatar } from './ChatAvatar';
 import { useLocale } from '@studio/lib/i18n';
 
@@ -42,8 +43,7 @@ export function ChatPicker({
 
     setAdding(true);
 
-    window.telegram
-      .findChat(addQuery)
+    telegramFindChat(addQuery)
       .then((result) => {
         setAdding(false);
 

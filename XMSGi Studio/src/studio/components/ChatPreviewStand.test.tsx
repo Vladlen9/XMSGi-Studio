@@ -1,39 +1,39 @@
-import { act } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
+import { act, fireEvent, render } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@studio/lib/i18n';
 import * as richTextModule from '@studio/lib/richText';
-import type { Chat, PreviewChatHistory, RichTextEntity } from '@studio/types';
+import type { Chat, PreviewChatHistory } from '@studio/types';
 import { ChatPreviewStand } from './ChatPreviewStand';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const wallpaperStorageKey = 'awaitmsg-chat-preview-wallpaper';
 const chat: Chat = { id: 'chat-1', name: 'Telegram', username: 'telegram', type: 'channel' };
+type PreviewProps = ComponentProps<typeof ChatPreviewStand>;
 
 function renderChatPreviewStand(
-  attachments: { name: string; path: string; previewUrl?: string }[] = [],
-  draftText = '',
-  draftEntities: RichTextEntity[] = [],
-  previewHistory: PreviewChatHistory | null = null,
+  attachments: PreviewProps['attachments'] = [],
+  draftText: PreviewProps['draftText'] = '',
+  draftEntities: PreviewProps['draftEntities'] = [],
+  previewHistory: PreviewProps['previewHistory'] = null,
+  chats: PreviewProps['chats'] = [chat],
+  chatListOpen: PreviewProps['chatListOpen'] = false,
 ) {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root: Root = createRoot(container);
   const onToggleChatList = vi.fn();
   const previewFeedRef: { current: HTMLDivElement | null } = { current: null };
 
-  const render = (
-    nextDraftText = draftText,
-    nextDraftEntities = draftEntities,
-    nextChatListOpen = false,
-    nextPreviewHistory = previewHistory,
-    nextPreviewHistoryLoading = false,
-  ) => act(() => {
-    root.render(
-      <LocaleProvider>
+  const renderPreview = (
+    nextDraftText: PreviewProps['draftText'] = draftText,
+    nextDraftEntities: PreviewProps['draftEntities'] = draftEntities,
+    nextChatListOpen: PreviewProps['chatListOpen'] = false,
+    nextPreviewHistory: PreviewProps['previewHistory'] = previewHistory,
+    nextPreviewHistoryLoading: PreviewProps['previewHistoryLoading'] = false,
+    nextChats: PreviewProps['chats'] = chats,
+  ) => (
+    <LocaleProvider>
         <ChatPreviewStand
-          chats={[chat]}
+          chats={nextChats}
           selectedChat={chat}
           previewHistory={nextPreviewHistory}
           previewHistoryLoading={nextPreviewHistoryLoading}
@@ -48,23 +48,34 @@ function renderChatPreviewStand(
           onToggleChatList={onToggleChatList}
           onSelectChat={vi.fn()}
         />
-      </LocaleProvider>,
-    );
-  });
-  render();
+    </LocaleProvider>
+  );
+  const view = render(renderPreview(draftText, draftEntities, chatListOpen));
+  const rerender = (
+    nextDraftText: PreviewProps['draftText'] = draftText,
+    nextDraftEntities: PreviewProps['draftEntities'] = draftEntities,
+    nextChatListOpen: PreviewProps['chatListOpen'] = false,
+    nextPreviewHistory: PreviewProps['previewHistory'] = previewHistory,
+    nextPreviewHistoryLoading: PreviewProps['previewHistoryLoading'] = false,
+    nextChats: PreviewProps['chats'] = chats,
+  ) => act(() => view.rerender(renderPreview(
+    nextDraftText,
+    nextDraftEntities,
+    nextChatListOpen,
+    nextPreviewHistory,
+    nextPreviewHistoryLoading,
+    nextChats,
+  )));
 
   return {
-    container,
+    container: view.container,
     onToggleChatList,
     previewFeedRef,
-    rerender: render,
+    rerender,
     rerenderHistory(nextPreviewHistory: PreviewChatHistory | null, loading = false) {
-      render(undefined, undefined, false, nextPreviewHistory, loading);
+      rerender(undefined, undefined, false, nextPreviewHistory, loading);
     },
-    unmount() {
-      act(() => root.unmount());
-      container.remove();
-    },
+    unmount: view.unmount,
   };
 }
 
@@ -327,6 +338,31 @@ describe('ChatPreviewStand wallpaper picker', () => {
     }
   });
 
+  it('virtualizes large chat lists and follows scroll position', () => {
+    const chats: Chat[] = Array.from({ length: 500 }, (_, index) => ({
+      id: `chat-${index}`,
+      name: `Chat ${index + 1}`,
+      type: 'private',
+    }));
+    const { container, unmount } = renderChatPreviewStand([], '', [], null, chats, true);
+
+    try {
+      const list = container.querySelector('.chat-preview-chat-list-items') as HTMLDivElement;
+      expect(list.querySelectorAll('.chat-preview-chat-list-item').length).toBeLessThan(chats.length);
+
+      Object.defineProperty(list, 'clientHeight', { configurable: true, value: 290 });
+      list.scrollTop = 58 * 100;
+      fireEvent.scroll(list);
+
+      expect(list.querySelector('.chat-preview-chat-list-item')?.textContent).toContain('Chat 95');
+      expect(list.textContent).toContain('Chat 101');
+      expect(Array.from(list.querySelectorAll('.chat-preview-chat-list-item strong'))
+        .some((name) => name.textContent === 'Chat 1')).toBe(false);
+    } finally {
+      unmount();
+    }
+  });
+
   it('keeps the wallpaper picker toggle in mobile preview', () => {
     const { container, unmount } = renderChatPreviewStand();
 
@@ -362,7 +398,7 @@ describe('ChatPreviewStand wallpaper picker', () => {
     try {
       const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
       expect(preview.classList.contains('theme-telegram')).toBe(true);
-      expect(preview.style.backgroundImage).toContain('carbon-live-preview.png');
+      expect(preview.style.backgroundImage).toContain('carbon-live-preview.jpg');
 
       openWallpaperPicker(container);
       expect(container.querySelector('.chat-preview-wallpaper-quick-choice.is-default')?.classList.contains('is-selected')).toBe(true);
@@ -378,7 +414,7 @@ describe('ChatPreviewStand wallpaper picker', () => {
     try {
       const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
       expect(preview.classList.contains('theme-telegram')).toBe(true);
-      expect(preview.style.backgroundImage).toContain('carbon-live-preview.png');
+      expect(preview.style.backgroundImage).toContain('carbon-live-preview.jpg');
     } finally {
       unmount();
     }
@@ -418,7 +454,7 @@ describe('ChatPreviewStand wallpaper picker', () => {
 
       expect(container.querySelector('.chat-preview-window')?.classList.contains('theme-telegram')).toBe(true);
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundImage)
-        .toContain('carbon-live-preview.png');
+        .toContain('carbon-live-preview.jpg');
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundSize).toBe('cover');
       expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).toBeNull();
 

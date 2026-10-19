@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { getStableChatId, normalizeDialogChats } from './telegram-dialogs.cjs';
+import {
+  getEntityDisplayName,
+  getPublicChatType,
+  getResolvedChatType,
+  getStableChatId,
+  normalizeDialogChats,
+} from './telegram-dialogs.cjs';
 
 describe('Telegram dialog loading normalization', () => {
   it('preserves a marked channel dialog ID in history when the entity ID is raw', () => {
@@ -30,5 +36,23 @@ describe('Telegram dialog loading normalization', () => {
       { id: '2', name: 'Second duplicate', username: 'second', type: 'private' },
       { id: '3', name: 'Third', username: 'third', type: 'private' },
     ]);
+  });
+
+  it('resolves Telegram chat types from entity classes', () => {
+    expect(getPublicChatType({ className: 'Channel', megagroup: false })).toBe('channel');
+    expect(getPublicChatType({ className: 'Channel', megagroup: true })).toBe('supergroup');
+    expect(getPublicChatType({ className: 'Chat' })).toBe('group');
+    expect(getPublicChatType({ className: 'ChatForbidden' })).toBe('group');
+    expect(getPublicChatType({ className: 'User' })).toBeNull();
+    expect(getResolvedChatType({ className: 'User' })).toBe('private');
+    expect(getResolvedChatType({ className: 'Unknown' })).toBeNull();
+  });
+
+  it('prefers title, then full name, username, and fallback for chat display names', () => {
+    expect(getEntityDisplayName({ title: 'Channel', username: 'channel' })).toBe('Channel');
+    expect(getEntityDisplayName({ firstName: 'Ada', lastName: 'Lovelace' })).toBe('Ada Lovelace');
+    expect(getEntityDisplayName({ username: 'ada' })).toBe('ada');
+    expect(getEntityDisplayName({ className: 'Channel' })).toBe('Unnamed chat');
+    expect(getEntityDisplayName(null)).toBe('');
   });
 });

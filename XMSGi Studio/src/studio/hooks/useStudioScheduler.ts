@@ -201,6 +201,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     entities?: unknown,
     replyMarkup?: InlineKeyboardMarkup,
     suppliedAttachmentGroups?: string[][],
+    onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
   ) => {
     setPublishingDraft(true);
     try {
@@ -222,6 +223,10 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
         });
         if (!publishResult.ok) {
+          onAttachmentGroupResult?.(groupIndex, false);
+          for (let pendingGroupIndex = groupIndex + 1; pendingGroupIndex < attachmentGroups.length; pendingGroupIndex += 1) {
+            onAttachmentGroupResult?.(pendingGroupIndex, false);
+          }
           const errorDetails = publishResult.errorDetails ?? normalizeTelegramBridgeError(publishResult, 'publish', 'Telegram could not send the message.');
           if (sentMessages.length > 0) {
             setSent((current) => [...sentMessages.slice().reverse(), ...current]);
@@ -236,6 +241,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           ...makeMessage(chat, isPrimaryGroup ? text : '', date, time, 'sent', mediaIds),
           sentAt,
         });
+        onAttachmentGroupResult?.(groupIndex, true);
       }
 
       setSent((current) => [...sentMessages.slice().reverse(), ...current]);

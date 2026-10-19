@@ -1,4 +1,6 @@
 import type { Chat, ScheduledMessage, Template } from '@/types';
+import { hasSavedChatStorage, telegramLoadSavedChats, telegramSaveSavedChats } from '@/services/chatAppService';
+import { hasScheduleHistoryStorage, saveScheduleHistory } from '@/services/schedulerAppService';
 
 export type MessageHistoryScope = 'personal' | 'workspace';
 export type ScheduleHistorySnapshot = { upcoming: ScheduledMessage[]; sent: ScheduledMessage[] };
@@ -104,12 +106,12 @@ export async function persistScheduleHistoryAndWait(
   field: ScheduleHistoryField,
   messages: ScheduledMessage[] | ScheduleHistorySnapshot,
 ): Promise<boolean> {
-  if (typeof window !== 'undefined' && typeof window.telegram?.saveScheduleHistory === 'function') {
+  if (hasScheduleHistoryStorage()) {
     try {
       const payload = field === 'snapshot'
         ? { scope, field, messages: messages as ScheduleHistorySnapshot }
         : { scope, field, messages: messages as ScheduledMessage[] };
-      const result = await window.telegram.saveScheduleHistory(payload);
+      const result = await saveScheduleHistory(payload);
       return result.success;
     } catch {
       return false;
@@ -130,12 +132,12 @@ function persistScheduleHistory(
   field: ScheduleHistoryField,
   messages: ScheduledMessage[] | ScheduleHistorySnapshot,
 ): boolean {
-  if (typeof window === 'undefined' || typeof window.telegram?.saveScheduleHistory !== 'function') return false;
+  if (!hasScheduleHistoryStorage()) return false;
 
   const payload = field === 'snapshot'
     ? { scope, field, messages: messages as ScheduleHistorySnapshot }
     : { scope, field, messages: messages as ScheduledMessage[] };
-  void window.telegram.saveScheduleHistory(payload).then((result) => {
+  void saveScheduleHistory(payload).then((result) => {
     if (!result.success) console.error(result.error || 'Schedule history could not be saved.');
   }).catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : 'Schedule history could not be saved.');
@@ -160,12 +162,12 @@ export function saveChats(chats: { id: string; name: string }[]): void {
 }
 
 export async function loadPersistentChats(): Promise<Chat[]> {
-  if (typeof window !== 'undefined' && typeof window.telegram?.loadSavedChats === 'function') {
-    const persistedChats = await window.telegram.loadSavedChats();
+  const persistedChats = await telegramLoadSavedChats();
+  if (persistedChats !== undefined) {
     if (persistedChats.length > 0) return persistedChats;
 
     const legacyChats = loadChats() as Chat[];
-    if (legacyChats.length > 0 && typeof window.telegram.saveSavedChats === 'function') {
+    if (legacyChats.length > 0) {
       await savePersistentChats(legacyChats);
     }
 
@@ -179,8 +181,9 @@ export async function savePersistentChats(chats: Chat[]): Promise<void> {
   const write = async () => {
     save(CHATS_KEY, chats);
 
-    if (typeof window !== 'undefined' && typeof window.telegram?.saveSavedChats === 'function') {
-      await window.telegram.saveSavedChats(chats);
+    if (hasSavedChatStorage()) {
+      const result = await telegramSaveSavedChats(chats);
+      if (!result.success) throw new Error(result.error || 'Chats could not be saved.');
     }
   };
 

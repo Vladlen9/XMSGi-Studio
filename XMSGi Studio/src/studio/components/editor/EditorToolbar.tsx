@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Bold, Download, History, Images, Italic, Link, Strikethrough, Underline } from 'lucide-react';
+import { Bold, Download, History, ImagePlus, Italic, Link, Strikethrough, Underline } from 'lucide-react';
 import { useLocale } from '@studio/lib/i18n';
 import type { StageMode } from '@studio/components/stages/types';
 import type { EditorFormats } from './useEditorFormats';
@@ -25,7 +25,9 @@ interface Props {
 export function EditorToolbar({ stageMode, remainingCharacters, counterClassName, activeFormats, linkPopoverOpen, linkPopover, onFormat, onOpenAlbum, albumDisabled = false, onToggleLink, onExportText, onOpenVersionHistory }: Props) {
   const { t } = useLocale();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [albumInfoVisible, setAlbumInfoVisible] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
+  const albumInfoTimerRef = useRef<number | null>(null);
   const formatOptions = [
     { id: 'bold' as const, label: t('studio.bold'), icon: Bold },
     { id: 'italic' as const, label: t('studio.italic'), icon: Italic },
@@ -48,6 +50,26 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
       document.removeEventListener('keydown', onKey);
     };
   }, [exportMenuOpen]);
+
+  useEffect(() => () => {
+    if (albumInfoTimerRef.current !== null) window.clearTimeout(albumInfoTimerRef.current);
+  }, []);
+
+  const scheduleAlbumInfo = () => {
+    if (albumInfoTimerRef.current !== null) window.clearTimeout(albumInfoTimerRef.current);
+    albumInfoTimerRef.current = window.setTimeout(() => {
+      albumInfoTimerRef.current = null;
+      setAlbumInfoVisible(true);
+    }, 450);
+  };
+
+  const hideAlbumInfo = () => {
+    if (albumInfoTimerRef.current !== null) {
+      window.clearTimeout(albumInfoTimerRef.current);
+      albumInfoTimerRef.current = null;
+    }
+    setAlbumInfoVisible(false);
+  };
 
   if (stageMode !== 'editor') return null;
 
@@ -88,9 +110,19 @@ export function EditorToolbar({ stageMode, remainingCharacters, counterClassName
           </div>
         )}
         {onOpenAlbum && (
-          <div className="workspace-page-rich-text-album-controls">
-            <button type="button" className="workspace-page-rich-text-link-trigger workspace-page-rich-text-album-trigger" onMouseDown={(event) => event.preventDefault()} onClick={onOpenAlbum} disabled={albumDisabled} aria-label={t('studio.addPhotoAlbum')} aria-describedby="workspace-page-photo-album-limits" title={albumDisabled ? t('studio.photoAlbumCountLimit', { count: 3 }) : t('studio.addPhotoAlbum')}>
-              <Images size={17} strokeWidth={1.8} aria-hidden="true" />
+          <div
+            className={`workspace-page-rich-text-album-controls${albumInfoVisible ? ' is-info-visible' : ''}`}
+            onMouseEnter={scheduleAlbumInfo}
+            onMouseLeave={hideAlbumInfo}
+            onFocusCapture={scheduleAlbumInfo}
+            onBlurCapture={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+              hideAlbumInfo();
+            }}
+          >
+            <button type="button" className="workspace-page-rich-text-link-trigger workspace-page-rich-text-album-trigger" onMouseDown={(event) => event.preventDefault()} onClick={onOpenAlbum} disabled={albumDisabled} aria-label={t('studio.addPhotoAlbum')} aria-describedby="workspace-page-photo-album-limits">
+              <ImagePlus size={17} strokeWidth={1.8} aria-hidden="true" />
             </button>
             <div className="workspace-page-rich-text-album-info" id="workspace-page-photo-album-limits" role="tooltip">
               <strong>{t('studio.photoAlbumLimits')}</strong>

@@ -5,6 +5,8 @@ import { normalizeAttachments } from './draftAttachments';
 import { normalizeWorkspaceDocumentHistories } from './documentHistory';
 import { normalizeRichTextEntities } from './richText';
 import type { ScheduleRepeatOptions } from './scheduling';
+import { createDraftRecord, normalizeDraftAttachments, normalizeDraftEntities, type DraftRecord } from '@/domain/messageDraft';
+import { readActiveDraft } from '@/services/draftStoreService';
 
 export const WORKSPACE_DRAFT_KEY = 'xmsgi-workspace-draft';
 export const LEGACY_WORKSPACE_DRAFT_KEY = 'awaitmsg-workspace-draft';
@@ -45,6 +47,18 @@ function normalizeDraftChat(value: unknown): Chat | null {
 }
 
 export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
+  const unifiedDraft = readActiveDraft();
+  if (unifiedDraft) {
+    return {
+      documentId: unifiedDraft.id,
+      body: unifiedDraft.message,
+      entities: unifiedDraft.entities as unknown as RichTextEntity[],
+      attachments: unifyDraftAttachmentPaths(unifiedDraft.attachments as Array<{ id?: string; name?: string; path?: string; size?: number; kind?: string; type?: string; mimeType?: string; sourcePath?: string; previewUrl?: string; position?: number; albumId?: string; unavailable?: boolean }>),
+      selectedChat: unifiedDraft.selectedChatId ? { id: unifiedDraft.selectedChatId, name: '', username: '', type: 'unknown' } as Chat : null,
+      savedAt: unifiedDraft.updatedAt,
+    };
+  }
+
   try {
     const primaryRaw = window.localStorage.getItem(WORKSPACE_DRAFT_KEY);
     const raw = primaryRaw ?? window.localStorage.getItem(LEGACY_WORKSPACE_DRAFT_KEY);
@@ -59,6 +73,37 @@ export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
   } catch {
     return {};
   }
+}
+
+function unifyDraftAttachmentPaths(
+  attachments: Array<{
+    id?: string;
+    name?: string;
+    path?: string;
+    size?: number;
+    kind?: string;
+    type?: string;
+    mimeType?: string;
+    sourcePath?: string;
+    previewUrl?: string;
+    position?: number;
+    albumId?: string;
+    unavailable?: boolean;
+  }> = [],
+): DraftAttachment[] {
+  return attachments.map((attachment, index) => ({
+    id: attachment.id ?? `studio-draft-attachment-${index}`,
+    type: attachment.type === 'image' || attachment.kind === 'image' ? 'image' : 'file',
+    name: attachment.name ?? attachment.path ?? `attachment-${index}`,
+    mimeType: attachment.mimeType ?? 'application/octet-stream',
+    size: typeof attachment.size === 'number' ? attachment.size : 0,
+    path: attachment.path ?? attachment.sourcePath ?? '',
+    sourcePath: attachment.sourcePath ?? attachment.path,
+    previewUrl: attachment.previewUrl,
+    position: typeof attachment.position === 'number' ? attachment.position : index,
+    albumId: attachment.albumId,
+    unavailable: attachment.unavailable,
+  }));
 }
 
 export interface DraftStorageApi {
@@ -103,6 +148,21 @@ export interface DraftStorageApi {
 
 export function hasDraftContent(body: string, attachments: DraftAttachment[] = []): boolean {
   return body.trim().length > 0 || attachments.some((attachment) => Boolean(attachment.path || attachment.previewUrl || attachment.name));
+}
+
+export function readWorkspaceDraftRecord(): DraftRecord | null {
+  const draft = readInitialWorkspaceDraft();
+  const body = typeof draft.body === 'string' ? draft.body : '';
+  if (!body.trim() && !(draft.attachments?.length)) return null;
+
+  return createDraftRecord({
+    id: draft.documentId ?? 'workspace:active',
+    message: body,
+    entities: normalizeDraftEntities(draft.entities),
+    attachments: normalizeDraftAttachments(draft.attachments),
+    selectedChatId: draft.selectedChat?.id ?? null,
+    updatedAt: typeof draft.savedAt === 'string' ? draft.savedAt : new Date().toISOString(),
+  });
 }
 
 export function readWorkspaceDraftStoreFallback(): PersistedDraftStore | null {

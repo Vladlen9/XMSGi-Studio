@@ -1,5 +1,5 @@
 import { memo, startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { AlertTriangle, ChevronDown } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ImagePlus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ChatAvatar } from '../components/ChatAvatar';
 import { ChatRemoveModal } from '../components/ChatRemoveModal';
@@ -28,6 +28,7 @@ import { getMessageMaxLength } from '../lib/messageLimits';
 import { appendPreviewMessage } from '../lib/preview';
 import { toInlineKeyboardMarkup } from '../lib/inlineKeyboard';
 import { useLocale } from '@studio/lib/i18n';
+import { hasChatHistoryBridge, telegramGetChatHistory } from '@/services/chatAppService';
 import type { InlineButtonRow } from '../lib/inlineKeyboard';
 import { loadTemplates, saveTemplates } from '../lib/storage';
 import { uid } from '@shared/utils';
@@ -91,7 +92,7 @@ type WorkspacePageProps = {
   }, repeat?: ScheduleRepeatOptions) => void;
   handleCancelMessage: (message: ScheduledMessage) => void;
   handleCancelMessages?: (messages: ScheduledMessage[]) => Promise<boolean>;
-  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][]) => Promise<boolean>;
+  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void) => Promise<boolean>;
   publishingDraft: boolean;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftOpener?: (opener: ((draft: SavedDraft) => void) | null) => void;
@@ -358,6 +359,14 @@ function getPreviewHistoryErrorPresentation(error: unknown) {
   };
 }
 
+function getPreviewHistoryMediaDataUrlChars(history: PreviewChatHistory) {
+  return history.messages.reduce((total, message) => (
+    total
+    + (message.media?.dataUrl?.length ?? 0)
+    + (message.media?.thumbnailDataUrl?.length ?? 0)
+  ), 0);
+}
+
 function useTimedStatus(
   message: string,
   clearMessage: React.Dispatch<React.SetStateAction<string>>,
@@ -422,6 +431,9 @@ const MAX_ATTACHMENTS = MAX_ALBUMS * MAX_PHOTOS_PER_ALBUM;
 const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
 const MAX_ATTACHMENTS_TOTAL_SIZE = 200 * 1024 * 1024;
 const PREVIEW_HISTORY_LIMIT = 50;
+const PREVIEW_HISTORY_CACHE_TTL_MS = 20_000;
+const PREVIEW_HISTORY_CACHE_SIZE = 2;
+const PREVIEW_HISTORY_CACHE_MAX_MEDIA_DATA_URL_CHARS = 4 * 1024 * 1024;
 
 type PreviewLayout = {
   collapsed?: boolean;
@@ -542,12 +554,20 @@ function getAttachmentDisplayItems(attachments: WorkspaceAttachment[]): Attachme
   return items;
 }
 
-function getAttachmentTransportGroups(attachments: WorkspaceAttachment[]): string[][] {
+function getAttachmentTransportItems(attachments: WorkspaceAttachment[]) {
   return getAttachmentDisplayItems(attachments)
-    .map((item) => (item.kind === 'album' ? item.attachments : [item.attachment])
-      .map((attachment) => attachment.path || attachment.previewUrl || attachment.name)
-      .filter(Boolean))
-    .filter((group) => group.length > 0);
+    .map((item) => {
+      const itemAttachments = item.kind === 'album' ? item.attachments : [item.attachment];
+      return {
+        attachments: itemAttachments,
+        paths: itemAttachments.map((attachment) => attachment.path || attachment.previewUrl || attachment.name).filter(Boolean),
+      };
+    })
+    .filter((group) => group.paths.length > 0);
+}
+
+function getAttachmentTransportGroups(attachments: WorkspaceAttachment[]): string[][] {
+  return getAttachmentTransportItems(attachments).map((group) => group.paths);
 }
 
 function formatAttachmentSize(size: number) {
@@ -618,6 +638,7 @@ export function WorkspacePage({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const albumFileInputRef = useRef<HTMLInputElement | null>(null);
   const albumAttachmentPositionRef = useRef(0);
+  const albumAttachmentTargetIdRef = useRef<string | null>(null);
   const attachmentPreviewUrlsRef = useRef(new Set<string>());
   const bodyInputRef = useRef<HTMLDivElement | null>(null);
   const focusRescheduledEditorAtEndRef = useRef(false);
@@ -669,6 +690,7 @@ export function WorkspacePage({
   });
   const pendingAttachmentUsageRef = useRef(new Map<number, { count: number; size: number }>());
   const pendingAlbumIdsRef = useRef(new Set<string>());
+  const pendingAlbumPhotoCountsRef = useRef(new Map<string, number>());
   const attachmentSelectionGenerationRef = useRef(0);
   const replaceAttachments = (nextAttachments: WorkspaceAttachment[]) => {
     attachmentUsageRef.current = {
@@ -723,6 +745,7 @@ export function WorkspacePage({
   const [previewHistoryError, setPreviewHistoryError] = useState('');
   const [previewHistoryErrorRetryable, setPreviewHistoryErrorRetryable] = useState(false);
   const [previewHistoryRetry, setPreviewHistoryRetry] = useState(0);
+  const previewHistoryCacheRef = useRef(new Map<string, { history: PreviewChatHistory; cachedAt: number }>());
   const [chatLookupError, setChatLookupError] = useState('');
   const [, setChatWallpaper] = useState<ChatWallpaper>(() => readChatWallpaper());
   const [chatListOpen, setChatListOpen] = useState(false);
@@ -1189,10 +1212,16 @@ export function WorkspacePage({
     saveTemplates(templates);
   }, [templates]);
 
+  const selectedChatId = selectedChat?.id;
+
   useEffect(() => {
     let cancelled = false;
 
-    if (!connected || !selectedChat) {
+    if (!connected) {
+      previewHistoryCacheRef.current.clear();
+    }
+
+    if (!connected || !selectedChatId) {
       setPreviewHistory(null);
       setPreviewHistoryLoading(false);
       setPreviewHistoryError('');
@@ -1202,9 +1231,7 @@ export function WorkspacePage({
       };
     }
 
-    const telegramApi = typeof window !== 'undefined' ? (window as typeof window & { telegram?: { getChatHistory?: (payload: { chatId: string; limit: number }) => Promise<{ success: boolean; history?: unknown[] | null; error?: string }> } }).telegram : undefined;
-
-    if (!telegramApi || typeof telegramApi.getChatHistory !== 'function') {
+    if (!hasChatHistoryBridge()) {
       setPreviewHistory(null);
       setPreviewHistoryLoading(false);
       setPreviewHistoryError('');
@@ -1213,18 +1240,43 @@ export function WorkspacePage({
         cancelled = true;
       };
     }
+
+    const cachedEntry = previewHistoryCacheRef.current.get(selectedChatId);
+    if (cachedEntry && Date.now() - cachedEntry.cachedAt < PREVIEW_HISTORY_CACHE_TTL_MS) {
+      const cache = previewHistoryCacheRef.current;
+      cache.delete(selectedChatId);
+      cache.set(selectedChatId, cachedEntry);
+      setPreviewHistory(cachedEntry.history);
+      setPreviewHistoryLoading(false);
+      setPreviewHistoryError('');
+      setPreviewHistoryErrorRetryable(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (cachedEntry) previewHistoryCacheRef.current.delete(selectedChatId);
 
     setPreviewHistory(null);
     setPreviewHistoryLoading(true);
     setPreviewHistoryError('');
     setPreviewHistoryErrorRetryable(false);
-    telegramApi
-      .getChatHistory({ chatId: selectedChat.id, limit: PREVIEW_HISTORY_LIMIT })
+    telegramGetChatHistory({ chatId: selectedChatId, limit: PREVIEW_HISTORY_LIMIT })
       .then((result) => {
         if (cancelled) return;
 
         if (result.success) {
-          setPreviewHistory(result.history ?? null);
+          const history = result.history ?? null;
+          setPreviewHistory(history);
+          if (history && getPreviewHistoryMediaDataUrlChars(history) <= PREVIEW_HISTORY_CACHE_MAX_MEDIA_DATA_URL_CHARS) {
+            const cache = previewHistoryCacheRef.current;
+            cache.delete(selectedChatId);
+            cache.set(selectedChatId, { history, cachedAt: Date.now() });
+            while (cache.size > PREVIEW_HISTORY_CACHE_SIZE) {
+              const oldestChatId = cache.keys().next().value;
+              if (oldestChatId === undefined) break;
+              cache.delete(oldestChatId);
+            }
+          }
           setPreviewHistoryError('');
           setPreviewHistoryErrorRetryable(false);
         } else {
@@ -1248,7 +1300,7 @@ export function WorkspacePage({
     return () => {
       cancelled = true;
     };
-  }, [connected, selectedChat, previewHistoryRetry]);
+  }, [connected, selectedChatId, previewHistoryRetry]);
 
   const previewText = stageMode === 'template' && templateEditingId
     ? templateDraftBody
@@ -1413,7 +1465,11 @@ export function WorkspacePage({
     const chat = selectedChat;
     const text = draftBody;
     const replyMarkup = toInlineKeyboardMarkup(inlineButtons);
-    const attachmentGroups = getAttachmentTransportGroups(attachments);
+    const attachmentTransportItems = getAttachmentTransportItems(attachments);
+    const attachmentGroups = attachmentTransportItems.map((item) => item.paths);
+    const failedAttachmentIds = new Set<string>();
+    let successfulGroupCount = 0;
+    let firstGroupSent = false;
     sendInFlightRef.current = true;
     setSendInFlight(true);
     setSendError('');
@@ -1426,9 +1482,51 @@ export function WorkspacePage({
         draftEntities,
         replyMarkup,
         attachmentGroups,
+        (groupIndex, sentGroup) => {
+          if (groupIndex === 0) firstGroupSent = sentGroup;
+          const group = attachmentTransportItems[groupIndex];
+          if (sentGroup) {
+            successfulGroupCount += 1;
+            return;
+          }
+          group?.attachments.forEach((attachment) => failedAttachmentIds.add(attachment.id));
+        },
       );
       if (!sent) {
-        setSendError(t('studio.sendFailed'));
+        if (failedAttachmentIds.size > 0) {
+          const returnedAttachments = attachments.filter((attachment) => failedAttachmentIds.has(attachment.id));
+          const returnedAttachmentIds = new Set(returnedAttachments.map((attachment) => attachment.id));
+          attachments.forEach((attachment) => {
+            if (returnedAttachmentIds.has(attachment.id)) return;
+            const previewUrl = attachment.previewUrl;
+            if (previewUrl && attachmentPreviewUrlsRef.current.delete(previewUrl)) {
+              URL.revokeObjectURL(previewUrl);
+            }
+          });
+          replaceAttachments(returnedAttachments);
+
+          if (firstGroupSent) {
+            setDraftBody('');
+            setDraftEntities([]);
+            setInlineButtons([]);
+            setWorkspaceDocumentId(uid());
+            if (text.trim()) {
+              setPreviewHistory((current) => {
+                if (!current || current.chat.id !== chat.id) return current;
+                const nextHistory = appendPreviewMessage(current, chat.id, text, replyMarkup);
+                const cache = previewHistoryCacheRef.current;
+                if (cache.has(chat.id)) {
+                  cache.delete(chat.id);
+                  if (getPreviewHistoryMediaDataUrlChars(nextHistory) <= PREVIEW_HISTORY_CACHE_MAX_MEDIA_DATA_URL_CHARS) {
+                    cache.set(chat.id, { history: nextHistory, cachedAt: Date.now() });
+                  }
+                }
+                return nextHistory;
+              });
+            }
+          }
+        }
+        setSendError(successfulGroupCount > 0 ? '' : t('studio.sendFailed'));
         return;
       }
 
@@ -1440,7 +1538,15 @@ export function WorkspacePage({
       setPreviewHistory((current) => {
         if (!current || current.chat.id !== chat.id) return current;
 
-        return appendPreviewMessage(current, chat.id, text, replyMarkup);
+        const nextHistory = appendPreviewMessage(current, chat.id, text, replyMarkup);
+        const cache = previewHistoryCacheRef.current;
+        if (cache.has(chat.id)) {
+          cache.delete(chat.id);
+          if (getPreviewHistoryMediaDataUrlChars(nextHistory) <= PREVIEW_HISTORY_CACHE_MAX_MEDIA_DATA_URL_CHARS) {
+            cache.set(chat.id, { history: nextHistory, cachedAt: Date.now() });
+          }
+        }
+        return nextHistory;
       });
     } catch {
       setSendError(t('studio.sendFailed'));
@@ -2389,6 +2495,8 @@ export function WorkspacePage({
   const handleAlbumFileSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const files = Array.from(input.files ?? []);
+    const targetAlbumId = albumAttachmentTargetIdRef.current;
+    albumAttachmentTargetIdRef.current = null;
     input.value = '';
     const selectedImages = files.filter((file) => (
       file.type.startsWith('image/') || inferAttachmentMimeType(file.name).startsWith('image/')
@@ -2406,17 +2514,34 @@ export function WorkspacePage({
       ...attachmentUsageRef.current.albumIds,
       ...pendingAlbumIdsRef.current,
     ]);
-    if (existingAlbumIds.size >= MAX_ALBUMS) {
+    if (!targetAlbumId && existingAlbumIds.size >= MAX_ALBUMS) {
       setAttachmentError(t('studio.photoAlbumCountLimit', { count: MAX_ALBUMS }));
       return;
     }
 
-    const albumId = createAttachmentId();
-    const exceededAlbumLimit = selectedImages.length > MAX_PHOTOS_PER_ALBUM;
-    pendingAlbumIdsRef.current.add(albumId);
+    const existingPhotoCount = targetAlbumId
+      ? attachments.filter((attachment) => attachment.albumId === targetAlbumId).length
+      : 0;
+    const pendingPhotoCount = targetAlbumId
+      ? pendingAlbumPhotoCountsRef.current.get(targetAlbumId) ?? 0
+      : 0;
+    const availablePhotoSlots = Math.max(0, MAX_PHOTOS_PER_ALBUM - existingPhotoCount - pendingPhotoCount);
+    if (availablePhotoSlots === 0) {
+      setAttachmentError(t('studio.photoAlbumPhotoLimit', { count: MAX_PHOTOS_PER_ALBUM }));
+      return;
+    }
+
+    const albumId = targetAlbumId ?? createAttachmentId();
+    const selectedAlbumImages = selectedImages.slice(0, availablePhotoSlots);
+    const exceededAlbumLimit = selectedImages.length > availablePhotoSlots;
+    if (targetAlbumId) {
+      pendingAlbumPhotoCountsRef.current.set(albumId, pendingPhotoCount + selectedAlbumImages.length);
+    } else {
+      pendingAlbumIdsRef.current.add(albumId);
+    }
     try {
       const telegramPhotos = await Promise.all(
-        selectedImages.slice(0, MAX_PHOTOS_PER_ALBUM).map(convertWebpToTelegramPhoto),
+        selectedAlbumImages.map(convertWebpToTelegramPhoto),
       );
       await handleAddFiles(
         telegramPhotos,
@@ -2426,7 +2551,13 @@ export function WorkspacePage({
     } catch {
       setAttachmentError(t('studio.photoAlbumConversionFailed'));
     } finally {
-      pendingAlbumIdsRef.current.delete(albumId);
+      if (targetAlbumId) {
+        const remainingPending = (pendingAlbumPhotoCountsRef.current.get(albumId) ?? 0) - selectedAlbumImages.length;
+        if (remainingPending > 0) pendingAlbumPhotoCountsRef.current.set(albumId, remainingPending);
+        else pendingAlbumPhotoCountsRef.current.delete(albumId);
+      } else {
+        pendingAlbumIdsRef.current.delete(albumId);
+      }
     }
     if (exceededAlbumLimit) {
       setAttachmentError(t('studio.photoAlbumPhotoLimit', { count: MAX_PHOTOS_PER_ALBUM }));
@@ -2490,6 +2621,24 @@ export function WorkspacePage({
     ));
 
     setAttachmentPreview({ src, name, left, top, width, height });
+  };
+
+  const scheduleAttachmentPreview = (image: HTMLImageElement, name: string, src: string) => {
+    if (attachmentPreviewTimerRef.current !== null) {
+      window.clearTimeout(attachmentPreviewTimerRef.current);
+    }
+    attachmentPreviewTimerRef.current = window.setTimeout(() => {
+      attachmentPreviewTimerRef.current = null;
+      showAttachmentPreview(image, name, src);
+    }, 1000);
+  };
+
+  const hideAttachmentPreview = () => {
+    if (attachmentPreviewTimerRef.current !== null) {
+      window.clearTimeout(attachmentPreviewTimerRef.current);
+      attachmentPreviewTimerRef.current = null;
+    }
+    setAttachmentPreview(null);
   };
 
   const handleExportEditorText = async (editorText: string, format: 'txt' | 'json') => {
@@ -2648,6 +2797,7 @@ export function WorkspacePage({
                     stageMode={stageMode}
                     albumDisabled={attachmentUsageRef.current.albumIds.size >= MAX_ALBUMS}
                     onOpenAlbum={(position) => {
+                      albumAttachmentTargetIdRef.current = null;
                       albumAttachmentPositionRef.current = position;
                       albumFileInputRef.current?.click();
                     }}
@@ -2782,14 +2932,31 @@ export function WorkspacePage({
                             data-position={item.position}
                             role="group"
                             aria-label={`${t('studio.photoAlbum')} · ${t('studio.photoAlbumCount', { count: item.attachments.length })}`}
-                            title={`${t('studio.photoAlbum')} · ${t('studio.photoAlbumCount', { count: item.attachments.length })}`}
                           >
-                            <div className="workspace-page-photo-album-preview" aria-hidden="true">
+                            <div className="workspace-page-photo-album-preview">
                               {item.attachments.slice(0, 4).map((file) => (
                                 file.unavailable ? (
                                   <span key={file.id}><AlertTriangle size={10} aria-hidden="true" /></span>
                                 ) : (
-                                  <img key={file.id} src={file.previewUrl || toFileUrl(file.path)} alt="" />
+                                  <img
+                                    key={file.id}
+                                    src={file.previewUrl || toFileUrl(file.path)}
+                                    alt=""
+                                    tabIndex={0}
+                                    aria-label={t('studio.previewFile', { name: file.name })}
+                                    onMouseEnter={(event) => scheduleAttachmentPreview(
+                                      event.currentTarget,
+                                      file.name,
+                                      file.previewUrl || toFileUrl(file.path),
+                                    )}
+                                    onMouseLeave={hideAttachmentPreview}
+                                    onFocus={(event) => showAttachmentPreview(
+                                      event.currentTarget,
+                                      file.name,
+                                      file.previewUrl || toFileUrl(file.path),
+                                    )}
+                                    onBlur={hideAttachmentPreview}
+                                  />
                                 )
                               ))}
                               {item.attachments.length > 4 && (
@@ -2802,6 +2969,20 @@ export function WorkspacePage({
                                 {t('studio.photoAlbumCount', { count: item.attachments.length })}
                               </span>
                             </span>
+                            <button
+                              type="button"
+                              className="workspace-page-photo-album-add"
+                              disabled={item.attachments.length >= MAX_PHOTOS_PER_ALBUM}
+                              onClick={() => {
+                                albumAttachmentTargetIdRef.current = item.albumId;
+                                albumAttachmentPositionRef.current = item.position;
+                                albumFileInputRef.current?.click();
+                              }}
+                              aria-label={t('studio.addPhotosToAlbum')}
+                              title={t('studio.addPhotosToAlbum')}
+                            >
+                              <ImagePlus size={13} strokeWidth={1.8} aria-hidden="true" />
+                            </button>
                             <button
                               type="button"
                               className="workspace-page-attachment-remove"
@@ -2837,25 +3018,10 @@ export function WorkspacePage({
                               className="workspace-page-attachment-thumbnail"
                               tabIndex={0}
                               aria-label={t('studio.previewFile', { name: file.name })}
-                              onMouseEnter={(event) => {
-                                if (attachmentPreviewTimerRef.current !== null) {
-                                  window.clearTimeout(attachmentPreviewTimerRef.current);
-                                }
-                                const image = event.currentTarget;
-                                attachmentPreviewTimerRef.current = window.setTimeout(() => {
-                                  attachmentPreviewTimerRef.current = null;
-                                  showAttachmentPreview(image, file.name, file.previewUrl || toFileUrl(file.path));
-                                }, 1000);
-                              }}
-                              onMouseLeave={() => {
-                                if (attachmentPreviewTimerRef.current !== null) {
-                                  window.clearTimeout(attachmentPreviewTimerRef.current);
-                                  attachmentPreviewTimerRef.current = null;
-                                }
-                                setAttachmentPreview(null);
-                              }}
+                              onMouseEnter={(event) => scheduleAttachmentPreview(event.currentTarget, file.name, file.previewUrl || toFileUrl(file.path))}
+                              onMouseLeave={hideAttachmentPreview}
                               onFocus={(event) => showAttachmentPreview(event.currentTarget, file.name, file.previewUrl || toFileUrl(file.path))}
-                              onBlur={() => setAttachmentPreview(null)}
+                              onBlur={hideAttachmentPreview}
                             />
                           ) : (
                             <div className="workspace-page-attachment-file-mark">

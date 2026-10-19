@@ -3,6 +3,18 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Chat, NotificationType } from '@/types';
 import { savePersistentChats } from '@/lib/storage';
 import { useLocale, type TranslationKey } from '@/lib/i18n';
+import {
+  hasTelegramBridge,
+  telegramConnect,
+  telegramForgetAccount,
+  telegramGetAuthState,
+  telegramGetRateLimitState,
+  telegramGetStatus,
+  telegramLogin,
+  telegramOnStatus,
+  telegramSignOutKeepSession,
+  telegramWelcomeBack,
+} from '../services/telegramAppService';
 
 export type TelegramAuthOptions = {
   showNotification: (message: string, type: NotificationType, title: string) => void;
@@ -28,6 +40,7 @@ function sameTelegramStatus(left: TelegramStatusSnapshot, right: TelegramStatusS
 }
 
 function getFriendlyAuthError(error: string): TranslationKey {
+  if (/desktopBridgeRequired|desktop runtime|desktop app/i.test(error)) return 'auth.desktopBridgeRequired';
   if (/PHONE_NUMBER_INVALID|phone number.{0,24}invalid/i.test(error)) return 'auth.invalidPhone';
   if (/PHONE_CODE_EXPIRED|phone code.{0,24}expired/i.test(error)) return 'auth.expiredCode';
   if (/PHONE_CODE_INVALID|phone code.{0,24}invalid/i.test(error)) return 'auth.invalidCode';
@@ -94,19 +107,15 @@ export function useTelegramAuth({
   });
 
   const refreshTelegramStatus = useCallback(async () => {
-    if (typeof window === 'undefined' || !window.telegram) {
+    if (!hasTelegramBridge()) {
       setTelegramStatus({ accountId: '', status: 'normal' });
       return;
     }
 
     try {
       const [statusResult, rateLimitResult] = await Promise.all([
-        typeof window.telegram?.getStatus === 'function'
-          ? window.telegram.getStatus() as Promise<TelegramStatusApiResult>
-          : Promise.resolve<TelegramStatusApiResult>({ success: false }),
-        typeof window.telegram?.getRateLimitState === 'function'
-          ? window.telegram.getRateLimitState() as Promise<TelegramRateLimitApiResult>
-          : Promise.resolve<TelegramRateLimitApiResult>({ success: false }),
+        telegramGetStatus() as Promise<TelegramStatusApiResult>,
+        telegramGetRateLimitState() as Promise<TelegramRateLimitApiResult>,
       ]);
       const current = rateLimitResult.current;
       const status = current?.status || statusResult.status || 'normal';
@@ -136,12 +145,12 @@ export function useTelegramAuth({
     setAuthError('');
 
     try {
-      if (typeof window.telegram?.login !== 'function') {
+      if (!hasTelegramBridge()) {
         setLocalizedAuthError('auth.desktopBridgeRequired');
         return false;
       }
 
-      const result = await window.telegram.login({
+      const result = await telegramLogin({
         phoneNumber,
         phoneCode: authStep === 'phone' ? undefined : phoneCode,
         password: authStep === 'password' ? twoFactorPassword : undefined,
@@ -149,6 +158,11 @@ export function useTelegramAuth({
 
       if (!result.success) {
         const error = result.error || t('auth.authorizationFailed');
+
+        if (error === 'desktopBridgeRequired') {
+          setLocalizedAuthError('auth.desktopBridgeRequired');
+          return false;
+        }
 
         if (
           authStep === 'code' &&
@@ -177,12 +191,10 @@ export function useTelegramAuth({
       // Сначала дозапрашиваем имя аккаунта, затем переключаем connected —
       // так между setConnected(true) и resolve промиса не будет macrotask
       // (IPC), иначе вызывающий код не сможет сменить вид без мигания.
-      if (typeof window.telegram?.getAuthState === 'function') {
-        const authResult = await window.telegram.getAuthState();
-        if (authResult.success && authResult.authState) {
-          setReturningUserName(authResult.authState.userName || '');
-          setReturningUserUsername(authResult.authState.username || '');
-        }
+      const authResult = await telegramGetAuthState();
+      if (authResult.success && authResult.authState) {
+        setReturningUserName(authResult.authState.userName || '');
+        setReturningUserUsername(authResult.authState.username || '');
       }
 
       setConnecting(false);
@@ -204,7 +216,7 @@ export function useTelegramAuth({
     setAuthError('');
 
     try {
-      const result = await window.telegram.signOutKeepSession();
+      const result = await telegramSignOutKeepSession();
 
       if (!result.success) {
         setAuthError(result.error || t('auth.disconnectFailed'));
@@ -253,12 +265,12 @@ export function useTelegramAuth({
     };
 
     try {
-      if (typeof window.telegram?.welcomeBack !== 'function') {
+      if (!hasTelegramBridge()) {
         reportRestoreError(t('auth.desktopBridgeRequired'));
         return false;
       }
 
-      const result = await window.telegram.welcomeBack();
+      const result = await telegramWelcomeBack();
 
       if (!result.success || !result.authState || !result.authState.connected || result.authState.signedOut) {
         reportRestoreError(result.error || t('auth.restoreFailed'));
@@ -293,7 +305,7 @@ export function useTelegramAuth({
     setAuthError('');
 
     try {
-      const result = await window.telegram.forgetAccount();
+      const result = await telegramForgetAccount();
 
       if (!result.success || !result.authState) {
         setAuthError(result.error || t('auth.removeFailed'));
@@ -326,14 +338,14 @@ export function useTelegramAuth({
 
   useEffect(() => {
     const loadAuth = async () => {
-      if (typeof window === 'undefined' || !window.telegram) {
+      if (!hasTelegramBridge()) {
         setConnecting(false);
         setConnected(false);
         setConnectionResolved(true);
         return;
       }
 
-      window.telegram.getAuthState()
+      telegramGetAuthState()
         .then((authResult) => {
           if (!authResult.success || !authResult.authState) {
             throw new Error(authResult.error || t('auth.readStateFailed'));
@@ -353,7 +365,7 @@ export function useTelegramAuth({
             return;
           }
 
-          return window.telegram.connect().then((result) => {
+          return telegramConnect().then((result) => {
             setConnecting(false);
             setConnected(result.success);
             setConnectionResolved(true);
@@ -379,7 +391,7 @@ export function useTelegramAuth({
   }, [t]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.telegram?.onStatus !== 'function') return;
+    if (!hasTelegramBridge()) return;
 
     const handleStatus = (status: unknown) => {
       if (typeof status === 'object' && status !== null) {
@@ -477,11 +489,11 @@ export function useTelegramAuth({
       }
     };
 
-    return window.telegram.onStatus(handleStatus);
+    return telegramOnStatus(handleStatus);
   }, [t]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.telegram) {
+    if (!hasTelegramBridge()) {
       setTelegramStatus({ accountId: '', status: 'normal' });
       return;
     }

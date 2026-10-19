@@ -12,6 +12,11 @@ import {
   normalizeChatPermissions,
   selectNextChat,
 } from '@/services/chatDomainService';
+import {
+  telegramGetChatAvatar,
+  telegramGetChatPermissions,
+  telegramGetChats,
+} from '@/services/chatAppService';
 
 export function useChats({ connected }: { connected: boolean }) {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -62,13 +67,11 @@ export function useChats({ connected }: { connected: boolean }) {
       avatarLoaderRef.current?.clear();
       return;
     }
-    if (!persistentChatsReady || typeof window.telegram?.getChats !== 'function') return;
+    if (!persistentChatsReady) return;
 
     let cancelled = false;
-    const telegramApi = window.telegram;
 
-    telegramApi
-      .getChats()
+    telegramGetChats()
       .then(async (result) => {
         if (cancelled || !result.success || !result.chats) return;
 
@@ -79,7 +82,7 @@ export function useChats({ connected }: { connected: boolean }) {
           name: chat.name,
           username: chat.username || '',
           phone: chat.phone || '',
-          type: chat.type || 'unknown',
+          type: (chat.type as Chat['type']) || 'unknown',
           avatarDataUrl: chat.avatarDataUrl || '',
         }));
 
@@ -116,7 +119,7 @@ export function useChats({ connected }: { connected: boolean }) {
           .map((chat) => chat.id);
         void avatarLoaderRef.current!.load(
           chatsNeedingAvatars,
-          (chatId) => telegramApi.getChatAvatar(chatId),
+          (chatId) => telegramGetChatAvatar(chatId),
         ).then((avatarById) => {
           if (cancelled || avatarById.size === 0) return;
 
@@ -148,10 +151,10 @@ export function useChats({ connected }: { connected: boolean }) {
   }, [connected, persistentChatsReady]);
 
   useEffect(() => {
-    if (!connected || !selectedChat || typeof window.telegram?.getChatPermissions !== 'function') return;
+    if (!connected || !selectedChat) return;
 
     let cancelled = false;
-    window.telegram.getChatPermissions(selectedChat.id).then((result) => {
+    telegramGetChatPermissions(selectedChat.id).then((result) => {
       if (cancelled || !result.success || !result.permissions) return;
       setChatPermissions((current) => ({
         ...current,
@@ -165,10 +168,8 @@ export function useChats({ connected }: { connected: boolean }) {
   }, [connected, selectedChat]);
 
   async function refreshChatPermissions(chatId: string): Promise<ChatPermissions | null> {
-    if (typeof window.telegram?.getChatPermissions !== 'function') return null;
-
     try {
-      const result = await window.telegram.getChatPermissions(chatId);
+      const result = await telegramGetChatPermissions(chatId);
       if (!result.success || !result.permissions) return null;
       setChatPermissions((current) => ({ ...current, [chatId]: result.permissions! }));
       return result.permissions;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
-import type { PersistedDraftStore, SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
+import type { SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
 import { createStudioSchedulerRuntime } from '@shared/bridge';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 
@@ -14,6 +14,7 @@ import { QuickPlannerPage } from './components/QuickPlannerPage';
 import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
+  flushPlannerDraftWrite,
   readPlannerDraft,
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
@@ -23,14 +24,17 @@ import {
   writeSavedPlannerDrafts,
   SAVED_PLANNER_DRAFTS_UPDATED_EVENT,
 } from './lib/plannerDraft';
+import {
+  hasTelegramBridge,
+  isDesktopTelegramRuntime,
+  telegramDeleteSavedMessage,
+  telegramGetAuthState,
+  telegramGetConfig,
+  telegramSaveCredentials,
+} from './services/telegramAppService';
 import { getInitialProductView, type ProductView } from './lib/productView';
+import { getDraftStorageApi } from '@studio/lib/draftStore';
 import { appStateReducer, createInitialAppState, createMessageSession, type AppRoute } from './appState';
-type DraftStorageWindow = Window & {
-  draftStorage?: {
-    load: () => Promise<{ success: boolean; store?: PersistedDraftStore }>;
-    save: (store: PersistedDraftStore) => Promise<{ success: boolean }>;
-  };
-};
 
 function getCurrentHashPath(): AppRoute {
   const hash = window.location.hash.replace(/^#/, '').trim();
@@ -44,7 +48,7 @@ function getCurrentHashPath(): AppRoute {
 }
 
 function App() {
-  const browserDraftMode = typeof window.telegram?.login !== 'function';
+  const browserDraftMode = !isDesktopTelegramRuntime();
   const [savedPlannerDraftRevision, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const initialMessageSession = createMessageSession({
@@ -69,6 +73,17 @@ function App() {
   const messageEntitiesRef = useRef(messageEntities);
   const plannerAttachmentsRef = useRef(plannerAttachments);
   const selectedChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const flushPlannerDraftBeforeClose = (event: BeforeUnloadEvent) => {
+      if (flushPlannerDraftWrite()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', flushPlannerDraftBeforeClose);
+    return () => window.removeEventListener('beforeunload', flushPlannerDraftBeforeClose);
+  }, []);
 
   useEffect(() => {
     messageRef.current = message;
@@ -292,7 +307,23 @@ function App() {
   });
 
   const studioBridgeScheduler = createStudioSchedulerRuntime(
-    studioScheduler,
+    {
+      ...studioScheduler,
+      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult) => (
+        studioScheduler.handleSendDraftNow(
+          chat,
+          text,
+          attachments,
+          entities,
+          replyMarkup,
+          false,
+          undefined,
+          {},
+          attachmentGroups,
+          onAttachmentGroupResult,
+        )
+      ),
+    },
     studioNotifications.notification,
     studioNotifications.closeNotification,
   );
@@ -414,7 +445,7 @@ function App() {
       if (studioDraftClearer) {
         if (!await studioDraftClearer()) return false;
       } else {
-        const draftStorage = (window as DraftStorageWindow).draftStorage;
+        const draftStorage = getDraftStorageApi();
         if (!draftStorage) return false;
         try {
           const loaded = await draftStorage.load();
@@ -466,7 +497,7 @@ function App() {
         ...(message.telegramMessageIds ?? []),
       ].filter((id): id is string | number => id !== undefined && id !== null).map(String))];
     if (record.source === 'personal' && record.status === 'sent' && isSavedMessagesChat && telegramMessageIds.length > 0) {
-      return Promise.all(telegramMessageIds.map((messageId) => window.telegram.deleteSavedMessage({
+      return Promise.all(telegramMessageIds.map((messageId) => telegramDeleteSavedMessage({
         chatId: message.chatId,
         messageId,
       }))).then((results) => {
@@ -586,10 +617,10 @@ function App() {
   };
 
   const finishWelcomeBack = async () => {
-    if (typeof window.telegram?.getAuthState !== 'function') return false;
+    if (!hasTelegramBridge()) return false;
 
     try {
-      const authResult = await window.telegram.getAuthState();
+      const authResult = await telegramGetAuthState();
       if (!authResult.success || !authResult.authState?.connected || authResult.authState.signedOut) return false;
       setProductView('studio');
       settingsReturnViewRef.current = 'studio';
@@ -600,10 +631,10 @@ function App() {
   };
 
   const openCredentialSettingsIfMissing = async () => {
-    if (typeof window.telegram?.getConfig !== 'function') return;
+    if (!hasTelegramBridge()) return;
 
     try {
-      const configResult = await window.telegram.getConfig();
+      const configResult = await telegramGetConfig();
       if (configResult.success && configResult.config && !configResult.config.hasCredentials) {
         navigate('/settings');
       }
@@ -622,10 +653,10 @@ function App() {
     }
     if (restored) return;
     if (await finishWelcomeBack()) return;
-    if (typeof window.telegram?.getConfig !== 'function') return;
+    if (!hasTelegramBridge()) return;
 
     try {
-      const configResult = await window.telegram.getConfig();
+      const configResult = await telegramGetConfig();
       if (configResult.success && configResult.config
         && (!configResult.config.hasCredentials || !configResult.config.hasSession)) {
         navigate('/settings');
@@ -697,9 +728,9 @@ function App() {
         setTelegramCredentialsBusy(true);
         setTelegramCredentialsError('');
         try {
-          const result = await window.telegram.saveCredentials({
-            API_ID: telegramApiId.trim(),
-            API_HASH: telegramApiHash.trim(),
+          const result = await telegramSaveCredentials({
+            API_ID: String(telegramApiId.trim()),
+            API_HASH: String(telegramApiHash.trim()),
           });
           if (!result.success || !result.config || !result.config.hasCredentials) {
             throw new Error(result.error || 'Telegram API credentials could not be saved.');
@@ -723,8 +754,8 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    if (typeof window.telegram?.getConfig !== 'function') return;
-    window.telegram.getConfig().then((result) => {
+    if (!hasTelegramBridge()) return;
+    telegramGetConfig().then((result) => {
       if (!active || !result.success || !result.config) return;
       setTelegramCredentials({
         hasCredentials: Boolean(result.config.hasCredentials),
@@ -754,8 +785,8 @@ function App() {
       setShowAuthForm={setShowAuthForm}
       handleDisconnect={async () => {
         await handleDisconnect();
-        if (typeof window.telegram?.getAuthState === 'function') {
-          const authResult = await window.telegram.getAuthState();
+        if (hasTelegramBridge()) {
+          const authResult = await telegramGetAuthState();
           if (authResult.success && authResult.authState?.signedOut) {
             setProductView('planner');
           }

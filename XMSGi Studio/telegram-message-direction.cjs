@@ -29,15 +29,7 @@ function resolveMessageDirection(message, currentUserId = '') {
     return false;
   }
 
-  if (typeof message.out === 'boolean') {
-    return message.out;
-  }
-
-  if (typeof message.outgoing === 'boolean') {
-    return message.outgoing;
-  }
-
-  if (message.self === true) {
+  if (message.out === true || message.outgoing === true || message.self === true) {
     return true;
   }
 
@@ -53,7 +45,19 @@ function resolveMessageDirection(message, currentUserId = '') {
     normalizePeerIdentifier(message.fromUser && message.fromUser._id),
   ];
 
-  return Boolean(currentUser) && senderIds.some((value) => value && value === currentUser);
+  if (Boolean(currentUser) && senderIds.some((value) => value && value === currentUser)) {
+    return true;
+  }
+
+  if (typeof message.out === 'boolean') {
+    return message.out;
+  }
+
+  if (typeof message.outgoing === 'boolean') {
+    return message.outgoing;
+  }
+
+  return false;
 }
 
 function normalizeHistoryMessage(message, currentUserId = '') {

@@ -1,8 +1,8 @@
 import { act } from 'react';
+import { render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@studio/types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
@@ -84,10 +84,6 @@ function seedVersionHistoryDialogStore() {
 }
 
 async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeof WorkspacePage>> = {}) {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root: Root = createRoot(container);
-
   const defaults: React.ComponentProps<typeof WorkspacePage> = {
     connected: false,
     chats: [chatA],
@@ -114,24 +110,18 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
     publishingDraft: false,
   };
 
+  const view = render(<LocaleProvider><WorkspacePage {...defaults} {...overrides} /></LocaleProvider>);
   await act(async () => {
-    root.render(<LocaleProvider><WorkspacePage {...defaults} {...overrides} /></LocaleProvider>);
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
   });
 
   return {
-    root,
     rerender: (nextOverrides: Partial<React.ComponentProps<typeof WorkspacePage>> = {}) => act(() => {
-      root.render(<LocaleProvider><WorkspacePage {...defaults} {...overrides} {...nextOverrides} /></LocaleProvider>);
+      view.rerender(<LocaleProvider><WorkspacePage {...defaults} {...overrides} {...nextOverrides} /></LocaleProvider>);
     }),
-    unmount: () => {
-      act(() => {
-        root.unmount();
-      });
-      container.remove();
-    },
+    unmount: view.unmount,
   };
 }
 
@@ -2140,6 +2130,48 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('returns failed album attachments to the editor after partial send', async () => {
+    const handleSendDraftNow = vi.fn().mockImplementation(async (
+      ...args: Parameters<React.ComponentProps<typeof WorkspacePage>['handleSendDraftNow']>
+    ) => {
+      const onAttachmentGroupResult = args[6];
+      onAttachmentGroupResult?.(0, true);
+      onAttachmentGroupResult?.(1, false);
+      return false;
+    });
+    const { unmount } = await renderWorkspacePage({ handleSendDraftNow });
+    const albumInput = document.querySelector<HTMLInputElement>('input[accept*="image/png"][multiple]')!;
+    const addAlbum = async (fileName: string) => {
+      await act(async () => {
+        Object.defineProperty(albumInput, 'files', {
+          value: [new File(['image'], fileName, { type: 'image/png' })],
+          configurable: true,
+        });
+        albumInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    };
+
+    await addAlbum('sent-album.png');
+    await addAlbum('failed-album.png');
+    expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(2);
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(handleSendDraftNow).toHaveBeenCalledTimes(1);
+    expect(handleSendDraftNow.mock.calls[0][5]).toHaveLength(2);
+    const remainingAlbumCards = Array.from(document.querySelectorAll('.workspace-page-photo-album-card'));
+    expect(remainingAlbumCards).toHaveLength(1);
+    expect(remainingAlbumCards[0].querySelector('img')?.getAttribute('src')).toContain('failed-album.png');
+    expect(document.querySelector('.workspace-page-photo-album-card img[src*="sent-album.png"]')).toBeNull();
+    expect(document.querySelector('.workspace-page-rich-text-input')?.textContent).not.toContain('Hello world');
+    unmount();
+  });
+
   it('clears send errors after their longer status period', async () => {
     const handleSendDraftNow = vi.fn().mockResolvedValue(false);
     const { unmount } = await renderWorkspacePage({ handleSendDraftNow });
@@ -2643,10 +2675,11 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('shows album limits on hover without adding a question-mark button', async () => {
+  it('shows a compact album limits tooltip after a deliberate hover', async () => {
     const { unmount } = await renderWorkspacePage();
     const albumButton = document.querySelector<HTMLButtonElement>('[aria-label="Add photo album"]')!;
     const albumInfo = document.querySelector<HTMLElement>('#workspace-page-photo-album-limits')!;
+    const albumControls = albumButton.parentElement!;
 
     expect(albumButton.getAttribute('aria-describedby')).toBe('workspace-page-photo-album-limits');
     expect(albumInfo.getAttribute('role')).toBe('tooltip');
@@ -2656,8 +2689,99 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('[aria-label="Photo album limits"]')).toBeNull();
     expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar\s*\{[^}]*z-index:\s*20;[^}]*transform:\s*none;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar\.is-airy\s*\{[^}]*z-index:\s*30;/);
-    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-album-controls:hover\s+\.workspace-page-rich-text-album-info/);
-    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-album-controls:focus-within\s+\.workspace-page-rich-text-album-info/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-album-controls\.is-info-visible\s+\.workspace-page-rich-text-album-info/);
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        albumControls.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      });
+      expect(albumControls).not.toHaveClass('is-info-visible');
+      await act(async () => { await vi.advanceTimersByTimeAsync(449); });
+      expect(albumControls).not.toHaveClass('is-info-visible');
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      expect(albumControls).toHaveClass('is-info-visible');
+      await act(async () => {
+        albumControls.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+      });
+      expect(albumControls).not.toHaveClass('is-info-visible');
+    } finally {
+      vi.useRealTimers();
+      unmount();
+    }
+  });
+
+  it('adds photos to an existing album and opens its thumbnails in the attachment loupe', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const albumInput = document.querySelector<HTMLInputElement>('input[accept*="image/png"][multiple]')!;
+    const selectImages = async (names: string[]) => {
+      await act(async () => {
+        Object.defineProperty(albumInput, 'files', {
+          value: names.map((name) => new File(['image'], name, { type: 'image/png' })),
+          configurable: true,
+        });
+        albumInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    };
+
+    await selectImages(['album-one-a.png', 'album-one-b.png']);
+    const initialCard = document.querySelector('.workspace-page-photo-album-card') as HTMLElement;
+    const albumId = initialCard.dataset.albumId;
+    expect(initialCard).not.toHaveAttribute('title');
+    expect(initialCard).toHaveAttribute('aria-label');
+    expect(initialCard.querySelectorAll('.workspace-page-photo-album-preview img')).toHaveLength(2);
+
+    await act(async () => {
+      (initialCard.querySelector('.workspace-page-photo-album-add') as HTMLButtonElement).click();
+    });
+    await selectImages(['album-one-c.png']);
+
+    const albumCards = document.querySelectorAll('.workspace-page-photo-album-card');
+    expect(albumCards).toHaveLength(1);
+    expect((albumCards[0] as HTMLElement).dataset.albumId).toBe(albumId);
+    expect(albumCards[0].querySelectorAll('.workspace-page-photo-album-preview img')).toHaveLength(3);
+    expect(albumCards[0].querySelector('.workspace-page-photo-album-add')).toHaveAttribute('aria-label', 'Add photos to this album');
+
+    const previewThumbnail = albumCards[0].querySelector<HTMLImageElement>('.workspace-page-photo-album-preview img')!;
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        previewThumbnail.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(document.querySelector('.workspace-page-attachment-preview img')?.getAttribute('src')).toContain('album-one-a.png');
+    } finally {
+      vi.useRealTimers();
+      unmount();
+    }
+  });
+
+  it('enforces the ten-photo limit when appending to an existing album', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const albumInput = document.querySelector<HTMLInputElement>('input[accept*="image/png"][multiple]')!;
+    const selectImages = async (names: string[]) => {
+      await act(async () => {
+        Object.defineProperty(albumInput, 'files', {
+          value: names.map((name) => new File(['image'], name, { type: 'image/png' })),
+          configurable: true,
+        });
+        albumInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    };
+
+    await selectImages(Array.from({ length: 9 }, (_, index) => `album-${index}.png`));
+    const albumCard = document.querySelector<HTMLElement>('.workspace-page-photo-album-card')!;
+    await act(async () => {
+      (albumCard.querySelector('.workspace-page-photo-album-add') as HTMLButtonElement).click();
+    });
+    await selectImages(['album-last.png', 'album-over-limit.png']);
+
+    expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(1);
+    expect(document.querySelector('.workspace-page-photo-album-card')).toHaveTextContent('10 attachments');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
+      .toContain('up to 10 photos');
     unmount();
   });
 
@@ -2933,6 +3057,56 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
       .toContain("The chat preview couldn't load history.");
     expect(document.querySelector('.workspace-page-publish-transient-feedback .workspace-page-send-retry')?.textContent).toBe('Retry');
+    unmount();
+  });
+
+  it('does not reload preview history when the selected chat metadata changes', async () => {
+    const { rerender, unmount } = await renderWorkspacePage({ connected: true });
+
+    expect(window.telegram.getChatHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender({ selectedChat: { ...chatA, avatarDataUrl: 'data:image/jpeg;base64,avatar' } });
+      await Promise.resolve();
+    });
+
+    expect(window.telegram.getChatHistory).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('reuses a recent preview history when returning to a chat', async () => {
+    const chatB: Chat = { id: 'chat-2', name: 'Beta Team', type: 'group' };
+    vi.mocked(window.telegram.getChatHistory).mockResolvedValue({
+      success: true,
+      history: {
+        chat: {
+          id: chatA.id,
+          title: chatA.name,
+          username: chatA.username,
+          type: chatA.type,
+          avatarDataUrl: '',
+          topic: '',
+        },
+        messages: [],
+      },
+    });
+    const { rerender, unmount } = await renderWorkspacePage({ connected: true });
+
+    expect(window.telegram.getChatHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender({ chats: [chatA, chatB], selectedChat: chatB });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(window.telegram.getChatHistory).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      rerender({ selectedChat: { ...chatA, avatarDataUrl: 'data:image/jpeg;base64,avatar' } });
+      await Promise.resolve();
+    });
+
+    expect(window.telegram.getChatHistory).toHaveBeenCalledTimes(2);
     unmount();
   });
 

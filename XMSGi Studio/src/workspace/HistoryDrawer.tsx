@@ -4,7 +4,7 @@ import { Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsi
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
-import type { PersistedDraftStore } from '@shared/types';
+import { getDraftStorageApi } from '@studio/lib/draftStore';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
 import type { HistoryItem, PlannerReminderType } from './historyModel';
 
@@ -37,12 +37,6 @@ function loadSavedHistoryFilters() {
     return { sourceFilter: 'all' as const, statusFilter: 'scheduled' as const };
   }
 }
-
-type HistoryDraftStorageApi = {
-  load: () => Promise<{ success: boolean; store?: PersistedDraftStore }>;
-};
-
-type HistoryWindow = Window & { draftStorage?: HistoryDraftStorageApi };
 
 function toAttachmentUrl(filePath: string) {
   if (/^(?:data:|https?:|file:)/i.test(filePath)) return filePath;
@@ -685,7 +679,7 @@ export function HistoryDrawer({
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
-    const draftStorage = (window as HistoryWindow).draftStorage;
+    const draftStorage = getDraftStorageApi();
 
     const loadDrafts = async () => {
       if (!draftStorage) {

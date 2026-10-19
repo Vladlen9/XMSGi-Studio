@@ -1,6 +1,7 @@
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { CircleUserRound, FileText, LogOut, X, Zap } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
+import { telegramGetAccountAvatar } from '@/services/telegramAppService';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
@@ -103,11 +104,11 @@ export function AppShell({
   useEffect(() => {
     let active = true;
 
-    if (!connected || typeof window.telegram?.getAccountAvatar !== 'function') {
+    if (!connected) {
       return undefined;
     }
 
-    window.telegram.getAccountAvatar()
+    telegramGetAccountAvatar()
       .then((result) => {
         if (!active || !result.success || !result.avatarDataUrl) return;
         setAccountAvatarDataUrl(result.avatarDataUrl);

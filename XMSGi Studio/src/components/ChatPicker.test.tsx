@@ -52,6 +52,7 @@ describe('ChatPicker global username result flow', () => {
       </LocaleProvider>,
     );
 
+    fireEvent.pointerDown(container.querySelector('.chat-picker-current') as HTMLElement);
     const chipRemoveButton = container.querySelector('.chat-picker-current-remove');
     const listRemoveButton = screen.getByRole('button', { name: 'Remove Current chat' });
 
@@ -182,6 +183,48 @@ describe('ChatPicker global username result flow', () => {
     expect(scrollbar).toHaveAttribute('role', 'scrollbar');
     expect(scrollbar).toHaveAttribute('aria-valuenow', '84');
     expect(scrollbar).toHaveAttribute('aria-valuemax', '480');
+  });
+
+  it('renders only a window of options for a large chat list', () => {
+    const chats: Chat[] = Array.from({ length: 500 }, (_, index) => ({
+      id: `chat-${index}`,
+      name: `Chat ${index + 1}`,
+      type: 'private',
+    }));
+    renderPicker(vi.fn(), chats);
+
+    const renderedOptions = document.querySelectorAll('.chat-picker-chat-list .chat-option');
+    expect(renderedOptions.length).toBeGreaterThan(0);
+    expect(renderedOptions.length).toBeLessThan(chats.length);
+    expect(document.querySelector('.chat-picker-chat-list')).toHaveStyle({ height: `${chats.length * 64}px` });
+
+    const viewport = document.querySelector('.chat-picker-scroll-area') as HTMLDivElement;
+    const list = document.querySelector('.chat-picker-chat-list') as HTMLDivElement;
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect);
+    vi.spyOn(list, 'getBoundingClientRect').mockImplementation(() => ({
+      top: 48 - viewport.scrollTop,
+    } as DOMRect));
+    viewport.scrollTop = 64 * 100;
+    fireEvent.scroll(viewport);
+
+    expect(screen.getByText('Chat 101')).toBeInTheDocument();
+    expect(screen.queryByText('Chat 1')).not.toBeInTheDocument();
+  });
+
+  it('does not render chat options while the picker is closed', () => {
+    render(
+      <LocaleProvider>
+        <ChatPicker
+          chats={[{ id: 'chat-closed', name: 'Closed menu chat', type: 'private' }]}
+          selectedChat={null}
+          onSelect={vi.fn()}
+          onAddChat={vi.fn()}
+          onRemoveChat={vi.fn()}
+        />
+      </LocaleProvider>,
+    );
+
+    expect(document.querySelector('.chat-picker-chat-list .chat-option')).toBeNull();
   });
 
   it('hides the scrollbar when the chat list fits in the menu', () => {

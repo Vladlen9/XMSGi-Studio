@@ -38,6 +38,7 @@ import { mergeRichTextEntities } from '@/lib/richText';
 import { useLocale } from '@/lib/i18n';
 import { load, save } from '@/lib/storage';
 import { ChatPicker } from '@/components/ChatPicker';
+import { telegramGetFilePath } from '@/services/telegramAppService';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 import './QuickPlannerPage.css';
 
@@ -1339,10 +1340,7 @@ export function QuickPlannerPage({
   const appendPlannerFiles = (files: File[]) => {
     const remainingSlots = MAX_PLANNER_ATTACHMENTS - attachments.length;
     if (remainingSlots <= 0 || files.length === 0) return;
-    const getFilePath = window.telegram?.getFilePath;
-    const paths = files.slice(0, remainingSlots).map((file) => (
-      typeof getFilePath === 'function' ? getFilePath(file) : file.name
-    ));
+    const paths = files.slice(0, remainingSlots).map((file) => telegramGetFilePath(file) || file.name);
     if (paths.length) onAttachmentsChange([...attachments, ...paths]);
   };
 

@@ -435,7 +435,7 @@
 
 .chat-preview-wallpaper-quick-choice.is-default {
   background-color: #171a1d;
-  background-image: url('../assets/carbon-live-preview.png');
+  background-image: url('../assets/carbon-live-preview.jpg');
   background-position: center;
   background-size: cover;
 }
@@ -530,7 +530,7 @@
 
 .chat-preview-theme-swatch.is-graphite {
   background-color: #171a1d;
-  background-image: url('../assets/carbon-live-preview.png');
+  background-image: url('../assets/carbon-live-preview.jpg');
   background-position: center;
   background-size: cover;
 }
@@ -686,7 +686,7 @@
 }
 
 .chat-preview-window.theme-telegram {
-  background-image: url('../assets/carbon-live-preview.png');
+  background-image: url('../assets/carbon-live-preview.jpg');
   background-position: center;
   background-size: cover;
 }
@@ -797,7 +797,7 @@ img.chat-preview-avatar,
 }
 
 .chat-preview-wallpaper.theme-telegram {
-  background-image: url('../assets/carbon-live-preview.png');
+  background-image: url('../assets/carbon-live-preview.jpg');
   background-position: center;
   background-size: cover;
 }

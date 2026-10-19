@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MessageCircle, Search, Star } from 'lucide-react';
 import type { Chat } from '@studio/types';
+import { telegramFindChat } from '@/services/chatAppService';
 import { useLocale } from '@studio/lib/i18n';
 import type { StageMode } from './types';
 
@@ -107,7 +108,7 @@ export function ChatSelectionStage({
     setAddingChat(true);
     onChatError('');
     try {
-      const result = await window.telegram.findChat(addChatQuery.trim());
+      const result = await telegramFindChat(addChatQuery.trim());
       if (!result.success || !result.chat) {
         const message = result.error || t('studio.addChatFailed');
         onChatError(message);

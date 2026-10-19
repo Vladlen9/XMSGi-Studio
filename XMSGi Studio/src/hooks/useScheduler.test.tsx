@@ -122,7 +122,63 @@ describe('useScheduler native history', () => {
     expect([restoredTime.getFullYear(), restoredTime.getMonth(), restoredTime.getDate(), restoredTime.getHours(), restoredTime.getMinutes()])
       .toEqual([2035, 0, 15, 17, 42]);
     expect(loadScheduleHistory).toHaveBeenCalledWith('workspace');
-    expect(saveScheduleHistory).toHaveBeenCalledWith({ scope: 'workspace', field: 'upcoming', messages: upcoming });
+    expect(saveScheduleHistory).not.toHaveBeenCalled();
+  });
+
+  it('uses workspace-scoped local history when native history is unavailable', async () => {
+    const storageKeys = [
+      'awaitmsg_upcoming',
+      'awaitmsg_workspace_upcoming',
+      'awaitmsg_sent',
+      'awaitmsg_workspace_sent',
+    ];
+    const previousValues = new Map(storageKeys.map((key) => [key, window.localStorage.getItem(key)]));
+    const personalMessage: ScheduledMessage = {
+      id: 'personal-only',
+      chatId: 'personal-chat',
+      chatName: 'Personal',
+      text: 'Personal',
+      when: '2035-01-15T17:42:00.000Z',
+      createdAt: '2035-01-15T16:42:00.000Z',
+      status: 'scheduled',
+    };
+    const workspaceMessage: ScheduledMessage = {
+      id: 'workspace-only',
+      chatId: 'workspace-chat',
+      chatName: 'Workspace',
+      text: 'Workspace',
+      when: '2035-01-15T17:42:00.000Z',
+      createdAt: '2035-01-15T16:42:00.000Z',
+      status: 'scheduled',
+    };
+    window.localStorage.setItem('awaitmsg_upcoming', JSON.stringify([personalMessage]));
+    window.localStorage.setItem('awaitmsg_workspace_upcoming', JSON.stringify([workspaceMessage]));
+    window.localStorage.setItem('awaitmsg_sent', JSON.stringify([]));
+    window.localStorage.setItem('awaitmsg_workspace_sent', JSON.stringify([]));
+    vi.stubGlobal('telegram', {});
+
+    const wrapper = ({ children }: PropsWithChildren) => <LocaleProvider>{children}</LocaleProvider>;
+    const { result, unmount } = renderHook(() => useScheduler({
+      historyScope: 'workspace',
+      connected: false,
+      selectedChat: null,
+      chats: [],
+      message: '',
+      showNotification: vi.fn(),
+      setMessage: vi.fn(),
+    }), { wrapper });
+
+    try {
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      expect(result.current.upcoming).toEqual([workspaceMessage]);
+      expect(result.current.sent).toEqual([]);
+    } finally {
+      unmount();
+      for (const [key, value] of previousValues) {
+        if (value === null) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, value);
+      }
+    }
   });
 
   it('restores Personal records from the separate personal history scope', async () => {
@@ -305,6 +361,131 @@ describe('useScheduler native history', () => {
     });
     expect(schedule).toHaveBeenCalledTimes(2);
     expect(events.indexOf('persist')).toBeLessThan(events.indexOf('schedule-retry'));
+  });
+
+  it('keeps a Telegram-confirmed schedule visible and warns when its final history commit fails', async () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    try {
+      const chat = { id: 'chat-history-write-failure', name: 'History write failure chat' };
+      const saveScheduleHistory = vi.fn(async ({ messages }: { messages: ScheduledMessage[] }) => ({
+        success: !messages.some((message) => message.status === 'scheduled'),
+        error: 'Disk full',
+      }));
+      const schedule = vi.fn().mockResolvedValue({
+        success: true,
+        confirmed: true,
+        telegramMessageId: 'telegram-confirmed-history-failure',
+      });
+      const showNotification = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory(
+        [],
+        [],
+        { schedule, saveScheduleHistory },
+        showNotification,
+        'workspace',
+        chat,
+      );
+      const future = new Date(Date.now() + 60 * 60 * 1000);
+      const date = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+      const time = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`;
+
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      await act(async () => {
+        await result.current.handleSchedule({ chatId: chat.id, message: 'Persist the confirmation', date, time });
+      });
+
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      expect(schedule).toHaveBeenCalledOnce();
+      expect(result.current.upcoming).toContainEqual(expect.objectContaining({
+        status: 'scheduled',
+        telegramMessageId: 'telegram-confirmed-history-failure',
+      }));
+      expect(showNotification).toHaveBeenCalledWith(
+        'Telegram confirmed the schedule, but its history could not be saved. Check the queue before retrying.',
+        'warning',
+        'Error',
+      );
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
+  });
+
+  it('does not cancel the original schedule when the confirmed replacement cannot be persisted', async () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    try {
+      const chat = { id: 'chat-replacement-history-failure', name: 'Replacement history failure chat' };
+      const future = new Date(Date.now() + 60 * 60 * 1000);
+      const date = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+      const time = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`;
+      const original: ScheduledMessage = {
+        id: 'replacement-original',
+        telegramMessageId: 'telegram-original-replacement',
+        chatId: chat.id,
+        chatName: chat.name,
+        text: 'Original schedule',
+        when: new Date(future.getTime() + 30 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+        status: 'scheduled',
+      };
+      const saveScheduleHistory = vi.fn(async ({ messages }: { messages: ScheduledMessage[] }) => ({
+        success: !messages.some((item) => item.text === 'Replacement text'
+          && item.telegramMessageId === 'telegram-confirmed-replacement'
+          && item.status === 'scheduled'),
+        error: 'Disk full',
+      }));
+      const schedule = vi.fn().mockResolvedValue({
+        success: true,
+        confirmed: true,
+        telegramMessageId: 'telegram-confirmed-replacement',
+      });
+      const cancel = vi.fn().mockResolvedValue({ success: true });
+      const showNotification = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory(
+        [original],
+        [],
+        { schedule, cancel, saveScheduleHistory },
+        showNotification,
+        'workspace',
+        chat,
+      );
+
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      await act(async () => {
+        await result.current.handleSchedule({
+          chatId: chat.id,
+          message: 'Replacement text',
+          date,
+          time,
+          replaceMessage: original,
+        });
+      });
+
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      expect(schedule).toHaveBeenCalledOnce();
+      expect(cancel).not.toHaveBeenCalled();
+      expect(result.current.upcoming).toContainEqual(expect.objectContaining({
+        id: original.id,
+        status: 'scheduled',
+      }));
+      expect(result.current.upcoming).toContainEqual(expect.objectContaining({
+        status: 'scheduled',
+        replacementOfId: original.id,
+        telegramMessageId: 'telegram-confirmed-replacement',
+      }));
+      expect(showNotification).toHaveBeenCalledWith(
+        'Telegram confirmed the schedule, but its history could not be saved. Check the queue before retrying.',
+        'warning',
+        'Error',
+      );
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
   });
 
   it('schedules each attachment group as a separate Telegram message', async () => {
@@ -796,7 +977,7 @@ describe('useScheduler native history', () => {
     const send = vi.fn().mockResolvedValue({ success: true, id: 'telegram-send-1' });
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
-    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
     await act(async () => {
       const sent = await result.current.handleSendDraftNow(chat, '', ['C:/demo/demo.pdf']);
       expect(sent).toBe(true);
@@ -815,6 +996,47 @@ describe('useScheduler native history', () => {
     );
   });
 
+  it('keeps a confirmed immediate send in memory and warns when Sent history cannot be saved', async () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    try {
+      const chat = { id: 'chat-send-history-failure', name: 'Send history failure chat' };
+      const send = vi.fn().mockResolvedValue({ success: true });
+      const saveScheduleHistory = vi.fn(async ({ field }: { field: string }) => ({
+        success: field !== 'sent',
+        error: field === 'sent' ? 'Disk full' : undefined,
+      }));
+      const showNotification = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory(
+        [],
+        [],
+        { send, saveScheduleHistory },
+        showNotification,
+        'workspace',
+        chat,
+      );
+
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      await waitFor(() => expect(result.current.scheduling).toBe(false));
+      let sent = false;
+      await act(async () => {
+        sent = await result.current.handleSendDraftNow(chat, 'Send exactly once');
+      });
+
+      expect(sent).toBe(true);
+      expect(send).toHaveBeenCalledOnce();
+      expect(result.current.sent).toHaveLength(1);
+      expect(showNotification).toHaveBeenCalledWith(
+        'Message history could not be saved. It may return after the app restarts.',
+        'warning',
+        'Error',
+      );
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
+  });
+
   it('keeps a single sending status while a multi-album draft is sent in groups', async () => {
     const chat = { id: 'chat-send-album-groups', name: 'Album send chat' };
     let resolveFirst!: (value: { success: boolean; id: string }) => void;
@@ -822,9 +1044,11 @@ describe('useScheduler native history', () => {
     const send = vi.fn()
       .mockImplementationOnce(() => new Promise<{ success: boolean; id: string }>((resolve) => { resolveFirst = resolve; }))
       .mockImplementationOnce(() => new Promise<{ success: boolean; id: string }>((resolve) => { resolveSecond = resolve; }));
-    const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+    const showNotification = vi.fn();
+    const onAttachmentGroupResult = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
 
-    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
     let batchPromise!: Promise<boolean>;
     await act(async () => {
       batchPromise = result.current.handleSendDraftNow(
@@ -834,6 +1058,10 @@ describe('useScheduler native history', () => {
         [],
         undefined,
         [['one.png', 'two.png'], ['three.png']],
+        undefined,
+        {},
+        [['one.png', 'two.png'], ['three.png']],
+        onAttachmentGroupResult,
       );
       await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
     });
@@ -844,13 +1072,56 @@ describe('useScheduler native history', () => {
       await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
     });
     expect(result.current.publishingDraft).toBe(true);
+    expect(result.current.successPulse).toBe(false);
+    expect(showNotification).not.toHaveBeenCalled();
 
     await act(async () => {
       resolveSecond({ success: true, id: 'telegram-send-album-2' });
       await expect(batchPromise).resolves.toBe(true);
     });
     expect(result.current.publishingDraft).toBe(false);
+    expect(result.current.successPulse).toBe(true);
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(onAttachmentGroupResult.mock.calls).toEqual([[0, true], [1, true]]);
     expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops a grouped send at the first failure and reports later groups as unattempted', async () => {
+    const chat = { id: 'chat-send-album-partial', name: 'Partial album chat' };
+    const send = vi.fn()
+      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-1' })
+      .mockResolvedValueOnce({ success: false, error: 'Album upload failed.' });
+    const showNotification = vi.fn();
+    const onAttachmentGroupResult = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
+    const groups = [['one.png', 'two.png'], ['three.png'], ['four.png']];
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    let sent = true;
+    await act(async () => {
+      sent = await result.current.handleSendDraftNow(
+        chat,
+        'Caption',
+        groups.flat(),
+        [],
+        undefined,
+        groups,
+        undefined,
+        {},
+        groups,
+        onAttachmentGroupResult,
+      );
+    });
+
+    expect(sent).toBe(false);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(onAttachmentGroupResult.mock.calls).toEqual([[0, true], [1, false], [2, false]]);
+    expect(result.current.sent).toHaveLength(1);
+    expect(result.current.sent[0].attachments).toEqual(groups[0]);
+    expect(result.current.publishingDraft).toBe(false);
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(showNotification.mock.calls[0][1]).toBe('warning');
+    expect(result.current.successPulse).toBe(false);
   });
 
   it('sends each attachment group separately and keeps the caption on the first group', async () => {
@@ -1374,6 +1645,7 @@ describe('useScheduler native history', () => {
     const message = 'a'.repeat(length);
 
     await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
     act(() => {
       result.current.handleSchedule({
         chatId: chat.id,
@@ -1414,7 +1686,7 @@ describe('useScheduler native history', () => {
     );
 
     await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith(historyScope));
-    act(() => result.current.handleClearSent());
+    await act(async () => { await result.current.handleClearSent(); });
 
     await waitFor(() => expect(result.current.sent).toEqual([]));
     await waitFor(() => expect(saveScheduleHistory).toHaveBeenCalledWith({
@@ -1844,7 +2116,7 @@ describe('useScheduler native history', () => {
     const { result, saveScheduleHistory } = renderWorkspaceHistory([], [message], {});
 
     await waitFor(() => expect(result.current.sent).toEqual([message]));
-    act(() => result.current.handleDeleteMessage(message));
+    await act(async () => { await result.current.handleDeleteMessage(message); });
 
     await waitFor(() => expect(result.current.sent).toHaveLength(0));
     expect(saveScheduleHistory).toHaveBeenCalledWith({ scope: 'workspace', field: 'sent', messages: [] });
@@ -1866,7 +2138,7 @@ describe('useScheduler native history', () => {
     const { result, saveScheduleHistory } = renderWorkspaceHistory([message], [], {});
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));
-    act(() => result.current.handleDeleteMessage(message, true));
+    await act(async () => { await result.current.handleDeleteMessage(message, true); });
 
     await waitFor(() => expect(result.current.upcoming).toHaveLength(0));
     expect(confirm).not.toHaveBeenCalled();
@@ -1936,26 +2208,41 @@ describe('useScheduler native history', () => {
   });
 
   it('shows the correct count for the maximum repeat count', async () => {
-    const chat = { id: 'bulk-15', name: 'Bulk chat' };
-    const { date, time } = getFutureReplacementTimes().replacementDateTime;
-    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true });
-    const showNotification = vi.fn();
-    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { schedule }, showNotification, 'workspace', chat);
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
 
-    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
-    vi.useFakeTimers();
-    await act(async () => {
-      await result.current.handleSchedule(
-        { chatId: chat.id, message: 'Fifteen messages', date, time },
-        { mode: 'daily', occurrences: 15 },
-      );
-      await vi.runAllTimersAsync();
-    });
-    vi.useRealTimers();
+    try {
+      const chat = { id: 'bulk-15', name: 'Bulk chat' };
+      const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true });
+      const showNotification = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { schedule }, showNotification, 'workspace', chat);
 
-    const warningCall = showNotification.mock.calls.find(([, type, title]) => type === 'warning' && title === 'Mass scheduling warning');
-    expect(warningCall?.[0]).toBe('15 messages · FloodWait risk');
-    expect(warningCall?.[4]).toBe(5000);
-    expect(schedule).toHaveBeenCalledTimes(15);
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date('2035-01-15T12:00:00.000Z'));
+        const { date, time } = localDateTimeAt(Date.now() + 60 * 60 * 1000);
+        await act(async () => {
+          await result.current.handleSchedule(
+            { chatId: chat.id, message: 'Fifteen messages', date, time },
+            { mode: 'daily', occurrences: 15 },
+          );
+          await vi.runAllTimersAsync();
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+
+      const warningCall = showNotification.mock.calls.find(([, type, , , duration]) => type === 'warning' && duration === 5000);
+      expect([
+        ['15 messages · FloodWait risk', 'Mass scheduling warning'],
+        ['15 сообщений · риск FloodWait', 'Массовое планирование'],
+      ]).toContainEqual([warningCall?.[0], warningCall?.[2]]);
+      expect(warningCall?.[4]).toBe(5000);
+      expect(schedule).toHaveBeenCalledTimes(15);
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
   });
 });

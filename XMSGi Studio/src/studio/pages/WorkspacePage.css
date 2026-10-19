@@ -93,9 +93,9 @@
   padding: 16px 10px;
   display: none;
   flex-direction: column;
-  gap: 8px;
-  transition: width 180ms ease;
-  overflow: hidden;
+  gap: 3px;
+  width: min(220px, calc(100vw - 24px));
+  padding: 8px 10px;
 }
 
 .workspace-page-sidebar.is-expanded {
@@ -111,7 +111,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--signal);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transition: all 180ms ease;
@@ -122,7 +122,7 @@
 .workspace-page-sidebar-item.is-expanded {
   justify-content: flex-start;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .workspace-page-sidebar-item.is-active {
@@ -3672,25 +3672,24 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   bottom: calc(100% + 8px);
   z-index: 50;
   display: grid;
-  gap: 5px;
-  width: min(260px, calc(100vw - 24px));
-  padding: 11px 12px;
+  gap: 3px;
+  width: min(220px, calc(100vw - 24px));
+  padding: 8px 10px;
   border: 1px solid rgba(154, 168, 184, 0.2);
   border-radius: 8px;
   background: rgba(13, 17, 23, 0.98);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
   color: rgba(226, 230, 235, 0.78);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.4;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transform: translateY(4px);
-  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
 }
 
-.workspace-page-rich-text-album-controls:hover .workspace-page-rich-text-album-info,
-.workspace-page-rich-text-album-controls:focus-within .workspace-page-rich-text-album-info {
+.workspace-page-rich-text-album-controls.is-info-visible .workspace-page-rich-text-album-info {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -3698,7 +3697,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 
 .workspace-page-rich-text-album-info strong {
   color: rgba(240, 245, 249, 0.94);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -3742,11 +3741,11 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   z-index: 8;
   display: flex;
   flex-direction: column;
-  width: min(280px, calc(100% - 24px));
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+  width: min(220px, calc(100vw - 24px));
+  padding: 8px 10px;
+  gap: 3px;
+  font-size: 11px;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms ease;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
@@ -3754,7 +3753,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 
 .workspace-page-rich-text-link-popover__label {
   color: rgba(221, 228, 239, 0.7);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.02em;
 }
 
@@ -4381,6 +4380,10 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   object-fit: cover;
 }
 
+.workspace-page-photo-album-preview img {
+  cursor: zoom-in;
+}
+
 .workspace-page-photo-album-preview > span {
   color: rgba(235, 241, 245, 0.78);
 }
@@ -4392,6 +4395,38 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   color: #fff !important;
   background: rgba(7, 11, 15, 0.78) !important;
   font-size: 8px;
+}
+
+.workspace-page-photo-album-card {
+  padding-right: 48px;
+}
+
+.workspace-page-photo-album-add {
+  position: absolute;
+  top: 50%;
+  right: 25px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(226, 230, 235, 0.72);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.workspace-page-photo-album-add:hover,
+.workspace-page-photo-album-add:focus-visible {
+  background: rgba(226, 230, 235, 0.1);
+  color: #fff;
+}
+
+.workspace-page-photo-album-add:disabled {
+  color: rgba(226, 230, 235, 0.32);
+  cursor: not-allowed;
 }
 
 .workspace-page-attachment-thumbnail {
@@ -9129,6 +9164,20 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
     min-height: 38px;
     gap: 0;
     padding: 0;
+  }
+
+  .workspace-page-attachment-card.workspace-page-photo-album-card {
+    flex: 0 0 min(190px, 64vw);
+    width: min(190px, 64vw);
+    min-width: 156px;
+    height: 38px;
+    padding: 0 48px 0 4px;
+    gap: 7px;
+  }
+
+  .workspace-page-photo-album-card .workspace-page-attachment-copy {
+    display: grid;
+    min-width: 0;
   }
 
   .workspace-page-attachment-thumbnail,

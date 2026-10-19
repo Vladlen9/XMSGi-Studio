@@ -54,6 +54,7 @@ export interface StudioSchedulerActions {
     entities?: RichTextEntity[],
     replyMarkup?: InlineKeyboardMarkup,
     attachmentGroups?: string[][],
+    onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
   ) => Promise<boolean>;
   handleSendNow: (message: ScheduledMessage) => void | Promise<void>;
   handleDeleteMessage: (message: ScheduledMessage) => void | Promise<void>;

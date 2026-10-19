@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import type { Chat } from '@/types';
+import { telegramFindChat } from '@/services/chatAppService';
 
 interface Props {
   chats: Chat[];
@@ -18,12 +20,16 @@ type ChatScrollMetrics = {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
+  listOffset: number;
 };
 
 import { useLocale } from '@/lib/i18n';
 
 const RECENT_CHAT_IDS_STORAGE_KEY = 'xmsgi:planner:recent-chat-ids';
 const MAX_RECENT_CHAT_IDS = 5;
+const CHAT_ROW_HEIGHT = 64;
+const CHAT_LIST_OVERSCAN = 6;
+const CHAT_LIST_VIRTUALIZATION_THRESHOLD = 40;
 
 function ChatAvatar({
   name,
@@ -66,11 +72,13 @@ export function ChatPicker({
   const [adding, setAdding] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
   const scrollDragRef = useRef<{ pointerY: number; scrollTop: number } | null>(null);
   const [scrollMetrics, setScrollMetrics] = useState<ChatScrollMetrics>({
     scrollTop: 0,
     scrollHeight: 0,
     clientHeight: 0,
+    listOffset: 0,
   });
   const [recentChatIds, setRecentChatIds] = useState<string[]>(() => {
     if (!showRecentGroups) return [];
@@ -87,10 +95,15 @@ export function ChatPicker({
   const syncScrollMetrics = () => {
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
+    const viewportBounds = viewport.getBoundingClientRect();
+    const listBounds = chatListRef.current?.getBoundingClientRect();
     setScrollMetrics({
       scrollTop: viewport.scrollTop,
       scrollHeight: viewport.scrollHeight,
       clientHeight: viewport.clientHeight,
+      listOffset: listBounds
+        ? listBounds.top - viewportBounds.top + viewport.scrollTop
+        : 0,
     });
   };
 
@@ -101,6 +114,7 @@ export function ChatPicker({
     viewport.addEventListener('scroll', syncScrollMetrics, { passive: true });
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncScrollMetrics);
     resizeObserver?.observe(viewport);
+    if (chatListRef.current) resizeObserver?.observe(chatListRef.current);
     Array.from(viewport.children).forEach((child) => resizeObserver?.observe(child));
     syncScrollMetrics();
 
@@ -108,7 +122,7 @@ export function ChatPicker({
       viewport.removeEventListener('scroll', syncScrollMetrics);
       resizeObserver?.disconnect();
     };
-  }, [chats.length, open]);
+  }, [addQuery, chats.length, open]);
 
   const scrollRange = Math.max(0, scrollMetrics.scrollHeight - scrollMetrics.clientHeight);
   const scrollbarTrackHeight = scrollMetrics.clientHeight;
@@ -128,15 +142,29 @@ export function ChatPicker({
     return searchableText.includes(searchText) || Boolean(searchDigits && searchablePhone.includes(searchDigits));
   };
   const recentChatIdSet = new Set(recentChatIds);
-  const frequentChats = showRecentGroups
+  const frequentChats = open && showRecentGroups
     ? recentChatIds.flatMap((id) => {
         const chat = chats.find((item) => item.id === id);
         return chat && matchesSearch(chat) ? [chat] : [];
       })
     : [];
-  const allChats = chats.filter((chat) => (
-    (!showRecentGroups || !recentChatIdSet.has(chat.id)) && matchesSearch(chat)
-  ));
+  const allChats = open
+    ? chats.filter((chat) => (
+      (!showRecentGroups || !recentChatIdSet.has(chat.id)) && matchesSearch(chat)
+    ))
+    : [];
+
+  const isLargeChatList = allChats.length > CHAT_LIST_VIRTUALIZATION_THRESHOLD;
+  const startChatIndex = isLargeChatList
+    ? Math.max(0, Math.floor((scrollMetrics.scrollTop - scrollMetrics.listOffset) / CHAT_ROW_HEIGHT) - CHAT_LIST_OVERSCAN)
+    : 0;
+  const visibleChatCount = Math.max(
+    CHAT_LIST_VIRTUALIZATION_THRESHOLD,
+    Math.ceil(scrollMetrics.clientHeight / CHAT_ROW_HEIGHT) + CHAT_LIST_OVERSCAN * 2,
+  );
+  const visibleChats = isLargeChatList
+    ? allChats.slice(startChatIndex, startChatIndex + visibleChatCount)
+    : allChats;
 
   const rememberRecentChat = (chat: Chat) => {
     if (!showRecentGroups) return;
@@ -149,10 +177,11 @@ export function ChatPicker({
     }
   };
 
-  const renderChatOption = (chat: Chat) => (
+  const renderChatOption = (chat: Chat, style?: CSSProperties) => (
     <div
       key={chat.id}
       className={`chat-option ${selectedChat?.id === chat.id ? 'selected' : ''}`}
+      style={style}
       onClick={() => {
         rememberRecentChat(chat);
         onSelect(chat);
@@ -243,6 +272,29 @@ export function ChatPicker({
     viewport.scrollTop = Math.max(0, Math.min(scrollRange, nextTop));
   };
 
+  const renderChatList = () => (
+    <div
+      className="chat-picker-chat-list"
+      ref={chatListRef}
+      style={isLargeChatList ? { height: allChats.length * CHAT_ROW_HEIGHT, position: 'relative' } : undefined}
+    >
+      {visibleChats.map((chat, visibleIndex) => {
+        const chatIndex = startChatIndex + visibleIndex;
+        const style = isLargeChatList
+          ? {
+            position: 'absolute' as const,
+            top: chatIndex * CHAT_ROW_HEIGHT,
+            left: 0,
+            right: 0,
+            height: CHAT_ROW_HEIGHT,
+            boxSizing: 'border-box' as const,
+          }
+          : undefined;
+        return renderChatOption(chat, style);
+      })}
+    </div>
+  );
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node | null;
@@ -260,8 +312,7 @@ export function ChatPicker({
 
     setAdding(true);
 
-    window.telegram
-      .findChat(addQuery)
+    telegramFindChat(addQuery)
       .then((result) => {
         setAdding(false);
 
@@ -356,15 +407,15 @@ export function ChatPicker({
               {frequentChats.length > 0 && (
                 <section className="chat-picker-group" aria-label="Frequent chats">
                   <div className="chat-picker-group-title">Frequent chats</div>
-                  {frequentChats.map(renderChatOption)}
+                  {frequentChats.map((chat) => renderChatOption(chat))}
                 </section>
               )}
               <section className="chat-picker-group" aria-label="All chats">
                 <div className="chat-picker-group-title">All chats</div>
-                {allChats.map(renderChatOption)}
+                {renderChatList()}
               </section>
             </div>
-          ) : allChats.map(renderChatOption)}
+          ) : renderChatList()}
         </div>
         {scrollRange > 0 && (
           <div

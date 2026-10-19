@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const nodeRequire = createRequire(import.meta.url);
 const search = nodeRequire('./telegram-search.cjs');
+const dialogs = nodeRequire('./telegram-dialogs.cjs');
 
 describe('Telegram chat search routing', () => {
   it.each([
@@ -28,7 +29,7 @@ describe('Telegram chat search routing', () => {
   });
 
   it('maps a globally resolved Telegram user to a private chat', () => {
-    expect(readFileSync(resolve('telegram.cjs'), 'utf8')).toContain("return 'private';");
+    expect(dialogs.getResolvedChatType({ className: 'User' })).toBe('private');
   });
 
   it('does not introduce a global phone resolver', () => {

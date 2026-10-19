@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   classifyTelegramError,
   createTelegramRateLimitInterceptor,
+  getTelegramErrorText,
+  isInvalidMediaAlbumError,
+  isInvalidTelegramSessionError,
   MAX_FLOOD_WAIT_SECONDS,
   normalizeRateLimitError,
 } from './telegram-errors.cjs';
@@ -312,5 +315,27 @@ describe('Telegram account rate-limit interceptor', () => {
     [new Error('unexpected failure'), 'unknown', false],
   ])('classifies %s as %s', (error, category, retryable) => {
     expect(classifyTelegramError(error)).toMatchObject({ category, retryable });
+  });
+
+  it('detects invalid Telegram sessions from structured error fields', () => {
+    expect(getTelegramErrorText({ code: 'AUTH_KEY_INVALID', message: 'Session expired' }))
+      .toBe('AUTH_KEY_INVALID Session expired');
+    expect(isInvalidTelegramSessionError({ errorCode: 'AUTH_KEY_UNREGISTERED' })).toBe(true);
+    expect(isInvalidTelegramSessionError({ message: 'Telegram session expired' })).toBe(true);
+    expect(isInvalidTelegramSessionError({ code: 'ETIMEDOUT', message: 'Request timed out' })).toBe(false);
+    expect(isInvalidTelegramSessionError(null)).toBe(false);
+  });
+
+  it('recognizes invalid album requests without matching unrelated media errors', () => {
+    expect(isInvalidMediaAlbumError({
+      code: 'MEDIA_INVALID',
+      request: { className: 'messages.SendMultiMedia' },
+    })).toBe(true);
+    expect(isInvalidMediaAlbumError(Object.assign(new Error('Media invalid'), {
+      request: { className: 'messages.SendMultiMedia' },
+    }))).toBe(true);
+    expect(isInvalidMediaAlbumError({ code: 'MEDIA_INVALID', request: { className: 'messages.SendMedia' } })).toBe(false);
+    expect(isInvalidMediaAlbumError({ code: 'NETWORK_ERROR', request: { className: 'messages.SendMultiMedia' } })).toBe(false);
+    expect(isInvalidMediaAlbumError(null)).toBe(false);
   });
 });

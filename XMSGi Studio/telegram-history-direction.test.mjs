@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
+import bigInt from 'big-integer';
 
 const nodeRequire = createRequire(import.meta.url);
 const { resolveMessageDirection, normalizeHistoryMessage } = nodeRequire('./telegram-message-direction.cjs');
@@ -8,6 +9,10 @@ describe('Telegram preview message direction', () => {
   it('uses the outgoing flag when present', () => {
     expect(resolveMessageDirection({ out: true }, '42')).toBe(true);
     expect(resolveMessageDirection({ outgoing: false }, '42')).toBe(false);
+  });
+
+  it('recognizes the current user as sender when Telegram direction flags conflict', () => {
+    expect(resolveMessageDirection({ out: false, senderId: bigInt(42) }, '42')).toBe(true);
   });
 
   it('derives direction from sender metadata when the outgoing field is missing', () => {

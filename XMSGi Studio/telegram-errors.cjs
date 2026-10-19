@@ -147,6 +147,33 @@ function classifyTelegramError(error) {
   return { category: 'unknown', retryable: false, error: source };
 }
 
+function getTelegramErrorText(error) {
+  if (!error) return '';
+
+  return [
+    error.code,
+    error.errorCode,
+    error.errorMessage,
+    error.message,
+    error.name
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function isInvalidTelegramSessionError(error) {
+  const text = getTelegramErrorText(error);
+
+  return /AUTH_KEY_UNREGISTERED|AUTH_KEY_INVALID|SESSION_REVOKED|SESSION_EXPIRED|AUTHORIZATION_REVOKED|AUTHORIZATION_EXPIRED|(?:revoked|expired|invalid)\s+(?:telegram\s+)?(?:session|authorization)|(?:telegram\s+)?(?:session|authorization)\s+(?:revoked|expired|invalid)/i.test(text);
+}
+
+function isInvalidMediaAlbumError(error) {
+  const details = [error?.code, error?.message, error?.request?.className]
+    .filter(Boolean)
+    .join(' ');
+  return /(?:MEDIA_INVALID|Media invalid)/i.test(details) && /SendMultiMedia/i.test(details);
+}
+
 function createTelegramRateLimitInterceptor(timerApi = {}) {
   const now = timerApi.now || Date.now;
   const setTimer = timerApi.setTimeout || setTimeout;
@@ -352,4 +379,7 @@ module.exports = {
   classifyTelegramError,
   normalizeFloodWaitError,
   normalizeRateLimitError,
+  getTelegramErrorText,
+  isInvalidTelegramSessionError,
+  isInvalidMediaAlbumError,
 };

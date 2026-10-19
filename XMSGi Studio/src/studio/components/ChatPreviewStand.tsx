@@ -3,7 +3,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { createPortal } from 'react-dom';
 import type { CSSProperties, MutableRefObject } from 'react';
 import { ChatAvatar } from './ChatAvatar';
-import carbonLivePreviewWallpaper from '../assets/carbon-live-preview.png';
+import carbonLivePreviewWallpaper from '../assets/carbon-live-preview.jpg';
 import type { Chat, PreviewChatHistory, RichTextEntity } from '@studio/types';
 import { toInlineKeyboardMarkup, type InlineButtonRow } from '@studio/lib/inlineKeyboard';
 import { useLocale } from '@studio/lib/i18n';
@@ -20,6 +20,9 @@ type PreviewAttachment = {
 
 type WallpaperTheme = 'telegram' | 'graphite' | 'custom';
 type PreviewDevice = 'web' | 'mobile';
+
+const CHAT_LIST_OVERSCAN = 6;
+const CHAT_LIST_VIRTUALIZATION_THRESHOLD = 40;
 
 export type ChatWallpaper = {
   theme: WallpaperTheme;
@@ -319,6 +322,7 @@ export function ChatPreviewStand({
   const [wallpaperAccent, setWallpaperAccent] = useState(savedWallpaper.accent);
   const wallpaperFileInputRef = useRef<HTMLInputElement | null>(null);
   const previewOptionsRef = useRef<HTMLDivElement | null>(null);
+  const chatListItemsRef = useRef<HTMLDivElement | null>(null);
   const previewScrollTrackRef = useRef<HTMLDivElement | null>(null);
   const previewScrollDragRef = useRef<{ pointerY: number; scrollTop: number } | null>(null);
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
@@ -331,6 +335,7 @@ export function ChatPreviewStand({
     scrollHeight: 0,
     clientHeight: 0,
   });
+  const [chatListScrollMetrics, setChatListScrollMetrics] = useState({ scrollTop: 0, clientHeight: 0 });
 
   useEffect(() => {
     if (!expandedHistoryPhoto) return;
@@ -486,6 +491,40 @@ export function ChatPreviewStand({
     !normalizedChatSearch
     || `${chat.name} ${chat.username ?? ''} ${chat.type ?? ''}`.toLocaleLowerCase().includes(normalizedChatSearch)
   )) : [];
+  const chatListRowHeight = previewDevice === 'mobile' ? 58 : 48;
+  const shouldVirtualizeChatList = visibleChats.length > CHAT_LIST_VIRTUALIZATION_THRESHOLD;
+  const firstVisibleChatIndex = shouldVirtualizeChatList
+    ? Math.max(0, Math.floor(chatListScrollMetrics.scrollTop / chatListRowHeight) - CHAT_LIST_OVERSCAN)
+    : 0;
+  const visibleChatCount = Math.max(
+    CHAT_LIST_VIRTUALIZATION_THRESHOLD,
+    Math.ceil(chatListScrollMetrics.clientHeight / chatListRowHeight) + CHAT_LIST_OVERSCAN * 2,
+  );
+  const renderedChats = shouldVirtualizeChatList
+    ? visibleChats.slice(firstVisibleChatIndex, firstVisibleChatIndex + visibleChatCount)
+    : visibleChats;
+
+  useEffect(() => {
+    const list = chatListItemsRef.current;
+    if (!chatListOpen || !list) {
+      setChatListScrollMetrics({ scrollTop: 0, clientHeight: 0 });
+      return;
+    }
+
+    const syncScrollMetrics = () => {
+      setChatListScrollMetrics({ scrollTop: list.scrollTop, clientHeight: list.clientHeight });
+    };
+    list.scrollTop = 0;
+    list.addEventListener('scroll', syncScrollMetrics, { passive: true });
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncScrollMetrics);
+    resizeObserver?.observe(list);
+    syncScrollMetrics();
+
+    return () => {
+      list.removeEventListener('scroll', syncScrollMetrics);
+      resizeObserver?.disconnect();
+    };
+  }, [chatListOpen, previewDevice, visibleChats.length]);
   const hasDraft = Boolean(normalizedDraft.message.trim() || attachments.length);
   const hasHistoryMessages = Boolean(activePreviewHistory?.messages.length);
   const shouldShowEmptyPreviewHint = !hasDraft && !hasHistoryMessages;
@@ -683,12 +722,27 @@ export function ChatPreviewStand({
         {chatListOpen && (
           <aside className="chat-preview-chat-list" aria-label="Chats">
             <div className="chat-preview-chat-list-heading">{t('studio.chats')}</div>
-            <div className="chat-preview-chat-list-items">
-              {visibleChats.map((chat) => (
+            <div
+              className="chat-preview-chat-list-items"
+              ref={chatListItemsRef}
+              style={shouldVirtualizeChatList ? {
+                height: visibleChats.length * chatListRowHeight,
+                position: 'relative',
+              } : undefined}
+            >
+              {renderedChats.map((chat, visibleIndex) => (
                 <button
                   type="button"
                   key={chat.id}
                   className={`chat-preview-chat-list-item ${selectedChat?.id === chat.id ? 'is-selected' : ''}`}
+                  style={shouldVirtualizeChatList ? {
+                    position: 'absolute',
+                    top: (firstVisibleChatIndex + visibleIndex) * chatListRowHeight,
+                    left: 0,
+                    right: 0,
+                    height: chatListRowHeight,
+                    boxSizing: 'border-box',
+                  } : undefined}
                   onClick={() => onSelectChat(chat)}
                 >
                   <ChatAvatar name={chat.name} src={chat.avatarDataUrl} className="chat-preview-chat-list-avatar" />
@@ -706,7 +760,10 @@ export function ChatPreviewStand({
                 <input
                   type="text"
                   value={chatSearchQuery}
-                  onChange={(event) => setChatSearchQuery(event.target.value)}
+                  onChange={(event) => {
+                    setChatSearchQuery(event.target.value);
+                    if (chatListItemsRef.current) chatListItemsRef.current.scrollTop = 0;
+                  }}
                   aria-label="Search chats"
                   placeholder="Search"
                   autoComplete="off"

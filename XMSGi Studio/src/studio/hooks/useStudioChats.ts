@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Chat, NotificationState } from '@studio/types';
+import { telegramGetChats } from '@/services/chatAppService';
 
 type RemoveModalState = {
   show: boolean;
@@ -50,10 +51,12 @@ export function useStudioChats({ chats: initialChats, selectedChat: sharedSelect
 
     if (initialChats !== undefined) {
       applyChats(initialChats);
-    } else if (typeof window.telegram?.getChats === 'function') {
-      window.telegram.getChats()
+    } else {
+      telegramGetChats()
         .then((result) => {
-          if (!cancelled && result.success) applyChats(result.chats ?? []);
+          if (!cancelled && result.success) {
+            applyChats((result.chats ?? []).map((chat) => ({ ...chat, id: String(chat.id) })));
+          }
         })
         .catch((error) => {
           if (!cancelled) {

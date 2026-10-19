@@ -2,6 +2,8 @@ import { normalizeRichTextEntities } from './richText';
 import type { RichTextEntity } from '@/types';
 import { load, save } from './storage';
 import type { PlannerReminderType, SavedPlannerDraft as SavedPlannerDraftModel } from '@/workspace/historyModel';
+import { createDraftRecord, normalizeDraftAttachments, normalizeDraftEntities, type DraftRecord } from '@/domain/messageDraft';
+import { createActiveDraftSnapshot, readActiveDraftState, writeActiveDraft } from '@/services/draftStoreService';
 
 export type SavedPlannerDraft = SavedPlannerDraftModel;
 export const SAVED_PLANNER_DRAFTS_UPDATED_EVENT = 'xmsgi-saved-planner-drafts-updated';
@@ -11,10 +13,12 @@ const PLANNER_DRAFT_UPDATED_AT_KEY = 'xmsgi-planner-draft-updated-at';
 const PLANNER_DRAFT_ENTITIES_KEY = 'xmsgi-planner-draft-entities';
 const PLANNER_DRAFT_ATTACHMENTS_KEY = 'xmsgi-planner-draft-attachments';
 const PLANNER_DRAFT_SNAPSHOT_KEY = 'xmsgi-planner-draft-snapshot-v1';
+const ACTIVE_DRAFT_ID = 'quick-planner:active';
 export const SAVED_PLANNER_DRAFT_STORAGE_KEY = 'xmsgi-quick-planner-saved-draft';
 const PLANNER_DRAFT_WRITE_DELAY_MS = 180;
 let plannerDraftWriteTimer: number | null = null;
 let pendingPlannerDraftSnapshot: PlannerDraftSnapshot | null = null;
+let failedPlannerDraftSnapshot: PlannerDraftSnapshot | null = null;
 
 type PlannerDraftSnapshot = {
   message: string;
@@ -56,7 +60,7 @@ export function readPlannerDraft() {
   const pendingSnapshot = pendingPlannerDraftSnapshot;
   if (pendingSnapshot) return pendingSnapshot.message;
 
-  const snapshot = readPlannerDraftSnapshot();
+  const snapshot = getCommittedPlannerSnapshot();
   if (snapshot) return snapshot.message;
 
   try {
@@ -70,7 +74,7 @@ export function readPlannerDraftEntities(): RichTextEntity[] {
   const pendingSnapshot = pendingPlannerDraftSnapshot;
   if (pendingSnapshot) return normalizeRichTextEntities(pendingSnapshot.entities, pendingSnapshot.message.length);
 
-  const snapshot = readPlannerDraftSnapshot();
+  const snapshot = getCommittedPlannerSnapshot();
   if (snapshot) return normalizeRichTextEntities(snapshot.entities, snapshot.message.length);
 
   try {
@@ -85,7 +89,7 @@ export function readPlannerDraftAttachments(): string[] {
   const pendingSnapshot = pendingPlannerDraftSnapshot;
   if (pendingSnapshot) return pendingSnapshot.attachments;
 
-  const snapshot = readPlannerDraftSnapshot();
+  const snapshot = getCommittedPlannerSnapshot();
   if (snapshot) return snapshot.attachments;
 
   try {
@@ -100,28 +104,39 @@ export function writePlannerDraft(message: string, entities: RichTextEntity[] = 
   const snapshot = {
     message,
     updatedAt: message || attachments.length ? new Date().toISOString() : '',
-    entities,
-    attachments,
+    entities: [...entities],
+    attachments: [...attachments],
   } satisfies PlannerDraftSnapshot;
 
   pendingPlannerDraftSnapshot = snapshot;
+  failedPlannerDraftSnapshot = null;
 
   if (plannerDraftWriteTimer !== null) {
     window.clearTimeout(plannerDraftWriteTimer);
   }
 
   plannerDraftWriteTimer = window.setTimeout(() => {
-    try {
-      window.localStorage.setItem(PLANNER_DRAFT_SNAPSHOT_KEY, JSON.stringify(snapshot));
-      clearLegacyPlannerDraft();
-      pendingPlannerDraftSnapshot = null;
-    } catch {
-      pendingPlannerDraftSnapshot = null;
-      // Keep Planner usable when local storage is unavailable.
-    } finally {
-      plannerDraftWriteTimer = null;
-    }
+    plannerDraftWriteTimer = null;
+    if (pendingPlannerDraftSnapshot !== snapshot) return;
+    const persisted = persistPlannerDraftSnapshot(snapshot);
+    failedPlannerDraftSnapshot = persisted ? null : snapshot;
+    pendingPlannerDraftSnapshot = persisted ? null : getCommittedPlannerSnapshot();
   }, PLANNER_DRAFT_WRITE_DELAY_MS);
+}
+
+export function flushPlannerDraftWrite(): boolean {
+  if (plannerDraftWriteTimer !== null) {
+    window.clearTimeout(plannerDraftWriteTimer);
+    plannerDraftWriteTimer = null;
+  }
+
+  const pendingSnapshot = failedPlannerDraftSnapshot ?? pendingPlannerDraftSnapshot;
+  if (!pendingSnapshot) return true;
+
+  const persisted = persistPlannerDraftSnapshot(pendingSnapshot);
+  failedPlannerDraftSnapshot = persisted ? null : pendingSnapshot;
+  pendingPlannerDraftSnapshot = persisted ? null : getCommittedPlannerSnapshot();
+  return persisted;
 }
 
 export function readSavedPlannerDraft(): SavedPlannerDraft | null {
@@ -179,6 +194,38 @@ export function writeSavedPlannerDraft(draft: SavedPlannerDraft) {
   return wasSaved;
 }
 
+export function readActiveDraftRecord(): DraftRecord | null {
+  const message = readPlannerDraft();
+  const entities = readPlannerDraftEntities();
+  const attachments = readPlannerDraftAttachments();
+  if (!message.trim() && attachments.length === 0) return null;
+
+  return createDraftRecord({
+    id: 'quick-planner:active',
+    message,
+    entities: normalizeDraftEntities(entities),
+    attachments: normalizeDraftAttachments(attachments),
+    selectedChatId: null,
+    updatedAt: readPlannerDraftUpdatedAt() || new Date().toISOString(),
+  });
+}
+
+export function writeActiveDraftRecord(record: DraftRecord): boolean {
+  writePlannerDraft(record.message, record.entities as RichTextEntity[], record.attachments.map((attachment) => attachment.path));
+  return true;
+}
+
+export function readSavedDraftRecords(): DraftRecord[] {
+  return readSavedPlannerDrafts().map((draft) => createDraftRecord({
+    id: draft.id,
+    message: draft.message,
+    entities: normalizeDraftEntities(draft.entities),
+    attachments: normalizeDraftAttachments(draft.attachments),
+    selectedChatId: null,
+    updatedAt: draft.savedAt || new Date().toISOString(),
+  }));
+}
+
 export function writeSavedPlannerDrafts(drafts: SavedPlannerDraft[]) {
   const wasSaved = save(SAVED_PLANNER_DRAFT_STORAGE_KEY, drafts);
   if (wasSaved && typeof window !== 'undefined') {
@@ -188,7 +235,10 @@ export function writeSavedPlannerDrafts(drafts: SavedPlannerDraft[]) {
 }
 
 export function readPlannerDraftUpdatedAt() {
-  const snapshot = readPlannerDraftSnapshot();
+  const pendingSnapshot = pendingPlannerDraftSnapshot;
+  if (pendingSnapshot) return pendingSnapshot.updatedAt;
+
+  const snapshot = getCommittedPlannerSnapshot();
   if (snapshot) return snapshot.updatedAt;
 
   try {
@@ -196,4 +246,89 @@ export function readPlannerDraftUpdatedAt() {
   } catch {
     return '';
   }
+}
+
+function readLegacyPlannerDraftSnapshot(): PlannerDraftSnapshot | null {
+  try {
+    const message = window.localStorage.getItem(PLANNER_DRAFT_STORAGE_KEY);
+    if (message === null) return null;
+    return {
+      message,
+      updatedAt: window.localStorage.getItem(PLANNER_DRAFT_UPDATED_AT_KEY) ?? '',
+      entities: JSON.parse(window.localStorage.getItem(PLANNER_DRAFT_ENTITIES_KEY) || '[]'),
+      attachments: JSON.parse(window.localStorage.getItem(PLANNER_DRAFT_ATTACHMENTS_KEY) || '[]'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getCommittedPlannerSnapshot(): PlannerDraftSnapshot | null {
+  const activeState = readActiveDraftState();
+  if (activeState.available && activeState.exists) {
+    const draft = activeState.draft;
+    return {
+      message: draft?.message ?? '',
+      updatedAt: draft?.updatedAt ?? '',
+      entities: (draft?.entities ?? []) as RichTextEntity[],
+      attachments: (draft?.attachments ?? []).map((attachment) => attachment.path),
+    };
+  }
+
+  return readPlannerDraftSnapshot() ?? readLegacyPlannerDraftSnapshot();
+}
+
+function persistPlannerDraftSnapshot(snapshot: PlannerDraftSnapshot): boolean {
+  let storage: Storage;
+  let previousSnapshotRaw: string | null;
+  try {
+    storage = window.localStorage;
+    previousSnapshotRaw = storage.getItem(PLANNER_DRAFT_SNAPSHOT_KEY);
+  } catch {
+    return false;
+  }
+
+  const activeState = readActiveDraftState();
+  if (!activeState.available) return false;
+
+  const previousSnapshot = getCommittedPlannerSnapshot();
+  const previousDraft = activeState.exists
+    ? activeState.draft
+    : createActiveDraftSnapshot({
+        message: previousSnapshot?.message ?? '',
+        updatedAt: previousSnapshot?.updatedAt,
+        entities: previousSnapshot?.entities,
+        attachments: previousSnapshot?.attachments,
+        id: ACTIVE_DRAFT_ID,
+      });
+
+  if (!activeState.exists && !writeActiveDraft(previousDraft)) return false;
+
+  try {
+    storage.setItem(PLANNER_DRAFT_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  } catch {
+    return false;
+  }
+
+  const nextDraft = createActiveDraftSnapshot({
+    message: snapshot.message,
+    entities: snapshot.entities,
+    attachments: snapshot.attachments.map((path) => ({ name: path.split(/[\\/]/).pop() || path, path })),
+    selectedChatId: null,
+    id: ACTIVE_DRAFT_ID,
+    updatedAt: snapshot.updatedAt,
+  });
+
+  if (!writeActiveDraft(nextDraft)) {
+    try {
+      if (previousSnapshotRaw === null) storage.removeItem(PLANNER_DRAFT_SNAPSHOT_KEY);
+      else storage.setItem(PLANNER_DRAFT_SNAPSHOT_KEY, previousSnapshotRaw);
+    } catch {
+      // The canonical active draft still contains the previous committed value.
+    }
+    return false;
+  }
+
+  clearLegacyPlannerDraft();
+  return true;
 }

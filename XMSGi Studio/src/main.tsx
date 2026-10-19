@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { LocaleProvider } from '@/lib/i18n';
+import { isDesktopTelegramRuntime } from '@/services/telegramAppService';
 
 if ('scrollRestoration' in window.history) {
   window.history.scrollRestoration = 'manual';
 }
-document.documentElement.classList.toggle('electron-runtime', typeof window.telegram?.login === 'function');
+document.documentElement.classList.toggle('electron-runtime', isDesktopTelegramRuntime());
 window.scrollTo(0, 0);
 
 const DevPreviewHarness = import.meta.env.DEV
