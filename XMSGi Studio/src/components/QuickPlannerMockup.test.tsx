@@ -31,6 +31,7 @@ describe('QuickPlannerMockup feedback', () => {
     render(<QuickPlannerMockup />);
 
     expect(screen.getByRole('heading', { name: 'Новое сообщение' })).toBeInTheDocument();
+    expect(screen.getByRole('main', { name: 'Новое сообщение' })).toHaveAttribute('lang', 'ru');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
     expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Записывай идеи');

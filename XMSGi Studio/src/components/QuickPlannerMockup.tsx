@@ -953,6 +953,7 @@ export function QuickPlannerMockup({
   return (
     <main
       className="quick-planner-mockup"
+      lang={locale}
       aria-labelledby="quick-planner-mockup-title"
       style={{ '--mockup-accent': mockupAccent, '--mockup-accent-rgb': mockupAccentRgb } as CSSProperties}
     >

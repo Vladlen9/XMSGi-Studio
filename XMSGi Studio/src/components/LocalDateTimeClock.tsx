@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { useLocale } from '@/lib/i18n';
 
 export function LocalDateTimeClock() {
+  const { locale, t } = useLocale();
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
@@ -14,22 +16,22 @@ export function LocalDateTimeClock() {
     return () => window.clearTimeout(timeoutId);
   }, []);
 
-  const dateLabel = new Intl.DateTimeFormat('en-US', {
+  const dateLabel = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   }).format(currentTime).toUpperCase();
-  const timeLabel = new Intl.DateTimeFormat('en-GB', {
+  const timeLabel = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-GB', {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(currentTime);
 
   return (
-    <div className="local-date-time-clock" aria-label="Current local date and time">
+    <div className="local-date-time-clock" aria-label={t('plannerClock.currentDateTime')}>
       <span className="local-date-time-clock-date">{dateLabel}</span>
       <time dateTime={currentTime.toISOString()}>{timeLabel}</time>
-      <small>LOCAL TIME</small>
+      <small>{t('plannerClock.localTime')}</small>
     </div>
   );
 }

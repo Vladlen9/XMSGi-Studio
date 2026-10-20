@@ -1,7 +1,8 @@
 import { createElement, useContext } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
+import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
 import { AppShell, getTelegramStatusPresentation } from './AppShell';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 
@@ -34,6 +35,21 @@ describe('Telegram status presentation', () => {
     ['unknown error', { ...baseStatus, status: 'error' as const, category: 'unknown' as const }, 'error', 'telegramStatus.error'],
   ])('maps %s to a visible presentation', (_name, status, tone, labelKey) => {
     expect(getTelegramStatusPresentation(status)).toMatchObject({ tone, labelKey });
+  });
+});
+
+describe('LocalDateTimeClock localization', () => {
+  beforeEach(() => window.localStorage.setItem('awaitmsg_locale', 'ru'));
+  afterEach(() => window.localStorage.removeItem('awaitmsg_locale'));
+
+  it('formats the date and label using the selected Russian locale', () => {
+    render(createElement(LocaleProvider, null, createElement(LocalDateTimeClock)));
+
+    const clock = screen.getByLabelText('Местные дата и время');
+    expect(clock.querySelector('.local-date-time-clock-date'))
+      .toHaveTextContent(new Intl.DateTimeFormat('ru-RU', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date()).toUpperCase());
+    expect(clock.querySelector('time')).toHaveTextContent(/^\d{2}:\d{2}$/);
+    expect(clock.querySelector('small')).toHaveTextContent('МЕСТНОЕ ВРЕМЯ');
   });
 });
 

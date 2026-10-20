@@ -1556,6 +1556,10 @@
   line-height: 1.5;
 }
 
+.quick-planner-mockup[lang="ru"] .quick-planner-mockup-notes p {
+  text-wrap: balance;
+}
+
 @media (max-width: 1040px) {
   .quick-planner-mockup-layout {
     grid-template-columns: minmax(0, 1fr) 230px;

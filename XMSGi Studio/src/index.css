@@ -1787,7 +1787,10 @@ body:has(.auth-panel) {
   right: max(26px, calc((100vw - 1320px) / 2));
   z-index: 4;
   display: grid;
+  width: max-content;
   min-width: 132px;
+  max-width: calc(100vw - 36px);
+  box-sizing: border-box;
   justify-items: end;
   gap: 3px;
   padding-top: 5px;
@@ -1810,6 +1813,7 @@ body:has(.auth-panel) {
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
+  white-space: nowrap;
 }
 
 .local-date-time-clock small {
@@ -1821,7 +1825,6 @@ body:has(.auth-panel) {
   .local-date-time-clock {
     top: 97px;
     right: 18px;
-    min-width: 90px;
   }
 }
 
@@ -2448,6 +2451,12 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar .topbar-identity {
+    display: none;
   }
 }
 
