@@ -1785,7 +1785,7 @@ body:has(.auth-panel) {
   top: 94px;
   right: max(26px, calc((100vw - 1320px) / 2));
   z-index: 4;
-  display: none;
+  display: none !important;
   width: max-content;
   min-width: 132px;
   max-width: calc(100vw - 36px);
@@ -1798,6 +1798,16 @@ body:has(.auth-panel) {
   font-size: 10px;
   pointer-events: none;
   text-align: right;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+}
+
+.local-date-time-clock,
+.local-date-time-clock * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 .local-date-time-clock-date {
@@ -1844,8 +1854,11 @@ body:has(.auth-panel) {
   overflow: hidden;
 }
 
-.product-shell.planner-shell .local-date-time-clock {
+.product-shell.planner-shell .local-date-time-clock,
+.product-shell.studio-shell .local-date-time-clock {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 .product-shell.studio-shell > .product-shell-content,

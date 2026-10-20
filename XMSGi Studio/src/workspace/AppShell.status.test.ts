@@ -39,18 +39,16 @@ describe('Telegram status presentation', () => {
   });
 });
 
-describe('LocalDateTimeClock localization', () => {
+describe('LocalDateTimeClock visibility', () => {
   beforeEach(() => window.localStorage.setItem('awaitmsg_locale', 'ru'));
   afterEach(() => window.localStorage.removeItem('awaitmsg_locale'));
 
-  it('formats the date and label using the selected Russian locale', () => {
-    render(createElement(LocaleProvider, null, createElement(LocalDateTimeClock)));
+  it('keeps the local clock completely hidden in the product shell', () => {
+    const { container } = render(createElement(LocaleProvider, null, createElement(LocalDateTimeClock)));
 
-    const clock = screen.getByLabelText('Местные дата и время');
-    expect(clock.querySelector('.local-date-time-clock-date'))
-      .toHaveTextContent(new Intl.DateTimeFormat('ru-RU', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date()).toUpperCase());
-    expect(clock.querySelector('time')).toHaveTextContent(/^\d{2}:\d{2}$/);
-    expect(clock.querySelector('small')).toHaveTextContent('МЕСТНОЕ ВРЕМЯ');
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByLabelText('Местные дата и время')).not.toBeInTheDocument();
+    expect(document.querySelector('.local-date-time-clock')).toBeNull();
   });
 });
 
