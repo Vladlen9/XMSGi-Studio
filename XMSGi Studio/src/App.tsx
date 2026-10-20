@@ -195,6 +195,7 @@ function App() {
   const [telegramCredentialsError, setTelegramCredentialsError] = useState('');
   const [telegramCredentials, setTelegramCredentials] = useState({
     hasCredentials: false,
+    apiId: '',
     hasSession: false,
     connected: false,
     signedOut: false,
@@ -782,6 +783,7 @@ function App() {
           }
           setTelegramCredentials({
             hasCredentials: Boolean(result.config.hasCredentials),
+            apiId: result.config.apiId || telegramApiId.trim(),
             hasSession: Boolean(result.config.hasSession),
             connected: Boolean(result.config.connected),
             signedOut: Boolean(result.config.signedOut),
@@ -804,6 +806,7 @@ function App() {
       if (!active || !result.success || !result.config) return;
       setTelegramCredentials({
         hasCredentials: Boolean(result.config.hasCredentials),
+        apiId: result.config.apiId || '',
         hasSession: Boolean(result.config.hasSession),
         connected: Boolean(result.config.connected),
         signedOut: Boolean(result.config.signedOut),

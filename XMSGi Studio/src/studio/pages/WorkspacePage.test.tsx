@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@studio/types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
-import type { WorkspaceDraft } from '../lib/draftStore';
+import { readInitialWorkspaceDraft, type WorkspaceDraft } from '../lib/draftStore';
 import { EDITOR_APPEARANCE_STORAGE_KEY, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { LocaleProvider } from '@studio/lib/i18n';
 import { hasDraftContent, normalizeAttachments, readWorkspaceDraftStoreFallback, remapAttachmentPositions, WorkspacePage, writeWorkspaceDraftStoreFallback } from './WorkspacePage';
@@ -172,6 +172,19 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
   }
 
 describe('WorkspacePage main-screen flows', () => {
+  it('does not hydrate the Studio editor from the shared Planner active draft', () => {
+    localStorage.setItem('xmsgi:active-draft:v1', JSON.stringify({
+      id: 'quick-planner:active',
+      message: 'Planner message',
+      entities: [],
+      attachments: [{ name: 'removed.png', path: 'C:/photos/removed.png' }],
+      selectedChatId: null,
+      updatedAt: '2026-10-21T00:00:00.000Z',
+    }));
+
+    expect(readInitialWorkspaceDraft()).toEqual({});
+  });
+
   it('preserves photo album identity when normalizing draft attachments', () => {
     const attachments = normalizeAttachments([{
       id: 'album-photo-1',

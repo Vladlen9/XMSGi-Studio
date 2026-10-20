@@ -19,6 +19,7 @@ function loadSavedHistoryFilters() {
   try {
     const saved = JSON.parse(window.localStorage.getItem(HISTORY_FILTER_STORAGE_KEY) || 'null') as {
       sourceFilter?: unknown;
+      sourceFilterPinned?: unknown;
       statusFilter?: unknown;
     } | null;
     const sourceFilter: HistorySourceFilter = saved?.sourceFilter === 'workspace' || saved?.sourceFilter === 'personal'
@@ -28,13 +29,16 @@ function loadSavedHistoryFilters() {
     const statusFilter: HistoryStatusFilter = storedStatus === 'sent' || storedStatus === 'drafts' || storedStatus === 'notes'
       ? storedStatus
       : 'scheduled';
+    const sourceFilterPinned = saved?.sourceFilterPinned === true
+      || (saved?.sourceFilterPinned !== false && (sourceFilter === 'workspace' || sourceFilter === 'personal'));
 
     return {
       sourceFilter,
+      sourceFilterPinned,
       statusFilter: statusFilter === 'notes' ? 'scheduled' : statusFilter,
     };
   } catch {
-    return { sourceFilter: 'all' as const, statusFilter: 'scheduled' as const };
+    return { sourceFilter: 'all' as const, sourceFilterPinned: false, statusFilter: 'scheduled' as const };
   }
 }
 
@@ -493,6 +497,7 @@ export function HistoryDrawer({
   isOpen,
   pageMode = false,
   sourceFilterOnOpen,
+  sourceFilterOnOpenMode = 'temporary',
   statusFilterOnOpen,
   onClose,
   records,
@@ -508,6 +513,7 @@ export function HistoryDrawer({
   isOpen: boolean;
   pageMode?: boolean;
   sourceFilterOnOpen?: HistorySourceFilter;
+  sourceFilterOnOpenMode?: 'initial' | 'temporary';
   statusFilterOnOpen?: Exclude<HistoryStatusFilter, 'notes'>;
   onClose: () => void;
   records: HistoryItem[];
@@ -524,9 +530,11 @@ export function HistoryDrawer({
   const { locale, t } = useLocale();
   const [savedFilters] = useState(loadSavedHistoryFilters);
   const [sourceFilter, setSourceFilter] = useState<HistorySourceFilter>(savedFilters.sourceFilter);
+  const [sourceFilterPinned, setSourceFilterPinned] = useState(savedFilters.sourceFilterPinned);
   const [statusFilter, setStatusFilter] = useState<HistoryStatusFilter>(savedFilters.statusFilter);
   const sourceFilterBeforeOverrideRef = useRef<HistorySourceFilter | null>(null);
   const sourceFilterOverrideChangedRef = useRef(false);
+  const initialSourceAppliedRef = useRef(false);
   const statusFilterBeforeOverrideRef = useRef<HistoryStatusFilter | null>(null);
   const statusFilterOverrideChangedRef = useRef(false);
   const [query, setQuery] = useState('');
@@ -553,7 +561,16 @@ export function HistoryDrawer({
   const imageHoverTimerRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
-    if (isOpen && sourceFilterOnOpen && !sourceFilterOverrideChangedRef.current) {
+    if (isOpen && sourceFilterOnOpen && sourceFilterOnOpenMode === 'initial' && !initialSourceAppliedRef.current) {
+      initialSourceAppliedRef.current = true;
+      sourceFilterBeforeOverrideRef.current = null;
+      sourceFilterOverrideChangedRef.current = false;
+      setSourceFilter(sourceFilterOnOpen);
+      setSourceFilterPinned(true);
+      return;
+    }
+
+    if (isOpen && sourceFilterOnOpen && sourceFilterOnOpenMode === 'temporary' && !sourceFilterPinned && !sourceFilterOverrideChangedRef.current) {
       if (sourceFilterBeforeOverrideRef.current === null) {
         sourceFilterBeforeOverrideRef.current = sourceFilter;
         sourceFilterOverrideChangedRef.current = false;
@@ -569,7 +586,8 @@ export function HistoryDrawer({
       sourceFilterOverrideChangedRef.current = false;
       if (!sourceFilterWasChanged) setSourceFilter(previousSourceFilter);
     }
-  }, [isOpen, sourceFilter, sourceFilterOnOpen]);
+    if (!isOpen) initialSourceAppliedRef.current = false;
+  }, [isOpen, sourceFilter, sourceFilterOnOpen, sourceFilterOnOpenMode, sourceFilterPinned]);
 
   useLayoutEffect(() => {
     if (isOpen && statusFilterOnOpen && !statusFilterOverrideChangedRef.current) {
@@ -622,12 +640,13 @@ export function HistoryDrawer({
         : statusFilter;
       window.localStorage.setItem(HISTORY_FILTER_STORAGE_KEY, JSON.stringify({
         sourceFilter: savedSourceFilter,
+        sourceFilterPinned,
         statusFilter: savedStatusFilter,
       }));
     } catch {
       // Keep history usable when local storage is unavailable.
     }
-  }, [sourceFilter, statusFilter]);
+  }, [sourceFilter, sourceFilterPinned, statusFilter]);
 
   const historyItems = records;
 
@@ -807,6 +826,7 @@ export function HistoryDrawer({
   const filteredRecords = useMemo(() => {
     const categoryRecords = [...historyItems, ...draftItems]
       .filter((record) => {
+        if (record.status === 'failed') return false;
         if (sourceFilter !== 'all' && record.source !== sourceFilter) return false;
         if (!matchesHistoryStatus(record, statusFilter)) return false;
 
@@ -849,10 +869,8 @@ export function HistoryDrawer({
       if (record.status === 'failed') continue;
       counts.total += 1;
 
-      if (matchesHistoryStatus(record, statusFilter)) {
-        counts.source.all += 1;
-        counts.source[record.source] += 1;
-      }
+      counts.source.all += 1;
+      counts.source[record.source] += 1;
 
       if (sourceFilter === 'all' || record.source === sourceFilter) {
         if (matchesHistoryStatus(record, 'scheduled')) counts.status.scheduled += 1;
@@ -863,7 +881,7 @@ export function HistoryDrawer({
     }
 
     return counts;
-  }, [draftItems, historyItems, sourceFilter, statusFilter]);
+  }, [draftItems, historyItems, sourceFilter]);
   const visibleStatusFilters: HistoryStatusFilter[] = ['scheduled', 'sent', 'drafts'];
 
   const selectedRecordIndex = selectedRecord
@@ -1162,7 +1180,7 @@ export function HistoryDrawer({
             <span className="history-drawer-header-icon" aria-hidden="true">
               <Send size={20} strokeWidth={1.8} />
             </span>
-            <h2 aria-label={t('history.title')}>{t('history.title')} <span aria-hidden="true">{historyCounts.total}</span></h2>
+            <h2 aria-label={t('history.title')}>{t('history.title')}</h2>
           </div>
           <button
             type="button"
@@ -1187,6 +1205,7 @@ export function HistoryDrawer({
                 type="button"
                 data-history-filter={item}
                 onClick={() => {
+                  setSourceFilterPinned(true);
                   if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
                   if (sourceFilter === item) {
                     bounceHistoryGlassIndicator(sourceFiltersRef.current, item);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { CircleUserRound, LogOut, X } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
+import brandIcon from '@/studio/assets/logo.png';
 import {
   persistPostsReturnView,
   readPostsReturnView,
@@ -95,11 +96,13 @@ export function AppShell({
   const previousProductViewRef = useRef<Exclude<ProductView, 'posts'>>(
     readPostsReturnView(view === 'planner' ? 'planner' : 'studio'),
   );
+  const hasOpenedPostsRef = useRef(false);
   const activeProductView = view === 'posts' ? previousProductViewRef.current : view;
   const nextProductView = activeProductView === 'planner' ? 'studio' : 'planner';
   const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
-  const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
+  const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | 'workspace' | undefined>();
+  const [historySourceFilterOnOpenMode, setHistorySourceFilterOnOpenMode] = useState<'initial' | 'temporary'>('temporary');
   const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
   useEffect(() => {
     if (!isConfirmingLogout || authBusy) return undefined;
@@ -135,17 +138,22 @@ export function AppShell({
   const isPostsVisible = view === 'posts' || postsOpen;
 
   const openPosts = (statusFilter?: QuickPlannerPostsFilter) => {
+    const sourceProductView = view === 'posts' ? previousProductViewRef.current : view;
+    const isInitialPostsOpen = !hasOpenedPostsRef.current;
+    hasOpenedPostsRef.current = true;
     if (view !== 'posts') {
       previousProductViewRef.current = view;
       persistPostsReturnView(view);
     }
-    setHistorySourceFilterOnOpen('personal');
+    setHistorySourceFilterOnOpen(isInitialPostsOpen ? (sourceProductView === 'planner' ? 'personal' : 'workspace') : undefined);
+    setHistorySourceFilterOnOpenMode(isInitialPostsOpen ? 'initial' : 'temporary');
     setHistoryStatusFilterOnOpen(statusFilter);
     setPostsOpen(true);
     onViewChange('posts');
   };
   const closePosts = () => {
     setHistorySourceFilterOnOpen(undefined);
+    setHistorySourceFilterOnOpenMode('temporary');
     setHistoryStatusFilterOnOpen(undefined);
     setPostsOpen(false);
     onViewChange(previousProductViewRef.current);
@@ -158,6 +166,7 @@ export function AppShell({
     previousProductViewRef.current = nextView;
     persistPostsReturnView(nextView);
     setHistorySourceFilterOnOpen(undefined);
+    setHistorySourceFilterOnOpenMode('temporary');
     setHistoryStatusFilterOnOpen(undefined);
     if (isPostsVisible) {
       closePosts();
@@ -178,7 +187,7 @@ export function AppShell({
       {connected && (
         <header className={`topbar${settingsOpen ? ' settings-topbar' : ''}`}>
           <div className="topbar-identity">
-            <span className="brand" aria-label="XMSGi"><span>XMSGi</span></span>
+            <span className="brand" aria-label="XMSGi"><img className="brand-mark" src={brandIcon} alt="" /><span>XMSGi</span></span>
           </div>
 
           {!settingsOpen && (
@@ -266,6 +275,7 @@ export function AppShell({
         isOpen={view === 'posts' || postsOpen}
         pageMode={view === 'posts' || postsOpen}
         sourceFilterOnOpen={historySourceFilterOnOpen}
+        sourceFilterOnOpenMode={historySourceFilterOnOpenMode}
         statusFilterOnOpen={historyStatusFilterOnOpen}
         onClose={closePosts}
         records={historyRecords}

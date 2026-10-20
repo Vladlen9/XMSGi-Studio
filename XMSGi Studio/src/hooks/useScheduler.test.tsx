@@ -1089,16 +1089,16 @@ describe('useScheduler native history', () => {
     );
   });
 
-  it('keeps a confirmed immediate send in memory and warns when Sent history cannot be saved', async () => {
+  it('finishes a confirmed send before history persistence and warns if history later fails', async () => {
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'en');
     try {
       const chat = { id: 'chat-send-history-failure', name: 'Send history failure chat' };
       const send = vi.fn().mockResolvedValue({ success: true });
-      const saveScheduleHistory = vi.fn(async ({ field }: { field: string }) => ({
-        success: field !== 'snapshot',
-        error: field === 'snapshot' ? 'Disk full' : undefined,
-      }));
+      let resolveSnapshot!: (result: { success: boolean; error?: string }) => void;
+      const saveScheduleHistory = vi.fn(({ field }: { field: string }) => field === 'snapshot'
+        ? new Promise<{ success: boolean; error?: string }>((resolve) => { resolveSnapshot = resolve; })
+        : Promise.resolve({ success: true }));
       const showNotification = vi.fn();
       const { result, loadScheduleHistory } = renderWorkspaceHistory(
         [],
@@ -1111,14 +1111,24 @@ describe('useScheduler native history', () => {
 
       await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
       await waitFor(() => expect(result.current.scheduling).toBe(false));
-      let sent = false;
+      let sendPromise!: Promise<boolean>;
       await act(async () => {
-        sent = await result.current.handleSendDraftNow(chat, 'Send exactly once');
+        sendPromise = result.current.handleSendDraftNow(chat, 'Send exactly once');
+        await waitFor(() => expect(saveScheduleHistory).toHaveBeenCalledWith(expect.objectContaining({ field: 'snapshot' })));
       });
 
-      expect(sent).toBe(true);
+      await act(async () => {
+        await expect(sendPromise).resolves.toBe(true);
+      });
       expect(send).toHaveBeenCalledOnce();
       expect(result.current.sent).toHaveLength(1);
+      expect(result.current.publishingDraft).toBe(false);
+      expect(showNotification).toHaveBeenCalledWith('Message sent to Telegram.', 'success', 'Sent');
+
+      await act(async () => {
+        resolveSnapshot({ success: false, error: 'Disk full' });
+        await Promise.resolve();
+      });
       expect(showNotification).toHaveBeenCalledWith(
         'Message history could not be saved. It may return after the app restarts.',
         'warning',

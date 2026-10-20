@@ -25,7 +25,7 @@ type SettingsViewProps = {
   telegramAuthBusy: boolean;
   telegramAuthError: string;
   telegramStatus: TelegramStatusSnapshot;
-  telegramCredentials: { hasCredentials: boolean; hasSession: boolean; connected: boolean; signedOut: boolean };
+  telegramCredentials: { hasCredentials: boolean; apiId?: string; hasSession: boolean; connected: boolean; signedOut: boolean };
   telegramApiId: string;
   telegramApiHash: string;
   telegramCredentialsBusy: boolean;
@@ -470,8 +470,11 @@ export function SettingsView({
                   <details className="telegram-manager-advanced" open={!telegramCredentials.hasCredentials}>
                     <summary>{t('settings.telegramAdvancedApi')}</summary>
                     <div className="telegram-manager-details">
-                      <span>{t('settings.telegramCredentials')}: <strong>{telegramCredentials.hasCredentials ? t('settings.credentialsReady') : t('settings.credentialsMissing')}</strong></span>
                       <span>{t('settings.sessionStatus')}: <strong>{telegramCredentials.hasSession ? t('settings.credentialsReady') : t('settings.credentialsMissing')}</strong></span>
+                      <span>{t('settings.telegramCredentials')}: <strong>{telegramCredentials.hasCredentials ? t('settings.credentialsReady') : t('settings.credentialsMissing')}</strong></span>
+                      {telegramCredentials.apiId && (
+                        <span>{t('settings.apiIdStatus')}: <strong>{`${telegramCredentials.apiId.slice(0, 4)}••••`}</strong></span>
+                      )}
                       {telegramCredentials.signedOut && <span>{t('settings.signedOut')}</span>}
                     </div>
                     <p className="settings-view-description">{t('settings.telegramCredentialsDescription')}</p>

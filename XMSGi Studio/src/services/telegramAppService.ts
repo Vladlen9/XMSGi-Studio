@@ -48,6 +48,7 @@ export async function telegramGetConfig(): Promise<{
   success: boolean;
   config?: {
     hasCredentials?: boolean;
+    apiId?: string;
     hasSession?: boolean;
     connected?: boolean;
     signedOut?: boolean;

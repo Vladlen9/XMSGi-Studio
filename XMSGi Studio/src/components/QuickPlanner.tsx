@@ -37,6 +37,7 @@ import { loadFreeTelegramMessageEffects, type TelegramMessageEffect } from '@/li
 import { ChatAvatar } from '../studio/components/ChatAvatar';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 import {
+  flushPlannerDraftWrite,
   readPlannerDraft,
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
@@ -166,6 +167,7 @@ export function QuickPlanner({
   const [initialScheduleDateTime] = useState(() => getNextScheduleDateTime(currentTime));
   const [selectedDate, setSelectedDate] = useState(initialScheduleDateTime.date);
   const [selectedTime, setSelectedTime] = useState(initialScheduleDateTime.time);
+  const [scheduleTimeTouched, setScheduleTimeTouched] = useState(false);
   const [activeSchedulePicker, setActiveSchedulePicker] = useState<'date' | 'time' | null>(null);
   const [scheduleTimeDraft, setScheduleTimeDraft] = useState<string | null>(null);
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
@@ -218,7 +220,7 @@ export function QuickPlanner({
   const todayScheduleDateValue = toDateInputValue(new Date());
   const SubmitIcon = selectedMode === 'Send now' ? Send : selectedMode === 'Draft' ? FileText : CalendarDays;
   const submitLabel = selectedMode === 'Send now' ? t('studio.sendNow') : selectedMode === 'Draft' ? t('quickPlanner.saveDraftAction') : t('quickPlanner.schedulePost');
-  const { openStudio, openPosts } = useContext(QuickPlannerNavigationContext);
+  const { openStudio } = useContext(QuickPlannerNavigationContext);
   const chatPickerRef = useRef<HTMLDivElement>(null);
   const toolsRowRef = useRef<HTMLDivElement>(null);
   const effectsToolRef = useRef<HTMLDivElement>(null);
@@ -238,6 +240,7 @@ export function QuickPlanner({
   const attachmentScrollbarRef = useRef<HTMLDivElement>(null);
   const attachmentListRef = useRef<HTMLDivElement>(null);
   const actionFeedbackTimeoutRef = useRef<number | null>(null);
+  const scheduleNowConfirmationRef = useRef<string | null>(null);
   const emojiReleaseCloseTimeoutRef = useRef<number | null>(null);
   const emojiSelectionWaitingForReleaseRef = useRef(false);
 
@@ -348,6 +351,8 @@ export function QuickPlanner({
   };
 
   const setScheduleDateTimeWithinRange = (dateValue: string, timeValue: string) => {
+    setScheduleTimeTouched(true);
+    scheduleNowConfirmationRef.current = null;
     const candidate = toLocalDateTime(dateValue, timeValue);
     if (candidate.getTime() <= minimumScheduleDateTime.getTime()) {
       setSelectedDate(minimumScheduleDateValue);
@@ -706,11 +711,15 @@ export function QuickPlanner({
   const applyQuickTime = (preset: 'now' | '30min' | 'tomorrow') => {
     if (preset === 'now') {
       const nextAvailable = getNextScheduleDateTime(new Date());
+      setScheduleTimeTouched(true);
+      scheduleNowConfirmationRef.current = null;
       setSelectedDate(nextAvailable.date);
       setSelectedTime(nextAvailable.time);
       return;
     }
 
+    setScheduleTimeTouched(true);
+    scheduleNowConfirmationRef.current = null;
     const selectedDateTime = toLocalDateTime(selectedDate, selectedTime);
 
     if (preset === '30min') selectedDateTime.setMinutes(selectedDateTime.getMinutes() + 30);
@@ -725,9 +734,31 @@ export function QuickPlanner({
       showActionFeedback(t('quickPlanner.writeMessage'), 'warning');
       return;
     }
-    if (isScheduleMode && toLocalDateTime(selectedDate, selectedTime).getTime() < minimumScheduleDateTime.getTime()) {
-      showActionFeedback(t('quickPlanner.scheduleAtLeastOneMinute'), 'warning');
-      return;
+    if (isScheduleMode) {
+      const selectedScheduleDateTime = toLocalDateTime(selectedDate, selectedTime);
+      const confirmationKey = JSON.stringify([
+        selectedDate,
+        selectedTime,
+        selectedPickerChat?.sourceChat?.id,
+        message,
+        attachments.map(({ path }) => path),
+        selectedEffectId,
+      ]);
+
+      if (!scheduleTimeTouched) {
+        if (scheduleNowConfirmationRef.current !== confirmationKey) {
+          scheduleNowConfirmationRef.current = confirmationKey;
+          showActionFeedback(t('quickPlanner.scheduleNowConfirmation'), 'warning');
+          return;
+        }
+      } else {
+        scheduleNowConfirmationRef.current = null;
+      }
+
+      if (scheduleTimeTouched && selectedScheduleDateTime.getTime() < minimumScheduleDateTime.getTime()) {
+        showActionFeedback(t('quickPlanner.scheduleAtLeastOneMinute'), 'warning');
+        return;
+      }
     }
     if (isDraftMode) {
       if (onSaveDraft) {
@@ -738,7 +769,6 @@ export function QuickPlanner({
         showActionFeedback(t('quickPlanner.draftSavedToPosts'), 'success');
         setMessage('');
         setAttachments([]);
-        openPosts('drafts');
         return;
       }
       showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
@@ -794,7 +824,8 @@ export function QuickPlanner({
           setMessage('');
           setAttachments([]);
           setSelectedEffectId(null);
-          openPosts('scheduled');
+          setScheduleTimeTouched(false);
+          scheduleNowConfirmationRef.current = null;
         } catch {
           showActionFeedback(t('quickPlanner.messageCouldNotSchedule'), 'error');
         }
@@ -1191,7 +1222,12 @@ export function QuickPlanner({
                             type="button"
                             aria-label={t('composer.removeAttachment', { name: attachment.name })}
                             title={t('composer.removeAttachment', { name: attachment.name })}
-                            onClick={() => setAttachments((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                            onClick={() => {
+                              const nextAttachments = attachments.filter((_, currentIndex) => currentIndex !== index);
+                              setAttachments(nextAttachments);
+                              writePlannerDraft(message, readPlannerDraftEntities(), nextAttachments.map(({ path }) => path));
+                              flushPlannerDraftWrite();
+                            }}
                           ><X size={14} aria-hidden="true" /></button>
                         </div>
                       ))}

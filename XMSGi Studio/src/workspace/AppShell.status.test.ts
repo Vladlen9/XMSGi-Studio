@@ -102,6 +102,7 @@ describe('shared History Drawer entry point', () => {
   });
 
   it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {
+    window.localStorage.removeItem('xmsgi-history-filters');
     const onOpenSettings = vi.fn();
     const onViewChange = vi.fn();
     const plannerNavigation = createElement(QuickPlannerNavigationTestButtons);
@@ -134,6 +135,8 @@ describe('shared History Drawer entry point', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
     expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(document.querySelector(`[data-history-filter="${view === 'planner' ? 'personal' : 'workspace'}"]`))
+      .toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent(view === 'planner' ? 'quick-plan' : 'studio');
@@ -182,6 +185,41 @@ describe('shared History Drawer entry point', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Settings from Quick Plan' }));
     expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
     expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it('uses the active product on the first Posts open, then keeps the manually selected source', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    const onViewChange = vi.fn();
+    const plannerNavigation = createElement(QuickPlannerNavigationTestButtons);
+
+    render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'planner',
+      onViewChange,
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, plannerNavigation)));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
+    expect(document.querySelector('[data-history-filter="personal"]')).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(document.querySelector('[data-history-filter="workspace"]')!);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Studio from Quick Plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
+
+    expect(document.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('keeps the previous Planner surface active beneath Posts after reload', () => {

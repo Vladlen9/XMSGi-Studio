@@ -1510,20 +1510,20 @@ export function useScheduler({
       upcomingStateRef.current = nextUpcoming;
       setSent(updatedSent);
       setUpcoming(nextUpcoming);
-      const historyPersisted = await persistScheduleHistoryAndWait(historyScope, 'snapshot', {
+      const historyWrite = persistScheduleHistoryAndWait(historyScope, 'snapshot', {
         upcoming: nextUpcoming,
         sent: updatedSent,
       });
+      if (isNestedBatchGroup) await historyWrite;
       if (options.clearMessageOnSuccess !== false && !isNestedBatchGroup) setMessage('');
       draftSendAttemptRef.current = null;
       if (!isNestedBatchGroup) {
         setSuccessPulse(true);
         setLastAction('sent');
-        showNotification(
-          historyPersisted ? t('schedule.messageSent') : t('schedule.historyWriteFailed'),
-          historyPersisted ? 'success' : 'warning',
-          historyPersisted ? t('schedule.sent') : t('schedule.errorTitle'),
-        );
+        showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+        void historyWrite.then((historyPersisted) => {
+          if (!historyPersisted) showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+        });
         scheduleTimeout(() => setSuccessPulse(false), 1500);
         scheduleTimeout(() => setLastAction(null), 1500);
       }

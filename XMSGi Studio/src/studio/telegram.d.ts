@@ -56,7 +56,7 @@ declare global {
       copyAttachmentPath: (path: string) => Promise<DraftStorageResult>;
     };
     telegram: {
-      getConfig: () => Promise<{ success: boolean; config?: { hasCredentials?: boolean; hasSession?: boolean; connected?: boolean }; error?: string }>;
+      getConfig: () => Promise<{ success: boolean; config?: { hasCredentials?: boolean; apiId?: string; hasSession?: boolean; connected?: boolean }; error?: string }>;
       getAuthState: () => Promise<TelegramAuthStateResult>;
       signOutKeepSession: () => Promise<TelegramAuthStateResult>;
       welcomeBack: () => Promise<TelegramAuthStateResult>;

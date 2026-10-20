@@ -102,6 +102,7 @@ function getTelegramConfig() {
 
   return {
     hasCredentials: Boolean(apiCredentials.apiId && apiCredentials.apiHash),
+    apiId: apiCredentials.apiId ? String(apiCredentials.apiId) : '',
     hasSession: Boolean(sessionString),
     signedOut: storedAuthState.signedOut === true,
     userName: storedAuthState.userName || '',

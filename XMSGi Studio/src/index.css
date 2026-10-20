@@ -11,14 +11,14 @@
 
 .history-drawer {
   position: fixed;
-  inset: 12px 0 12px auto;
+  inset: 0 0 0 auto;
   z-index: 1201;
   display: flex;
-  width: min(580px, calc(100vw - 24px));
+  width: min(580px, 100vw);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(154, 168, 184, 0.11);
-  border-radius: 20px;
+  border: 1px solid rgba(35, 157, 251, 0.34);
+  border-radius: 20px 0 0 20px;
   background: #0d1116;
   color: var(--text);
   font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
@@ -780,7 +780,7 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (max-width: 560px) {
   .history-drawer {
-    inset: 8px 0 8px 8px;
+    inset: 0 0 0 8px;
     width: auto;
   }
 }

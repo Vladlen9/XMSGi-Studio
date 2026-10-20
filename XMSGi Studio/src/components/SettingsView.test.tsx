@@ -70,6 +70,19 @@ describe('SettingsView Telegram integration', () => {
     }
   });
 
+  it('shows the saved Telegram API_ID without exposing the API hash', () => {
+    const { container } = renderSettings({
+      telegramCredentials: { hasCredentials: true, apiId: '17349', hasSession: true, connected: true, signedOut: false },
+    });
+    fireEvent.click(container.querySelector('.settings-telegram-summary')!);
+    fireEvent.click(screen.getByText('Advanced API settings'));
+
+    const credentialsDetails = document.querySelector('.telegram-manager-details');
+    expect(credentialsDetails).toHaveTextContent('API_ID: 1734••••');
+    expect(credentialsDetails).not.toHaveTextContent('17349');
+    expect(credentialsDetails).not.toHaveTextContent('API_HASH');
+  });
+
   it('labels the default editor palette in English and Russian', () => {
     const originalLocale = window.localStorage.getItem('awaitmsg_locale');
 

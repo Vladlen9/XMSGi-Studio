@@ -52,6 +52,8 @@ function normalizeDraftChat(value: unknown): Chat | null {
 export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
   const unifiedDraft = readActiveDraft();
   if (unifiedDraft) {
+    if (unifiedDraft.id === 'quick-planner:active') return {};
+
     return {
       documentId: unifiedDraft.id,
       body: unifiedDraft.message,

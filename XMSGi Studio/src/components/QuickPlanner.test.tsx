@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
-import { flushPlannerDraftWrite, writePlannerDraft } from '../lib/plannerDraft';
+import { flushPlannerDraftWrite, readPlannerDraftAttachments, writePlannerDraft } from '../lib/plannerDraft';
 import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
@@ -553,11 +553,19 @@ describe('QuickPlanner feedback', () => {
     expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('status')).toHaveClass('is-success');
+    expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Posts');
 
     fireEvent.change(editor, { target: { value: 'Schedule from Planner' } });
     addPhoto('schedule.png');
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
     selectEffect('effect 🎉');
+    await act(async () => {
+      fireEvent.click(submit());
+      await Promise.resolve();
+    });
+    expect(onSchedule).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveClass('is-warning');
     await act(async () => {
       fireEvent.click(submit());
       await Promise.resolve();
@@ -570,9 +578,11 @@ describe('QuickPlanner feedback', () => {
       attachments: ['C:/photos/schedule.png'],
       effect: '222',
     }));
-    expect(openPosts).toHaveBeenLastCalledWith('scheduled');
+    expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('status')).toHaveClass('is-success');
+    expect(screen.getByRole('status')).toHaveTextContent('Schedule request sent.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Posts');
 
     fireEvent.change(editor, { target: { value: 'Save from Planner' } });
     fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
@@ -581,7 +591,9 @@ describe('QuickPlanner feedback', () => {
       await Promise.resolve();
     });
     expect(onSaveDraft).toHaveBeenCalledWith({ message: 'Save from Planner', attachments: [] });
-    expect(openPosts).toHaveBeenLastCalledWith('drafts');
+    expect(openPosts).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Draft saved.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Posts');
   });
 
   it('keeps Planner text and photos when Telegram rejects sending or scheduling', async () => {
@@ -617,8 +629,12 @@ describe('QuickPlanner feedback', () => {
     expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep this send', ['C:/photos/failed-send.png'], undefined);
     expect(editor).toHaveValue('Keep this send');
     expect(screen.getByText('failed-send.png')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Message was not sent.');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Posts');
 
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
+    expect(onSchedule).not.toHaveBeenCalled();
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
     expect(onSchedule).toHaveBeenCalledWith(expect.objectContaining({
       message: 'Keep this send',
@@ -626,6 +642,8 @@ describe('QuickPlanner feedback', () => {
     }));
     expect(editor).toHaveValue('Keep this send');
     expect(screen.getByText('failed-send.png')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Message could not be scheduled.');
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Posts');
     expect(openPosts).not.toHaveBeenCalled();
   });
 
@@ -757,8 +775,10 @@ describe('QuickPlanner feedback', () => {
     expect(attachmentPanel?.querySelector('.quick-planner-attachments-scrollbar')).toBeInTheDocument();
     expect(attachmentPanel?.querySelector('.quick-planner-attachment-list')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove photo.png' })).toBeInTheDocument();
+    expect(readPlannerDraftAttachments()).toEqual(['C:/photos/photo.png']);
     fireEvent.click(screen.getByRole('button', { name: 'Remove photo.png' }));
     expect(screen.queryByText('photo.png')).not.toBeInTheDocument();
+    expect(readPlannerDraftAttachments()).toEqual([]);
     expect(onOpenInStudio).not.toHaveBeenCalled();
   });
 
@@ -863,6 +883,33 @@ describe('QuickPlanner feedback', () => {
     expect(timeTrigger).toHaveTextContent('10:15');
   });
 
+  it('warns once when schedule time has not been touched, then allows the second submit', async () => {
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
+    const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
+    const onSchedule = vi.fn().mockResolvedValue(true);
+    const { container } = render(<QuickPlanner chats={[chat]} selectedChat={chat} onSchedule={onSchedule} />);
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submit = container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
+
+    fireEvent.change(editor, { target: { value: 'Schedule without selecting a time' } });
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+
+    expect(onSchedule).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveClass('is-warning');
+    expect(screen.getByRole('status')).toHaveTextContent('Choose a time to schedule.');
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+
+    expect(onSchedule).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the date and time fields aligned in Send now without opening pickers', () => {
     render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
@@ -882,10 +929,10 @@ describe('QuickPlanner feedback', () => {
     expect(screen.queryByRole('dialog', { name: 'Choose schedule time' })).not.toBeInTheDocument();
   });
 
-  it('sets NOW to one minute after the current time', () => {
+  it('does not warn when NOW is selected before scheduling', async () => {
     vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
-    const onSchedule = vi.fn().mockResolvedValue(undefined);
+    const onSchedule = vi.fn().mockResolvedValue(true);
     render(<QuickPlanner chats={[chat]} onSchedule={onSchedule} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'NOW' }));

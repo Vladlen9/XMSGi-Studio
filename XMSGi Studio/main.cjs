@@ -713,6 +713,7 @@ ipcMain.handle('telegram-config', async (event) => {
       success: true,
       config: {
         hasCredentials: Boolean(config.hasCredentials),
+        apiId: config.apiId || '',
         hasSession: Boolean(config.hasSession),
         connected: Boolean(config.connected),
         signedOut: Boolean(config.signedOut)
@@ -744,6 +745,7 @@ ipcMain.handle('telegram-save-credentials', async (event, data = {}) => {
       success: true,
       config: {
         hasCredentials: Boolean(result.config?.hasCredentials),
+        apiId: result.config?.apiId || '',
         hasSession: Boolean(result.config?.hasSession),
         connected: Boolean(result.config?.connected),
         signedOut: Boolean(result.config?.signedOut)
