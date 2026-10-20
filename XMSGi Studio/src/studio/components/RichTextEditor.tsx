@@ -26,6 +26,8 @@ interface Props {
   onExportText?: (text: string, format: 'txt' | 'json') => void;
   onBeforeClear?: () => Promise<boolean>;
   onOpenVersionHistory?: () => void;
+  selectedEffectId?: string | null;
+  onEffectChange?: (effectId: string | null) => void;
 }
 
 export function shouldPreventEditorInsertion(currentLength: number, selectedLength: number, maxLength: number) {
@@ -82,7 +84,7 @@ function getNormalizedEditorTextOffset(root: HTMLElement, targetNode: Node, targ
   return visit(root) ? offset : null;
 }
 
-export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onOpenAlbum, albumDisabled, onExportText, onBeforeClear, onOpenVersionHistory }: Props) {
+export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteImages, inputRef, stageContent, stageMode = 'editor', maxLength, onOpenAlbum, albumDisabled, onExportText, onBeforeClear, onOpenVersionHistory, selectedEffectId, onEffectChange }: Props) {
   const { t } = useLocale();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const logicalTextLengthRef = useRef(text.length);
@@ -164,6 +166,41 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     }
     if (selectionOffsets) saveSelection();
     onChange(limited.text, limited.entities);
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    restoreSelection();
+    let selection = window.getSelection();
+    let range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!selection || !range || (range.startContainer !== editor && !editor.contains(range.startContainer))) {
+      editor.focus();
+      placeCaretAtStart();
+      selection = window.getSelection();
+      range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    }
+    if (!selection || !range) return;
+
+    const selectedLength = range.toString().length;
+    if (logicalTextLengthRef.current - selectedLength + emoji.length > maxLength) return;
+
+    range.deleteContents();
+    const emojiNode = document.createTextNode(emoji);
+    range.insertNode(emojiNode);
+    const nextRange = document.createRange();
+    nextRange.setStartAfter(emojiNode);
+    nextRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+    saveSelection();
+    emitChange();
+    syncToolbarStateFromSelection();
+    requestAnimationFrame(() => {
+      restoreSelection();
+      saveSelection();
+    });
   };
 
   const applyFormat = (format: EditorToolbarFormat) => {
@@ -613,6 +650,9 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           </form>
         ) : null}
         onFormat={(format) => applyFormat(format)}
+        selectedEffectId={selectedEffectId}
+        onSelectEffect={onEffectChange}
+        onInsertEmoji={insertEmoji}
         onOpenAlbum={onOpenAlbum ? () => onOpenAlbum(getCaretOffset(text.length)) : undefined}
         onToggleLink={openLinkPopover}
         onExportText={onExportText ? (format) => onExportText(text, format) : undefined}

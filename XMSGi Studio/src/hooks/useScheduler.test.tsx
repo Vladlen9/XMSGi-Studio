@@ -319,6 +319,44 @@ describe('useScheduler native history', () => {
     await waitFor(() => expect(result.current.upcoming[0]).toMatchObject({ status: 'scheduled' }));
   });
 
+  it('sends Planner photo attachments through Telegram scheduling and reports confirmation', async () => {
+    const chat = { id: 'planner-photo-chat', name: 'Photo channel' };
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const date = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+    const time = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`;
+    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true, id: 'telegram-photo-schedule' });
+    const { result, loadScheduleHistory } = renderWorkspaceHistory([], [], { schedule }, vi.fn(), 'personal', chat);
+    await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('personal'));
+    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    let scheduled = false;
+    let scheduleRequest!: Promise<boolean | void>;
+    act(() => {
+      scheduleRequest = result.current.handleSchedule({
+        chatId: chat.id,
+        message: 'Caption with photo',
+        attachments: ['C:/planner/photo.png'],
+        date,
+        time,
+        clearMessageOnSuccess: false,
+        waitForConfirmation: true,
+      });
+    });
+    await waitFor(() => expect(schedule).toHaveBeenCalledOnce());
+    await act(async () => { scheduled = await scheduleRequest === true; });
+
+    expect(scheduled).toBe(true);
+    expect(schedule).toHaveBeenCalledWith(expect.objectContaining({
+      chatId: chat.id,
+      message: 'Caption with photo',
+      attachments: ['C:/planner/photo.png'],
+    }));
+    expect(result.current.upcoming[0]).toMatchObject({
+      text: 'Caption with photo',
+      attachments: ['C:/planner/photo.png'],
+      status: 'scheduled',
+    });
+  });
+
   it('marks schedule failure Failed and retries through the same confirmed schedule flow', async () => {
     const chat = { id: 'chat-1', name: 'Test chat' };
     const future = new Date(Date.now() + 60 * 60 * 1000);

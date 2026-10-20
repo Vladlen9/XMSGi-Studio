@@ -3626,10 +3626,106 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 .workspace-page-rich-text-toolbar.is-airy {
   position: relative;
   z-index: 30;
+  width: 100%;
+  align-self: stretch;
+  justify-content: space-between;
   gap: 14px;
   min-height: 34px;
   margin: 12px 0 0 auto;
   transform: translateY(5px);
+}
+
+.workspace-page-rich-text-leading-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.workspace-page-rich-text-tool-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.workspace-page-rich-text-tool-popover {
+  position: absolute;
+  z-index: 90;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(280px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid rgba(153, 181, 195, 0.2);
+  border-radius: 8px;
+  background: rgba(16, 23, 30, 0.98);
+  color: rgba(238, 244, 248, 0.92);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+}
+
+.workspace-page-rich-text-tool-popover > strong {
+  display: block;
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace-page-rich-text-effect-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-effect-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: auto;
+  min-width: 0;
+  height: 54px;
+  min-height: 54px;
+  border: 1px solid rgba(153, 181, 195, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.workspace-page-rich-text-effect-option > span {
+  font-size: 19px;
+}
+
+.workspace-page-rich-text-effect-option > small {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-page-rich-text-effect-option.is-selected {
+  border-color: rgba(113, 188, 198, 0.42) !important;
+  background: rgba(113, 188, 198, 0.14) !important;
+  color: #d9f4f6 !important;
+}
+
+.workspace-page-rich-text-picker-status {
+  display: block;
+  margin-top: 8px;
+  color: rgba(208, 218, 228, 0.62);
+  font-size: 11px;
+}
+
+.workspace-page-rich-text-emoji-options {
+  display: grid;
+  grid-template-columns: repeat(6, 32px);
+  gap: 4px;
+}
+
+.workspace-page-rich-text-toolbar .workspace-page-rich-text-emoji-options button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 5px;
+  font-size: 19px;
 }
 
 .workspace-page-rich-text-toolbar-actions {

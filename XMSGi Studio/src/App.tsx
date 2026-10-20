@@ -334,7 +334,7 @@ function App() {
   const studioBridgeScheduler = createStudioSchedulerRuntime(
     {
       ...studioScheduler,
-      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult) => (
+      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult, effect) => (
         studioScheduler.handleSendDraftNow(
           chat,
           text,
@@ -342,7 +342,7 @@ function App() {
           entities,
           replyMarkup,
           false,
-          undefined,
+          effect,
           {},
           attachmentGroups,
           onAttachmentGroupResult,
@@ -364,6 +364,7 @@ function App() {
       text: payload.text,
       attachments: [...payload.attachments],
       entities: payload.entities.map((entity) => ({ ...entity })),
+      ...(payload.effect ? { effect: payload.effect } : {}),
     };
     setCurrentAction('draft');
     setMessageSessionStatus('preview');
@@ -859,17 +860,23 @@ function App() {
               selectedChat={selectedChat}
               onSelectChat={setSelectedChat}
               onRemoveChat={handleRemoveChat}
-              onSendNow={(chat, text) => handlePersonalSendDraftNow(
+              onSendNow={(chat, text, attachments, effect) => handlePersonalSendDraftNow(
                 chat,
                 text,
-                [],
+                attachments ?? [],
                 [],
                 undefined,
                 false,
-                undefined,
+                effect,
                 { clearMessageOnSuccess: false },
               )}
-              onSchedule={(request) => handlePersonalSchedule({ ...request, clearMessageOnSuccess: false })}
+              onSchedule={async (request) => (
+                await handlePersonalSchedule({
+                  ...request,
+                  clearMessageOnSuccess: false,
+                  waitForConfirmation: true,
+                }) === true
+              )}
               onSaveDraft={({ message: draftMessage, attachments }) => writeSavedPlannerDrafts([
                 ...readSavedPlannerDrafts(),
                 {

@@ -106,6 +106,33 @@ describe('useStudioScheduler bridge errors', () => {
     scheduler.unmount();
   });
 
+  it('forwards the selected Telegram effect when sending from Studio', async () => {
+    publishToChannel.mockResolvedValueOnce({
+      publishResult: { ok: true, provider: 'telegram', messageId: '203' },
+    });
+    const scheduler = renderScheduler();
+
+    await act(async () => {
+      expect(await scheduler.result.handleSendDraftNow(
+        chat,
+        'Effect caption',
+        [],
+        [],
+        undefined,
+        undefined,
+        undefined,
+        '123456789',
+      )).toBe(true);
+    });
+
+    expect(publishToChannel).toHaveBeenCalledWith(expect.objectContaining({
+      body: 'Effect caption',
+      effect: '123456789',
+    }));
+    expect(scheduler.result.sent[0]).toMatchObject({ effect: '123456789' });
+    scheduler.unmount();
+  });
+
   it('reports an invalid schedule as a non-retryable validation error', async () => {
     const { result, showNotification, unmount } = renderScheduler();
 
@@ -179,6 +206,27 @@ describe('useStudioScheduler bridge errors', () => {
     expect(scheduleToChannel).toHaveBeenCalledOnce();
     expect(scheduleToChannel.mock.calls[0][0].mediaIds).toEqual([]);
     expect(scheduler.result.upcoming).toHaveLength(1);
+    scheduler.unmount();
+  });
+
+  it('forwards Telegram effect IDs into scheduled posts and history', async () => {
+    scheduleToChannel.mockResolvedValueOnce({
+      publishResult: { ok: true, confirmed: true, messageId: '104' },
+    });
+    const scheduler = renderScheduler();
+
+    await act(async () => {
+      await scheduler.result.handleSchedule({
+        chatId: chat.id,
+        message: 'Effect schedule',
+        date: '2099-01-15',
+        time: '17:42',
+        effect: '123456789',
+      });
+    });
+
+    expect(scheduleToChannel).toHaveBeenCalledWith(expect.objectContaining({ effect: '123456789' }));
+    expect(scheduler.result.upcoming[0]).toMatchObject({ effect: '123456789' });
     scheduler.unmount();
   });
 });

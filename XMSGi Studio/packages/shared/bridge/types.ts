@@ -46,7 +46,7 @@ export interface StudioSchedulerActions {
   cancelingIds: ReadonlySet<string>;
   sendingIds: ReadonlySet<string>;
   publishingDraft: boolean;
-  handleSchedule: (payload?: StudioSchedulePayload, repeat?: StudioScheduleRepeatOptions) => void | Promise<void>;
+  handleSchedule: (payload?: StudioSchedulePayload, repeat?: StudioScheduleRepeatOptions) => void | Promise<void | boolean>;
   handleSendDraftNow: (
     chat: Chat,
     text: string,
@@ -55,6 +55,7 @@ export interface StudioSchedulerActions {
     replyMarkup?: InlineKeyboardMarkup,
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
+    effect?: string,
   ) => Promise<boolean>;
   handleSendNow: (message: ScheduledMessage) => void | Promise<void>;
   handleDeleteMessage: (message: ScheduledMessage) => void | Promise<void>;
@@ -75,6 +76,7 @@ export interface StudioPlannerTextPayload {
   text: string;
   attachments: string[];
   entities: RichTextEntity[];
+  effect?: string;
 }
 
 export interface StudioHistoryBridgeCallbacks {

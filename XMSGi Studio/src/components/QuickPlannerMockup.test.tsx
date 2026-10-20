@@ -1,9 +1,15 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
+import { act, fireEvent, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat } from '@/types';
+import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { QuickPlannerMockup } from './QuickPlannerMockup';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
+
+function render(ui: ReactNode) {
+  return renderTestingLibrary(createElement(LocaleProvider, null, ui));
+}
 
 describe('QuickPlannerMockup feedback', () => {
   beforeEach(() => {
@@ -16,6 +22,45 @@ describe('QuickPlannerMockup feedback', () => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, 'telegram');
     localStorage.removeItem('xmsgi-quick-planner-recent-emojis');
+    localStorage.removeItem('awaitmsg_locale');
+  });
+
+  it('translates the Planner page and its accessible controls into Russian', () => {
+    localStorage.setItem('awaitmsg_locale', 'ru');
+
+    render(<QuickPlannerMockup />);
+
+    expect(screen.getByRole('heading', { name: 'Новое сообщение' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
+    expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Записывай идеи');
+    expect(screen.getByRole('heading', { name: 'Создай пространство для своих мыслей.' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Сохраняй всё важное в одном месте.');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Превращайте идеи в действия');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Добавляй напоминания и воплощай задуманное.');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Редактируй и совершенствуй свои тексты в Studio.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать дату' }));
+    const datePicker = screen.getByRole('dialog', { name: 'Выбор даты отправки' });
+    expect(datePicker).toHaveTextContent(new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date()));
+    expect(datePicker.querySelector('.quick-planner-mockup-date-picker-weekdays')).toHaveTextContent('пн');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть окно эмодзи' }));
+    expect(screen.getByRole('dialog', { name: 'Выбрать эмодзи' })).toHaveTextContent('Лица');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Черновик' }));
+    expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
+  });
+
+  it('shows the supplied English Planner guide copy', () => {
+    render(<QuickPlannerMockup />);
+
+    expect(screen.getByRole('heading', { name: 'Make room for your thoughts.' })).toBeInTheDocument();
+    const guide = screen.getByRole('complementary', { name: 'Planner notes' });
+    expect(guide).toHaveTextContent('Capture ideas');
+    expect(guide).toHaveTextContent('Keep everything that matters in one place.');
+    expect(guide).toHaveTextContent('Set reminders and bring your ideas to life.');
+    expect(guide).toHaveTextContent('Edit and refine your writing in Studio.');
   });
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {
@@ -72,6 +117,7 @@ describe('QuickPlannerMockup feedback', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    fireEvent.click(screen.getByRole('button', { name: '+30 MIN' }));
     fireEvent.click(container.querySelector<HTMLButtonElement>(
       '.quick-planner-mockup-schedule-row .quick-planner-mockup-submit',
     )!);
@@ -146,9 +192,18 @@ describe('QuickPlannerMockup feedback', () => {
     expect(clearButton).toHaveClass('is-hidden');
   });
 
-  it('shows a local effects mockup without connecting it to Telegram', () => {
+  it('loads Telegram effect IDs and selects a real message effect', async () => {
+    const getAvailableEffects = vi.fn().mockResolvedValue({
+      success: true,
+      effects: [
+        { id: '123456789', emoticon: '🎉', premiumRequired: false },
+        { id: '987654321', emoticon: '✨', premiumRequired: true },
+      ],
+    });
+    Object.defineProperty(window, 'telegram', { configurable: true, value: { getAvailableEffects } });
     const onOpenInStudio = vi.fn();
     const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    await act(async () => { await Promise.resolve(); });
 
     expect(Array.from(container.querySelectorAll('.quick-planner-mockup-tools > .quick-planner-mockup-tool-anchor > button'))
       .map((button) => button.getAttribute('aria-label')))
@@ -158,30 +213,18 @@ describe('QuickPlannerMockup feedback', () => {
     fireEvent.click(effectsButton);
     const effectsGrid = screen.getByRole('group', { name: 'Choose message effect' });
     expect(effectsGrid).toBeInTheDocument();
+    expect(getAvailableEffects).toHaveBeenCalledOnce();
     expect(within(effectsGrid).getAllByRole('button').map((button) => button.getAttribute('aria-label')))
-      .toEqual(['Hearts', 'Sparkles', 'Confetti', 'No effect', 'Thumbs up', 'Fire']);
-    const effectOption = screen.getByRole('button', { name: 'Confetti' });
+      .toEqual(['No effect', 'effect 🎉', 'Premium effect ✨']);
+    const effectOption = screen.getByRole('button', { name: 'effect 🎉' });
     fireEvent.click(effectOption);
     expect(effectsButton).toHaveAttribute('aria-pressed', 'true');
-    expect(effectsButton).toHaveAttribute('title', 'Message effects: Confetti');
+    expect(effectsButton).toHaveAttribute('title', 'Message effects: 🎉');
     fireEvent.click(effectsButton);
     const noEffectButton = screen.getByRole('button', { name: 'No effect' });
     expect(noEffectButton).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(noEffectButton);
     expect(effectsButton).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(effectsButton);
-    fireEvent.click(screen.getByRole('button', { name: 'Confetti' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
-      target: { value: 'Effect test message' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
-    fireEvent.click(screen.getByRole('button', { name: /Open in Studio/ }));
-    expect(onOpenInStudio).toHaveBeenCalledWith({
-      text: 'Effect test message',
-      attachments: [],
-      entities: [],
-    });
-    expect(window.telegram?.getAvailableEffects).toBeUndefined();
   });
 
   it('shows categorized emojis and inserts the chosen emoji at the cursor', () => {
@@ -378,8 +421,21 @@ describe('QuickPlannerMockup feedback', () => {
 
   it('forwards send, schedule, and draft actions to Posts callbacks', async () => {
     const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAvailableEffects: vi.fn().mockResolvedValue({
+          success: true,
+          effects: [
+            { id: '111', emoticon: '🔥', premiumRequired: false },
+            { id: '222', emoticon: '🎉', premiumRequired: false },
+          ],
+        }),
+        getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`),
+      },
+    });
     const onSendNow = vi.fn().mockResolvedValue(true);
-    const onSchedule = vi.fn().mockResolvedValue(undefined);
+    const onSchedule = vi.fn().mockResolvedValue(true);
     const onSaveDraft = vi.fn().mockReturnValue(true);
     const openPosts = vi.fn();
     const { container } = render(
@@ -399,28 +455,34 @@ describe('QuickPlannerMockup feedback', () => {
         />
       </QuickPlannerNavigationContext.Provider>,
     );
+    await act(async () => { await Promise.resolve(); });
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-mockup-schedule-row .quick-planner-mockup-submit')!;
+    const addPhoto = (name: string) => fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['photo'], name, { type: 'image/png' })] },
+    });
     const selectEffect = (name: string) => {
       fireEvent.click(screen.getByRole('button', { name: 'Message effects' }));
       fireEvent.click(screen.getByRole('button', { name }));
     };
 
-    selectEffect('Fire');
+    selectEffect('effect 🔥');
     fireEvent.change(editor, { target: { value: 'Send from Planner' } });
+    addPhoto('send.png');
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
     await act(async () => {
       fireEvent.click(submit());
       await Promise.resolve();
     });
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Send from Planner');
-    expect(openPosts).toHaveBeenLastCalledWith('sent');
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Send from Planner', ['C:/photos/send.png'], '111');
+    expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('status')).toHaveClass('is-success');
 
     fireEvent.change(editor, { target: { value: 'Schedule from Planner' } });
+    addPhoto('schedule.png');
     fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
-    selectEffect('Confetti');
+    selectEffect('effect 🎉');
     await act(async () => {
       fireEvent.click(submit());
       await Promise.resolve();
@@ -430,6 +492,8 @@ describe('QuickPlannerMockup feedback', () => {
       message: 'Schedule from Planner',
       date: expect.any(String),
       time: expect.any(String),
+      attachments: ['C:/photos/schedule.png'],
+      effect: '222',
     }));
     expect(openPosts).toHaveBeenLastCalledWith('scheduled');
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
@@ -443,6 +507,51 @@ describe('QuickPlannerMockup feedback', () => {
     });
     expect(onSaveDraft).toHaveBeenCalledWith({ message: 'Save from Planner', attachments: [] });
     expect(openPosts).toHaveBeenLastCalledWith('drafts');
+  });
+
+  it('keeps Planner text and photos when Telegram rejects sending or scheduling', async () => {
+    const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
+    const onSendNow = vi.fn().mockResolvedValue(false);
+    const onSchedule = vi.fn().mockResolvedValue(false);
+    const openPosts = vi.fn();
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
+    });
+    const { container } = render(
+      <QuickPlannerNavigationContext.Provider value={{
+        currentSection: 'quick-plan',
+        openQuickPlan: vi.fn(),
+        openStudio: vi.fn(),
+        openPosts,
+        openSettings: vi.fn(),
+      }}>
+        <QuickPlannerMockup chats={[chat]} selectedChat={chat} onSendNow={onSendNow} onSchedule={onSchedule} />
+      </QuickPlannerNavigationContext.Provider>,
+    );
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const addPhoto = (name: string) => fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['photo'], name, { type: 'image/png' })] },
+    });
+    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-mockup-schedule-row .quick-planner-mockup-submit')!;
+
+    fireEvent.change(editor, { target: { value: 'Keep this send' } });
+    addPhoto('failed-send.png');
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+    await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep this send', ['C:/photos/failed-send.png'], undefined);
+    expect(editor).toHaveValue('Keep this send');
+    expect(screen.getByText('failed-send.png')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
+    expect(onSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Keep this send',
+      attachments: ['C:/photos/failed-send.png'],
+    }));
+    expect(editor).toHaveValue('Keep this send');
+    expect(screen.getByText('failed-send.png')).toBeInTheDocument();
+    expect(openPosts).not.toHaveBeenCalled();
   });
 
   it('uses the first chat-name letter in placeholder avatars', () => {
@@ -503,6 +612,157 @@ describe('QuickPlannerMockup feedback', () => {
       entities: [],
     });
     expect(openStudio).not.toHaveBeenCalled();
+  });
+
+  it('passes selected attachment paths when opening Studio from Planner', () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
+    });
+    const onOpenInStudio = vi.fn();
+    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    fireEvent.change(editor, { target: { value: 'Photo caption' } });
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
+
+    expect(onOpenInStudio).toHaveBeenCalledWith({
+      text: 'Photo caption',
+      attachments: ['C:/photos/photo.png'],
+      entities: [],
+    });
+
+    if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+    else Reflect.deleteProperty(window, 'telegram');
+  });
+
+  it('opens Studio with a photo even when the Planner caption is empty', () => {
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
+    });
+    const onOpenInStudio = vi.fn();
+    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
+
+    expect(onOpenInStudio).toHaveBeenCalledWith({
+      text: '',
+      attachments: ['C:/photos/photo.png'],
+      entities: [],
+    });
+  });
+
+  it('keeps selected photos separate in Planner until the user explicitly opens Studio', () => {
+    const getFilePath = vi.fn((file: File) => `C:/photos/${file.name}`);
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath },
+    });
+    const onOpenInStudio = vi.fn();
+    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
+    });
+
+    expect(screen.getByText('photo.png')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('File added.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('Studio');
+    expect(onOpenInStudio).not.toHaveBeenCalled();
+    const emojiTool = screen.getByRole('button', { name: 'Open emoji window' }).closest('.quick-planner-mockup-tool-anchor');
+    const attachmentPanel = emojiTool?.nextElementSibling;
+    expect(attachmentPanel).toHaveClass('quick-planner-mockup-attachments');
+    expect(attachmentPanel?.firstElementChild).toHaveAttribute('role', 'scrollbar');
+    expect(attachmentPanel?.lastElementChild).toHaveClass('quick-planner-mockup-attachment-list');
+    expect(screen.getByRole('button', { name: 'Remove photo.png' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove photo.png' }));
+    expect(screen.queryByText('photo.png')).not.toBeInTheDocument();
+    expect(onOpenInStudio).not.toHaveBeenCalled();
+  });
+
+  it('limits Planner attachments to ten and reports the limit', () => {
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
+    });
+    const { container } = render(<QuickPlannerMockup />);
+    const files = Array.from({ length: 12 }, (_, index) => (
+      new File([`photo-${index}`], `photo-${index}.png`, { type: 'image/png' })
+    ));
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files },
+    });
+
+    expect(container.querySelectorAll('.quick-planner-mockup-attachment')).toHaveLength(10);
+    expect(screen.getByRole('status')).toHaveTextContent('You can attach up to 10 files.');
+    expect(screen.getByRole('status')).toHaveClass('is-warning');
+  });
+
+  it('keeps the native scrollbar and attachment row in sync', () => {
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
+    });
+    const { container } = render(<QuickPlannerMockup />);
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [
+        new File(['one'], 'one.png', { type: 'image/png' }),
+        new File(['two'], 'two.png', { type: 'image/png' }),
+      ] },
+    });
+    const panel = container.querySelector('.quick-planner-mockup-attachments')!;
+    const scrollbar = panel.firstElementChild as HTMLDivElement;
+    const list = panel.lastElementChild as HTMLDivElement;
+    Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 600 });
+    Object.defineProperty(list, 'clientWidth', { configurable: true, value: 250 });
+    fireEvent(window, new Event('resize'));
+
+    expect(scrollbar).toHaveAttribute('aria-valuemax', '350');
+    scrollbar.scrollLeft = 120;
+    fireEvent.scroll(scrollbar);
+    expect(list.scrollLeft).toBe(120);
+
+    list.scrollLeft = 280;
+    fireEvent.scroll(list);
+    expect(scrollbar.scrollLeft).toBe(280);
+    expect(scrollbar).toHaveAttribute('aria-valuenow', '280');
+  });
+
+  it('passes the selected Telegram effect when opening Studio from Planner', async () => {
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAvailableEffects: vi.fn().mockResolvedValue({
+          success: true,
+          effects: [{ id: '123456789', emoticon: '🎉', premiumRequired: false }],
+        }),
+      },
+    });
+    const onOpenInStudio = vi.fn();
+    render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
+      target: { value: 'Effect caption' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Message effects' }));
+    const effects = screen.getByRole('group', { name: 'Choose message effect' });
+    fireEvent.click(within(effects).getAllByRole('button')[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
+
+    expect(onOpenInStudio).toHaveBeenCalledWith({
+      text: 'Effect caption',
+      attachments: [],
+      entities: [],
+      effect: '123456789',
+    });
   });
 
   it('starts one minute ahead and clamps manually entered past times', () => {

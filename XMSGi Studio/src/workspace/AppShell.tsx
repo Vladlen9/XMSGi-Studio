@@ -88,12 +88,10 @@ export function AppShell({
   onHistoryCancelQueue,
 }: AppShellProps) {
   const { t } = useLocale();
+  const [postsOpen, setPostsOpen] = useState(false);
   const previousProductViewRef = useRef<ProductView>(view === 'planner' ? 'planner' : 'studio');
-  const nextProductView = view === 'planner'
-    ? 'studio'
-    : view === 'studio'
-      ? 'planner'
-      : previousProductViewRef.current;
+  const activeProductView = view === 'posts' ? previousProductViewRef.current : view;
+  const nextProductView = activeProductView === 'planner' ? 'studio' : 'planner';
   const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
   const sectionLabel = view === 'planner' ? t('product.planner') : view === 'posts' ? t('history.title') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
@@ -130,16 +128,21 @@ export function AppShell({
     };
   }, [connected]);
 
+  const isPostsVisible = view === 'posts' || postsOpen;
+
   const openPosts = (statusFilter?: QuickPlannerPostsFilter) => {
     if (view !== 'posts') previousProductViewRef.current = view;
     setHistorySourceFilterOnOpen('personal');
     setHistoryStatusFilterOnOpen(statusFilter);
+    setPostsOpen(true);
     onViewChange('posts');
   };
   const closePosts = () => {
     setHistorySourceFilterOnOpen(undefined);
     setHistoryStatusFilterOnOpen(undefined);
-    onViewChange(previousProductViewRef.current === 'posts' ? 'studio' : previousProductViewRef.current);
+    setPostsOpen(false);
+    const nextView = previousProductViewRef.current === 'posts' ? 'studio' : previousProductViewRef.current;
+    onViewChange(nextView);
   };
   const changeView = (nextView: ProductView) => {
     if (nextView === 'posts') {
@@ -149,11 +152,14 @@ export function AppShell({
     previousProductViewRef.current = nextView;
     setHistorySourceFilterOnOpen(undefined);
     setHistoryStatusFilterOnOpen(undefined);
-    if (view === 'posts') closePosts();
-    else onViewChange(nextView);
+    if (isPostsVisible) {
+      closePosts();
+      return;
+    }
+    onViewChange(nextView);
   };
   const openSettings = () => {
-    if (view === 'posts') closePosts();
+    if (isPostsVisible) closePosts();
     onOpenSettings();
   };
 
@@ -189,11 +195,11 @@ export function AppShell({
               <>
             <button
               type="button"
-              className={`settings-action${view === 'posts' ? ' is-active' : ''}`}
-              onClick={() => view === 'posts' ? closePosts() : openPosts()}
+              className={`settings-action${isPostsVisible ? ' is-active' : ''}`}
+              onClick={() => isPostsVisible ? closePosts() : openPosts()}
               title={t('history.title')}
               aria-label={t('history.title')}
-              aria-current={view === 'posts' ? 'page' : undefined}
+              aria-current={isPostsVisible ? 'page' : undefined}
             >
               <span className="action-label">{t('history.title')}</span>
             </button>
@@ -248,7 +254,7 @@ export function AppShell({
         </div>
       )}
       <QuickPlannerNavigationContext.Provider value={{
-        currentSection: settingsOpen ? 'settings' : view === 'posts' ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',
+        currentSection: settingsOpen ? 'settings' : isPostsVisible ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',
         openQuickPlan: () => {
           changeView('planner');
         },
@@ -261,8 +267,8 @@ export function AppShell({
         <main className="product-shell-content">{children}</main>
       </QuickPlannerNavigationContext.Provider>
       <HistoryDrawer
-        isOpen={view === 'posts'}
-        pageMode={view === 'posts'}
+        isOpen={view === 'posts' || postsOpen}
+        pageMode={view === 'posts' || postsOpen}
         sourceFilterOnOpen={historySourceFilterOnOpen}
         statusFilterOnOpen={historyStatusFilterOnOpen}
         onClose={closePosts}

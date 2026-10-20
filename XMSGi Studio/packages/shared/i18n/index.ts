@@ -1,5 +1,6 @@
 import { createContext, createElement, useContext, useMemo, useState, type PropsWithChildren } from 'react';
 import { historyTranslations } from './historyTranslations';
+import { plannerTranslations } from './plannerTranslations';
 import { studioTranslations } from './studioTranslations';
 
 export type Locale = 'en' | 'ru';
@@ -224,6 +225,7 @@ const translations = {
   en: {
     ...studioTranslations.en,
     ...historyTranslations.en,
+    ...plannerTranslations.en,
     'common.cancel': 'Cancel',
     'common.close': 'Close',
     'common.remove': 'Remove',
@@ -573,6 +575,7 @@ const translations = {
   ru: {
     ...studioTranslations.ru,
     ...historyTranslations.ru,
+    ...plannerTranslations.ru,
     'schedule.tooFarFuture': 'Нельзя запланировать сообщение более чем на 367 дней вперёд.',
     'schedule.tooFarFutureTitle': 'Слишком поздняя дата',
     'common.cancel': 'Отмена', 'common.close': 'Закрыть', 'common.remove': 'Удалить', 'common.save': 'Сохранить', 'common.back': 'Назад', 'common.apply': 'Применить', 'common.loading': 'Загрузка…', 'common.error': 'Ошибка',

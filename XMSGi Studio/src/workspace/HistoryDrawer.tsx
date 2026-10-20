@@ -553,7 +553,7 @@ export function HistoryDrawer({
   const imageHoverTimerRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
-    if (isOpen && sourceFilterOnOpen) {
+    if (isOpen && sourceFilterOnOpen && !sourceFilterOverrideChangedRef.current) {
       if (sourceFilterBeforeOverrideRef.current === null) {
         sourceFilterBeforeOverrideRef.current = sourceFilter;
         sourceFilterOverrideChangedRef.current = false;

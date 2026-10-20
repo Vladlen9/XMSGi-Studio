@@ -807,6 +807,7 @@ describe('WorkspacePage main-screen flows', () => {
       text: 'Message from Quick Planner',
       attachments: ['C:/planner/brief.pdf'],
       entities: [{ type: 'bold' as const, offset: 0, length: 7 }],
+      effect: '123456789',
     };
 
     expect(opener).toBeTypeOf('function');
@@ -818,6 +819,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(opened).toBe(true);
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
       .toContain('Message from Quick Planner');
+    expect(document.querySelector('[aria-label="Message effects"]')).toHaveAttribute('aria-pressed', 'true');
     await act(async () => {
       opened = await opener!(payload);
       await new Promise((resolve) => window.setTimeout(resolve, 400));
@@ -832,6 +834,24 @@ describe('WorkspacePage main-screen flows', () => {
       name: 'brief.pdf',
     });
     expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    unmount();
+  });
+
+  it('opens a photo-only Planner payload in Studio', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = { schemaVersion: 2, migrationVersion: 1, savedDrafts: [], workspaceDraft: null };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    let opened = false;
+    await act(async () => {
+      opened = await opener!({ text: '', attachments: ['C:/planner/photo.png'], entities: [] });
+    });
+
+    expect(opened).toBe(true);
+    expect(window.draftStorage?.copyAttachmentPath).toHaveBeenCalledWith('C:/planner/photo.png');
+    expect(document.querySelector('.workspace-page-attachment-name')).toHaveTextContent('photo.png');
     unmount();
   });
 
@@ -2070,8 +2090,13 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.messages-panel')).toBeNull();
     const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
     expect(toolbar).not.toBeNull();
+    const leadingTools = toolbar!.querySelector('.workspace-page-rich-text-leading-tools');
+    expect(Array.from(leadingTools!.querySelectorAll('button')).map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Message effects',
+      'Choose emoji',
+    ]);
     const editorFormattingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
-      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-album-trigger, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger):not(.workspace-page-rich-text-album-trigger)',
+      '.workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-format-option, .workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-album-trigger, .workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger):not(.workspace-page-rich-text-album-trigger)',
     ));
     expect(editorFormattingControls.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Bold',
@@ -2668,7 +2693,7 @@ describe('WorkspacePage main-screen flows', () => {
     const { unmount } = await renderWorkspacePage();
     const toolbar = document.querySelector('.workspace-page-rich-text-toolbar');
     const editingControls = Array.from(toolbar!.querySelectorAll<HTMLButtonElement>(
-      '.workspace-page-rich-text-format-option, .workspace-page-rich-text-album-trigger, .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger):not(.workspace-page-rich-text-album-trigger)',
+      '.workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-format-option, .workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-album-trigger, .workspace-page-rich-text-toolbar-actions .workspace-page-rich-text-link-trigger:not(.workspace-page-version-history-trigger):not(.workspace-page-rich-text-album-trigger)',
     ));
     const historyTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-version-history-trigger');
     const exportTrigger = toolbar!.querySelector<HTMLButtonElement>('.workspace-page-editor-export-trigger');

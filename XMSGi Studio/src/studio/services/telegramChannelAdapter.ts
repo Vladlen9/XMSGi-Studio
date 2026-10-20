@@ -133,13 +133,24 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
     try {
       const message = await this.normalizeMessage(post);
-      return toPublishResult(await telegram.send(
-        post.channelId,
-        message.text,
-        message.mediaIds,
-        getFormattingEntities(message.entities),
-        getReplyMarkup(message.replyMarkup),
-      ), 'publish');
+      const result = post.effect
+        ? await telegram.send(
+          post.channelId,
+          message.text,
+          message.mediaIds,
+          getFormattingEntities(message.entities),
+          getReplyMarkup(message.replyMarkup),
+          false,
+          post.effect,
+        )
+        : await telegram.send(
+          post.channelId,
+          message.text,
+          message.mediaIds,
+          getFormattingEntities(message.entities),
+          getReplyMarkup(message.replyMarkup),
+        );
+      return toPublishResult(result, 'publish');
     } catch (error) {
       return failedResult(error, 'publish', 'Telegram could not send the message.');
     }
@@ -161,6 +172,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
         attachments: message.mediaIds,
         entities: getFormattingEntities(message.entities),
         replyMarkup: getReplyMarkup(message.replyMarkup),
+        ...(post.effect ? { effect: post.effect } : {}),
       }), 'publish');
     } catch (error) {
       return failedResult(error, 'publish', 'Telegram could not schedule the message.');

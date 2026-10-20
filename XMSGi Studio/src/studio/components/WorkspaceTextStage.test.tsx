@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LocaleProvider } from '@studio/lib/i18n';
 import type { Chat, SavedDraft, Template } from '@studio/types';
@@ -1088,6 +1089,47 @@ describe('WorkspaceTextStage editor flows', () => {
     else Reflect.deleteProperty(document, 'execCommand');
 
     unmount();
+  });
+
+  it('inserts an emoji at the saved editor selection', () => {
+    const { container, editor, onChange, unmount } = renderRichTextEditor({ text: 'Write here' });
+    const textNode = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
+
+    fireEvent.click(container.querySelector('[aria-label="Choose emoji"]') as HTMLButtonElement);
+    expect(container.querySelector('[role="dialog"][aria-label="Choose emoji"]')).not.toBeNull();
+    fireEvent.click(container.querySelector('.workspace-page-rich-text-emoji-options button') as HTMLButtonElement);
+
+    expect(editor.textContent).toBe('Write😀 here');
+    expect(onChange).toHaveBeenLastCalledWith('Write😀 here', []);
+    unmount();
+  });
+
+  it('uses Telegram-provided effect IDs from the Studio toolbar', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const getAvailableEffects = vi.fn().mockResolvedValue({
+      success: true,
+      effects: [{ id: '123456789', emoticon: '🎉', premiumRequired: false }],
+    });
+    Object.defineProperty(window, 'telegram', { configurable: true, value: { getAvailableEffects } });
+    const onEffectChange = vi.fn();
+    const { container, unmount } = renderRichTextEditor({ onEffectChange });
+
+    fireEvent.click(container.querySelector('[aria-label="Message effects"]') as HTMLButtonElement);
+    await act(async () => { await Promise.resolve(); });
+    fireEvent.click(container.querySelector('.workspace-page-rich-text-effect-option:nth-child(2)') as HTMLButtonElement);
+
+    expect(getAvailableEffects).toHaveBeenCalledOnce();
+    expect(onEffectChange).toHaveBeenCalledWith('123456789');
+    unmount();
+    if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+    else Reflect.deleteProperty(window, 'telegram');
   });
 
   it('does not mark partial formats active when a selection spans more than two styles', () => {

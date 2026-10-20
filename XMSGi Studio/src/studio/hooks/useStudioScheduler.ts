@@ -17,6 +17,7 @@ type SchedulePayload = {
   attachmentGroups?: string[][];
   entities?: unknown;
   replyMarkup?: InlineKeyboardMarkup;
+  effect?: string;
   replaceMessage?: ScheduledMessage;
 };
 
@@ -123,6 +124,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
       attachments: payload.attachments,
       entities,
       replyMarkup: payload.replyMarkup,
+      effect: payload.effect,
       repeat,
     });
     const attachmentGroups = resolveAttachmentGroups(payload.attachments ?? [], payload.attachmentGroups);
@@ -146,6 +148,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
             entities: groupEntities,
             mediaIds: attachmentGroup,
             replyMarkup: groupReplyMarkup,
+            effect: isPrimaryGroup ? entry.effect : undefined,
             scheduleAt: new Date(entry.when).toISOString(),
           });
           if (!publishResult.ok) {
@@ -162,6 +165,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
             telegramMessageId: publishResult.messageId,
             replyMarkup: groupReplyMarkup,
             entities: groupEntities,
+            effect: isPrimaryGroup ? entry.effect : undefined,
           });
         }
       }
@@ -202,6 +206,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     replyMarkup?: InlineKeyboardMarkup,
     suppliedAttachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
+    effect?: string,
   ) => {
     setPublishingDraft(true);
     try {
@@ -221,6 +226,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           entities: isPrimaryGroup ? formattedEntities : [],
           mediaIds,
           replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
+          effect: isPrimaryGroup ? effect : undefined,
         });
         if (!publishResult.ok) {
           onAttachmentGroupResult?.(groupIndex, false);
@@ -240,6 +246,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
         sentMessages.push({
           ...makeMessage(chat, isPrimaryGroup ? text : '', date, time, 'sent', mediaIds),
           sentAt,
+          effect: isPrimaryGroup ? effect : undefined,
         });
         onAttachmentGroupResult?.(groupIndex, true);
       }
@@ -280,6 +287,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
         entities: message.entities,
         mediaIds: message.attachments,
         replyMarkup: message.replyMarkup,
+        effect: message.effect,
       });
       if (!publishResult.ok) {
         failureDetails = publishResult.errorDetails ?? normalizeTelegramBridgeError(publishResult, 'publish', 'Telegram could not send the message.');

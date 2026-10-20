@@ -50,6 +50,7 @@ export interface Post {
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
   replyMarkup?: unknown;
+  effect?: string;
   scheduleId?: string;
   createdAt: string;
   updatedAt: string;

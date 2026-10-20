@@ -10,6 +10,7 @@ export type PublishDraftInput = {
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
   replyMarkup?: unknown;
+  effect?: string;
   scheduleAt?: string;
   recurrenceRule?: string;
   timezone?: string;
@@ -24,6 +25,7 @@ export function createScheduledPost(input: PublishDraftInput): { post: Post; sch
     entities: input.entities ?? [],
     mediaIds: input.mediaIds ?? [],
     replyMarkup: input.replyMarkup,
+    effect: input.effect,
   });
 
   const now = new Date().toISOString();

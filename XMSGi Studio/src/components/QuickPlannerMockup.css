@@ -102,7 +102,7 @@
 
 @media (min-width: 1200px) {
   .quick-planner-mockup-toolbar {
-    grid-template-columns: 278px 417px;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
   }
 }
 
@@ -511,6 +511,128 @@
   font-size: 14px;
 }
 
+.quick-planner-mockup-attachments {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  height: 40px;
+  max-height: 40px;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  margin: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 1px solid rgba(142, 170, 184, 0.14);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.quick-planner-mockup-attachments-scrollbar {
+  display: block;
+  width: 100%;
+  height: 8px;
+  min-height: 8px;
+  flex: 0 0 8px;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 4px;
+  scrollbar-color: rgba(155, 171, 181, 0.66) rgba(20, 27, 32, 0.8);
+  scrollbar-width: thin;
+  cursor: ew-resize;
+}
+
+.quick-planner-mockup-attachments-scrollbar:focus-visible {
+  outline: 1px solid rgba(var(--mockup-accent-rgb), 0.6);
+  outline-offset: 1px;
+}
+
+.quick-planner-mockup-attachments-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.quick-planner-mockup-attachments-scrollbar::-webkit-scrollbar-track {
+  border-radius: 3px;
+  background: rgba(142, 170, 184, 0.22);
+}
+
+.quick-planner-mockup-attachments-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(155, 171, 181, 0.66);
+}
+
+.quick-planner-mockup-attachments-scrollbar-content {
+  height: 1px;
+  min-width: 100%;
+  pointer-events: none;
+}
+
+.quick-planner-mockup-attachment-list {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  gap: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.quick-planner-mockup-attachment-list::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-planner-mockup-attachment {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 260px;
+  flex: 0 0 auto;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 5px 0 8px;
+  border: 1px solid rgba(142, 170, 184, 0.2);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(215, 228, 235, 0.78);
+  font-size: 11px;
+}
+
+.quick-planner-mockup-attachment-name {
+  max-width: min(260px, 55vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-planner-mockup-attachment button {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(194, 211, 220, 0.58);
+  cursor: pointer;
+}
+
+.quick-planner-mockup-attachment button:hover,
+.quick-planner-mockup-attachment button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #eef7fa;
+  outline: none;
+}
+
 .quick-planner-mockup-sr-only {
   position: absolute;
   width: 1px;
@@ -533,6 +655,9 @@
 
 .quick-planner-mockup-tools {
   display: flex;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
   gap: 7px;
 }
@@ -1230,14 +1355,14 @@
 
 @media (min-width: 1200px) {
   .quick-planner-mockup-schedule-row {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 3.5px;
     padding-left: 21px;
   }
 
   .quick-planner-mockup-schedule-row > .quick-planner-mockup-label {
-    width: 79px;
-    flex-basis: 79px;
+    width: max-content;
+    flex: 0 0 auto;
   }
 
 }
@@ -1376,9 +1501,9 @@
   margin: 0 0 24px;
   color: #dce7ec;
   font-family: "Orbitron", Arial, sans-serif;
-  font-size: 23px;
+  font-size: 22px;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: left;
 }
 
@@ -1398,36 +1523,37 @@
 
 .quick-planner-mockup-notes li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
+  grid-template-columns: 30px minmax(0, 1fr);
+  justify-items: stretch;
   align-items: start;
-  gap: 4px;
+  gap: 12px;
   text-align: left;
 }
 
 .quick-planner-mockup-note-number {
   color: var(--mockup-accent);
   font-family: "Orbitron", Arial, sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .quick-planner-mockup-notes strong {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   color: #aab9c1;
-  font-family: "Orbitron", Arial, sans-serif;
+  font-family: "Exo 2", Arial, sans-serif;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .quick-planner-mockup-notes p {
-  max-width: 270px;
+  max-width: 38ch;
   margin: 0;
-  color: #718792;
+  color: #8b9ca5;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 @media (max-width: 1040px) {
@@ -1441,6 +1567,22 @@
     gap: 12px;
     padding-right: 18px;
     padding-left: 18px;
+  }
+
+  .quick-planner-mockup-mode-switch {
+    height: auto;
+    min-height: 52px;
+  }
+
+  .quick-planner-mockup-mode-switch button {
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 2px;
+    font-family: "Exo 2", Arial, sans-serif;
+    font-size: 10px;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
   }
 
   .quick-planner-mockup-compose-footer {
@@ -1459,6 +1601,18 @@
   }
 
   .quick-planner-mockup-presets {
+    margin-left: 0;
+  }
+
+  .quick-planner-mockup-schedule-row > .quick-planner-mockup-label {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .quick-planner-mockup-schedule-row .quick-planner-mockup-submit {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
     margin-left: 0;
   }
 }
@@ -1498,8 +1652,8 @@
   }
 
   .quick-planner-mockup-notes {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 }
 

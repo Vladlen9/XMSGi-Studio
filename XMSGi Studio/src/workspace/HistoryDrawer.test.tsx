@@ -163,7 +163,7 @@ describe('history filter glass indicators', () => {
     expect(statusIndicator?.dataset.activeFilter).toBe('sent');
   });
 
-  it('opens on the Planner source when requested, regardless of the saved source filter', () => {
+  it('opens on Planner and lets the user switch between Studio and All', () => {
     window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
       sourceFilter: 'workspace',
       statusFilter: 'scheduled',
@@ -192,6 +192,14 @@ describe('history filter glass indicators', () => {
     expect(container.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'false');
     expect(JSON.parse(window.localStorage.getItem('xmsgi-history-filters') ?? '{}').sourceFilter).toBe('workspace');
 
+    fireEvent.click(container.querySelector('[data-history-filter="workspace"]')!);
+    expect(container.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(container.querySelector('[data-history-filter="personal"]')).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(container.querySelector('[data-history-filter="all"]')!);
+    expect(container.querySelector('[data-history-filter="all"]')).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(container.querySelector('[data-history-filter="workspace"]')!);
     rerender(renderDrawer(false));
     rerender(renderDrawer(true));
     expect(container.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');

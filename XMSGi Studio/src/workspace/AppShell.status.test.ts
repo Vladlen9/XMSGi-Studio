@@ -161,7 +161,7 @@ describe('shared History Drawer entry point', () => {
     window.localStorage.removeItem('xmsgi-history-drawer-open');
     const onOpenSettings = vi.fn();
     const onViewChange = vi.fn();
-    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+    const shellProps: Parameters<typeof AppShell>[0] = {
       view: 'planner',
       onViewChange,
       connected: true,
@@ -179,12 +179,15 @@ describe('shared History Drawer entry point', () => {
       onHistoryDelete: vi.fn(),
       onHistoryOpenDraft: vi.fn(),
       onHistoryClearSent: vi.fn(),
-    }, createElement('div', null, 'Quick Planner'))));
+    };
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Quick Planner'))));
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
     expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    view.rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'posts' }, createElement('div', null, 'Posts'))));
     fireEvent.click(view.container.querySelector('.product-mode-switch') as HTMLButtonElement);
-    expect(onViewChange).toHaveBeenCalledWith('studio');
+    expect(onViewChange).toHaveBeenLastCalledWith('studio');
+    view.rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'studio' }, createElement('div', null, 'Studio'))));
     expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));

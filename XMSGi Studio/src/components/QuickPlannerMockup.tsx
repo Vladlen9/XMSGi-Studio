@@ -1,5 +1,6 @@
 import { type ChangeEvent, type CSSProperties, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Chat } from '@/types';
+import { useLocale } from '@/lib/i18n';
 import {
   ArrowUpRight,
   CalendarDays,
@@ -25,25 +26,25 @@ import {
 } from '@shared/editorAppearance';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { createPortal } from 'react-dom';
+import { telegramGetFilePath } from '@/services/telegramAppService';
 import { ChatAvatar } from '../studio/components/ChatAvatar';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 import './QuickPlannerMockup.css';
 
 const mockupModes = [
-  { label: 'Send now', icon: Send },
-  { label: 'Schedule', icon: CalendarDays },
-  { label: 'Draft', icon: FileText },
-];
-
-const mockupNotes = [
-  { number: '01', title: 'Capture ideas quickly', text: 'Save the thought before you forget it.' },
-  { number: '02', title: 'Turn ideas into action', text: 'Create a reminder to bring your idea to life.' },
-  { number: '03', title: 'Continue in Studio', text: 'Refine your message in the full editor.' },
-];
+  { mode: 'Send now', labelKey: 'quickplanner.mode.send', icon: Send },
+  { mode: 'Schedule', labelKey: 'quickplanner.mode.schedule', icon: CalendarDays },
+  { mode: 'Draft', labelKey: 'quickplanner.mode.draft', icon: FileText },
+] as const;
 
 type MockupFeedback = {
   message: string;
   tone: 'error' | 'warning' | 'success' | 'info';
+};
+
+type MockupAttachment = {
+  name: string;
+  path: string;
 };
 
 type MockupChat = {
@@ -60,9 +61,15 @@ type QuickPlannerMockupProps = {
   onSelectChat?: (chat: Chat | null) => void;
   onRemoveChat?: (chat: Chat) => void;
   onOpenInStudio?: (payload: StudioPlannerTextPayload) => void;
-  onSendNow?: (chat: Chat, message: string) => Promise<boolean>;
-  onSchedule?: (request: { chatId: string; message: string; date: string; time: string }) => Promise<void>;
+  onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string) => Promise<boolean>;
+  onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean>;
   onSaveDraft?: (draft: { message: string; attachments: string[] }) => boolean;
+};
+
+type TelegramMessageEffect = {
+  id: string;
+  emoticon: string;
+  premiumRequired: boolean;
 };
 
 const mockupChats: MockupChat[] = [
@@ -82,6 +89,17 @@ const mockupChats: MockupChat[] = [
   { id: 'sam', name: 'Sam', type: 'Private chat' },
   { id: 'community', name: 'Community updates', type: 'Channel' },
 ];
+const mockupSampleChatTranslationKeys = {
+  'design-updates': 'plannerMockup.sampleChat.designUpdates',
+  'release-room': 'plannerMockup.sampleChat.releaseRoom',
+  'product-news': 'plannerMockup.sampleChat.productNews',
+  'studio-feedback': 'plannerMockup.sampleChat.studioFeedback',
+  'weekly-digest': 'plannerMockup.sampleChat.weeklyDigest',
+  'launch-planning': 'plannerMockup.sampleChat.launchPlanning',
+  'telegram-tips': 'plannerMockup.sampleChat.telegramTips',
+  'design-review': 'plannerMockup.sampleChat.designReview',
+  community: 'plannerMockup.sampleChat.community',
+} as const;
 
 function getMockupChatInitial(name: string) {
   return name.trim().charAt(0).toLocaleUpperCase();
@@ -95,6 +113,22 @@ const mockupEmojiCategories = [
   { id: 'food', label: 'Food', emojis: ['🍎', '🍓', '🍒', '🍉', '🍇', '🍊', '🍋', '🍌', '🍍', '🥑', '🍕', '🍔', '🍟', '🍰', '🎂', '🍩', '☕', '🧋'] },
   { id: 'fun', label: 'Fun', emojis: ['🎉', '🎈', '🎁', '🏆', '⚽', '🏀', '🎸', '🎧', '🚀', '✈️', '💡', '📌', '💻', '📷', '💎', '🎨', '🎯', '🛠️'] },
 ];
+const mockupCategoryRussianNames: Record<string, string> = {
+  faces: 'лица улыбки',
+  hands: 'жесты руки',
+  hearts: 'сердца любовь',
+  nature: 'природа',
+  food: 'еда напитки',
+  fun: 'разное развлечения',
+};
+const mockupCategoryTranslationKeys = {
+  faces: 'plannerMockup.category.faces',
+  hands: 'plannerMockup.category.hands',
+  hearts: 'plannerMockup.category.hearts',
+  nature: 'plannerMockup.category.nature',
+  food: 'plannerMockup.category.food',
+  fun: 'plannerMockup.category.fun',
+} as const;
 const mockupEmojiNames: Record<string, string> = {
   '😀': 'grinning face smile happy', '😃': 'smiley face happy', '😄': 'smiling face happy', '😁': 'grin smile happy',
   '😆': 'laughing face happy', '😅': 'sweat smile nervous', '😂': 'joy tears laugh', '🤣': 'rolling floor laugh',
@@ -150,7 +184,7 @@ const allMockupEmojiOptions = mockupEmojiCategories.flatMap((category) => catego
   categoryId: category.id,
   categoryLabel: category.label,
   name: mockupEmojiNames[emoji] ?? `${category.label} emoji`,
-  searchText: `${mockupEmojiNames[emoji] ?? ''} ${mockupEmojiRussianNames[emoji] ?? ''} ${category.label}`.toLocaleLowerCase(),
+  searchText: `${mockupEmojiNames[emoji] ?? ''} ${mockupEmojiRussianNames[emoji] ?? ''} ${category.label} ${mockupCategoryRussianNames[category.id] ?? ''}`.toLocaleLowerCase(),
 })));
 const recentEmojiStorageKey = 'xmsgi-quick-planner-recent-emojis';
 const knownMockupEmojis = new Set(mockupEmojiCategories.flatMap((category) => category.emojis));
@@ -166,17 +200,10 @@ function readRecentMockupEmojis(): string[] {
     return [];
   }
 }
-const mockupMessageEffects: Array<{ id: string | null; label: string; emoticon: string }> = [
-  { id: 'hearts', label: 'Hearts', emoticon: '❤️' },
-  { id: 'sparkles', label: 'Sparkles', emoticon: '✨' },
-  { id: 'confetti', label: 'Confetti', emoticon: '🎉' },
-  { id: null, label: 'No effect', emoticon: '−' },
-  { id: 'thumbs-up', label: 'Thumbs up', emoticon: '👍' },
-  { id: 'fire', label: 'Fire', emoticon: '🔥' },
-];
 const scheduleTimeOptions = Array.from({ length: 96 }, (_, index) => (
   `${String(Math.floor(index / 4)).padStart(2, '0')}:${String((index % 4) * 15).padStart(2, '0')}`
 ));
+const maxQuickPlannerAttachments = 10;
 const mockupFeedbackDurationMs = {
   error: 8000,
   warning: 5000,
@@ -189,11 +216,11 @@ function toDateInputValue(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string, locale: 'en' | 'ru') {
   const [year, month, day] = value.split('-').map(Number);
   if (!year || !month || !day) return value;
   const date = new Date(year, month - 1, day);
-  const label = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+  const label = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' }).format(date);
   return year === new Date().getFullYear() ? label : `${label} '${String(year).slice(-2)}`;
 }
 
@@ -245,6 +272,7 @@ export function QuickPlannerMockup({
   onSchedule,
   onSaveDraft,
 }: QuickPlannerMockupProps) {
+  const { locale, t } = useLocale();
   const [selectedMode, setSelectedMode] = useState('Schedule');
   const [message, setMessage] = useState('');
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -263,8 +291,10 @@ export function QuickPlannerMockup({
   const [emojiCommandRange, setEmojiCommandRange] = useState<{ start: number; end: number } | null>(null);
   const [recentEmojis, setRecentEmojis] = useState(readRecentMockupEmojis);
   const [effectPickerOpen, setEffectPickerOpen] = useState(false);
+  const [availableEffects, setAvailableEffects] = useState<TelegramMessageEffect[]>([]);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<MockupAttachment[]>([]);
+  const [attachmentScroll, setAttachmentScroll] = useState({ max: 0, position: 0, contentWidth: 0 });
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
   const [actionFeedback, setActionFeedback] = useState<MockupFeedback | null>(null);
   const [actionFeedbackInstance, setActionFeedbackInstance] = useState(0);
@@ -274,7 +304,7 @@ export function QuickPlannerMockup({
   const [removedMockupChatIds, setRemovedMockupChatIds] = useState<string[]>([]);
   const isScheduleMode = selectedMode === 'Schedule';
   const isDraftMode = selectedMode === 'Draft';
-  const selectedMockupEffect = mockupMessageEffects.find((effect) => effect.id !== null && effect.id === selectedEffectId) ?? null;
+  const selectedEffect = availableEffects.find((effect) => effect.id === selectedEffectId) ?? null;
   const selectedEmojiCategory = mockupEmojiCategories.find((category) => category.id === emojiCategoryId) ?? mockupEmojiCategories[0];
   const normalizedEmojiSearchQuery = emojiSearchQuery.trim().toLocaleLowerCase();
   const visibleEmojiOptions = normalizedEmojiSearchQuery
@@ -300,12 +330,16 @@ export function QuickPlannerMockup({
   const calendarMonth = calendarCursor.getMonth();
   const calendarFirstWeekdayOffset = (new Date(calendarYear, calendarMonth, 1).getDay() + 6) % 7;
   const calendarDayCount = new Date(calendarYear, calendarMonth + 1, 0).getDate();
-  const calendarMonthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(calendarCursor);
+  const dateLocale = locale === 'ru' ? 'ru-RU' : 'en-US';
+  const calendarMonthLabel = new Intl.DateTimeFormat(dateLocale, { month: 'long', year: 'numeric' }).format(calendarCursor);
+  const calendarWeekdayLabels = Array.from({ length: 7 }, (_, index) => (
+    new Intl.DateTimeFormat(dateLocale, { weekday: 'short' }).format(new Date(2024, 0, index + 1))
+  ));
   const calendarMonthKey = calendarYear * 12 + calendarMonth;
   const minimumMonthKey = Number(minimumScheduleDateValue.slice(0, 4)) * 12 + Number(minimumScheduleDateValue.slice(5, 7)) - 1;
   const todayScheduleDateValue = toDateInputValue(new Date());
   const SubmitIcon = selectedMode === 'Send now' ? Send : selectedMode === 'Draft' ? FileText : CalendarDays;
-  const submitLabel = selectedMode === 'Send now' ? 'Send now' : selectedMode === 'Draft' ? 'Save draft' : 'Schedule post';
+  const submitLabel = selectedMode === 'Send now' ? t('studio.sendNow') : selectedMode === 'Draft' ? t('plannerMockup.saveDraftAction') : t('plannerMockup.schedulePost');
   const { openStudio, openPosts } = useContext(QuickPlannerNavigationContext);
   const chatPickerRef = useRef<HTMLDivElement>(null);
   const toolsRowRef = useRef<HTMLDivElement>(null);
@@ -321,9 +355,56 @@ export function QuickPlannerMockup({
   const workbenchRef = useRef<HTMLElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const attachmentScrollbarRef = useRef<HTMLDivElement>(null);
+  const attachmentListRef = useRef<HTMLDivElement>(null);
   const actionFeedbackTimeoutRef = useRef<number | null>(null);
   const emojiReleaseCloseTimeoutRef = useRef<number | null>(null);
   const emojiSelectionWaitingForReleaseRef = useRef(false);
+
+  useLayoutEffect(() => {
+    const list = attachmentListRef.current;
+    const scrollbar = attachmentScrollbarRef.current;
+    if (!list || !scrollbar) return undefined;
+
+    const updateMetrics = () => {
+      const max = Math.max(0, list.scrollWidth - list.clientWidth);
+      const position = Math.min(list.scrollLeft, max);
+      if (list.scrollLeft !== position) list.scrollLeft = position;
+      if (scrollbar.scrollLeft !== position) scrollbar.scrollLeft = position;
+      const contentWidth = Math.max(list.scrollWidth, list.clientWidth);
+      setAttachmentScroll((current) => current.max === max
+        && current.position === position
+        && current.contentWidth === contentWidth
+        ? current
+        : { max, position, contentWidth });
+    };
+    const syncFromList = () => {
+      if (scrollbar.scrollLeft !== list.scrollLeft) scrollbar.scrollLeft = list.scrollLeft;
+      setAttachmentScroll((current) => current.position === list.scrollLeft
+        ? current
+        : { ...current, position: list.scrollLeft });
+    };
+    const syncFromScrollbar = () => {
+      if (list.scrollLeft !== scrollbar.scrollLeft) list.scrollLeft = scrollbar.scrollLeft;
+      setAttachmentScroll((current) => current.position === scrollbar.scrollLeft
+        ? current
+        : { ...current, position: scrollbar.scrollLeft });
+    };
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateMetrics);
+    resizeObserver?.observe(list);
+    Array.from(list.children).forEach((child) => resizeObserver?.observe(child));
+    list.addEventListener('scroll', syncFromList, { passive: true });
+    scrollbar.addEventListener('scroll', syncFromScrollbar, { passive: true });
+    window.addEventListener('resize', updateMetrics);
+    updateMetrics();
+
+    return () => {
+      resizeObserver?.disconnect();
+      list.removeEventListener('scroll', syncFromList);
+      scrollbar.removeEventListener('scroll', syncFromScrollbar);
+      window.removeEventListener('resize', updateMetrics);
+    };
+  }, [attachments.length]);
 
   useLayoutEffect(() => {
     const heading = headingRef.current;
@@ -350,14 +431,25 @@ export function QuickPlannerMockup({
     ? sourceChats.map((chat) => ({
       id: chat.id,
       name: chat.name,
-      type: chat.type === 'private' ? 'Private chat'
-        : chat.type === 'group' ? 'Group chat'
-          : chat.type === 'supergroup' ? 'Supergroup'
-            : chat.type === 'channel' ? 'Channel' : 'Chat',
+      type: chat.type === 'private' ? t('studio.privateChat')
+          : chat.type === 'group' ? t('studio.groupChat')
+          : chat.type === 'supergroup' ? t('studio.supergroup')
+            : chat.type === 'channel' ? t('studio.channelType') : t('studio.chatType'),
       avatarDataUrl: chat.avatarDataUrl,
       sourceChat: chat,
     }))
-    : mockupChats;
+    : mockupChats.map((chat) => ({
+      ...chat,
+      name: chat.id === 'saved'
+        ? t('chat.savedMessages')
+        : mockupSampleChatTranslationKeys[chat.id as keyof typeof mockupSampleChatTranslationKeys]
+          ? t(mockupSampleChatTranslationKeys[chat.id as keyof typeof mockupSampleChatTranslationKeys])
+          : chat.name,
+      type: chat.type === 'Personal notes' ? t('plannerMockup.personalNotes')
+        : chat.type === 'Private chat' ? t('studio.privateChat')
+          : chat.type === 'Group chat' ? t('studio.groupChat')
+            : chat.type === 'Channel' ? t('studio.channelType') : chat.type,
+    }));
   const availablePickerChats = pickerChats.filter((chat) => !removedMockupChatIds.includes(chat.id));
   const selectedPickerChat = (activeChat && availablePickerChats.find((chat) => chat.id === activeChat.id))
     ?? availablePickerChats.find((chat) => chat.id === selectedMockupChatId)
@@ -439,6 +531,17 @@ export function QuickPlannerMockup({
     setEffectPickerOpen(nextOpen);
     if (nextOpen) setEmojiPickerOpen(false);
   };
+
+  useEffect(() => {
+    let active = true;
+    const getAvailableEffects = window.telegram?.getAvailableEffects;
+    if (typeof getAvailableEffects !== 'function') return undefined;
+
+    void getAvailableEffects().then((result) => {
+      if (active && result.success) setAvailableEffects(result.effects ?? []);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!effectPickerOpen) return undefined;
@@ -712,84 +815,104 @@ export function QuickPlannerMockup({
   };
 
   const handleMockSubmit = async () => {
-    if (!message.trim()) {
-      showActionFeedback('Write a message first.', 'warning');
+    if (!message.trim() && attachments.length === 0) {
+      showActionFeedback(t('plannerMockup.writeMessage'), 'warning');
       return;
     }
     if (
       isScheduleMode
       && toLocalDateTime(selectedDate, selectedTime).getTime() < minimumScheduleDateTime.getTime()
     ) {
-      showActionFeedback('Choose a schedule time at least one minute from now.', 'warning');
+      showActionFeedback(t('plannerMockup.scheduleAtLeastOneMinute'), 'warning');
       return;
     }
     if (isDraftMode) {
       if (onSaveDraft) {
-        if (!onSaveDraft({ message, attachments })) {
-          showActionFeedback('Could not save draft to Posts.', 'error');
+        if (!onSaveDraft({ message, attachments: attachments.map(({ path }) => path) })) {
+          showActionFeedback(t('plannerMockup.couldNotSaveDraft'), 'error');
           return;
         }
-        showActionFeedback('Draft saved to Posts.', 'success');
+        showActionFeedback(t('plannerMockup.draftSavedToPosts'), 'success');
         setMessage('');
         setAttachments([]);
         openPosts('drafts');
         return;
       }
-      showActionFeedback('Draft saved in preview.', 'success');
+      showActionFeedback(t('plannerMockup.draftSavedPreview'), 'success');
     } else if (selectedMode === 'Send now') {
       if (onSendNow) {
         const chat = selectedPickerChat?.sourceChat;
         if (!chat) {
-          showActionFeedback('Select a connected chat first.', 'warning');
+          showActionFeedback(t('plannerMockup.selectConnectedChat'), 'warning');
           return;
         }
         try {
-          const sent = await onSendNow(chat, message);
+          const sent = await onSendNow(
+            chat,
+            message,
+            attachments.length > 0 ? attachments.map(({ path }) => path) : undefined,
+            selectedEffectId ?? undefined,
+          );
           if (!sent) {
-            showActionFeedback('Message was not sent. Check Posts for details.', 'error');
+            showActionFeedback(t('plannerMockup.messageNotSent'), 'error');
             return;
           }
-          showActionFeedback('Message sent and added to Posts history.', 'success');
+          showActionFeedback(t('plannerMockup.messageSent'), 'success');
           setMessage('');
           setAttachments([]);
           setSelectedEffectId(null);
-          openPosts('sent');
         } catch {
-          showActionFeedback('Message could not be sent. Check Posts for details.', 'error');
+          showActionFeedback(t('plannerMockup.messageCouldNotSend'), 'error');
         }
         return;
       }
-      showActionFeedback('Preview only. Nothing was sent.', 'warning');
+      showActionFeedback(t('plannerMockup.previewOnly'), 'warning');
     } else {
       if (onSchedule) {
         const chat = selectedPickerChat?.sourceChat;
         if (!chat) {
-          showActionFeedback('Select a connected chat first.', 'warning');
+          showActionFeedback(t('plannerMockup.selectConnectedChat'), 'warning');
           return;
         }
         try {
-          await onSchedule({ chatId: chat.id, message, date: selectedDate, time: selectedTime });
-          showActionFeedback('Schedule request sent to Posts.', 'success');
+          const scheduled = await onSchedule({
+            chatId: chat.id,
+            message,
+            date: selectedDate,
+            time: selectedTime,
+            ...(attachments.length > 0 ? { attachments: attachments.map(({ path }) => path) } : {}),
+            ...(selectedEffectId ? { effect: selectedEffectId } : {}),
+          });
+          if (!scheduled) {
+            showActionFeedback(t('plannerMockup.messageCouldNotSchedule'), 'error');
+            return;
+          }
+          showActionFeedback(t('plannerMockup.scheduleRequestSent'), 'success');
           setMessage('');
           setAttachments([]);
           setSelectedEffectId(null);
           openPosts('scheduled');
         } catch {
-          showActionFeedback('Message could not be scheduled. Check Posts for details.', 'error');
+          showActionFeedback(t('plannerMockup.messageCouldNotSchedule'), 'error');
         }
         return;
       }
-      showActionFeedback(`Schedule preview: ${formatDateLabel(selectedDate)} at ${selectedTime}.`, 'info');
+      showActionFeedback(t('plannerMockup.schedulePreview', { date: formatDateLabel(selectedDate, locale), time: selectedTime }), 'info');
     }
   };
 
   const handleOpenInStudio = () => {
-    if (!message.trim()) {
-      showActionFeedback('Write text before continuing to Studio.', 'warning');
+    if (!message.trim() && attachments.length === 0) {
+      showActionFeedback(t('plannerMockup.writeBeforeStudio'), 'warning');
       return;
     }
     if (onOpenInStudio) {
-      onOpenInStudio({ text: message, attachments: [], entities: [] });
+      onOpenInStudio({
+        text: message,
+        attachments: attachments.map(({ path }) => path),
+        entities: [],
+        ...(selectedEffectId ? { effect: selectedEffectId } : {}),
+      });
       return;
     }
     openStudio();
@@ -798,8 +921,31 @@ export function QuickPlannerMockup({
   const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.currentTarget.files ?? []);
     if (selectedFiles.length > 0) {
-      setAttachments((current) => [...current, ...selectedFiles.map((file) => file.name)]);
-      showActionFeedback('Files added to this local preview.', 'info');
+      const resolvedFiles = selectedFiles.flatMap((file) => {
+        try {
+          const path = telegramGetFilePath(file);
+          return path ? [{ name: file.name, path }] : [];
+        } catch {
+          return [];
+        }
+      });
+      const remainingSlots = Math.max(0, maxQuickPlannerAttachments - attachments.length);
+      const acceptedFiles = resolvedFiles.slice(0, remainingSlots);
+      if (acceptedFiles.length > 0) {
+        setAttachments((current) => [...current, ...acceptedFiles].slice(0, maxQuickPlannerAttachments));
+      }
+      const limitReached = resolvedFiles.length > remainingSlots;
+      const someFilesUnavailable = resolvedFiles.length !== selectedFiles.length;
+      showActionFeedback(
+        limitReached
+          ? t('plannerMockup.attachmentLimit', { count: maxQuickPlannerAttachments })
+          : someFilesUnavailable
+            ? t('plannerMockup.someFilesUnavailable')
+            : acceptedFiles.length === 1
+              ? t('plannerMockup.fileAdded')
+              : t('plannerMockup.filesAdded'),
+        limitReached || someFilesUnavailable ? 'warning' : 'success',
+      );
     }
     event.currentTarget.value = '';
   };
@@ -813,15 +959,15 @@ export function QuickPlannerMockup({
       <div className="quick-planner-mockup-inner">
         <header className="quick-planner-mockup-heading">
           <div>
-            <h1 ref={headingRef} id="quick-planner-mockup-title">New message</h1>
+            <h1 ref={headingRef} id="quick-planner-mockup-title">{t('plannerMockup.newMessage')}</h1>
           </div>
         </header>
 
         <div className="quick-planner-mockup-layout">
-          <section ref={workbenchRef} className="quick-planner-mockup-workbench" aria-label="Quick Planner visual mockup">
+          <section ref={workbenchRef} className="quick-planner-mockup-workbench" aria-label={t('plannerMockup.sectionLabel')}>
             <div className="quick-planner-mockup-toolbar">
               <div className="quick-planner-mockup-destination" ref={chatPickerRef}>
-                <span className="quick-planner-mockup-label">SEND TO</span>
+                <span className="quick-planner-mockup-label">{t('plannerMockup.sendTo')}</span>
                 <button
                   ref={chatTriggerRef}
                   className={`quick-planner-mockup-chat${chatPickerOpen ? ' is-open' : ''}`}
@@ -838,7 +984,7 @@ export function QuickPlannerMockup({
                     <span className="quick-planner-mockup-chat-avatar" aria-hidden="true">?</span>
                   )}
                   <span className="quick-planner-mockup-chat-copy">
-                    <strong>{selectedPickerChat?.name ?? 'Choose a chat'}</strong>
+                    <strong>{selectedPickerChat?.name ?? t('plannerMockup.chooseChat')}</strong>
                   </span>
                   <ChevronDown size={15} aria-hidden="true" />
                 </button>
@@ -851,12 +997,12 @@ export function QuickPlannerMockup({
                         type="search"
                         value={chatQuery}
                         onChange={(event) => setChatQuery(event.target.value)}
-                        placeholder="Search chats"
-                        aria-label="Search chats"
+                        placeholder={t('plannerMockup.searchChats')}
+                        aria-label={t('plannerMockup.searchChats')}
                       />
                     </label>
-                    <div className="quick-planner-mockup-chat-menu-heading">RECENT CHATS</div>
-                    <div className="quick-planner-mockup-chat-options" role="listbox" aria-label="Choose a chat">
+                    <div className="quick-planner-mockup-chat-menu-heading">{t('plannerMockup.recentChats')}</div>
+                    <div className="quick-planner-mockup-chat-options" role="listbox" aria-label={t('plannerMockup.chatList')}>
                       {filteredChats.map((chat) => (
                         <div
                           key={chat.id}
@@ -890,8 +1036,8 @@ export function QuickPlannerMockup({
                           <button
                             className="quick-planner-mockup-chat-option-remove"
                             type="button"
-                            aria-label={`Remove ${chat.name} from Planner`}
-                            title={`Remove ${chat.name} from Planner`}
+                            aria-label={t('plannerMockup.removeChat', { chat: chat.name })}
+                            title={t('plannerMockup.removeChat', { chat: chat.name })}
                             onClick={() => removePickerChat(chat)}
                           >
                             <X size={14} aria-hidden="true" />
@@ -899,7 +1045,7 @@ export function QuickPlannerMockup({
                         </div>
                       ))}
                       {filteredChats.length === 0 && (
-                        <div className="quick-planner-mockup-chat-empty">No chats found</div>
+                        <div className="quick-planner-mockup-chat-empty">{t('plannerMockup.noChatsFound')}</div>
                       )}
                     </div>
                   </div>
@@ -907,21 +1053,21 @@ export function QuickPlannerMockup({
               </div>
 
               <div className="quick-planner-mockup-action-mode">
-                <span className="quick-planner-mockup-label">ACTION</span>
-                <div className="quick-planner-mockup-mode-switch" role="group" aria-label="Preview action modes">
-                  {mockupModes.map(({ label, icon: Icon }) => {
-                    const active = selectedMode === label;
+                <span className="quick-planner-mockup-label">{t('plannerMockup.action')}</span>
+                <div className="quick-planner-mockup-mode-switch" role="group" aria-label={t('plannerMockup.actionModes')}>
+                  {mockupModes.map(({ mode, labelKey, icon: Icon }) => {
+                    const active = selectedMode === mode;
 
                     return (
                     <button
-                      key={label}
+                      key={mode}
                       className={active ? 'is-active' : ''}
                       type="button"
                       aria-pressed={active}
-                      onClick={() => setSelectedMode(label)}
+                      onClick={() => setSelectedMode(mode)}
                     >
                       <Icon size={14} aria-hidden="true" />
-                      <span>{label}</span>
+                      <span>{t(labelKey)}</span>
                     </button>
                     );
                   })}
@@ -931,17 +1077,19 @@ export function QuickPlannerMockup({
 
             <div className="quick-planner-mockup-composer">
               <div className="quick-planner-mockup-composer-meta">
-                <span>MESSAGE</span>
+                <span>{t('plannerMockup.message')}</span>
                 <span className="quick-planner-mockup-composer-meta-trailing">
-                  {attachments.length > 0 && <span>{attachments.length} attached</span>}
+                  {attachments.length > 0 && (
+                    <span>{t(getAttachmentCountTranslationKey(locale, attachments.length), { count: attachments.length })}</span>
+                  )}
                   <span className="quick-planner-mockup-counter-controls">
                     <span className="quick-planner-mockup-character-count">{String(message.length).padStart(2, '0')} <i>/</i> 1023</span>
                     <button
                       className={`quick-planner-mockup-clear-message${message ? '' : ' is-hidden'}`}
                       type="button"
-                      aria-label="Clear reminder text"
+                      aria-label={t('plannerMockup.clearReminderText')}
                       aria-hidden={!message}
-                      title="Clear text"
+                      title={t('plannerMockup.clearText')}
                       disabled={!message}
                       tabIndex={message ? 0 : -1}
                       onClick={() => {
@@ -959,7 +1107,7 @@ export function QuickPlannerMockup({
                 ref={messageInputRef}
                 className="quick-planner-mockup-message"
                 wrap="soft"
-                aria-label="Reminder text"
+                aria-label={t('plannerMockup.reminderText')}
                 aria-describedby="quick-planner-mockup-counter"
                 maxLength={1023}
                 value={message}
@@ -983,17 +1131,16 @@ export function QuickPlannerMockup({
                   }
                 }}
                 onKeyDown={handleEmojiPickerKeyDown}
-                placeholder="Capture what matters..."
+                placeholder={t('plannerMockup.messagePlaceholder')}
               />
               <span id="quick-planner-mockup-counter" className="quick-planner-mockup-sr-only">
-                {message.length} of 1023 characters
+                {t('plannerMockup.characterCount', { count: message.length })}
               </span>
             </div>
-
             <div className="quick-planner-mockup-tools-row" ref={toolsRowRef}>
-              <div className="quick-planner-mockup-tools" aria-label="Preview tools">
+              <div className="quick-planner-mockup-tools" aria-label={t('plannerMockup.tools')}>
                 <div className="quick-planner-mockup-tool-anchor">
-                  <button type="button" aria-label="Attach files" onClick={() => attachmentInputRef.current?.click()}>
+                  <button type="button" aria-label={t('plannerMockup.attachFiles')} onClick={() => attachmentInputRef.current?.click()}>
                     <Paperclip size={18} aria-hidden="true" />
                   </button>
                   <input ref={attachmentInputRef} className="quick-planner-mockup-file-input" type="file" multiple onChange={handleAttachmentChange} />
@@ -1002,28 +1149,37 @@ export function QuickPlannerMockup({
                   <button
                     className={effectPickerOpen || selectedEffectId ? 'is-active' : ''}
                     type="button"
-                    aria-label="Message effects"
+                    aria-label={t('plannerMockup.messageEffects')}
                     aria-expanded={effectPickerOpen}
                     aria-pressed={Boolean(selectedEffectId)}
-                    title={selectedMockupEffect ? `Message effects: ${selectedMockupEffect.label}` : 'Message effects'}
+                    title={selectedEffect ? `${t('plannerMockup.messageEffects')}: ${selectedEffect.emoticon}` : t('plannerMockup.messageEffects')}
                     onClick={toggleEffectPicker}
                   ><Sparkles size={18} aria-hidden="true" /></button>
                   {effectPickerOpen && (
-                    <div className="quick-planner-mockup-tool-popover quick-planner-mockup-effects-picker" role="dialog" aria-label="Message effects">
+                    <div className="quick-planner-mockup-tool-popover quick-planner-mockup-effects-picker" role="dialog" aria-label={t('plannerMockup.messageEffects')}>
                       <div className="quick-planner-mockup-effects-heading">
-                        <strong>Message effect</strong>
+                        <strong>{t('plannerMockup.messageEffect')}</strong>
                       </div>
-                      <div className="quick-planner-mockup-effects-grid" role="group" aria-label="Choose message effect">
-                        {mockupMessageEffects.map((effect) => {
+                      <div className="quick-planner-mockup-effects-grid" role="group" aria-label={t('plannerMockup.chooseMessageEffect')}>
+                        {[
+                          { id: null, emoticon: '−', premiumRequired: false },
+                          ...availableEffects,
+                        ].map((effect) => {
                           const isSelected = effect.id === null
                             ? selectedEffectId === null
                             : selectedEffectId === effect.id;
+                          const effectLabel = effect.id === null
+                            ? t('plannerMockup.noEffect')
+                            : effect.premiumRequired
+                              ? t('plannerMockup.premiumEffect', { emoji: effect.emoticon })
+                              : t('plannerMockup.effect', { emoji: effect.emoticon });
                           return (
                             <button
                               key={effect.id ?? 'no-effect'}
                               className={`quick-planner-mockup-effect-option${isSelected ? ' is-selected' : ''}`}
                               type="button"
-                              aria-label={effect.label}
+                              aria-label={effectLabel}
+                              title={effect.id === null ? effectLabel : `${effectLabel} · ${effect.id}`}
                               aria-pressed={isSelected}
                               onClick={() => {
                                 setSelectedEffectId(effect.id);
@@ -1031,11 +1187,14 @@ export function QuickPlannerMockup({
                               }}
                             >
                               <span className="quick-planner-mockup-effect-icon" aria-hidden="true">{effect.emoticon}</span>
-                              <span className="quick-planner-mockup-effect-label">{effect.label}</span>
+                              <span className="quick-planner-mockup-effect-label">{effect.id === null ? effectLabel : effect.premiumRequired ? t('plannerMockup.premium') : effect.emoticon}</span>
                             </button>
                           );
                         })}
                       </div>
+                      {availableEffects.length === 0 && (
+                        <p className="quick-planner-mockup-effects-empty" role="status">{t('plannerMockup.telegramEffectsUnavailable')}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1043,19 +1202,19 @@ export function QuickPlannerMockup({
                   <button
                     className={emojiPickerOpen ? 'is-active' : ''}
                     type="button"
-                    aria-label="Open emoji window"
-                    title="Open emoji window (Ctrl+. / Cmd+.)"
+                    aria-label={t('plannerMockup.openEmoji')}
+                    title={t('plannerMockup.openEmojiTitle')}
                     aria-expanded={emojiPickerOpen}
                     onClick={toggleEmojiPicker}
                   ><Smile size={18} aria-hidden="true" /></button>
                   {emojiPickerOpen && (
-                    <div className={`quick-planner-mockup-tool-popover quick-planner-mockup-emoji-picker${emojiModifierHeld ? ' is-modifier-held' : ''}`} role="dialog" aria-label="Choose emoji">
+                    <div className={`quick-planner-mockup-tool-popover quick-planner-mockup-emoji-picker${emojiModifierHeld ? ' is-modifier-held' : ''}`} role="dialog" aria-label={t('plannerMockup.chooseEmoji')}>
                       <div className="quick-planner-mockup-emoji-heading">
-                        <strong>Emoji</strong>
-                        <span>{normalizedEmojiSearchQuery ? 'Search results' : selectedEmojiCategory.label}</span>
+                        <strong>{t('plannerMockup.emoji')}</strong>
+                        <span>{normalizedEmojiSearchQuery ? t('plannerMockup.searchResults') : t(mockupCategoryTranslationKeys[selectedEmojiCategory.id as keyof typeof mockupCategoryTranslationKeys])}</span>
                       </div>
                       {!normalizedEmojiSearchQuery && !emojiCommandRange && (
-                        <div className="quick-planner-mockup-emoji-categories" role="tablist" aria-label="Emoji categories">
+                        <div className="quick-planner-mockup-emoji-categories" role="tablist" aria-label={t('plannerMockup.emojiCategories')}>
                           {mockupEmojiCategories.map((category) => (
                             <button
                               key={category.id}
@@ -1063,11 +1222,11 @@ export function QuickPlannerMockup({
                               role="tab"
                               aria-selected={emojiCategoryId === category.id}
                               onClick={() => setEmojiCategoryId(category.id)}
-                            >{category.label}</button>
+                            >{t(mockupCategoryTranslationKeys[category.id as keyof typeof mockupCategoryTranslationKeys])}</button>
                           ))}
                         </div>
                       )}
-                      <div className="quick-planner-mockup-emoji-results" role="group" aria-label={normalizedEmojiSearchQuery ? 'Emoji search results' : emojiCommandRange ? 'Emoji command results' : `${selectedEmojiCategory.label} emoji`}>
+                      <div className="quick-planner-mockup-emoji-results" role="group" aria-label={normalizedEmojiSearchQuery ? t('plannerMockup.emojiSearchResults') : emojiCommandRange ? t('plannerMockup.emojiCommandResults') : t('plannerMockup.categoryEmoji', { category: t(mockupCategoryTranslationKeys[selectedEmojiCategory.id as keyof typeof mockupCategoryTranslationKeys]) })}>
                         {visibleEmojiOptions.length > 0 ? (
                           <div className="quick-planner-mockup-emoji-grid">
                             {visibleEmojiOptions.map((option, index) => (
@@ -1075,40 +1234,40 @@ export function QuickPlannerMockup({
                                 key={`${option.categoryId}-${option.emoji}`}
                                 className={(normalizedEmojiSearchQuery || emojiCommandRange) && index === emojiActiveIndex ? 'is-keyboard-active' : ''}
                                 type="button"
-                                aria-label={`Insert ${option.emoji}`}
-                                title={`${option.emoji} ${option.name}`}
+                                aria-label={t('plannerMockup.insertEmoji', { emoji: option.emoji })}
+                                title={`${option.emoji} ${locale === 'ru' ? mockupEmojiRussianNames[option.emoji] ?? option.name : option.name}`}
                                 onClick={(event) => insertEmoji(option.emoji, event.ctrlKey || event.metaKey)}
                                 onMouseEnter={() => setEmojiActiveIndex(index)}
                               >{option.emoji}</button>
                             ))}
                           </div>
                         ) : (
-                          <p className="quick-planner-mockup-emoji-empty" role="status">No emojis found.</p>
+                          <p className="quick-planner-mockup-emoji-empty" role="status">{t('plannerMockup.noEmojisFound')}</p>
                         )}
                       </div>
-                      <section className="quick-planner-mockup-emoji-recent" aria-label="Recent emojis">
+                      <section className="quick-planner-mockup-emoji-recent" aria-label={t('plannerMockup.recentEmojis')}>
                           <div className="quick-planner-mockup-emoji-recent-heading">
-                            <span>Recent</span>
-                            <small className="quick-planner-mockup-emoji-multiselect-hint">Hold Ctrl to add more</small>
+                            <span>{t('plannerMockup.recent')}</span>
+                            <small className="quick-planner-mockup-emoji-multiselect-hint">{t('plannerMockup.holdCtrl')}</small>
                           </div>
                         {recentEmojis.length > 0 ? (
-                          <div className="quick-planner-mockup-emoji-grid" role="group" aria-label="Recent emoji">
+                          <div className="quick-planner-mockup-emoji-grid" role="group" aria-label={t('plannerMockup.recentEmoji')}>
                             {recentEmojis.map((emoji) => (
-                              <button key={emoji} type="button" aria-label={`Insert recent ${emoji}`} title={`Insert ${emoji}`} onClick={(event) => insertEmoji(emoji, event.ctrlKey || event.metaKey, false)}>
+                              <button key={emoji} type="button" aria-label={t('plannerMockup.insertRecentEmoji', { emoji })} title={t('plannerMockup.insertEmoji', { emoji })} onClick={(event) => insertEmoji(emoji, event.ctrlKey || event.metaKey, false)}>
                                 {emoji}
                               </button>
                             ))}
                           </div>
                         ) : (
-                          <span className="quick-planner-mockup-emoji-recent-empty">No recent emojis yet</span>
+                          <span className="quick-planner-mockup-emoji-recent-empty">{t('plannerMockup.noRecentEmojis')}</span>
                         )}
                       </section>
                       <input
                         className="quick-planner-mockup-emoji-search"
                         type="search"
                         value={emojiSearchQuery}
-                        aria-label="Search emoji"
-                        placeholder="Search emoji in English or Russian"
+                        aria-label={t('plannerMockup.searchEmoji')}
+                        placeholder={t('plannerMockup.searchEmojiPlaceholder')}
                         onChange={(event) => {
                           setEmojiSearchQuery(event.target.value);
                           setEmojiActiveIndex(0);
@@ -1118,19 +1277,61 @@ export function QuickPlannerMockup({
                     </div>
                   )}
                 </div>
+                {attachments.length > 0 && (
+                  <div className="quick-planner-mockup-attachments" role="group" aria-label={t('plannerMockup.attachments', { count: attachments.length })}>
+                    <div
+                      className="quick-planner-mockup-attachments-scrollbar"
+                      ref={attachmentScrollbarRef}
+                      role="scrollbar"
+                      aria-label={t('plannerMockup.scrollAttachments')}
+                      aria-controls="quick-planner-mockup-attachment-list"
+                      aria-orientation="horizontal"
+                      aria-valuemin={0}
+                      aria-valuemax={attachmentScroll.max}
+                      aria-valuenow={Math.min(attachmentScroll.position, attachmentScroll.max)}
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        const step = event.key === 'PageDown' || event.key === 'PageUp' ? 100 : 32;
+                        const direction = event.key === 'ArrowRight' || event.key === 'PageDown' ? 1
+                          : event.key === 'ArrowLeft' || event.key === 'PageUp' ? -1 : 0;
+                        if (event.key === 'Home') attachmentScrollbarRef.current!.scrollLeft = 0;
+                        else if (event.key === 'End') attachmentScrollbarRef.current!.scrollLeft = attachmentScroll.max;
+                        else if (direction) attachmentScrollbarRef.current!.scrollLeft += direction * step;
+                        else return;
+                        event.preventDefault();
+                      }}
+                    >
+                      <div className="quick-planner-mockup-attachments-scrollbar-content" style={{ width: `${attachmentScroll.contentWidth}px` }} />
+                    </div>
+                    <div className="quick-planner-mockup-attachment-list" ref={attachmentListRef}>
+                      {attachments.map((attachment, index) => (
+                        <div className="quick-planner-mockup-attachment" key={`${attachment.path}-${index}`}>
+                          <Paperclip size={14} aria-hidden="true" />
+                          <span className="quick-planner-mockup-attachment-name" title={attachment.name}>{attachment.name}</span>
+                          <button
+                            type="button"
+                            aria-label={t('composer.removeAttachment', { name: attachment.name })}
+                            title={t('composer.removeAttachment', { name: attachment.name })}
+                            onClick={() => setAttachments((current) => current.filter((_, currentIndex) => currentIndex !== index))}
+                          ><X size={14} aria-hidden="true" /></button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="quick-planner-mockup-schedule-row" ref={scheduleRowRef}>
               <span className="quick-planner-mockup-label quick-planner-mockup-schedule-label">
-                {isDraftMode ? 'DRAFT' : selectedMode === 'Send now' ? 'SEND NOW' : 'SCHEDULE FOR'}
+                {isDraftMode ? t('plannerMockup.draft') : selectedMode === 'Send now' ? t('plannerMockup.sendNow') : t('plannerMockup.scheduleFor')}
               </span>
               {!isDraftMode && (
                 <div className="quick-planner-mockup-schedule-field">
                   <button
                     ref={scheduleDateTriggerRef}
                     type="button"
-                    aria-label="Choose date"
+                    aria-label={t('plannerMockup.chooseDate')}
                     aria-haspopup="dialog"
                     aria-expanded={activeSchedulePicker === 'date'}
                     onClick={() => {
@@ -1142,7 +1343,7 @@ export function QuickPlannerMockup({
                     }}
                   >
                     <CalendarDays size={15} aria-hidden="true" />
-                    <span>{formatDateLabel(selectedDate)}</span>
+                    <span>{formatDateLabel(selectedDate, locale)}</span>
                     {selectedMode !== 'Send now' && <ChevronDown size={13} aria-hidden="true" />}
                   </button>
                   {activeSchedulePicker === 'date' && (
@@ -1151,7 +1352,7 @@ export function QuickPlannerMockup({
                         ref={scheduleDatePickerRef}
                         className="quick-planner-mockup-schedule-popover quick-planner-mockup-date-picker"
                         role="dialog"
-                        aria-label="Schedule date picker"
+                        aria-label={t('plannerMockup.scheduleDatePicker')}
                         style={{
                           position: 'fixed',
                           top: schedulePickerPosition.top,
@@ -1164,7 +1365,7 @@ export function QuickPlannerMockup({
                         <div className="quick-planner-mockup-date-picker-header">
                           <button
                             type="button"
-                            aria-label="Previous month"
+                            aria-label={t('plannerMockup.previousMonth')}
                             disabled={calendarMonthKey <= minimumMonthKey}
                             onClick={() => setCalendarCursor((cursor) => new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
                           >
@@ -1173,14 +1374,14 @@ export function QuickPlannerMockup({
                           <span>{calendarMonthLabel}</span>
                           <button
                             type="button"
-                            aria-label="Next month"
+                            aria-label={t('plannerMockup.nextMonth')}
                             onClick={() => setCalendarCursor((cursor) => new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
                           >
                             <ChevronRight size={14} aria-hidden="true" />
                           </button>
                         </div>
                         <div className="quick-planner-mockup-date-picker-weekdays" aria-hidden="true">
-                          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+                          {calendarWeekdayLabels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
                         </div>
                         <div className="quick-planner-mockup-date-picker-grid">
                           {Array.from({ length: calendarFirstWeekdayOffset }, (_, index) => (
@@ -1196,7 +1397,7 @@ export function QuickPlannerMockup({
                               <button
                                 key={cellValue}
                                 type="button"
-                                aria-label={`Choose ${new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(calendarYear, calendarMonth, dayNumber))}`}
+                                aria-label={t('plannerMockup.chooseDay', { date: new Intl.DateTimeFormat(dateLocale, { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(calendarYear, calendarMonth, dayNumber)) })}
                                 aria-pressed={isSelected}
                                 className={`${isSelected ? 'is-selected' : ''}${isToday ? ' is-today' : ''}`.trim()}
                                 disabled={isDisabled}
@@ -1220,7 +1421,7 @@ export function QuickPlannerMockup({
                     <button
                         ref={scheduleTimeTriggerRef}
                       type="button"
-                      aria-label="Choose time"
+                      aria-label={t('plannerMockup.chooseTime')}
                       aria-haspopup="dialog"
                       aria-expanded={activeSchedulePicker === 'time'}
                       onClick={() => {
@@ -1238,7 +1439,7 @@ export function QuickPlannerMockup({
                             ref={scheduleTimePickerRef}
                             className="quick-planner-mockup-schedule-popover quick-planner-mockup-time-picker"
                             role="dialog"
-                            aria-label="Schedule time picker"
+                            aria-label={t('plannerMockup.scheduleTimePicker')}
                             style={{
                               position: 'fixed',
                               top: schedulePickerPosition.top,
@@ -1250,7 +1451,7 @@ export function QuickPlannerMockup({
                           >
                           <input
                             className="quick-planner-mockup-time-field"
-                            aria-label="Enter schedule time"
+                            aria-label={t('plannerMockup.enterScheduleTime')}
                             type="text"
                             inputMode="numeric"
                             autoComplete="off"
@@ -1276,7 +1477,7 @@ export function QuickPlannerMockup({
                               setActiveSchedulePicker(null);
                             }}
                           />
-                          <div className="quick-planner-mockup-time-list" role="listbox" aria-label="Available times">
+                          <div className="quick-planner-mockup-time-list" role="listbox" aria-label={t('plannerMockup.availableTimes')}>
                             {scheduleTimeOptions.map((option) => {
                               const isSelected = option === selectedTime;
                               const isPast = selectedDate < minimumScheduleDateValue
@@ -1306,17 +1507,17 @@ export function QuickPlannerMockup({
                 </div>
               )}
               {isScheduleMode && (
-                <div className="quick-planner-mockup-presets" role="group" aria-label="Quick schedule times">
-                  <button type="button" onClick={() => applyQuickTime('now')}>NOW</button>
-                  <button type="button" onClick={() => applyQuickTime('30min')}>+30 MIN</button>
-                  <button type="button" onClick={() => applyQuickTime('tomorrow')}>TOMORROW</button>
+                <div className="quick-planner-mockup-presets" role="group" aria-label={t('plannerMockup.quickScheduleTimes')}>
+                  <button type="button" onClick={() => applyQuickTime('now')}>{t('plannerMockup.now')}</button>
+                  <button type="button" onClick={() => applyQuickTime('30min')}>{t('plannerMockup.in30Minutes')}</button>
+                  <button type="button" onClick={() => applyQuickTime('tomorrow')}>{t('plannerMockup.tomorrow')}</button>
                 </div>
               )}
               {isDraftMode && (
                 <div className="quick-planner-mockup-draft-actions">
                   <button className="quick-planner-mockup-open-studio" type="button" onClick={handleOpenInStudio}>
                     <ArrowUpRight size={15} aria-hidden="true" />
-                    <span>Open in Studio</span>
+                    <span>{t('plannerMockup.openInStudio')}</span>
                   </button>
                   <button className="quick-planner-mockup-submit" type="button" onClick={handleMockSubmit}>
                     <SubmitIcon size={16} aria-hidden="true" />
@@ -1348,12 +1549,18 @@ export function QuickPlannerMockup({
 
           </section>
 
-          <aside className="quick-planner-mockup-guide" aria-label="Planner notes">
+          <aside className="quick-planner-mockup-guide" aria-label={t('plannerMockup.notes')}>
             <div className="quick-planner-mockup-guide-heading">
-              <h2>Make room<br />for the thought.</h2>
+              <h2 aria-label={t('plannerMockup.guideTitle')}>
+                {t('plannerMockup.guideTitleFirst')}<br />{t('plannerMockup.guideTitleSecond')}
+              </h2>
             </div>
             <ol className="quick-planner-mockup-notes">
-              {mockupNotes.map(({ number, title, text }) => (
+              {[
+                { number: '01', title: t('plannerMockup.noteOneTitle'), text: t('plannerMockup.noteOneText') },
+                { number: '02', title: t('plannerMockup.noteTwoTitle'), text: t('plannerMockup.noteTwoText') },
+                { number: '03', title: t('plannerMockup.noteThreeTitle'), text: t('plannerMockup.noteThreeText') },
+              ].map(({ number, title, text }) => (
                 <li key={number}>
                   <span className="quick-planner-mockup-note-number">{number}</span>
                   <div>
@@ -1369,4 +1576,11 @@ export function QuickPlannerMockup({
       </div>
     </main>
   );
+}
+
+function getAttachmentCountTranslationKey(locale: 'en' | 'ru', count: number) {
+  if (locale === 'en') return count === 1 ? 'plannerMockup.attachmentOne' : 'plannerMockup.attachments';
+  const plural = new Intl.PluralRules('ru').select(count);
+  if (plural === 'one') return 'plannerMockup.attachmentOne';
+  return plural === 'few' ? 'plannerMockup.attachmentsFew' : 'plannerMockup.attachments';
 }

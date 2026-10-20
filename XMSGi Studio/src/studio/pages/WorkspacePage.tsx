@@ -88,11 +88,12 @@ type WorkspacePageProps = {
     attachmentGroups?: string[][];
     entities?: RichTextEntity[];
     replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>;
+    effect?: string;
     replaceMessage?: ScheduledMessage;
-  }, repeat?: ScheduleRepeatOptions) => void;
+  }, repeat?: ScheduleRepeatOptions) => void | Promise<void | boolean>;
   handleCancelMessage: (message: ScheduledMessage) => void;
   handleCancelMessages?: (messages: ScheduledMessage[]) => Promise<boolean>;
-  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void) => Promise<boolean>;
+  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string) => Promise<boolean>;
   publishingDraft: boolean;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
@@ -682,6 +683,7 @@ export function WorkspacePage({
   const [draftEntities, setDraftEntities] = useState<RichTextEntity[]>(
     () => initialDraftRef.current?.entities ?? [],
   );
+  const [messageEffectId, setMessageEffectId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<WorkspaceAttachment[]>(
     () => normalizeAttachments(initialDraftRef.current?.attachments),
   );
@@ -1514,6 +1516,7 @@ export function WorkspacePage({
           }
           group?.attachments.forEach((attachment) => failedAttachmentIds.add(attachment.id));
         },
+        messageEffectId ?? undefined,
       );
       if (!sent) {
         if (failedAttachmentIds.size > 0) {
@@ -1556,6 +1559,7 @@ export function WorkspacePage({
       setSendError('');
       setDraftBody('');
       setDraftEntities([]);
+      setMessageEffectId(null);
       showPublishFeedback(t('studio.messageSent'), 'success');
 
       setPreviewHistory((current) => {
@@ -1614,6 +1618,7 @@ export function WorkspacePage({
       attachmentGroups: getAttachmentTransportGroups(attachments),
       entities: draftEntities,
       replyMarkup: toInlineKeyboardMarkup(inlineButtons),
+      effect: messageEffectId ?? undefined,
       ...(rescheduleSource ? { replaceMessage: rescheduleSource } : {}),
     }, {
       mode: repeatMode,
@@ -2111,10 +2116,11 @@ export function WorkspacePage({
         attachment.path === rawIncomingAttachments[index].path
         || attachment.sourcePath === rawIncomingAttachments[index].path
       ));
-    if (!text.trim() || !draftStoreReady || !draftStateHydrated) return false;
+    if ((!text.trim() && rawIncomingAttachments.length === 0) || !draftStoreReady || !draftStateHydrated) return false;
     if (stageMode !== 'editor' || draftEditingId || rescheduleSourceRef.current) return false;
 
     if (draftBody === text && sameAttachments) {
+      setMessageEffectId(payload.effect ?? null);
       plannerRestoreRef.current ??= {
         draft: createSavedDraft({
           name: 'Studio document before Planner',
@@ -2205,6 +2211,7 @@ export function WorkspacePage({
     setWorkspaceDocumentId(uid());
     setDraftBody(text);
     setDraftEntities(normalizeRichTextEntities(payload.entities, text.length));
+    setMessageEffectId(payload.effect ?? null);
     attachmentUsageRef.current = {
       count: incomingAttachments.length,
       size: incomingAttachments.reduce((total, attachment) => total + attachment.size, 0),
@@ -2817,6 +2824,8 @@ export function WorkspacePage({
                     inputRef={bodyInputRef}
                     text={draftBody}
                     entities={draftEntities}
+                    selectedEffectId={messageEffectId}
+                    onEffectChange={setMessageEffectId}
                     maxLength={maxDraftLength}
                     stageMode={stageMode}
                     albumDisabled={attachmentUsageRef.current.albumIds.size >= MAX_ALBUMS}

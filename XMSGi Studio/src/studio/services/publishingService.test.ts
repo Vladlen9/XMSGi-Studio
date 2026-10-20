@@ -88,6 +88,33 @@ describe('publishingService', () => {
     });
   });
 
+  it('forwards selected Telegram effect IDs through send and schedule', async () => {
+    const send = vi.fn().mockResolvedValue({ success: true });
+    const schedule = vi.fn().mockResolvedValue({ success: true });
+    vi.stubGlobal('telegram', { send, schedule });
+
+    await publishToChannel({
+      accountId: 'account-1',
+      channelId: 'channel-1',
+      body: 'Effect post',
+      effect: '123456789',
+    });
+    await scheduleToChannel({
+      accountId: 'account-1',
+      channelId: 'channel-1',
+      body: 'Effect schedule',
+      scheduleAt: '2026-01-01T10:00:00.000Z',
+      effect: '987654321',
+    });
+
+    expect(send).toHaveBeenCalledWith('channel-1', 'Effect post', [], [], undefined, false, '123456789');
+    expect(schedule).toHaveBeenCalledWith(expect.objectContaining({
+      chatId: 'channel-1',
+      message: 'Effect schedule',
+      effect: '987654321',
+    }));
+  });
+
   it('cancels scheduled messages through the Telegram adapter', async () => {
     const cancel = vi.fn().mockResolvedValue({ success: true });
     vi.stubGlobal('telegram', { cancel });
