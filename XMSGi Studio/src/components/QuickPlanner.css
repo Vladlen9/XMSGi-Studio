@@ -1551,9 +1551,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-workbench {
     box-sizing: border-box;
-    width: min(100%, 760px);
-    height: min(100%, 575px);
-    max-height: 575px;
+    height: clamp(270px, calc(100dvh - 300px), 570px);
     min-height: 0;
   }
 
@@ -1581,19 +1579,25 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
   @media (max-width: 1040px) {
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-layout {
-      width: min(calc(100% + 68px), 1160px);
-      margin-left: -36px;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      width: min(calc(100% + 12px), 760px);
+      margin-left: -8px;
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-workbench {
       top: -68px;
-      left: -22px;
-      width: calc(100% + 10px);
+      left: 0;
+      width: min(100%, 760px);
       height: min(575px, calc(100dvh - 188px));
     }
 
+    html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-guide {
+      display: none;
+    }
+
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-heading h1 {
-      transform: translate(13px, 80px);
+      display: none;
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-schedule-row > .quick-planner-schedule-label {
@@ -1610,7 +1614,6 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
       min-width: 150px;
       flex: 0 0 150px;
       margin-left: auto;
-      transform: translateX(18px);
     }
   }
 }

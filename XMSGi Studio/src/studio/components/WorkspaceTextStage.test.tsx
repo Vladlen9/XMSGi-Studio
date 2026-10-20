@@ -843,6 +843,29 @@ describe('WorkspaceTextStage editor flows', () => {
     unmountChat();
   });
 
+  it('does not render static demo chats in the real chat picker', () => {
+    const onChatSelectionChange = vi.fn();
+    const onChatSelectionDone = vi.fn();
+    const { rootElement, unmount } = renderStage({
+      mode: 'chat',
+      selectedChats: [],
+      onChatSelectionChange,
+      onChatSelectionDone,
+    });
+
+    expect(rootElement.querySelector('.workspace-page-chat-stage-demo')).toBeNull();
+    expect(rootElement.querySelectorAll('.workspace-page-chat-stage-list [role="option"]')).toHaveLength(2);
+
+    act(() => {
+      const firstOption = rootElement.querySelector('.workspace-page-chat-stage-list [role="option"]');
+      firstOption?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onChatSelectionChange).toHaveBeenCalledWith([chatA]);
+    expect(onChatSelectionDone).toHaveBeenCalledWith(chatA);
+    unmount();
+  });
+
   it('selects and confirms a chat from the chat picker with one click', () => {
     const onChatSelectionChange = vi.fn();
     const onChatSelectionDone = vi.fn();

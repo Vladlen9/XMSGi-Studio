@@ -303,6 +303,7 @@ describe('shared History Drawer entry point', () => {
       expect(photoTrigger).not.toBeNull();
       expect(photoTrigger?.querySelector('.topbar-logout-photo-image')).not.toBeNull();
       expect(photoTrigger?.querySelector('.topbar-logout-photo-ring')).not.toBeNull();
+      expect(photoTrigger?.querySelector('.topbar-logout-photo-telegram')).toBeNull();
       const logoutButton = screen.getByRole('button', { name: 'Log out' });
       expect(logoutButton).toHaveAttribute('aria-haspopup', 'dialog');
       expect(logoutButton).toHaveClass('topbar-logout-photo');
