@@ -1092,6 +1092,7 @@ describe('WorkspaceTextStage editor flows', () => {
   });
 
   it('inserts an emoji at the saved editor selection', () => {
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
     const { container, editor, onChange, unmount } = renderRichTextEditor({ text: 'Write here' });
     const textNode = editor.firstChild as Text;
     const range = document.createRange();
@@ -1102,12 +1103,22 @@ describe('WorkspaceTextStage editor flows', () => {
     selection.addRange(range);
     act(() => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
 
-    fireEvent.click(container.querySelector('[aria-label="Choose emoji"]') as HTMLButtonElement);
-    expect(container.querySelector('[role="dialog"][aria-label="Choose emoji"]')).not.toBeNull();
-    fireEvent.click(container.querySelector('.workspace-page-rich-text-emoji-options button') as HTMLButtonElement);
+    expect(Array.from(container.querySelectorAll('.workspace-page-rich-text-toolbar button'), (button) => button.getAttribute('aria-label')))
+      .toContain('Выбрать смайлик');
+    const emojiButton = container.querySelector<HTMLButtonElement>('[aria-label="Выбрать смайлик"]')!;
+    fireEvent.click(emojiButton);
+    expect(document.querySelector('[role="dialog"][aria-label="Выбрать эмодзи"]')).not.toBeNull();
+    const emojiPicker = document.querySelector('.workspace-page-rich-text-emoji-picker--floating');
+    expect(emojiPicker).not.toBeNull();
+    expect(emojiPicker?.parentElement).toBe(document.body);
+    expect(document.querySelector('[role="tablist"][aria-label="Категории эмодзи"]')).not.toBeNull();
+    const emojiSearch = document.querySelector<HTMLInputElement>('.quick-planner-emoji-search')!;
+    fireEvent.change(emojiSearch, { target: { value: 'сердце' } });
+    expect(document.querySelector('[role="tablist"][aria-label="Категории эмодзи"]')).not.toBeNull();
+    fireEvent.click(document.querySelector('[aria-label="Вставить ❤️"]') as HTMLButtonElement);
 
-    expect(editor.textContent).toBe('Write😀 here');
-    expect(onChange).toHaveBeenLastCalledWith('Write😀 here', []);
+    expect(editor.textContent).toBe('Write❤️ here');
+    expect(onChange).toHaveBeenLastCalledWith('Write❤️ here', []);
     unmount();
   });
 
@@ -1115,17 +1126,25 @@ describe('WorkspaceTextStage editor flows', () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     const getAvailableEffects = vi.fn().mockResolvedValue({
       success: true,
-      effects: [{ id: '123456789', emoticon: '🎉', premiumRequired: false }],
+      effects: [
+        { id: '123456789', emoticon: '🎉', premiumRequired: false },
+        { id: '987654321', emoticon: '✨', premiumRequired: true },
+      ],
     });
     Object.defineProperty(window, 'telegram', { configurable: true, value: { getAvailableEffects } });
     const onEffectChange = vi.fn();
     const { container, unmount } = renderRichTextEditor({ onEffectChange });
 
-    fireEvent.click(container.querySelector('[aria-label="Message effects"]') as HTMLButtonElement);
     await act(async () => { await Promise.resolve(); });
-    fireEvent.click(container.querySelector('.workspace-page-rich-text-effect-option:nth-child(2)') as HTMLButtonElement);
-
     expect(getAvailableEffects).toHaveBeenCalledOnce();
+    expect(container.querySelectorAll('.workspace-page-rich-text-effect-option')).toHaveLength(0);
+
+    fireEvent.click(container.querySelector('[aria-label="Message effects"]') as HTMLButtonElement);
+    expect(container.querySelector('.workspace-page-rich-text-effects-picker')).not.toBeNull();
+    expect(container.querySelectorAll('.workspace-page-rich-text-effect-option')).toHaveLength(2);
+    expect(container.querySelector('[aria-label="Premium effect ✨"]')).toBeNull();
+    fireEvent.click(container.querySelector('.workspace-page-rich-text-effect-option[aria-pressed="false"]') as HTMLButtonElement);
+
     expect(onEffectChange).toHaveBeenCalledWith('123456789');
     unmount();
     if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);

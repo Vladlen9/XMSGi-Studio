@@ -471,6 +471,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   box-shadow:
     inset 0 0 0 1px rgba(var(--editor-outline), 0.08),
     0 0 9px rgba(var(--editor-outline), 0.05),
+    0 0 9px rgba(var(--editor-outline), 0.14),
     0 10px 22px rgba(0, 0, 0, 0.12);
   overflow: visible;
 }
@@ -3671,31 +3672,50 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 
 .workspace-page-rich-text-effect-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(3, 40px);
+  justify-content: center;
+  gap: 4px;
+}
+
+.workspace-page-rich-text-effects-picker {
+  width: min(176px, calc((100vw - 32px) / 1.5));
+  padding: 8px;
+}
+
+.workspace-page-rich-text-effects-picker > strong {
+  margin: 0;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid rgba(153, 181, 195, 0.14);
+  font-size: 12px;
 }
 
 .workspace-page-rich-text-toolbar .workspace-page-rich-text-effect-option {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: auto;
-  min-width: 0;
-  height: 54px;
-  min-height: 54px;
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid rgba(153, 181, 195, 0.12);
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.025);
 }
 
 .workspace-page-rich-text-effect-option > span {
-  font-size: 19px;
+  display: grid;
+  min-height: 22px;
+  place-items: center;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .workspace-page-rich-text-effect-option > small {
   max-width: 100%;
   overflow: hidden;
-  font-size: 9px;
+  font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3713,19 +3733,66 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   font-size: 11px;
 }
 
-.workspace-page-rich-text-emoji-options {
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-grid {
   display: grid;
-  grid-template-columns: repeat(6, 32px);
+  grid-template-columns: repeat(6, minmax(32px, 40px));
+  justify-content: center;
   gap: 4px;
 }
 
-.workspace-page-rich-text-toolbar .workspace-page-rich-text-emoji-options button {
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  border-radius: 5px;
-  font-size: 19px;
+.workspace-page-rich-text-emoji-picker {
+  --planner-accent: rgb(var(--editor-outline, 35, 157, 251));
+  --planner-accent-rgb: var(--editor-outline, 35, 157, 251);
+  --planner-ink: rgba(238, 244, 248, 0.92);
+  --planner-dim: rgba(208, 218, 228, 0.58);
+  --planner-line: rgba(154, 168, 184, 0.16);
+  padding: 12px;
+  border-color: rgba(153, 181, 195, 0.2);
+  border-radius: 8px;
+  background: rgba(16, 23, 30, 0.98);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+}
+
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-heading {
+  padding-bottom: 6px;
+  border-bottom-color: rgba(153, 181, 195, 0.14);
+  font-size: 12px;
+}
+
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-search {
+  border-color: rgba(153, 181, 195, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button {
+  border-color: rgba(153, 181, 195, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button[aria-selected="true"],
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button:hover,
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button:focus-visible {
+  border-color: rgba(113, 188, 198, 0.42);
+  background: rgba(113, 188, 198, 0.14);
+}
+
+.workspace-page-rich-text-emoji-picker .quick-planner-emoji-recent {
+  border-top-color: rgba(153, 181, 195, 0.14);
+}
+
+.workspace-page-rich-text-emoji-picker--floating {
+  position: fixed;
+  left: 0;
+  right: auto;
+  top: 0;
+  bottom: auto;
+  width: min(327px, calc(100vw - 80px));
+  height: min(282px, calc(100dvh - 160px));
+  max-height: min(282px, calc(100dvh - 160px));
+  transform: none;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
 }
 
 .workspace-page-rich-text-toolbar-actions {
@@ -4039,6 +4106,13 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   border-radius: 10px;
   background: transparent;
   box-shadow: none;
+}
+
+.workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-tool-icon-trigger {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
 }
 
 .workspace-page-rich-text-toolbar.is-airy button:nth-child(n) {
@@ -9680,7 +9754,7 @@ html.electron-runtime .workspace-page-version-history-backdrop {
     flex-direction: row;
     align-items: stretch;
     gap: clamp(8px, 1.2vw, 14px);
-    padding: 40px clamp(10px, 1.5vw, 16px) 20px;
+    padding: 20px clamp(10px, 1.5vw, 16px) 20px;
     overflow: hidden;
   }
 
@@ -9758,6 +9832,13 @@ html.electron-runtime .workspace-page-version-history-backdrop {
     min-height: 26px;
   }
 
+  html.electron-runtime .workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-tool-icon-trigger {
+    width: 26px;
+    min-width: 26px;
+    height: 26px;
+    min-height: 26px;
+  }
+
   html.electron-runtime .workspace-page-rich-text-toolbar.is-airy .workspace-page-rich-text-link-controls:not(.is-open) {
     flex-basis: 26px;
     width: 26px;
@@ -9769,6 +9850,12 @@ html.electron-runtime .workspace-page-main {
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
+}
+
+@media (min-width: 1101px) {
+  html.electron-runtime .workspace-page-main {
+    padding-top: 32px;
+  }
 }
 
 @media (min-width: 841px) {

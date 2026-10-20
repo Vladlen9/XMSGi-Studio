@@ -2,6 +2,7 @@ import { createElement, useContext } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
+import { persistPostsReturnView } from '@/lib/productView';
 import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
 import { AppShell, getTelegramStatusPresentation } from './AppShell';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
@@ -53,12 +54,24 @@ describe('LocalDateTimeClock localization', () => {
   });
 });
 
+describe('Electron shell sizing', () => {
+  it('does not globally compress the app content inside Electron', () => {
+    document.documentElement.classList.add('electron-runtime');
+    try {
+      expect(getComputedStyle(document.documentElement).zoom).not.toBe('0.95');
+      expect(getComputedStyle(document.documentElement).zoom).toBe('1');
+    } finally {
+      document.documentElement.classList.remove('electron-runtime');
+    }
+  });
+});
+
 describe('shared History Drawer entry point', () => {
   beforeEach(() => {
     window.localStorage.removeItem('xmsgi-history-drawer-open');
   });
 
-  it('hides local time on the login screen but keeps it in app surfaces', () => {
+  it('keeps the planner clock hidden on planner and login surfaces', () => {
     const shellProps = {
       view: 'planner' as const,
       onViewChange: vi.fn(),
@@ -84,10 +97,10 @@ describe('shared History Drawer entry point', () => {
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, connected: true }, createElement('div', null, 'Planner'))));
-    expect(screen.getByLabelText('Current local date and time')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, browserDraftMode: true }, createElement('div', null, 'Local planner'))));
-    expect(screen.getByLabelText('Current local date and time')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
   });
 
   it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {
@@ -171,6 +184,35 @@ describe('shared History Drawer entry point', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Settings from Quick Plan' }));
     expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
     expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the previous Planner surface active beneath Posts after reload', () => {
+    persistPostsReturnView('planner');
+    const onViewChange = vi.fn();
+    const { container } = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'posts',
+      onViewChange,
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement(QuickPlannerNavigationTestButtons))));
+
+    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(container.querySelector('.product-shell')).toHaveClass('planner-shell');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onViewChange).toHaveBeenLastCalledWith('planner');
   });
 
   it('closes Posts before topbar Studio and Settings navigation', () => {
@@ -271,9 +313,7 @@ describe('shared History Drawer entry point', () => {
       expect(setIsConfirmingLogout).toHaveBeenCalledWith(true);
       expect(onOpenSettings).not.toHaveBeenCalled();
 
-      const studioHeading = view.container.querySelector('.product-section-title-detached');
-      expect(studioHeading?.textContent).toBe('Studio');
-      expect(studioHeading?.querySelector('svg')).not.toBeNull();
+      expect(view.container.querySelector('.product-section-title-detached')).not.toBeInTheDocument();
     } finally {
       view.unmount();
       window.localStorage.removeItem(accountAvatarCacheKey);
@@ -367,7 +407,7 @@ describe('shared History Drawer entry point', () => {
     view.unmount();
   });
 
-  it('shows the Planner title in the shared shell position', () => {
+  it('does not add a section title below the topbar on the quick planner screen', () => {
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
       view: 'planner',
       onViewChange: vi.fn(),
@@ -388,9 +428,7 @@ describe('shared History Drawer entry point', () => {
       onHistoryClearSent: vi.fn(),
     }, createElement('div', null, 'Planner canvas'))));
 
-    const title = view.container.querySelector('.product-section-title-detached');
-    expect(title).toHaveTextContent('Quick Planner');
-    expect(title?.querySelector('svg')).toHaveClass('lucide-zap');
+    expect(view.container.querySelector('.product-section-title-detached')).not.toBeInTheDocument();
     expect(screen.getByText('Planner canvas')).toBeInTheDocument();
   });
 

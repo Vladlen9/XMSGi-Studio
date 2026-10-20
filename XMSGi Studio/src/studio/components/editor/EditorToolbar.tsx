@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Bold, Download, History, ImagePlus, Italic, Link, Smile, Sparkles, Strikethrough, Underline } from 'lucide-react';
 import { useLocale } from '@studio/lib/i18n';
+import { EmojiPickerPanel } from '@/components/EmojiPickerPanel';
+import { readRecentEmojis, recentEmojiStorageKey, type EmojiCategoryId } from '@/lib/emojiCatalog';
+import { loadFreeTelegramMessageEffects, type TelegramMessageEffect } from '@/lib/telegramMessageEffects';
 import type { StageMode } from '@studio/components/stages/types';
 import type { EditorFormats } from './useEditorFormats';
 
@@ -23,23 +27,27 @@ interface Props {
   onInsertEmoji?: (emoji: string) => void;
 }
 
-const studioEmojiOptions = ['😀', '😃', '😄', '😁', '😊', '😉', '😍', '🥰', '😘', '😎', '🤔', '😂', '🤣', '🥳', '😭', '👍', '👏', '🙏', '🔥', '❤️', '✨', '🎉', '💯', '🚀'];
-
-type TelegramMessageEffect = { id: string; emoticon: string; premiumRequired: boolean };
-
 export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkPopover, onFormat, onOpenAlbum, albumDisabled = false, onToggleLink, onExportText, onOpenVersionHistory, selectedEffectId = null, onSelectEffect, onInsertEmoji }: Props) {
   const { t } = useLocale();
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [albumInfoVisible, setAlbumInfoVisible] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [emojiModifierHeld, setEmojiModifierHeld] = useState(false);
+  const [emojiCategoryId, setEmojiCategoryId] = useState<EmojiCategoryId>('faces');
+  const [emojiSearchQuery, setEmojiSearchQuery] = useState('');
+  const [emojiActiveIndex, setEmojiActiveIndex] = useState(0);
+  const [recentEmojis, setRecentEmojis] = useState(readRecentEmojis);
   const [effectPickerOpen, setEffectPickerOpen] = useState(false);
   const [effects, setEffects] = useState<TelegramMessageEffect[]>([]);
   const [effectsLoading, setEffectsLoading] = useState(false);
   const [effectsLoaded, setEffectsLoaded] = useState(false);
   const exportRef = useRef<HTMLDivElement | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const emojiPickerPanelRef = useRef<HTMLDivElement | null>(null);
   const effectsPickerRef = useRef<HTMLDivElement | null>(null);
   const albumInfoTimerRef = useRef<number | null>(null);
+  const emojiReleaseCloseTimeoutRef = useRef<number | null>(null);
+  const emojiSelectionWaitingForReleaseRef = useRef(false);
   const selectedEffect = effects.find((effect) => effect.id === selectedEffectId);
   const formatOptions = [
     { id: 'bold' as const, label: t('studio.bold'), icon: Bold },
@@ -68,46 +76,127 @@ export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkP
     if (!effectPickerOpen && !emojiPickerOpen) return undefined;
     const onDown = (event: PointerEvent) => {
       if (effectsPickerRef.current && !effectsPickerRef.current.contains(event.target as Node)) setEffectPickerOpen(false);
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) setEmojiPickerOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setEffectPickerOpen(false);
+      const target = event.target as Node;
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(target) && !emojiPickerPanelRef.current?.contains(target)) {
         setEmojiPickerOpen(false);
+        setEmojiSearchQuery('');
+        setEmojiActiveIndex(0);
       }
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (emojiPickerOpen && (event.key === 'Control' || event.key === 'Meta')) setEmojiModifierHeld(true);
+      if (event.key !== 'Escape') return;
+      if (emojiReleaseCloseTimeoutRef.current !== null) {
+        window.clearTimeout(emojiReleaseCloseTimeoutRef.current);
+        emojiReleaseCloseTimeoutRef.current = null;
+      }
+      emojiSelectionWaitingForReleaseRef.current = false;
+      setEmojiModifierHeld(false);
+      setEffectPickerOpen(false);
+      setEmojiPickerOpen(false);
+      setEmojiSearchQuery('');
+      setEmojiActiveIndex(0);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (emojiPickerOpen && (event.key === 'Control' || event.key === 'Meta')) setEmojiModifierHeld(false);
+      if (!emojiPickerOpen || (event.key !== 'Control' && event.key !== 'Meta') || !emojiSelectionWaitingForReleaseRef.current) return;
+      emojiSelectionWaitingForReleaseRef.current = false;
+      if (emojiReleaseCloseTimeoutRef.current !== null) window.clearTimeout(emojiReleaseCloseTimeoutRef.current);
+      emojiReleaseCloseTimeoutRef.current = window.setTimeout(() => {
+        emojiReleaseCloseTimeoutRef.current = null;
+        setEmojiPickerOpen(false);
+        setEmojiSearchQuery('');
+        setEmojiActiveIndex(0);
+      }, 700);
+    };
     document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
     return () => {
       document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
+      if (emojiReleaseCloseTimeoutRef.current !== null) {
+        window.clearTimeout(emojiReleaseCloseTimeoutRef.current);
+        emojiReleaseCloseTimeoutRef.current = null;
+      }
+      emojiSelectionWaitingForReleaseRef.current = false;
     };
   }, [effectPickerOpen, emojiPickerOpen]);
 
+  useLayoutEffect(() => {
+    if (!emojiPickerOpen) return undefined;
+
+    const updateEmojiPickerPosition = () => {
+      const anchor = emojiPickerRef.current;
+      const picker = emojiPickerPanelRef.current;
+      if (!anchor || !picker) return;
+
+      const anchorRect = anchor.getBoundingClientRect();
+      const pickerRect = picker.getBoundingClientRect();
+      const viewportInset = 12;
+      const maxLeft = Math.max(viewportInset, window.innerWidth - pickerRect.width - viewportInset);
+      const rightSideLeft = anchorRect.right + 12;
+      const left = rightSideLeft <= maxLeft
+        ? rightSideLeft
+        : Math.max(viewportInset, anchorRect.left - pickerRect.width - 12);
+      const maxTop = Math.max(viewportInset, window.innerHeight - pickerRect.height - viewportInset);
+      const centeredTop = anchorRect.top + (anchorRect.height - pickerRect.height) / 2 + 7;
+      const top = Math.min(maxTop, Math.max(viewportInset, centeredTop));
+
+      picker.style.left = `${Math.min(maxLeft, left)}px`;
+      picker.style.top = `${top}px`;
+    };
+
+    updateEmojiPickerPosition();
+    window.addEventListener('resize', updateEmojiPickerPosition);
+    window.addEventListener('scroll', updateEmojiPickerPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateEmojiPickerPosition);
+      window.removeEventListener('scroll', updateEmojiPickerPosition, true);
+    };
+  }, [emojiPickerOpen]);
+
   useEffect(() => {
-    if (!effectPickerOpen || effectsLoaded) return undefined;
+    if (stageMode !== 'editor') return undefined;
     let active = true;
-    const loadEffects = window.telegram?.getAvailableEffects;
-    if (typeof loadEffects !== 'function') {
-      setEffectsLoaded(true);
-      return undefined;
-    }
     setEffectsLoading(true);
-    void loadEffects().then((result) => {
+    void loadFreeTelegramMessageEffects().then((loadedEffects) => {
       if (!active) return;
-      if (result.success) setEffects(result.effects ?? []);
+      setEffects(loadedEffects);
       setEffectsLoaded(true);
-    }).catch(() => {
-      if (active) setEffectsLoaded(true);
     }).finally(() => {
       if (active) setEffectsLoading(false);
     });
     return () => { active = false; };
-  }, [effectPickerOpen, effectsLoaded]);
+  }, [stageMode]);
 
   useEffect(() => () => {
     if (albumInfoTimerRef.current !== null) window.clearTimeout(albumInfoTimerRef.current);
+    if (emojiReleaseCloseTimeoutRef.current !== null) window.clearTimeout(emojiReleaseCloseTimeoutRef.current);
   }, []);
+
+  const selectEmoji = (emoji: string, keepPickerOpen: boolean, updateRecent: boolean) => {
+    if (emojiReleaseCloseTimeoutRef.current !== null) {
+      window.clearTimeout(emojiReleaseCloseTimeoutRef.current);
+      emojiReleaseCloseTimeoutRef.current = null;
+    }
+    emojiSelectionWaitingForReleaseRef.current = keepPickerOpen;
+    onInsertEmoji?.(emoji);
+    if (updateRecent) {
+      setRecentEmojis((current) => {
+        const next = [emoji, ...current.filter((recentEmoji) => recentEmoji !== emoji)].slice(0, 6);
+        try {
+          window.localStorage.setItem(recentEmojiStorageKey, JSON.stringify(next));
+        } catch {
+          // Keep the picker usable when storage is unavailable.
+        }
+        return next;
+      });
+    }
+    setEmojiPickerOpen(keepPickerOpen);
+    if (!keepPickerOpen) setEmojiSearchQuery('');
+  };
 
   const scheduleAlbumInfo = () => {
     if (albumInfoTimerRef.current !== null) window.clearTimeout(albumInfoTimerRef.current);
@@ -134,7 +223,7 @@ export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkP
           <div className="workspace-page-rich-text-tool-anchor" ref={effectsPickerRef}>
             <button
               type="button"
-              className={`workspace-page-rich-text-link-trigger${effectPickerOpen || selectedEffectId ? ' is-open' : ''}`}
+              className={`workspace-page-rich-text-link-trigger workspace-page-rich-text-tool-icon-trigger${effectPickerOpen || selectedEffectId ? ' is-open' : ''}`}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => { setEffectPickerOpen((open) => !open); setEmojiPickerOpen(false); }}
               aria-label={t('studio.messageEffects')}
@@ -149,35 +238,42 @@ export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkP
               <div className="workspace-page-rich-text-tool-popover workspace-page-rich-text-effects-picker" role="dialog" aria-label={t('studio.messageEffects')}>
                 <strong>{t('studio.chooseMessageEffect')}</strong>
                 <div className="workspace-page-rich-text-effect-options" role="group" aria-label={t('studio.chooseMessageEffect')}>
-                  <button type="button" className={`workspace-page-rich-text-effect-option${selectedEffectId === null ? ' is-selected' : ''}`} aria-label={t('studio.noEffect')} aria-pressed={selectedEffectId === null} onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectEffect(null); setEffectPickerOpen(false); }}>
-                    <span aria-hidden="true">−</span><small>{t('studio.noEffect')}</small>
-                  </button>
-                  {effects.map((effect) => (
+                  {[...effects.slice(0, 3), null, ...effects.slice(3)].map((effect) => effect === null ? (
+                    <button key="no-effect" type="button" className={`workspace-page-rich-text-effect-option${selectedEffectId === null ? ' is-selected' : ''}`} aria-label={t('studio.noEffect')} aria-pressed={selectedEffectId === null} onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectEffect(null); setEffectPickerOpen(false); }}>
+                      <span aria-hidden="true">−</span><small>{t('studio.noEffect')}</small>
+                    </button>
+                  ) : (
                     <button key={effect.id} type="button" className={`workspace-page-rich-text-effect-option${selectedEffectId === effect.id ? ' is-selected' : ''}`} aria-label={t(effect.premiumRequired ? 'studio.premiumEffectOption' : 'studio.effectOption', { emoticon: effect.emoticon })} aria-pressed={selectedEffectId === effect.id} title={`${effect.emoticon} · ${effect.id}`} onMouseDown={(event) => event.preventDefault()} onClick={() => { onSelectEffect(effect.id); setEffectPickerOpen(false); }}>
-                      <span aria-hidden="true">{effect.emoticon}</span><small>{effect.premiumRequired ? t('studio.premiumEffect') : effect.emoticon}</small>
+                      <span aria-hidden="true">{effect.emoticon}</span>
                     </button>
                   ))}
                 </div>
                 {effectsLoading && <span className="workspace-page-rich-text-picker-status" role="status">{t('studio.effectsLoading')}</span>}
-                {!effectsLoading && effectsLoaded && effects.length === 0 && <span className="workspace-page-rich-text-picker-status" role="status">{t('studio.effectsUnavailable')}</span>}
+                {!effectsLoading && effectsLoaded && effects.length === 0 && <span className="workspace-page-rich-text-picker-status" role="status">{t('studio.freeEffectsUnavailable')}</span>}
               </div>
             )}
           </div>
         )}
         {onInsertEmoji && (
           <div className="workspace-page-rich-text-tool-anchor" ref={emojiPickerRef}>
-            <button type="button" className={`workspace-page-rich-text-link-trigger${emojiPickerOpen ? ' is-open' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={() => { setEmojiPickerOpen((open) => !open); setEffectPickerOpen(false); }} aria-label={t('studio.chooseEmoji')} aria-haspopup="dialog" aria-expanded={emojiPickerOpen} title={t('studio.chooseEmoji')}>
+            <button type="button" className={`workspace-page-rich-text-link-trigger workspace-page-rich-text-tool-icon-trigger${emojiPickerOpen ? ' is-open' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={() => { const nextOpen = !emojiPickerOpen; setEmojiPickerOpen(nextOpen); setEffectPickerOpen(false); if (!nextOpen) { setEmojiSearchQuery(''); setEmojiActiveIndex(0); } }} aria-label={t('studio.chooseEmoji')} aria-haspopup="dialog" aria-expanded={emojiPickerOpen} title={t('studio.chooseEmoji')}>
               <Smile size={17} strokeWidth={1.8} aria-hidden="true" />
             </button>
-            {emojiPickerOpen && (
-              <div className="workspace-page-rich-text-tool-popover workspace-page-rich-text-emoji-picker" role="dialog" aria-label={t('studio.chooseEmoji')}>
-                <strong>{t('studio.emoji')}</strong>
-                <div className="workspace-page-rich-text-emoji-options" role="group" aria-label={t('studio.emoji')}>
-                  {studioEmojiOptions.map((emoji) => (
-                    <button key={emoji} type="button" aria-label={t('studio.insertEmoji', { emoji })} title={emoji} onMouseDown={(event) => event.preventDefault()} onClick={() => { onInsertEmoji(emoji); setEmojiPickerOpen(false); }}>{emoji}</button>
-                  ))}
-                </div>
-              </div>
+            {emojiPickerOpen && createPortal(
+              <EmojiPickerPanel
+                categoryId={emojiCategoryId}
+                searchQuery={emojiSearchQuery}
+                activeIndex={emojiActiveIndex}
+                recentEmojis={recentEmojis}
+                modifierHeld={emojiModifierHeld}
+                className="workspace-page-rich-text-emoji-picker workspace-page-rich-text-emoji-picker--floating"
+                pickerRef={emojiPickerPanelRef}
+                onCategoryChange={setEmojiCategoryId}
+                onSearchQueryChange={setEmojiSearchQuery}
+                onActiveIndexChange={setEmojiActiveIndex}
+                onSelectEmoji={selectEmoji}
+              />,
+              document.body,
             )}
           </div>
         )}

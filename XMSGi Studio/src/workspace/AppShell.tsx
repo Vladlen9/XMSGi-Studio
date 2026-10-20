@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { CircleUserRound, FileText, LogOut, X, Zap } from 'lucide-react';
-import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
+import { CircleUserRound, LogOut, X } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
-import type { ProductView } from '@/lib/productView';
+import {
+  persistPostsReturnView,
+  readPostsReturnView,
+  type ProductView,
+} from '@/lib/productView';
 import { telegramGetAccountAvatar } from '@/services/telegramAppService';
 import { getTelegramStatusPresentation as getTelegramStatusPresentationFromModule } from './telegramStatusPresentation';
 import { HistoryDrawer } from './HistoryDrawer';
@@ -89,11 +92,12 @@ export function AppShell({
 }: AppShellProps) {
   const { t } = useLocale();
   const [postsOpen, setPostsOpen] = useState(false);
-  const previousProductViewRef = useRef<ProductView>(view === 'planner' ? 'planner' : 'studio');
+  const previousProductViewRef = useRef<Exclude<ProductView, 'posts'>>(
+    readPostsReturnView(view === 'planner' ? 'planner' : 'studio'),
+  );
   const activeProductView = view === 'posts' ? previousProductViewRef.current : view;
   const nextProductView = activeProductView === 'planner' ? 'studio' : 'planner';
   const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
-  const sectionLabel = view === 'planner' ? t('product.planner') : view === 'posts' ? t('history.title') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | undefined>();
   const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
@@ -131,7 +135,10 @@ export function AppShell({
   const isPostsVisible = view === 'posts' || postsOpen;
 
   const openPosts = (statusFilter?: QuickPlannerPostsFilter) => {
-    if (view !== 'posts') previousProductViewRef.current = view;
+    if (view !== 'posts') {
+      previousProductViewRef.current = view;
+      persistPostsReturnView(view);
+    }
     setHistorySourceFilterOnOpen('personal');
     setHistoryStatusFilterOnOpen(statusFilter);
     setPostsOpen(true);
@@ -141,8 +148,7 @@ export function AppShell({
     setHistorySourceFilterOnOpen(undefined);
     setHistoryStatusFilterOnOpen(undefined);
     setPostsOpen(false);
-    const nextView = previousProductViewRef.current === 'posts' ? 'studio' : previousProductViewRef.current;
-    onViewChange(nextView);
+    onViewChange(previousProductViewRef.current);
   };
   const changeView = (nextView: ProductView) => {
     if (nextView === 'posts') {
@@ -150,6 +156,7 @@ export function AppShell({
       return;
     }
     previousProductViewRef.current = nextView;
+    persistPostsReturnView(nextView);
     setHistorySourceFilterOnOpen(undefined);
     setHistoryStatusFilterOnOpen(undefined);
     if (isPostsVisible) {
@@ -164,7 +171,7 @@ export function AppShell({
   };
 
   return (
-    <div className={`product-shell ${view === 'planner' ? 'planner-shell' : 'studio-shell'}`} style={{ position: 'relative' }}>
+    <div className={`product-shell ${activeProductView === 'planner' ? 'planner-shell' : 'studio-shell'}`} style={{ position: 'relative' }}>
       {!connected && headerPending && (
         <div className="topbar topbar-placeholder" aria-hidden="true" />
       )}
@@ -241,17 +248,6 @@ export function AppShell({
             )}
           </div>
         </header>
-      )}
-      {!settingsOpen && view === 'planner' && (connected || browserDraftMode) && <LocalDateTimeClock />}
-      {!settingsOpen && (connected || (view === 'planner' && browserDraftMode)) && (
-        <div className="product-section-title product-section-title-detached" aria-current="page">
-          {view === 'planner' ? (
-            <Zap size={19} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--quick-planner-title-icon-color, currentColor)' }} />
-          ) : (
-            <FileText size={19} strokeWidth={2.2} aria-hidden="true" style={{ color: 'var(--studio-title-icon-color, currentColor)' }} />
-          )}
-          <span>{view === 'planner' ? t('quickplanner.title') : sectionLabel}</span>
-        </div>
       )}
       <QuickPlannerNavigationContext.Provider value={{
         currentSection: settingsOpen ? 'settings' : isPostsVisible ? 'posts' : view === 'studio' ? 'studio' : 'quick-plan',

@@ -1695,7 +1695,6 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 html {
-  zoom: 0.95;
   background: var(--void);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1770,7 +1769,7 @@ body:has(.auth-panel) {
 /* ── TOPBAR ── */
 
 .product-shell {
-  min-height: calc(100vh / 0.95);
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: radial-gradient(ellipse 72% 34% at 50% -10%, #101216 0%, transparent 72%), #030405;
@@ -1786,7 +1785,7 @@ body:has(.auth-panel) {
   top: 94px;
   right: max(26px, calc((100vw - 1320px) / 2));
   z-index: 4;
-  display: grid;
+  display: none;
   width: max-content;
   min-width: 132px;
   max-width: calc(100vw - 36px);
@@ -1830,13 +1829,27 @@ body:has(.auth-panel) {
 
 .product-shell.studio-shell {
   --void: #030405;
-  height: calc(100vh / 0.95);
-  height: calc(100dvh / 0.95);
+  height: 100vh;
+  height: 100dvh;
   min-height: 0;
   overflow: hidden;
 }
 
-.product-shell.studio-shell > .product-shell-content {
+.product-shell.planner-shell {
+  --void: #030405;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.product-shell.planner-shell .local-date-time-clock {
+  display: none !important;
+}
+
+.product-shell.studio-shell > .product-shell-content,
+.product-shell.planner-shell > .product-shell-content {
   display: flex;
   min-height: 0;
   overflow: hidden;
@@ -1849,8 +1862,18 @@ body:has(.auth-panel) {
   overflow: hidden;
 }
 
+.product-shell.planner-shell > .product-shell-content > .product-view.is-active {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: calc(100dvh - 64px);
+  min-height: 0;
+  overflow: hidden;
+}
+
 html:has(.product-shell.studio-shell),
-body:has(.product-shell.studio-shell) {
+body:has(.product-shell.studio-shell),
+html:has(.product-shell.planner-shell),
+body:has(.product-shell.planner-shell) {
   height: 100%;
   overflow: hidden;
   scrollbar-gutter: auto;
@@ -1862,21 +1885,6 @@ body:has(.product-shell.studio-shell) {
 
 .product-view.is-active {
   display: block;
-  /* fill-mode "backwards" (не "both"): после финиша анимация ничего не удерживает.
-     "both" навсегда оставлял transform: translateY(0) → элемент становился
-     containing block для position:fixed потомков и создавал stacking context. */
-  animation: product-view-enter 180ms ease-out backwards;
-}
-
-@keyframes product-view-enter {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .product-view.is-active {
-    animation: none;
-  }
 }
 
 .topbar {
@@ -1908,48 +1916,6 @@ body:has(.product-shell.studio-shell) {
   z-index: 2;
 }
 
-.product-section-title-detached {
-  position: absolute;
-  top: 99px;
-  left: 56.5px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #edf6fb;
-  font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-}
-
-.product-section-title-detached > span {
-  color: #edf6fb;
-}
-
-.product-section-title-detached > svg {
-  flex: 0 0 auto;
-}
-
-html.electron-runtime .product-section-title-detached {
-  opacity: 0;
-  pointer-events: none;
-}
-
-@media (max-width: 1100px) {
-  .product-section-title-detached {
-    top: 77px;
-    left: 36px;
-  }
-}
-
-@media (min-width: 701px) and (max-width: 860px) {
-  .product-section-title-detached {
-    font-size: 17px;
-  }
-}
-
 @media (min-width: 481px) and (max-width: 760px) {
   .topbar .brand {
     font-size: 17px;
@@ -1972,7 +1938,7 @@ html.electron-runtime .product-section-title-detached {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: calc(100vw / 0.95);
+  width: 100%;
   height: 1px;
   background: rgba(154, 168, 184, 0.12);
   transform: translateX(-50%);
@@ -1980,8 +1946,6 @@ html.electron-runtime .product-section-title-detached {
 }
 
 html.electron-runtime {
-  --electron-ui-scale: clamp(0.7, min(100vw / 900px, 100dvh / 800px), 1);
-  zoom: var(--electron-ui-scale);
   overflow: hidden;
 }
 
@@ -1994,17 +1958,17 @@ html.electron-runtime body {
 
 html.electron-runtime .product-shell {
   width: 100%;
-  height: calc(100dvh / var(--electron-ui-scale));
+  height: 100dvh;
   min-height: 0;
 }
 
 html.electron-runtime .product-shell.studio-shell {
-  height: calc(100dvh / var(--electron-ui-scale));
+  height: 100dvh;
   min-height: 0;
 }
 
 html.electron-runtime .product-shell:has(.settings-view) {
-  height: calc(100dvh / var(--electron-ui-scale));
+  height: 100dvh;
   min-height: 0;
   overflow: hidden;
 }
@@ -2019,6 +1983,26 @@ html.electron-runtime .product-shell:has(.settings-view) > .product-shell-conten
 html.electron-runtime .product-shell:has(.settings-view) > .product-shell-content > .product-view.is-active {
   flex: 1 1 auto;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.electron-runtime .product-shell.planner-shell {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+html.electron-runtime .product-shell.planner-shell > .product-shell-content {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.electron-runtime .product-shell.planner-shell > .product-shell-content > .product-view.is-active {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: calc(100dvh - 64px);
   min-height: 0;
   overflow: hidden;
 }

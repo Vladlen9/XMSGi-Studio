@@ -2000,6 +2000,105 @@ describe('useScheduler native history', () => {
     expect(result.current.sent).toHaveLength(1);
   });
 
+  it('preserves both results when distinct Send Now operations finish concurrently', async () => {
+    const firstMessage: ScheduledMessage = {
+      id: 'send-now-parallel-1',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'First message',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+    };
+    const secondMessage: ScheduledMessage = {
+      ...firstMessage,
+      id: 'send-now-parallel-2',
+      text: 'Second message',
+    };
+    let resolveFirst!: (result: { success: boolean }) => void;
+    let resolveSecond!: (result: { success: boolean }) => void;
+    const send = vi.fn((chatId: string) => new Promise<{ success: boolean }>((resolve) => {
+      if (chatId === 'chat-1') {
+        if (!resolveFirst) resolveFirst = resolve;
+        else resolveSecond = resolve;
+      }
+    }));
+    const { result } = renderWorkspaceHistory([firstMessage, secondMessage], [], { send });
+
+    await waitFor(() => expect(result.current.upcoming).toHaveLength(2));
+    let firstAttempt!: Promise<void>;
+    let secondAttempt!: Promise<void>;
+    await act(async () => {
+      firstAttempt = result.current.handleSendNow(firstMessage);
+      secondAttempt = result.current.handleSendNow(secondMessage);
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveFirst({ success: true });
+      await firstAttempt;
+    });
+    await act(async () => {
+      resolveSecond({ success: true });
+      await secondAttempt;
+    });
+
+    expect(result.current.sent.map((item) => item.id).sort()).toEqual([
+      firstMessage.id,
+      secondMessage.id,
+    ]);
+    expect(result.current.upcoming).toHaveLength(0);
+  });
+
+  it('preserves both results when distinct schedule retries finish concurrently', async () => {
+    const firstMessage: ScheduledMessage = {
+      id: 'retry-schedule-parallel-1',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'First retry',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'failed',
+      retryAction: 'schedule',
+    };
+    const secondMessage: ScheduledMessage = {
+      ...firstMessage,
+      id: 'retry-schedule-parallel-2',
+      text: 'Second retry',
+    };
+    let resolveFirst!: (result: { success: boolean; confirmed: boolean; telegramMessageId: string }) => void;
+    let resolveSecond!: (result: { success: boolean; confirmed: boolean; telegramMessageId: string }) => void;
+    const schedule = vi.fn(() => new Promise<{ success: boolean; confirmed: boolean; telegramMessageId: string }>((resolve) => {
+      if (!resolveFirst) resolveFirst = resolve;
+      else resolveSecond = resolve;
+    }));
+    const { result } = renderWorkspaceHistory([firstMessage, secondMessage], [], { schedule });
+
+    await waitFor(() => expect(result.current.upcoming).toHaveLength(2));
+    let firstAttempt!: Promise<void>;
+    let secondAttempt!: Promise<void>;
+    await act(async () => {
+      firstAttempt = result.current.handleRetry(firstMessage);
+      secondAttempt = result.current.handleRetry(secondMessage);
+    });
+    await waitFor(() => expect(schedule).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveFirst({ success: true, confirmed: true, telegramMessageId: 'retry-scheduled-1' });
+      await firstAttempt;
+    });
+    await act(async () => {
+      resolveSecond({ success: true, confirmed: true, telegramMessageId: 'retry-scheduled-2' });
+      await secondAttempt;
+    });
+
+    expect(result.current.upcoming.map((item) => item.id).sort()).toEqual([
+      firstMessage.id,
+      secondMessage.id,
+    ]);
+    expect(result.current.upcoming.every((item) => item.status === 'scheduled')).toBe(true);
+  });
+
   it('keeps Send Now behind the account FloodWait gate', async () => {
     const message: ScheduledMessage = {
       id: 'send-now-rate-limited',
@@ -2141,6 +2240,52 @@ describe('useScheduler native history', () => {
       targetTimestamp: Math.floor(new Date(message.when).getTime() / 1000),
     });
     await waitFor(() => expect(saveScheduleHistory).toHaveBeenCalledWith({ scope: 'workspace', field: 'upcoming', messages: [] }));
+  });
+
+  it('preserves both results when distinct cancellations finish concurrently', async () => {
+    const firstMessage: ScheduledMessage = {
+      id: 'cancel-parallel-1',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'First cancellation',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+      telegramMessageId: 'telegram-cancel-parallel-1',
+    };
+    const secondMessage: ScheduledMessage = {
+      ...firstMessage,
+      id: 'cancel-parallel-2',
+      text: 'Second cancellation',
+      telegramMessageId: 'telegram-cancel-parallel-2',
+    };
+    let resolveFirst!: (result: { success: boolean }) => void;
+    let resolveSecond!: (result: { success: boolean }) => void;
+    const cancel = vi.fn(({ telegramMessageId }: { telegramMessageId: string }) => new Promise<{ success: boolean }>((resolve) => {
+      if (telegramMessageId === firstMessage.telegramMessageId) resolveFirst = resolve;
+      else resolveSecond = resolve;
+    }));
+    const { result } = renderWorkspaceHistory([firstMessage, secondMessage], [], { cancel });
+
+    await waitFor(() => expect(result.current.upcoming).toHaveLength(2));
+    let firstAttempt!: Promise<boolean>;
+    let secondAttempt!: Promise<boolean>;
+    await act(async () => {
+      firstAttempt = result.current.handleCancelMessage(firstMessage);
+      secondAttempt = result.current.handleCancelMessage(secondMessage);
+    });
+    await waitFor(() => expect(cancel).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveFirst({ success: true });
+      await firstAttempt;
+    });
+    await act(async () => {
+      resolveSecond({ success: true });
+      await secondAttempt;
+    });
+
+    expect(result.current.upcoming).toHaveLength(0);
   });
 
   it('cancels an attachment-only scheduled record with its Telegram ID', async () => {
@@ -2288,6 +2433,61 @@ describe('useScheduler native history', () => {
 
     expect(schedule).toHaveBeenCalledTimes(9);
     expect(showNotification.mock.calls.some(([, type, title]) => type === 'warning' && title === 'Mass scheduling warning')).toBe(false);
+  });
+
+  it('does not restore a cancelled record after schedule identity lookup', async () => {
+    const chat = { id: 'identity-race-chat', name: 'Identity race chat' };
+    const cancelledMessage: ScheduledMessage = {
+      id: 'identity-race-cancelled',
+      chatId: chat.id,
+      chatName: chat.name,
+      text: 'Cancel while identities load',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+      telegramMessageId: 'telegram-identity-race',
+    };
+    let resolveIdentities!: (value: { success: boolean; identities: string[] }) => void;
+    const getScheduleIdentities = vi.fn(() => new Promise<{ success: boolean; identities: string[] }>((resolve) => {
+      resolveIdentities = resolve;
+    }));
+    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true, telegramMessageId: 'new-scheduled-message' });
+    const cancel = vi.fn().mockResolvedValue({ success: true });
+    const { result } = renderWorkspaceHistory(
+      [cancelledMessage],
+      [],
+      { getScheduleIdentities, schedule, cancel },
+      vi.fn(),
+      'workspace',
+      chat,
+    );
+    const { date, time } = getFutureReplacementTimes().replacementDateTime;
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([cancelledMessage]));
+    let scheduleRequest!: Promise<boolean | void>;
+    act(() => {
+      scheduleRequest = result.current.handleSchedule({
+        chatId: chat.id,
+        message: 'New scheduled message',
+        date,
+        time,
+        waitForConfirmation: true,
+      });
+    });
+    await waitFor(() => expect(getScheduleIdentities).toHaveBeenCalledOnce());
+
+    await act(async () => {
+      await result.current.handleCancelMessage(cancelledMessage);
+    });
+    expect(result.current.upcoming).toHaveLength(0);
+
+    await act(async () => {
+      resolveIdentities({ success: true, identities: ['new-operation-identity'] });
+      await scheduleRequest;
+    });
+
+    expect(result.current.upcoming.map((item) => item.id)).toHaveLength(1);
+    expect(result.current.upcoming[0]).toMatchObject({ text: 'New scheduled message', status: 'scheduled' });
   });
 
   it('warns at ten messages for five seconds and continues scheduling once', async () => {

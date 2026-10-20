@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "electron": "electron . --no-sandbox",
-    "start": "npm run dev:electron",
+    "start": "npm run electron",
     "dist": "npm run build && electron-builder --win"
   },
   "dependencies": {

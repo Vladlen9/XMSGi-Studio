@@ -1,6 +1,7 @@
-import { useMemo, useRef } from 'react';
-import StudioApp from '@studio/App';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 import type { StudioBridgeProps, StudioSchedulerActions, StudioSchedulerRuntime } from '@shared/bridge';
+
+const StudioApp = lazy(() => import('@studio/App'));
 
 type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAccountId' | 'chats' | 'scheduler'>>
   & Pick<StudioBridgeProps,
@@ -72,20 +73,22 @@ export function StudioMount({ connected, activeAccountId, chats, selectedChat, o
   const stableScheduler = useStableSchedulerRuntime(scheduler);
 
   return (
-    <StudioApp
-      connected={connected}
-      activeAccountId={activeAccountId}
-      chats={chats}
-      selectedChat={selectedChat}
-      onSelectChat={onSelectChat}
-      scheduler={stableScheduler}
-      onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
-      onRegisterBeforeLeaveStudio={onRegisterBeforeLeaveStudio}
-      onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
-      onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
-      onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}
-      onRegisterHistoryDraftDeleteHandler={onRegisterHistoryDraftDeleteHandler}
-      onRegisterHistoryRescheduleHandler={onRegisterHistoryRescheduleHandler}
-    />
+    <Suspense fallback={null}>
+      <StudioApp
+        connected={connected}
+        activeAccountId={activeAccountId}
+        chats={chats}
+        selectedChat={selectedChat}
+        onSelectChat={onSelectChat}
+        scheduler={stableScheduler}
+        onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
+        onRegisterBeforeLeaveStudio={onRegisterBeforeLeaveStudio}
+        onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}
+        onRegisterHistoryDraftUseHandler={onRegisterHistoryDraftUseHandler}
+        onRegisterHistoryDraftClearHandler={onRegisterHistoryDraftClearHandler}
+        onRegisterHistoryDraftDeleteHandler={onRegisterHistoryDraftDeleteHandler}
+        onRegisterHistoryRescheduleHandler={onRegisterHistoryRescheduleHandler}
+      />
+    </Suspense>
   );
 }

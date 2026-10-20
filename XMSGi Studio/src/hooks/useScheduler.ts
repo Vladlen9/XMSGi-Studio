@@ -609,13 +609,13 @@ export function useScheduler({
       return false;
     }
 
-    const legacyIdentityByMessage = new Map<ScheduledMessage, string | null>();
+    const legacyIdentityByMessage = new Map<string, string | null>();
     legacyUpcoming.forEach((scheduledMessage, index) => {
-      legacyIdentityByMessage.set(scheduledMessage, identityResult.identities![candidateOperations.length + index]);
+      legacyIdentityByMessage.set(scheduledMessage.id, identityResult.identities![candidateOperations.length + index]);
     });
     const unverifiableLegacyMedia = legacyUpcoming.some((scheduledMessage) => (
       (scheduledMessage.attachments?.length ?? 0) > 0
-      && typeof legacyIdentityByMessage.get(scheduledMessage) !== 'string'
+      && typeof legacyIdentityByMessage.get(scheduledMessage.id) !== 'string'
     ));
     if (unverifiableLegacyMedia) {
       schedulingLockRef.current = false;
@@ -626,21 +626,32 @@ export function useScheduler({
       return false;
     }
 
-    const upcomingWithIdentities = upcoming.map((scheduledMessage) => {
-      const operationIdentity = legacyIdentityByMessage.get(scheduledMessage);
+    const upcomingWithIdentities = upcomingStateRef.current.map((scheduledMessage) => {
+      const operationIdentity = legacyIdentityByMessage.get(scheduledMessage.id);
       return !scheduledMessage.operationIdentity && operationIdentity
         ? { ...scheduledMessage, operationIdentity }
         : scheduledMessage;
     });
-    const existingIdentities = new Set(comparableUpcoming.map((scheduledMessage) => (
-      scheduledMessage.operationIdentity || legacyIdentityByMessage.get(scheduledMessage)
+    const currentComparableUpcoming = upcomingWithIdentities.filter((scheduledMessage) => {
+      const scheduledTimestamp = Math.floor(new Date(scheduledMessage.when).getTime() / 1000);
+      return scheduledMessage.id !== replaceMessage?.id
+        && scheduledMessage.status !== 'sent'
+        && scheduledMessage.chatId === chatId
+        && candidateTimestamps.has(scheduledTimestamp)
+        && candidateOperations.some((operation) => (
+          operation.message === scheduledMessage.text
+          && (scheduledMessage.attachments ?? []).length === operation.attachments.length
+        ));
+    });
+    const existingIdentities = new Set(currentComparableUpcoming.map((scheduledMessage) => (
+      scheduledMessage.operationIdentity || legacyIdentityByMessage.get(scheduledMessage.id)
     )).filter((identity): identity is string => typeof identity === 'string'));
     const duplicateExists = candidateIdentities.some((identity) => existingIdentities.has(identity!));
 
     if (duplicateExists) {
-      if (legacyUpcoming.some((scheduledMessage) => legacyIdentityByMessage.get(scheduledMessage))) {
-        setUpcoming(upcomingWithIdentities);
+      if (legacyUpcoming.some((scheduledMessage) => legacyIdentityByMessage.get(scheduledMessage.id))) {
         upcomingStateRef.current = upcomingWithIdentities;
+        setUpcoming(upcomingWithIdentities);
         await persistScheduleHistoryAndWait(historyScope, 'upcoming', upcomingWithIdentities);
       }
       schedulingLockRef.current = false;
@@ -670,8 +681,8 @@ export function useScheduler({
       ? { ...pendingMessage, replacementOfId: replaceMessage.id }
       : pendingMessage);
     const pendingUpcoming = [...pendingMessages, ...upcomingWithIdentities];
-    setUpcoming(pendingUpcoming);
     upcomingStateRef.current = pendingUpcoming;
+    setUpcoming(pendingUpcoming);
 
     const schedulingTask = (async () => {
       if (!await persistScheduleHistoryAndWait(historyScope, 'upcoming', pendingUpcoming)) {
@@ -832,9 +843,10 @@ export function useScheduler({
         const errorDetails = normalizeTelegramBridgeError(error, 'publish', t('schedule.networkScheduling'));
         const lastError = errorDetails.message;
         const pendingIds = new Set(pendingMessages.map((message) => message.operationId));
-        const failedUpcoming = pendingUpcoming.map((message) => pendingIds.has(message.operationId)
+        const failedUpcoming = upcomingStateRef.current.map((message) => pendingIds.has(message.operationId)
           ? { ...message, status: 'failed' as const, lastError, lastErrorDetails: errorDetails, retryAction: 'schedule' as const }
           : message);
+        upcomingStateRef.current = failedUpcoming;
         setUpcoming(failedUpcoming);
         await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
         showNotification(
@@ -967,7 +979,7 @@ export function useScheduler({
             }
           }
 
-          const remaining = cancelContextUpcoming
+          const remaining = upcomingStateRef.current
             .filter((item) => item.id !== msg.id && !cancelledReplacementIds.has(item.id))
             .map((item) => {
               const errorDetails = replacementErrors.get(item.id);
@@ -976,10 +988,10 @@ export function useScheduler({
                 : item;
             });
           const nextSent = [...replacementSentMessages, sentMessage, ...sentStateRef.current.filter((item) => item.id !== msg.id)];
-          setUpcoming(remaining);
           upcomingStateRef.current = remaining;
-          setSent(nextSent);
           sentStateRef.current = nextSent;
+          setUpcoming(remaining);
+          setSent(nextSent);
           const persisted = await persistScheduleHistoryAndWait(historyScope, 'snapshot', { upcoming: remaining, sent: nextSent });
           const replacementWasSent = replacementSentMessages.length > 0;
           cancellationSucceeded = persisted && replacementErrors.size === 0 && !replacementWasSent;
@@ -997,9 +1009,9 @@ export function useScheduler({
           return;
         }
 
-        const remaining = cancelContextUpcoming.filter((item) => item.id !== msg.id);
-        setUpcoming(remaining);
+        const remaining = upcomingStateRef.current.filter((item) => item.id !== msg.id);
         upcomingStateRef.current = remaining;
+        setUpcoming(remaining);
         if (!await persistScheduleHistoryAndWait(historyScope, 'upcoming', remaining)) {
           const lastError = 'Telegram cancelled this schedule, but the history update could not be saved.';
           const errorDetails = normalizeTelegramBridgeError({ error: lastError, code: 'SCHEDULE_HISTORY_WRITE_FAILED' }, 'cancel', lastError);
@@ -1011,9 +1023,12 @@ export function useScheduler({
             lastErrorDetails: errorDetails,
             retryAction: 'send',
           };
-          const failedUpcoming = cancelContextUpcoming.map((item) => item.id === msg.id ? failedMessage : item);
-          setUpcoming(failedUpcoming);
+          const currentUpcoming = upcomingStateRef.current;
+          const failedUpcoming = currentUpcoming.some((item) => item.id === msg.id)
+            ? currentUpcoming.map((item) => item.id === msg.id ? failedMessage : item)
+            : [failedMessage, ...currentUpcoming];
           upcomingStateRef.current = failedUpcoming;
+          setUpcoming(failedUpcoming);
           await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
           showNotification(`${lastError} Retry will send without cancelling the old schedule again.`, 'error', t('schedule.errorTitle'), errorDetails);
           return;
@@ -1035,9 +1050,9 @@ export function useScheduler({
           lastErrorDetails: errorDetails,
           retryAction: 'cancel',
         };
-        const failedUpcoming = cancelContextUpcoming.map((item) => item.id === msg.id ? failedMessage : item);
-        setUpcoming(failedUpcoming);
+        const failedUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? failedMessage : item);
         upcomingStateRef.current = failedUpcoming;
+        setUpcoming(failedUpcoming);
         await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
         if (!quiet) showNotification(lastError, replacementMessages.length > 0 ? 'warning' : 'error', replacementMessages.length > 0 ? t('schedule.partialCancellationTitle') : t('schedule.errorTitle'), errorDetails);
       } finally {
@@ -1079,7 +1094,7 @@ export function useScheduler({
     }
     if (activePublishIdsRef.current.has(msg.id)) return;
 
-    const currentMessage = upcoming.find((item) => item.id === msg.id) ?? msg;
+    const currentMessage = upcomingStateRef.current.find((item) => item.id === msg.id) ?? msg;
     if (!['scheduled', 'confirmed', 'failed'].includes(currentMessage.status)) return;
 
     activePublishIdsRef.current.add(msg.id);
@@ -1093,7 +1108,8 @@ export function useScheduler({
       sendAttemptId: currentMessage.sendAttemptId || `${Date.now()}:${uid()}`,
     };
 
-    const sendingUpcoming = upcoming.map((item) => item.id === msg.id ? sendingMessage : item);
+    const sendingUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? sendingMessage : item);
+    upcomingStateRef.current = sendingUpcoming;
     setUpcoming(sendingUpcoming);
     let failureDetails: ReturnType<typeof normalizeTelegramBridgeError> | undefined;
     let failureOperation: 'publish' | 'cancel' = 'publish';
@@ -1127,8 +1143,10 @@ export function useScheduler({
             lastError: undefined,
             retryAction: undefined,
           };
-          const nextUpcoming = upcoming.filter((item) => item.id !== msg.id);
-          const nextSent = [sentMessage, ...sent.filter((item) => item.id !== msg.id)];
+          const nextUpcoming = upcomingStateRef.current.filter((item) => item.id !== msg.id);
+          const nextSent = [sentMessage, ...sentStateRef.current.filter((item) => item.id !== msg.id)];
+          upcomingStateRef.current = nextUpcoming;
+          sentStateRef.current = nextSent;
           setUpcoming(nextUpcoming);
           setSent(nextSent);
           await persistScheduleHistoryAndWait(historyScope, 'snapshot', { upcoming: nextUpcoming, sent: nextSent });
@@ -1137,7 +1155,8 @@ export function useScheduler({
         }
 
         sendingMessage = { ...sendingMessage, telegramMessageId: undefined };
-        const uncancelledUpcoming = sendingUpcoming.map((item) => item.id === msg.id ? sendingMessage : item);
+        const uncancelledUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? sendingMessage : item);
+        upcomingStateRef.current = uncancelledUpcoming;
         setUpcoming(uncancelledUpcoming);
         if (!await persistScheduleHistoryAndWait(historyScope, 'upcoming', uncancelledUpcoming)) {
           throw new Error('Telegram cancelled the schedule, but the updated state could not be saved. Do not retry until the queue is checked.');
@@ -1169,8 +1188,10 @@ export function useScheduler({
         lastError: undefined,
         retryAction: undefined,
       };
-      const nextSent = [sentMessage, ...sent.filter((item) => item.id !== msg.id)];
-      const nextUpcoming = upcoming.filter((item) => item.id !== msg.id);
+      const nextSent = [sentMessage, ...sentStateRef.current.filter((item) => item.id !== msg.id)];
+      const nextUpcoming = upcomingStateRef.current.filter((item) => item.id !== msg.id);
+      sentStateRef.current = nextSent;
+      upcomingStateRef.current = nextUpcoming;
       setSent(nextSent);
       setUpcoming(nextUpcoming);
       const persisted = await persistScheduleHistoryAndWait(historyScope, 'snapshot', {
@@ -1200,7 +1221,8 @@ export function useScheduler({
         lastErrorDetails: errorDetails,
         retryAction: 'send',
       };
-      const failedUpcoming = upcoming.map((item) => item.id === msg.id ? failedMessage : item);
+      const failedUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? failedMessage : item);
+      upcomingStateRef.current = failedUpcoming;
       setUpcoming(failedUpcoming);
       await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
       if (refreshChatPermissions) void refreshChatPermissions(msg.chatId);
@@ -1226,7 +1248,8 @@ export function useScheduler({
       lastError: undefined,
       retryAction: 'schedule',
     };
-    const sendingUpcoming = upcoming.map((item) => item.id === msg.id ? attempt : item);
+    const sendingUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? attempt : item);
+    upcomingStateRef.current = sendingUpcoming;
     setUpcoming(sendingUpcoming);
 
     let failedScheduleResult: Awaited<ReturnType<typeof scheduleMessage>> | null = null;
@@ -1261,16 +1284,16 @@ export function useScheduler({
         lastError: undefined,
         retryAction: undefined,
       };
-      const nextUpcoming = upcoming.map((item) => item.id === msg.id ? scheduledMessage : item);
-      setUpcoming(nextUpcoming);
+      const nextUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? scheduledMessage : item);
       upcomingStateRef.current = nextUpcoming;
+      setUpcoming(nextUpcoming);
       const historyPersisted = await persistScheduleHistoryAndWait(historyScope, 'upcoming', nextUpcoming);
       if (!historyPersisted) {
         showNotification(t('schedule.historySaveFailed'), 'warning', t('schedule.errorTitle'));
         return;
       }
       if (attempt.replacementOfId) {
-        const originalMessage = upcoming.find((item) => item.id === attempt.replacementOfId);
+        const originalMessage = upcomingStateRef.current.find((item) => item.id === attempt.replacementOfId);
         if (originalMessage) handleCancelMessage(originalMessage, [scheduledMessage], true);
       }
       showNotification(t('schedule.scheduledOne'), 'success', t('schedule.scheduledTitle'));
@@ -1291,7 +1314,8 @@ export function useScheduler({
         lastErrorDetails: errorDetails,
         retryAction: partialIds.length ? 'cancel' : 'schedule',
       };
-      const failedUpcoming = upcoming.map((item) => item.id === msg.id ? failedMessage : item);
+      const failedUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? failedMessage : item);
+      upcomingStateRef.current = failedUpcoming;
       setUpcoming(failedUpcoming);
       await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
       showNotification(lastError, 'error', t('schedule.errorTitle'), errorDetails);

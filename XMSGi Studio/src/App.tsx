@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
 import type { SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
@@ -10,7 +10,7 @@ import { hasPlannerPayloadContent } from './workspace/plannerText';
 import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
-import { QuickPlannerMockup } from './components/QuickPlannerMockup';
+import { QuickPlanner } from './components/QuickPlanner';
 import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
@@ -32,7 +32,12 @@ import {
   telegramGetConfig,
   telegramSaveCredentials,
 } from './services/telegramAppService';
-import { getInitialProductView, type ProductView } from './lib/productView';
+import {
+  getBackgroundProductView,
+  getInitialProductView,
+  persistProductView,
+  type ProductView,
+} from './lib/productView';
 import { getDraftStorageApi } from '@studio/lib/draftStore';
 import { appStateReducer, createInitialAppState, createMessageSession, type AppRoute } from './appState';
 
@@ -66,6 +71,11 @@ function App() {
     }),
   );
   const { route, productView, activeAccountId, messageSession } = appState;
+  const [studioHasBeenOpened, setStudioHasBeenOpened] = useState(() => (
+    productView === 'studio'
+    || (productView === 'posts'
+      && getBackgroundProductView(productView, browserDraftMode ? 'planner' : 'studio') === 'studio')
+  ));
   const message = messageSession.text;
   const messageEntities = messageSession.entities as RichTextEntity[];
   const plannerAttachments = messageSession.attachments;
@@ -74,8 +84,8 @@ function App() {
   const plannerAttachmentsRef = useRef(plannerAttachments);
   const selectedChatIdRef = useRef<string | null>(null);
   const studioFlushBeforeLeaveRef = useRef<(() => Promise<boolean>) | null>(null);
-  const pendingProductViewRef = useRef<ProductView | null>(null);
   const studioLeaveFlushRef = useRef<Promise<boolean> | null>(null);
+  const studioLeaveFlushScheduledRef = useRef(false);
   const productViewRef = useRef(productView);
   productViewRef.current = productView;
 
@@ -137,30 +147,36 @@ function App() {
   }, [dispatch]);
   const setProductView = useCallback((view: ProductView) => {
     if (productViewRef.current === 'studio' && view !== 'studio' && studioFlushBeforeLeaveRef.current) {
-      pendingProductViewRef.current = view;
-      if (studioLeaveFlushRef.current) return;
-
-      const flush = studioFlushBeforeLeaveRef.current();
-      studioLeaveFlushRef.current = flush;
-      void flush.then((saved) => {
-        if (studioLeaveFlushRef.current !== flush) return;
-        studioLeaveFlushRef.current = null;
-        const nextView = pendingProductViewRef.current;
-        pendingProductViewRef.current = null;
-        if (!saved || !nextView) return;
-        productViewRef.current = nextView;
-        dispatch({ type: 'SET_PRODUCT_VIEW', view: nextView });
-      }, () => {
-        if (studioLeaveFlushRef.current !== flush) return;
-        studioLeaveFlushRef.current = null;
-        pendingProductViewRef.current = null;
-      });
-      return;
+      if (!studioLeaveFlushRef.current && !studioLeaveFlushScheduledRef.current) {
+        studioLeaveFlushScheduledRef.current = true;
+        const flushDraft = () => {
+          const flushCallback = studioFlushBeforeLeaveRef.current;
+          if (!flushCallback) {
+            studioLeaveFlushScheduledRef.current = false;
+            return;
+          }
+          const flush = flushCallback();
+          studioLeaveFlushRef.current = flush;
+          const clearFlush = () => {
+            if (studioLeaveFlushRef.current === flush) studioLeaveFlushRef.current = null;
+            studioLeaveFlushScheduledRef.current = false;
+          };
+          void flush.then(clearFlush, clearFlush);
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(flushDraft, { timeout: 1000 });
+        } else {
+          window.setTimeout(flushDraft, 0);
+        }
+      }
     }
 
-    pendingProductViewRef.current = null;
+    persistProductView(view);
     productViewRef.current = view;
-    dispatch({ type: 'SET_PRODUCT_VIEW', view });
+    startTransition(() => {
+      if (view === 'studio') setStudioHasBeenOpened(true);
+      dispatch({ type: 'SET_PRODUCT_VIEW', view });
+    });
   }, [dispatch]);
   const setRoute = useCallback((nextRoute: AppRoute) => {
     dispatch({ type: 'SET_ROUTE', route: nextRoute });
@@ -270,10 +286,10 @@ function App() {
   });
 
   useLayoutEffect(() => {
-    if (connectionResolved && !connected) {
+    if (connectionResolved && !connected && productView !== 'posts') {
       setProductView('planner');
     }
-  }, [connected, connectionResolved, setProductView]);
+  }, [connected, connectionResolved, productView, setProductView]);
 
   const {
     chats,
@@ -586,8 +602,14 @@ function App() {
     connectionResolved,
     welcomeBackInProgress,
   });
-  const studioSurfaceVisible = productView === 'studio'
+  const backgroundProductView = getBackgroundProductView(
+    productView,
+    browserDraftMode ? 'planner' : 'studio',
+  );
+  const studioSurfaceAvailable = studioHasBeenOpened
     && (browserDraftMode || (connectionResolved && connected && !signedOut));
+  const studioSurfaceVisible = backgroundProductView === 'studio'
+    && studioSurfaceAvailable;
 
   useEffect(() => {
     if (isSettingsOpen) {
@@ -833,8 +855,11 @@ function App() {
       onHistoryClearDrafts={clearHistoryDrafts}
       onHistoryCancelQueue={cancelHistoryQueue}
     >
-      <div className={`product-view ${studioSurfaceVisible ? 'is-active' : ''}`} aria-hidden={!studioSurfaceVisible}>
-        {studioSurfaceVisible ? (
+      <div
+        className={`product-view ${studioSurfaceVisible ? 'is-active' : ''}`}
+        aria-hidden={productView !== 'studio' || !studioSurfaceAvailable}
+      >
+        {studioSurfaceAvailable ? (
           <StudioMount
             connected={studioConnected}
             activeAccountId={activeAccountId}
@@ -852,10 +877,13 @@ function App() {
           />
         ) : null}
       </div>
-      <div className={`product-view ${productView === 'planner' ? 'is-active' : ''}`} aria-hidden={productView !== 'planner'}>
+      <div
+        className={`product-view ${backgroundProductView === 'planner' ? 'is-active' : ''}`}
+        aria-hidden={productView !== 'planner'}
+      >
         {route === '/settings' ? renderSettingsPage() : (
           plannerSurface === 'pending' ? null : plannerSurface === 'quick' ? (
-            <QuickPlannerMockup
+            <QuickPlanner
               chats={chats}
               selectedChat={selectedChat}
               onSelectChat={setSelectedChat}

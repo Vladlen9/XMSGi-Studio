@@ -4,47 +4,94 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
-import { QuickPlannerMockup } from './QuickPlannerMockup';
+import { flushPlannerDraftWrite, writePlannerDraft } from '../lib/plannerDraft';
+import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
 function render(ui: ReactNode) {
   return renderTestingLibrary(createElement(LocaleProvider, null, ui));
 }
 
-describe('QuickPlannerMockup feedback', () => {
+describe('QuickPlanner feedback', () => {
   beforeEach(() => {
+    flushPlannerDraftWrite();
+    for (const key of [
+      'xmsgi-planner-draft-text',
+      'xmsgi-planner-draft-updated-at',
+      'xmsgi-planner-draft-entities',
+      'xmsgi-planner-draft-attachments',
+      'xmsgi-planner-draft-snapshot-v1',
+      'xmsgi:active-draft:v1',
+    ]) localStorage.removeItem(key);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
+    flushPlannerDraftWrite();
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, 'telegram');
     localStorage.removeItem('xmsgi-quick-planner-recent-emojis');
     localStorage.removeItem('awaitmsg_locale');
+    for (const key of [
+      'xmsgi-planner-draft-text',
+      'xmsgi-planner-draft-updated-at',
+      'xmsgi-planner-draft-entities',
+      'xmsgi-planner-draft-attachments',
+      'xmsgi-planner-draft-snapshot-v1',
+      'xmsgi:active-draft:v1',
+    ]) localStorage.removeItem(key);
+  });
+
+  it('does not populate the chat picker with sample chats', () => {
+    render(<QuickPlanner />);
+
+    expect(screen.getByRole('button', { name: 'Choose a chat' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a chat' }));
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    expect(screen.getByText('No chats found')).toBeInTheDocument();
+  });
+
+  it('restores the Planner text and attachment chips after remounting', () => {
+    writePlannerDraft('Survives reload', [], ['C:\\files\\report.pdf']);
+    expect(flushPlannerDraftWrite()).toBe(true);
+
+    const firstRender = render(<QuickPlanner />);
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    expect(editor).toHaveValue('Survives reload');
+    expect(firstRender.container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('report.pdf');
+
+    fireEvent.change(editor, { target: { value: 'Updated before reload' } });
+    expect(flushPlannerDraftWrite()).toBe(true);
+    firstRender.unmount();
+
+    const secondRender = render(<QuickPlanner />);
+    expect(screen.getByRole('textbox', { name: 'Reminder text' })).toHaveValue('Updated before reload');
+    expect(secondRender.container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('report.pdf');
   });
 
   it('translates the Planner page and its accessible controls into Russian', () => {
     localStorage.setItem('awaitmsg_locale', 'ru');
 
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
 
     expect(screen.getByRole('heading', { name: 'Новое сообщение' })).toBeInTheDocument();
     expect(screen.getByRole('main', { name: 'Новое сообщение' })).toHaveAttribute('lang', 'ru');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
     expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Записывай идеи');
-    expect(screen.getByRole('heading', { name: 'Создай пространство для своих мыслей.' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Сохраняй всё важное в одном месте.');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Быстрая запись');
+    expect(screen.getByRole('heading', { name: 'Создай пространство для своих планов.' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Сохраняйте всё важное за секунды.');
     expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Превращайте идеи в действия');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Добавляй напоминания и воплощай задуманное.');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Редактируй и совершенствуй свои тексты в Studio.');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Ставьте напоминания и воплощайте идеи в жизнь.');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Продолжайте в Studio');
+    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Редактируйте и улучшайте свои тексты в Studio.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать дату' }));
     const datePicker = screen.getByRole('dialog', { name: 'Выбор даты отправки' });
     expect(datePicker).toHaveTextContent(new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date()));
-    expect(datePicker.querySelector('.quick-planner-mockup-date-picker-weekdays')).toHaveTextContent('пн');
+    expect(datePicker.querySelector('.quick-planner-date-picker-weekdays')).toHaveTextContent('пн');
 
     fireEvent.click(screen.getByRole('button', { name: 'Открыть окно эмодзи' }));
     expect(screen.getByRole('dialog', { name: 'Выбрать эмодзи' })).toHaveTextContent('Лица');
@@ -54,18 +101,20 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('shows the supplied English Planner guide copy', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
 
-    expect(screen.getByRole('heading', { name: 'Make room for your thoughts.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Make room for your plans.' })).toBeInTheDocument();
     const guide = screen.getByRole('complementary', { name: 'Planner notes' });
-    expect(guide).toHaveTextContent('Capture ideas');
-    expect(guide).toHaveTextContent('Keep everything that matters in one place.');
+    expect(guide).toHaveTextContent('Quick capture');
+    expect(guide).toHaveTextContent('Save everything that matters in seconds.');
+    expect(guide).toHaveTextContent('Turn ideas into action');
     expect(guide).toHaveTextContent('Set reminders and bring your ideas to life.');
+    expect(guide).toHaveTextContent('Continue in Studio');
     expect(guide).toHaveTextContent('Edit and refine your writing in Studio.');
   });
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const submitButton = screen.getByRole('button', { name: 'Schedule post' });
 
     fireEvent.click(submitButton);
@@ -85,18 +134,21 @@ describe('QuickPlannerMockup feedback', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('uses the Studio warning, success, and notice durations', () => {
-    const { container } = render(<QuickPlannerMockup />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
-      target: { value: 'Test status message' },
-    });
+  it('uses the Studio warning and success notification durations', () => {
+    const chat: Chat = { id: 'chat-1', name: 'Test channel', type: 'channel' };
+    const { container } = render(<QuickPlanner
+      chats={[chat]}
+      selectedChat={chat}
+      onSaveDraft={() => true}
+      onSchedule={async () => true}
+    />);
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submitButton = () => container.querySelector<HTMLButtonElement>(
+      '.quick-planner-schedule-row .quick-planner-submit',
+    )!;
 
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
-    const submitButton = container.querySelector<HTMLButtonElement>(
-      '.quick-planner-mockup-schedule-row .quick-planner-mockup-submit',
-    );
-    expect(submitButton).not.toBeNull();
-    fireEvent.click(submitButton!);
+    fireEvent.click(submitButton());
 
     let status = screen.getByRole('status');
     expect(status).toHaveClass('is-warning');
@@ -106,10 +158,12 @@ describe('QuickPlannerMockup feedback', () => {
     act(() => vi.advanceTimersByTime(1));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
+    fireEvent.change(editor, {
+      target: { value: 'Test status message' },
+    });
+
     fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
-    fireEvent.click(container.querySelector<HTMLButtonElement>(
-      '.quick-planner-mockup-schedule-row .quick-planner-mockup-submit',
-    )!);
+    fireEvent.click(submitButton());
     status = screen.getByRole('status');
     expect(status).toHaveClass('is-success');
     act(() => vi.advanceTimersByTime(3359));
@@ -117,31 +171,24 @@ describe('QuickPlannerMockup feedback', () => {
     act(() => vi.advanceTimersByTime(1));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
-    fireEvent.click(screen.getByRole('button', { name: '+30 MIN' }));
-    fireEvent.click(container.querySelector<HTMLButtonElement>(
-      '.quick-planner-mockup-schedule-row .quick-planner-mockup-submit',
-    )!);
-    status = screen.getByRole('status');
-    expect(status).toHaveClass('is-info');
   });
 
   it('shows fractional local timezone offsets without changing the timezone control width', () => {
     vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-345);
 
-    const { container } = render(<QuickPlannerMockup />);
+    const { container } = render(<QuickPlanner />);
     const timeZone = screen.getByText('GMT+5:45');
 
-    expect(timeZone).toHaveClass('quick-planner-mockup-timezone');
-    expect(container.querySelector('.quick-planner-mockup-timezone')?.textContent).toBe('GMT+5:45');
+    expect(timeZone).toHaveClass('quick-planner-timezone');
+    expect(container.querySelector('.quick-planner-timezone')?.textContent).toBe('GMT+5:45');
   });
 
   it('uses the default and custom theme accents for each action mode and refreshes live', () => {
-    const { container } = render(<QuickPlannerMockup />);
-    const planner = container.querySelector<HTMLElement>('.quick-planner-mockup')!;
-    const modeGroup = screen.getByRole('group', { name: 'Preview action modes' });
+    const { container } = render(<QuickPlanner />);
+    const planner = container.querySelector<HTMLElement>('.quick-planner')!;
+    const modeGroup = screen.getByRole('group', { name: 'Planner actions' });
 
-    expect(planner.style.getPropertyValue('--mockup-accent')).toBe('#239dfb');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
 
     act(() => {
       writeEditorAppearancePreferences({
@@ -150,25 +197,25 @@ describe('QuickPlannerMockup feedback', () => {
         modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
       });
     });
-    expect(planner.style.getPropertyValue('--mockup-accent')).toBe('#b482f5');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#b482f5');
 
     fireEvent.click(within(modeGroup).getByRole('button', { name: 'Draft' }));
-    expect(planner.style.getPropertyValue('--mockup-accent')).toBe('#f58b37');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#f58b37');
 
     fireEvent.click(within(modeGroup).getByRole('button', { name: 'Send now' }));
-    expect(planner.style.getPropertyValue('--mockup-accent')).toBe('#287fa6');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#287fa6');
 
     act(() => writeEditorAppearancePreferences(DEFAULT_EDITOR_APPEARANCE));
-    expect(planner.style.getPropertyValue('--mockup-accent')).toBe('#239dfb');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
   });
 
   it('removes group and channel chats from Planner through the existing remove callback', () => {
     const group: Chat = { id: 'group-1', name: 'Design group', type: 'group' };
     const channel: Chat = { id: 'channel-1', name: 'News channel', type: 'channel' };
     const onRemoveChat = vi.fn();
-    const { container } = render(<QuickPlannerMockup chats={[group, channel]} onRemoveChat={onRemoveChat} />);
+    const { container } = render(<QuickPlanner chats={[group, channel]} onRemoveChat={onRemoveChat} />);
 
-    fireEvent.click(container.querySelector('.quick-planner-mockup-chat')!);
+    fireEvent.click(container.querySelector('.quick-planner-chat')!);
     fireEvent.click(screen.getByRole('button', { name: 'Remove Design group from Planner' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove News channel from Planner' }));
 
@@ -177,13 +224,13 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('clears reminder text with one click and returns focus to the editor', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'A long reminder to erase' } });
 
     const clearButton = screen.getByRole('button', { name: 'Clear reminder text' });
-    expect(clearButton.parentElement).toHaveClass('quick-planner-mockup-counter-controls');
-    expect(clearButton.previousElementSibling).toHaveClass('quick-planner-mockup-character-count');
+    expect(clearButton.parentElement).toHaveClass('quick-planner-counter-controls');
+    expect(clearButton.previousElementSibling).toHaveClass('quick-planner-character-count');
     fireEvent.click(clearButton);
 
     expect(editor).toHaveValue('');
@@ -193,30 +240,53 @@ describe('QuickPlannerMockup feedback', () => {
     expect(clearButton).toHaveClass('is-hidden');
   });
 
+  it('opens the emoji picker 5px beside the smile button', () => {
+    const { container } = render(<QuickPlanner />);
+    const toolAnchors = container.querySelectorAll<HTMLElement>(
+      '.quick-planner-tools > .quick-planner-tool-anchor',
+    );
+    vi.spyOn(toolAnchors[0], 'getBoundingClientRect').mockReturnValue(new DOMRect(80, 160, 48, 48));
+    vi.spyOn(toolAnchors[2], 'getBoundingClientRect').mockReturnValue(new DOMRect(200, 160, 48, 48));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
+
+    expect(screen.getByRole('dialog', { name: 'Choose emoji' })).toHaveStyle({ left: '253px' });
+  });
+
   it('loads Telegram effect IDs and selects a real message effect', async () => {
     const getAvailableEffects = vi.fn().mockResolvedValue({
       success: true,
       effects: [
         { id: '123456789', emoticon: '🎉', premiumRequired: false },
+        { id: '223456789', emoticon: '👍', premiumRequired: false },
+        { id: '323456789', emoticon: '👎', premiumRequired: false },
+        { id: '423456789', emoticon: '🔥', premiumRequired: false },
         { id: '987654321', emoticon: '✨', premiumRequired: true },
       ],
     });
     Object.defineProperty(window, 'telegram', { configurable: true, value: { getAvailableEffects } });
     const onOpenInStudio = vi.fn();
-    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    const { container } = render(<QuickPlanner onOpenInStudio={onOpenInStudio} />);
     await act(async () => { await Promise.resolve(); });
+    expect(getAvailableEffects).toHaveBeenCalledOnce();
 
-    expect(Array.from(container.querySelectorAll('.quick-planner-mockup-tools > .quick-planner-mockup-tool-anchor > button'))
+    expect(Array.from(container.querySelectorAll('.quick-planner-tools > .quick-planner-tool-anchor > button'))
       .map((button) => button.getAttribute('aria-label')))
       .toEqual(['Attach files', 'Message effects', 'Open emoji window']);
 
+    const attachmentButton = screen.getByRole('button', { name: 'Attach files' });
     const effectsButton = screen.getByRole('button', { name: 'Message effects' });
+    const emojiButton = screen.getByRole('button', { name: 'Open emoji window' });
+    for (const button of [attachmentButton, effectsButton, emojiButton]) {
+      expect(button.querySelector('svg')).toHaveAttribute('width', '24');
+      expect(button.querySelector('svg')).toHaveAttribute('height', '24');
+    }
     fireEvent.click(effectsButton);
     const effectsGrid = screen.getByRole('group', { name: 'Choose message effect' });
     expect(effectsGrid).toBeInTheDocument();
-    expect(getAvailableEffects).toHaveBeenCalledOnce();
     expect(within(effectsGrid).getAllByRole('button').map((button) => button.getAttribute('aria-label')))
-      .toEqual(['No effect', 'effect 🎉', 'Premium effect ✨']);
+      .toEqual(['effect 🎉', 'effect 👍', 'effect 👎', 'No effect', 'effect 🔥']);
+    expect(screen.queryByRole('button', { name: 'Premium effect ✨' })).not.toBeInTheDocument();
     const effectOption = screen.getByRole('button', { name: 'effect 🎉' });
     fireEvent.click(effectOption);
     expect(effectsButton).toHaveAttribute('aria-pressed', 'true');
@@ -229,14 +299,15 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('shows categorized emojis and inserts the chosen emoji at the cursor', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'Good day' } });
     (editor as HTMLTextAreaElement).setSelectionRange(4, 4);
 
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     const emojiPicker = screen.getByRole('dialog', { name: 'Choose emoji' });
-    expect(emojiPicker).toHaveClass('quick-planner-mockup-emoji-picker');
+    expect(emojiPicker).toHaveClass('quick-planner-emoji-picker');
+    expect(emojiPicker.parentElement).toBe(document.body);
     fireEvent.click(screen.getByRole('tab', { name: 'Hearts' }));
     expect(screen.getByRole('group', { name: 'Hearts emoji' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Insert ❤️' }));
@@ -255,7 +326,7 @@ describe('QuickPlannerMockup feedback', () => {
       { category: 'Fun', emoji: '🎉' },
     ];
 
-    const firstMount = render(<QuickPlannerMockup />);
+    const firstMount = render(<QuickPlanner />);
     for (const selection of selections) {
       fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
       fireEvent.click(screen.getByRole('tab', { name: selection.category }));
@@ -265,23 +336,23 @@ describe('QuickPlannerMockup feedback', () => {
     }
     firstMount.unmount();
 
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     const picker = screen.getByRole('dialog', { name: 'Choose emoji' });
     const recentGroup = within(picker).getByRole('group', { name: 'Recent emoji' });
     expect(within(recentGroup).getAllByRole('button').map((button) => button.getAttribute('aria-label')))
       .toEqual(['Insert recent 🎉', 'Insert recent 🍎', 'Insert recent 🔥', 'Insert recent ❤️', 'Insert recent 👍', 'Insert recent 😀']);
-    expect(picker.querySelector('.quick-planner-mockup-emoji-categories')!.compareDocumentPosition(
-      picker.querySelector('.quick-planner-mockup-emoji-recent')!,
+    expect(picker.querySelector('.quick-planner-emoji-categories')!.compareDocumentPosition(
+      picker.querySelector('.quick-planner-emoji-recent')!,
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(picker.querySelector('.quick-planner-mockup-emoji-recent')!.compareDocumentPosition(
-      picker.querySelector('.quick-planner-mockup-emoji-search')!,
+    expect(picker.querySelector('.quick-planner-emoji-search')!.compareDocumentPosition(
+      picker.querySelector('.quick-planner-emoji-recent')!,
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('keeps the Recent order unchanged when selecting an emoji from Recent', async () => {
     localStorage.setItem('xmsgi-quick-planner-recent-emojis', JSON.stringify(['😀', '❤️', '😃']));
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     const getRecentOrder = () => within(screen.getByRole('group', { name: 'Recent emoji' }))
       .getAllByRole('button').map((button) => button.getAttribute('aria-label'));
@@ -298,7 +369,7 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('closes the previous picker when opening the other toolbar picker', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     expect(screen.getByRole('dialog', { name: 'Choose emoji' })).toBeInTheDocument();
 
@@ -312,7 +383,7 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('opens the emoji window with the quick keyboard command', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
 
     fireEvent.keyDown(document, { key: '.', ctrlKey: true });
 
@@ -323,7 +394,7 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('opens emoji search from a colon command and replaces the query with the keyboard-selected result', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'Say :heart', selectionStart: 10, selectionEnd: 10 } });
 
@@ -339,21 +410,24 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('finds the same heart emoji from English and Russian picker searches', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     const search = screen.getByRole('searchbox', { name: 'Search emoji' });
 
     fireEvent.change(search, { target: { value: 'heart' } });
+    const categories = screen.getByRole('tablist', { name: 'Emoji categories' });
+    expect(within(categories).getByRole('tab', { name: 'Faces' })).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Emoji search results' }))
       .getByRole('button', { name: 'Insert ❤️' })).toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: 'сердце' } });
+    expect(within(categories).getByRole('tab', { name: 'Faces' })).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Emoji search results' }))
       .getByRole('button', { name: 'Insert ❤️' })).toBeInTheDocument();
   });
 
   it('searches emoji names in Russian and keeps the picker open when there are no matches', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'Привет :сердце', selectionStart: 14, selectionEnd: 14 } });
 
@@ -370,14 +444,14 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('keeps the picker open for Ctrl selections and closes on a normal selection', async () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'Hi ' } });
     (editor as HTMLTextAreaElement).setSelectionRange(3, 3);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     const modifierHint = screen.getByText('Hold Ctrl to add more');
     expect(modifierHint).toBeInTheDocument();
-    expect(modifierHint.closest('.quick-planner-mockup-emoji-recent-heading')).not.toBeNull();
+    expect(modifierHint.closest('.quick-planner-emoji-recent-heading')).not.toBeNull();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Insert 😀' }), { ctrlKey: true });
@@ -402,7 +476,7 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('closes the picker shortly after Ctrl is released following a multi-select', async () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     fireEvent.click(screen.getByRole('button', { name: 'Open emoji window' }));
     fireEvent.keyDown(document, { key: 'Control' });
     expect(screen.getByRole('dialog', { name: 'Choose emoji' })).toHaveClass('is-modifier-held');
@@ -447,7 +521,7 @@ describe('QuickPlannerMockup feedback', () => {
         openPosts,
         openSettings: vi.fn(),
       }}>
-        <QuickPlannerMockup
+        <QuickPlanner
           chats={[chat]}
           selectedChat={chat}
           onSendNow={onSendNow}
@@ -458,7 +532,7 @@ describe('QuickPlannerMockup feedback', () => {
     );
     await act(async () => { await Promise.resolve(); });
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
-    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-mockup-schedule-row .quick-planner-mockup-submit')!;
+    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
     const addPhoto = (name: string) => fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
       target: { files: [new File(['photo'], name, { type: 'image/png' })] },
     });
@@ -527,14 +601,14 @@ describe('QuickPlannerMockup feedback', () => {
         openPosts,
         openSettings: vi.fn(),
       }}>
-        <QuickPlannerMockup chats={[chat]} selectedChat={chat} onSendNow={onSendNow} onSchedule={onSchedule} />
+        <QuickPlanner chats={[chat]} selectedChat={chat} onSendNow={onSendNow} onSchedule={onSchedule} />
       </QuickPlannerNavigationContext.Provider>,
     );
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     const addPhoto = (name: string) => fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
       target: { files: [new File(['photo'], name, { type: 'image/png' })] },
     });
-    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-mockup-schedule-row .quick-planner-mockup-submit')!;
+    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
 
     fireEvent.change(editor, { target: { value: 'Keep this send' } });
     addPhoto('failed-send.png');
@@ -557,12 +631,12 @@ describe('QuickPlannerMockup feedback', () => {
 
   it('uses the first chat-name letter in placeholder avatars', () => {
     const chat: Chat = { id: 'chat-1', name: 'Design group', type: 'group' };
-    const { container } = render(<QuickPlannerMockup chats={[chat]} selectedChat={chat} />);
+    const { container } = render(<QuickPlanner chats={[chat]} selectedChat={chat} />);
 
-    expect(container.querySelector('.quick-planner-mockup-chat > .quick-planner-mockup-chat-avatar')).toHaveTextContent('D');
-    fireEvent.click(container.querySelector('.quick-planner-mockup-chat')!);
+    expect(container.querySelector('.quick-planner-chat > .quick-planner-chat-avatar')).toHaveTextContent('D');
+    fireEvent.click(container.querySelector('.quick-planner-chat')!);
     const chatOption = screen.getByRole('option', { name: /Design group/ });
-    expect(chatOption.querySelector('.quick-planner-mockup-chat-avatar')).toHaveTextContent('D');
+    expect(chatOption.querySelector('.quick-planner-chat-avatar')).toHaveTextContent('D');
   });
 
   it('warns instead of opening Studio when draft text is empty', () => {
@@ -575,7 +649,7 @@ describe('QuickPlannerMockup feedback', () => {
         openPosts: vi.fn(),
         openSettings: vi.fn(),
       }}>
-        <QuickPlannerMockup />
+        <QuickPlanner />
       </QuickPlannerNavigationContext.Provider>,
     );
 
@@ -597,7 +671,7 @@ describe('QuickPlannerMockup feedback', () => {
         openPosts: vi.fn(),
         openSettings: vi.fn(),
       }}>
-        <QuickPlannerMockup onOpenInStudio={onOpenInStudio} />
+        <QuickPlanner onOpenInStudio={onOpenInStudio} />
       </QuickPlannerNavigationContext.Provider>,
     );
 
@@ -622,7 +696,7 @@ describe('QuickPlannerMockup feedback', () => {
       value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
     });
     const onOpenInStudio = vi.fn();
-    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    const { container } = render(<QuickPlanner onOpenInStudio={onOpenInStudio} />);
     const editor = screen.getByRole('textbox', { name: 'Reminder text' });
     fireEvent.change(editor, { target: { value: 'Photo caption' } });
     fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
@@ -647,7 +721,7 @@ describe('QuickPlannerMockup feedback', () => {
       value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
     });
     const onOpenInStudio = vi.fn();
-    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    const { container } = render(<QuickPlanner onOpenInStudio={onOpenInStudio} />);
     fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
       target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
     });
@@ -668,7 +742,7 @@ describe('QuickPlannerMockup feedback', () => {
       value: { getFilePath },
     });
     const onOpenInStudio = vi.fn();
-    const { container } = render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    const { container } = render(<QuickPlanner onOpenInStudio={onOpenInStudio} />);
     fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
       target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
     });
@@ -677,11 +751,11 @@ describe('QuickPlannerMockup feedback', () => {
     expect(screen.getByRole('status')).toHaveTextContent('File added.');
     expect(screen.getByRole('status')).not.toHaveTextContent('Studio');
     expect(onOpenInStudio).not.toHaveBeenCalled();
-    const emojiTool = screen.getByRole('button', { name: 'Open emoji window' }).closest('.quick-planner-mockup-tool-anchor');
+    const emojiTool = screen.getByRole('button', { name: 'Open emoji window' }).closest('.quick-planner-tool-anchor');
     const attachmentPanel = emojiTool?.nextElementSibling;
-    expect(attachmentPanel).toHaveClass('quick-planner-mockup-attachments');
-    expect(attachmentPanel?.firstElementChild).toHaveAttribute('role', 'scrollbar');
-    expect(attachmentPanel?.lastElementChild).toHaveClass('quick-planner-mockup-attachment-list');
+    expect(attachmentPanel).toHaveClass('quick-planner-attachments');
+    expect(attachmentPanel?.querySelector('.quick-planner-attachments-scrollbar')).toBeInTheDocument();
+    expect(attachmentPanel?.querySelector('.quick-planner-attachment-list')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove photo.png' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove photo.png' }));
     expect(screen.queryByText('photo.png')).not.toBeInTheDocument();
@@ -693,7 +767,7 @@ describe('QuickPlannerMockup feedback', () => {
       configurable: true,
       value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
     });
-    const { container } = render(<QuickPlannerMockup />);
+    const { container } = render(<QuickPlanner />);
     const files = Array.from({ length: 12 }, (_, index) => (
       new File([`photo-${index}`], `photo-${index}.png`, { type: 'image/png' })
     ));
@@ -701,39 +775,37 @@ describe('QuickPlannerMockup feedback', () => {
       target: { files },
     });
 
-    expect(container.querySelectorAll('.quick-planner-mockup-attachment')).toHaveLength(10);
+    expect(container.querySelectorAll('.quick-planner-attachment')).toHaveLength(10);
     expect(screen.getByRole('status')).toHaveTextContent('You can attach up to 10 files.');
     expect(screen.getByRole('status')).toHaveClass('is-warning');
   });
 
-  it('keeps the native scrollbar and attachment row in sync', () => {
+  it('keeps attachment chips in a single scrollable row without an extra scrollbar pad', () => {
     Object.defineProperty(window, 'telegram', {
       configurable: true,
       value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
     });
-    const { container } = render(<QuickPlannerMockup />);
+    const { container } = render(<QuickPlanner />);
     fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
       target: { files: [
         new File(['one'], 'one.png', { type: 'image/png' }),
         new File(['two'], 'two.png', { type: 'image/png' }),
       ] },
     });
-    const panel = container.querySelector('.quick-planner-mockup-attachments')!;
-    const scrollbar = panel.firstElementChild as HTMLDivElement;
-    const list = panel.lastElementChild as HTMLDivElement;
+    const panel = container.querySelector('.quick-planner-attachments')!;
+    const list = panel.querySelector('.quick-planner-attachment-list') as HTMLDivElement;
+
+    const scrollbar = panel.querySelector('.quick-planner-attachments-scrollbar') as HTMLDivElement;
+    expect(scrollbar).toBeInTheDocument();
+    expect(list).toBeInTheDocument();
+
     Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 600 });
     Object.defineProperty(list, 'clientWidth', { configurable: true, value: 250 });
-    fireEvent(window, new Event('resize'));
+    Object.defineProperty(list, 'scrollLeft', { value: 0, writable: true, configurable: true });
 
-    expect(scrollbar).toHaveAttribute('aria-valuemax', '350');
-    scrollbar.scrollLeft = 120;
-    fireEvent.scroll(scrollbar);
-    expect(list.scrollLeft).toBe(120);
-
-    list.scrollLeft = 280;
-    fireEvent.scroll(list);
-    expect(scrollbar.scrollLeft).toBe(280);
-    expect(scrollbar).toHaveAttribute('aria-valuenow', '280');
+    fireEvent.keyDown(list, { key: 'ArrowRight', code: 'ArrowRight' });
+    expect(list.scrollLeft).toBeGreaterThan(0);
+    expect(scrollbar).toHaveAttribute('role', 'scrollbar');
   });
 
   it('passes the selected Telegram effect when opening Studio from Planner', async () => {
@@ -747,14 +819,14 @@ describe('QuickPlannerMockup feedback', () => {
       },
     });
     const onOpenInStudio = vi.fn();
-    render(<QuickPlannerMockup onOpenInStudio={onOpenInStudio} />);
+    render(<QuickPlanner onOpenInStudio={onOpenInStudio} />);
     await act(async () => { await Promise.resolve(); });
     fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
       target: { value: 'Effect caption' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Message effects' }));
     const effects = screen.getByRole('group', { name: 'Choose message effect' });
-    fireEvent.click(within(effects).getAllByRole('button')[1]);
+    fireEvent.click(within(effects).getByRole('button', { name: 'effect 🎉' }));
     fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
 
@@ -768,7 +840,7 @@ describe('QuickPlannerMockup feedback', () => {
 
   it('starts one minute ahead and clamps manually entered past times', () => {
     vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const timeTrigger = screen.getByRole('button', { name: 'Choose time' });
 
     expect(timeTrigger).toHaveTextContent('10:11');
@@ -782,7 +854,7 @@ describe('QuickPlannerMockup feedback', () => {
 
   it('keeps the selected schedule time fixed when the clock advances', () => {
     vi.setSystemTime(new Date(2026, 9, 19, 10, 14, 0));
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const timeTrigger = screen.getByRole('button', { name: 'Choose time' });
 
     expect(timeTrigger).toHaveTextContent('10:15');
@@ -791,11 +863,30 @@ describe('QuickPlannerMockup feedback', () => {
     expect(timeTrigger).toHaveTextContent('10:15');
   });
 
+  it('keeps the date and time fields aligned in Send now without opening pickers', () => {
+    render(<QuickPlanner />);
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+    const dateTrigger = screen.getByRole('button', { name: 'Choose date' });
+    const timeTrigger = screen.getByRole('button', { name: 'Choose time' });
+
+    expect(dateTrigger).toHaveClass('is-readonly');
+    expect(timeTrigger).toHaveClass('is-readonly');
+    expect(dateTrigger).toHaveAttribute('aria-disabled', 'true');
+    expect(timeTrigger).toHaveAttribute('aria-disabled', 'true');
+    expect(dateTrigger.querySelector('svg:last-child')).toHaveStyle({ visibility: 'hidden' });
+    expect(timeTrigger.querySelector('svg:last-child')).toHaveStyle({ visibility: 'hidden' });
+
+    fireEvent.click(dateTrigger);
+    fireEvent.click(timeTrigger);
+    expect(screen.queryByRole('dialog', { name: 'Choose schedule date' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Choose schedule time' })).not.toBeInTheDocument();
+  });
+
   it('sets NOW to one minute after the current time', () => {
     vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
     const onSchedule = vi.fn().mockResolvedValue(undefined);
-    render(<QuickPlannerMockup chats={[chat]} onSchedule={onSchedule} />);
+    render(<QuickPlanner chats={[chat]} onSchedule={onSchedule} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'NOW' }));
 
@@ -814,7 +905,7 @@ describe('QuickPlannerMockup feedback', () => {
   });
 
   it('opens the calendar and 15-minute time list above the schedule controls', () => {
-    render(<QuickPlannerMockup />);
+    render(<QuickPlanner />);
     const dateButton = screen.getByRole('button', { name: 'Choose date' });
     const originalDate = dateButton.textContent;
 

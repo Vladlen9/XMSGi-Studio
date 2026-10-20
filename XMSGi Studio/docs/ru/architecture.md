@@ -138,14 +138,14 @@ XMSGi Studio — настольное приложение на **Electron**.
   выбор поверхности `productView: 'studio' | 'planner'` и composition хуков.
 - `src/appState.ts` — reducer для маршрута, выбранного аккаунта/чата,
   текущего действия, message session (текст, entities, вложения) и журнала операций.
-- `src/components/QuickPlannerMockup.tsx` — текущая страница Quick Planner.
+- `src/components/QuickPlanner.tsx` — текущая страница Quick Planner.
 - `src/AppShell.tsx` / `src/workspace/AppShell.tsx` — оболочка.
 - `src/pages/LoginPage.tsx` — авторизация и восстановление сессии.
 - `src/pages/SettingsPage.tsx` — настройки языка и Telegram аккаунта.
 - `src/components/SettingsView.tsx` — общие настройки приложения.
 - `src/hooks/` — `useTelegramAuth`, `useChats`, `useScheduler`,
   `useNotifications`.
-- `src/components/` — `QuickPlannerMockup`, `ChatPicker`,
+- `src/components/` — `QuickPlanner`, `ChatPicker`,
   `SettingsView`, `Notification`, `InlineKeyboardPreview` и др.
 - `src/workspace/` — общий shell и связь страниц: `StudioMount.tsx`,
   `HistoryDrawer.tsx` (единая история), `historyModel.ts`.
