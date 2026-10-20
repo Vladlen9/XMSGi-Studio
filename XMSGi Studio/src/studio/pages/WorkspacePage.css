@@ -6721,9 +6721,10 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
     z-index: 1;
     width: 360px;
     max-width: 360px;
-    max-height: 560px;
+    height: min(535px, max(0px, calc(100dvh - 172px)));
+    max-height: 535px;
     min-width: 360px;
-    min-height: min(430px, max(0px, calc(100dvh - 172px)));
+    min-height: min(535px, max(0px, calc(100dvh - 172px)));
     flex: 0 0 360px;
     transform: translateX(var(--workspace-page-preview-horizontal-offset, 0px));
   }
@@ -6742,7 +6743,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 
 @media (min-width: 600px) {
   .workspace-page-preview-panel {
-    height: min(560px, max(0px, calc(100dvh - 172px)));
+    height: min(535px, max(0px, calc(100dvh - 172px)));
   }
 
   .workspace-page-preview-shell {
@@ -9866,7 +9867,8 @@ html.electron-runtime .workspace-page-main {
   }
 
   html.electron-runtime .workspace-page .workspace-page-editor-shell {
-    max-height: 575px;
+    max-height: none;
+    margin-bottom: 0;
   }
 
   html.electron-runtime .workspace-page .workspace-page-preview-panel:not([data-collapsed='true']) {

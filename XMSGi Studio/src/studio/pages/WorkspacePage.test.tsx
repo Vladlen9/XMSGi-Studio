@@ -508,6 +508,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor \.workspace-page-rich-text-toolbar\.is-airy,\s*html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*min-height:\s*34px;\s*margin:\s*12px 0 0 auto;\s*transform:\s*translateY\(8px\);/);
     expect(workspacePageStyles).not.toMatch(/\.workspace-page-attachment-tray\.is-empty\s*\{[^}]*display:\s*none/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-preview-panel\s*\{[^}]*width:\s*278px;[^}]*min-width:\s*278px;[^}]*max-width:\s*278px;[^}]*flex:\s*0 0 278px;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*none;\s*margin-bottom:\s*0;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-chat-stage\.is-active\)\s*\{\s*height:\s*100%;\s*min-height:\s*0;\s*max-height:\s*calc\(100% - 25px\);\s*margin-bottom:\s*-20px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-chat-stage\.is-active \.workspace-page-chat-stage-main\s*\{\s*flex:\s*1 1 0%;\s*min-height:\s*0;\s*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-editor-canvas:has\(\.workspace-page-rich-text-schedule-stage\.is-active:is\(\.is-time-focus, \.is-repeat-focus\)\) \.workspace-page-form-row-body\s*\{/);
@@ -774,8 +775,13 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\)[\s\S]*?html\.electron-runtime \.workspace-page-main\s*\{[^}]*padding:\s*20px clamp\(10px, 1\.5vw, 16px\) 20px;/);
     expect(workspacePageStyles).toMatch(/@media \(min-width: 1101px\)[\s\S]*?html\.electron-runtime \.workspace-page-main\s*\{\s*padding-top:\s*32px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-panel\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
-    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*575px;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*none;\s*margin-bottom:\s*0;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-preview-panel:not\(\[data-collapsed='true'\]\)\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
+  });
+
+  it('aligns Studio editor and live preview heights on desktop', () => {
+    expect(workspacePageStyles).toContain('height: min(535px, calc(100dvh - 172px));');
+    expect(workspacePageStyles).toContain('height: min(535px, max(0px, calc(100dvh - 172px)));');
   });
 
   it('registers the existing draft editor for History Drawer draft actions', async () => {
