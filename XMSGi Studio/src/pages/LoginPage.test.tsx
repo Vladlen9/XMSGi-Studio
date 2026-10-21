@@ -8,8 +8,6 @@ import { LoginPage } from './LoginPage';
 function renderLogin(overrides: Partial<ComponentProps<typeof LoginPage>> = {}) {
   const props: ComponentProps<typeof LoginPage> = {
     connecting: false,
-    notification: { visible: false, message: '', type: 'info', title: '' },
-    closeNotification: vi.fn(),
     signedOut: false,
     returningUserName: '',
     returningUserUsername: '',
@@ -63,6 +61,15 @@ describe('LoginPage', () => {
     expect(props.setAuthError).toHaveBeenCalledWith('');
   });
 
+  it('provides a localized tooltip hint for the sign-in divider button', () => {
+    const { container } = renderLogin();
+    const divider = container.querySelector('.login-divider');
+
+    expect(divider).toHaveAttribute('aria-label', 'Sign in');
+    expect(divider).toHaveAttribute('data-tooltip', 'Sign in');
+    expect(divider?.querySelector('.login-button-tooltip')).toHaveTextContent('Sign in');
+  });
+
   it('adds the international prefix when phone entry starts with digits', () => {
     const { props } = renderLogin();
 
@@ -93,7 +100,7 @@ describe('LoginPage', () => {
     expect(container.querySelector('.login-error')).not.toBeInTheDocument();
   });
 
-  it('keeps auth errors inside the expandable form above the fields', () => {
+  it('keeps auth errors in the shared message slot above the form', () => {
     const { container } = renderLogin({ showAuthForm: true, authError: 'Check the phone number.' });
 
     const status = container.querySelector('.login-error');
@@ -101,8 +108,147 @@ describe('LoginPage', () => {
     const slot = container.querySelector('.login-error-slot');
 
     expect(status).toHaveTextContent('Check the phone number.');
-    expect(form?.firstElementChild).toBe(slot);
-    expect(slot?.firstElementChild).toBe(status);
+    expect(slot?.nextElementSibling).toBe(form);
+    expect(slot?.classList.contains('has-message')).toBe(true);
+    expect(slot?.querySelector('.login-error-slot-content')?.firstElementChild).toBe(status);
+  });
+
+  it('shows the offline warning on the initial screen without opening the sign-in form', () => {
+    const { container } = renderLogin();
+
+    fireEvent(window, new Event('online'));
+    fireEvent(window, new Event('offline'));
+
+    expect(screen.getByRole('status')).toHaveTextContent('No internet connection');
+    expect(container.querySelector('.login-error-slot')).toContainElement(screen.getByRole('status'));
+    expect(container.querySelector('.login-form')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.login-divider')).toHaveAttribute('aria-expanded', 'false');
+    expect(container.querySelector('.auth-screen')).not.toHaveClass('is-auth-open');
+    expect(container.querySelector('.connection-spinner')).not.toBeInTheDocument();
+  });
+
+  it('shows offline status in the shared message slot after opening sign-in', () => {
+    const { container } = renderLogin({ showAuthForm: true });
+
+    fireEvent(window, new Event('offline'));
+
+    expect(screen.getByRole('status')).toHaveTextContent('No internet connection');
+    expect(container.querySelector('.login-error-slot')).toContainElement(screen.getByRole('status'));
+    expect(container.querySelector('.connection-spinner')).not.toBeInTheDocument();
+  });
+
+  it('shows a taller status card with a circular spinner while checking the connection', () => {
+    const { container } = renderLogin({ connecting: true });
+    const spinner = container.querySelector('.connection-spinner');
+    const card = container.querySelector('.connection-status-card');
+    const ring = spinner?.querySelector('.connection-spinner-ring');
+
+    expect(spinner).toHaveAttribute('role', 'status');
+    expect(card).toHaveTextContent('Checking your connection…');
+    expect(ring).toHaveAttribute('aria-hidden', 'true');
+    expect(ring).toHaveClass('connection-spinner-ring');
+    expect(ring).not.toHaveClass('is-square');
+    expect(ring?.children).toHaveLength(0);
+    expect(ring?.querySelector('.connection-spinner-core')).not.toBeInTheDocument();
+    expect(spinner?.querySelector('.connection-spinner-inline')).not.toBeInTheDocument();
+  });
+
+  it('aligns the open phone input with the center of the Studio wordmark', () => {
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('login-wordmark-bottom')) return new DOMRect(0, 180, 100, 40);
+      if (this.id === 'login-phone') return new DOMRect(0, 280, 200, 55);
+      return new DOMRect(0, 0, 0, 0);
+    });
+
+    try {
+      const { container } = renderLogin({ showAuthForm: true });
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: -107.5px');
+    } finally {
+      bounds.mockRestore();
+    }
+  });
+
+  it('keeps the first auth field aligned with Studio through code and password steps', () => {
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('login-wordmark-bottom')) return new DOMRect(0, 180, 100, 40);
+      if (this.id === 'login-code' || this.id === 'login-password') return new DOMRect(0, 280, 200, 55);
+      return new DOMRect(0, 0, 0, 0);
+    });
+
+    try {
+      const { container, rerender } = renderLogin({ showAuthForm: true, authStep: 'code' });
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: -107.5px');
+
+      rerender(<LocaleProvider><LoginPage {...renderLoginProps({ showAuthForm: true, authStep: 'password' })} /></LocaleProvider>);
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: -107.5px');
+    } finally {
+      bounds.mockRestore();
+    }
+  });
+
+  it('anchors short and medium errors together while keeping tall errors higher', () => {
+    const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.classList.contains('login-layout')) return new DOMRect(0, 200, 700, 355);
+      if (this.classList.contains('login-wordmark-bottom')) return new DOMRect(0, 180, 100, 40);
+      if (this.classList.contains('login-error')) {
+        const text = this.textContent ?? '';
+        const isShortError = text.includes('Untrusted renderer');
+        const isTallError = text.includes('authorization server');
+        return new DOMRect(0, isShortError ? 300 : isTallError ? 200 : 240, 300, isShortError ? 43 : isTallError ? 180 : 63);
+      }
+      if (this.classList.contains('login-error-slot')) {
+        const text = this.textContent ?? '';
+        const isShortError = text.includes('Untrusted renderer');
+        const isTallError = text.includes('authorization server');
+        return new DOMRect(0, isShortError ? 300 : isTallError ? 200 : 240, 300, isShortError ? 43 : isTallError ? 180 : 63);
+      }
+      if (this.id === 'login-phone' || this.id === 'login-password') return new DOMRect(0, 280, 200, 55);
+      return new DOMRect(0, 0, 0, 0);
+    });
+
+    try {
+      const { container, rerender } = renderLogin({
+        showAuthForm: true,
+        authStep: 'phone',
+        authError: 'Error invoking remote method: Untrusted renderer.',
+      });
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: -60px');
+
+      rerender(<LocaleProvider><LoginPage {...renderLoginProps({
+        showAuthForm: true,
+        authStep: 'password',
+        authError: 'The two-step verification password is incorrect. Try again.',
+      })} /></LocaleProvider>);
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: 0px');
+
+      rerender(<LocaleProvider><LoginPage {...renderLoginProps({
+        showAuthForm: true,
+        authStep: 'phone',
+        authError: 'Telegram authorization server returned an unexpected response.',
+      })} /></LocaleProvider>);
+
+      expect(container.querySelector('.login-panel'))
+        .toHaveStyle('--login-panel-offset: -20px');
+    } finally {
+      bounds.mockRestore();
+    }
+  });
+
+  it('shows the Studio message while returning to a saved account', () => {
+    renderLogin({ connecting: true, openingStudio: true });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Opening Studio…');
+    expect(screen.queryByText('Checking your connection…')).not.toBeInTheDocument();
   });
 
   it('closes the form when Continue is clicked a second time', () => {
@@ -137,16 +283,17 @@ describe('LoginPage', () => {
     expect(telegramButton).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('shows code and two-factor fields for their respective auth steps', () => {
+  it('replaces the code field with the two-factor password in the same slot', () => {
     const { rerender } = renderLogin({ showAuthForm: true, authStep: 'code' });
 
     expect(screen.getByLabelText('Login code')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Two-step password')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Two-step verification password')).not.toBeInTheDocument();
 
     rerender(<LocaleProvider><LoginPage {...renderLoginProps({ showAuthForm: true, authStep: 'password' })} /></LocaleProvider>);
 
-    expect(screen.getByLabelText('Login code')).toBeInTheDocument();
-    expect(screen.getByLabelText('Two-step password')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Login code')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Two-step verification password')).toBeInTheDocument();
+    expect(document.querySelectorAll('.login-field')).toHaveLength(1);
   });
 
   it('offers one-click return for a saved account after sign-out', () => {
@@ -156,7 +303,7 @@ describe('LoginPage', () => {
     });
 
     expect(screen.getByText('WELCOME BACK,')).toBeInTheDocument();
-    const returnButton = screen.getByRole('button', { name: 'Return to app as Alex Example' });
+    const returnButton = screen.getByRole('button', { name: 'Continue as Alex Example' });
     expect(returnButton).toHaveTextContent('Alex Example');
     expect(screen.queryByRole('button', { name: 'Continue with Telegram' })).not.toBeInTheDocument();
 
@@ -165,25 +312,37 @@ describe('LoginPage', () => {
   });
 
   it('opens phone sign-in from the saved-account screen', () => {
-    const { container, props } = renderLogin({ signedOut: true, returningUserName: 'Alex Example' });
+    const { container, props } = renderLogin({ signedOut: true, returningUserName: 'Alex Example', phoneNumber: '+14155550123' });
     const method = container.querySelector('.login-method');
-    const startOver = screen.getByRole('button', { name: 'Start over with another phone' });
+    const messageSlot = container.querySelector('.login-error-slot');
+    const startOver = screen.getByRole('button', { name: 'Use a different phone number' });
 
-    expect(method?.nextElementSibling).toBe(startOver);
+    expect(method?.nextElementSibling).toBe(messageSlot);
+    expect(messageSlot?.nextElementSibling).toBe(startOver);
 
     fireEvent.click(startOver);
 
     expect(props.setShowAuthForm).toHaveBeenCalledWith(true);
     expect(props.setAuthStep).toHaveBeenCalledWith('phone');
+    expect(props.setPhoneNumber).toHaveBeenCalledWith('');
     expect(props.setAuthError).toHaveBeenCalledWith('');
+  });
+
+  it('clears the previous phone number when restarting from code entry', () => {
+    const { container, props } = renderLogin({ showAuthForm: true, authStep: 'code', phoneNumber: '+14155550123' });
+
+    fireEvent.click(container.querySelector('.login-back-button')!);
+
+    expect(props.setAuthStep).toHaveBeenCalledWith('phone');
+    expect(props.setPhoneNumber).toHaveBeenCalledWith('');
+    expect(props.setPhoneCode).toHaveBeenCalledWith('');
+    expect(props.setTwoFactorPassword).toHaveBeenCalledWith('');
   });
 });
 
 function renderLoginProps(overrides: Partial<ComponentProps<typeof LoginPage>>): ComponentProps<typeof LoginPage> {
   return {
     connecting: false,
-    notification: { visible: false, message: '', type: 'info', title: '' },
-    closeNotification: vi.fn(),
     signedOut: false,
     returningUserName: '',
     returningUserUsername: '',

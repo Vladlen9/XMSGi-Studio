@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { Chat, NotificationType } from '@/types';
+import type { Chat } from '@/types';
 import { savePersistentChats } from '@/lib/storage';
 import { useLocale, type TranslationKey } from '@/lib/i18n';
 import {
@@ -17,7 +17,6 @@ import {
 } from '../services/telegramAppService';
 
 export type TelegramAuthOptions = {
-  showNotification: (message: string, type: NotificationType, title: string) => void;
   setIsSettingsOpen: Dispatch<SetStateAction<boolean>>;
   setChats: Dispatch<SetStateAction<Chat[]>>;
   setSelectedChat: Dispatch<SetStateAction<Chat | null>>;
@@ -48,7 +47,9 @@ function getFriendlyAuthError(error: string): TranslationKey {
   if (/PHONE_NUMBER_FLOOD|PHONE_PASSWORD_FLOOD|FLOOD_WAIT|too many attempts/i.test(error)) {
     return 'auth.tooManyAttempts';
   }
-  if (/NETWORK|TIMEOUT|ECONN|CONNECTION/i.test(error)) return 'auth.networkSignInError';
+  if (/NETWORK|TIME.?OUT|ECONN|CONNECTION|FAILED TO FETCH|ERR_INTERNET|ERR_NETWORK|ENOTFOUND|EAI_AGAIN|SOCKET/i.test(error)) {
+    return 'auth.networkSignInError';
+  }
   return 'auth.genericSignInError';
 }
 
@@ -71,7 +72,6 @@ type TelegramRateLimitApiResult = {
 };
 
 export function useTelegramAuth({
-  showNotification,
   setIsSettingsOpen,
   setChats,
   setSelectedChat,
@@ -261,7 +261,6 @@ export function useTelegramAuth({
     setAuthError('');
     const reportRestoreError = (message: string) => {
       setAuthError(message);
-      showNotification(message, 'error', t('common.error'));
     };
 
     try {
@@ -296,7 +295,7 @@ export function useTelegramAuth({
       setConnecting(false);
       setAuthBusy(false);
     }
-  }, [authBusy, returningUserName, returningUserUsername, setAuthError, showNotification, t]);
+  }, [authBusy, returningUserName, returningUserUsername, setAuthError, t]);
 
   const handleForgetAccount = useCallback(async () => {
     if (authBusy) return;
@@ -375,20 +374,16 @@ export function useTelegramAuth({
             }
           });
         })
-        .catch((error) => {
+        .catch(() => {
           setConnecting(false);
           setConnected(false);
           setConnectionResolved(true);
-          setAuthError(
-            error instanceof Error
-              ? error.message
-              : t('auth.readConnectionFailed')
-          );
+          setLocalizedAuthError('auth.readStateFailed');
         });
     };
 
     loadAuth();
-  }, [setAuthError, t]);
+  }, [setAuthError, setLocalizedAuthError, t]);
 
   useEffect(() => {
     if (!hasTelegramBridge()) return;

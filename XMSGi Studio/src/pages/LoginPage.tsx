@@ -1,7 +1,5 @@
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
-import { useLayoutEffect, useRef } from 'react';
-import { Notification } from '@/components/Notification';
-import type { NotificationState } from '@/types';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocale } from '@/lib/i18n';
 import './LoginPage.css';
 
@@ -9,8 +7,7 @@ type AuthStep = 'phone' | 'code' | 'password';
 
 type LoginPageProps = {
   connecting: boolean;
-  notification: NotificationState;
-  closeNotification: () => void;
+  openingStudio?: boolean;
   signedOut: boolean;
   returningUserName: string;
   returningUserUsername: string;
@@ -33,8 +30,7 @@ type LoginPageProps = {
 
 export function LoginPage({
   connecting,
-  notification,
-  closeNotification,
+  openingStudio = false,
   signedOut,
   returningUserName,
   returningUserUsername,
@@ -55,34 +51,106 @@ export function LoginPage({
   handleWelcomeBack,
 }: LoginPageProps) {
   const { locale, setLocale, t } = useLocale();
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const returningUserLabel = returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'));
   const returningUserActionLabel = t('auth.returnToApp', { name: returningUserLabel });
+  const loginLayoutRef = useRef<HTMLElement>(null);
   const loginFormRef = useRef<HTMLFormElement>(null);
+  const loginStudioRef = useRef<HTMLSpanElement>(null);
+  const loginPanelRef = useRef<HTMLElement>(null);
+  const loginErrorSlotRef = useRef<HTMLDivElement>(null);
+  const loginPhoneRef = useRef<HTMLInputElement>(null);
+  const loginCodeRef = useRef<HTMLInputElement>(null);
+  const loginPasswordRef = useRef<HTMLInputElement>(null);
+  const isConnectionWarning = !authError && !isOnline;
+  const visibleAuthMessage = authError || (isConnectionWarning ? t('auth.noInternet') : '');
+
+  useEffect(() => {
+    const updateOnlineState = (event: Event) => setIsOnline(event.type !== 'offline');
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    return () => {
+      window.removeEventListener('online', updateOnlineState);
+      window.removeEventListener('offline', updateOnlineState);
+    };
+  }, []);
 
   useLayoutEffect(() => {
+    const layout = loginLayoutRef.current;
     const form = loginFormRef.current;
-    if (!form) return;
+    const studio = loginStudioRef.current;
+    const panel = loginPanelRef.current;
+    const errorSlot = loginErrorSlotRef.current;
+    const phoneInput = loginPhoneRef.current;
+    const codeInput = loginCodeRef.current;
+    const passwordInput = loginPasswordRef.current;
+    if (!layout || !form || !studio || !panel) return;
 
     if (showAuthForm) {
       form.style.setProperty('--login-form-open-height', `${form.scrollHeight}px`);
     } else {
       form.style.removeProperty('--login-form-open-height');
     }
-  }, [authError, authStep, locale, showAuthForm]);
+
+    const syncPanelTop = () => {
+      const layoutTop = layout.getBoundingClientRect().top;
+      const appliedTop = Number.parseFloat(getComputedStyle(panel).top) || 0;
+      const studioRect = studio.getBoundingClientRect();
+
+      if (showAuthForm && visibleAuthMessage && errorSlot && window.innerWidth >= 461) {
+        const errorMessage = errorSlot.querySelector<HTMLElement>('.login-error');
+        if (!errorMessage) return;
+        const messageRect = errorMessage.getBoundingClientRect();
+        const messageHeight = messageRect.height;
+        const errorAnchorOffset = messageHeight <= 100 ? 40 : -20;
+        const errorAnchorTop = layoutTop + errorAnchorOffset;
+        panel.style.setProperty('--login-panel-offset', `${appliedTop + errorAnchorTop - messageRect.top}px`);
+        return;
+      }
+
+      const firstAuthInput = authStep === 'phone'
+        ? phoneInput
+        : authStep === 'code'
+          ? codeInput
+          : passwordInput;
+      if (showAuthForm && firstAuthInput && window.innerWidth >= 461) {
+        const inputRect = firstAuthInput.getBoundingClientRect();
+        const studioCenter = studioRect.top + studioRect.height / 2;
+        const inputCenter = inputRect.top + inputRect.height / 2;
+        panel.style.setProperty('--login-panel-offset', `${appliedTop + studioCenter - inputCenter}px`);
+        return;
+      }
+
+      const panelFlowTop = panel.offsetTop - appliedTop;
+      panel.style.setProperty('--login-panel-offset', `${studioRect.top - layoutTop - panelFlowTop}px`);
+    };
+    syncPanelTop();
+    const resizeObserver = new ResizeObserver(syncPanelTop);
+    resizeObserver.observe(studio);
+    if (visibleAuthMessage && errorSlot) {
+      resizeObserver.observe(errorSlot);
+    }
+    if (showAuthForm && authStep === 'phone') {
+      resizeObserver.observe(panel);
+    }
+    window.addEventListener('resize', syncPanelTop);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', syncPanelTop);
+    };
+  }, [authError, authStep, locale, showAuthForm, visibleAuthMessage]);
 
   return (
     <>
-      <div className={`connection-spinner ${connecting ? 'show' : ''}`}>
-        <div className="connection-spinner-ring" />
-      </div>
-
-      <Notification
-        message={notification.message}
-        type={notification.type}
-        title={notification.title}
-        visible={notification.visible}
-        onClose={closeNotification}
-      />
+      {connecting && isOnline && (
+        <div className="connection-spinner show" role="status" aria-live="polite">
+          <div className="connection-status-card">
+            <div className="connection-spinner-ring" aria-hidden="true" />
+            <span>{t(openingStudio ? 'auth.openingStudio' : 'auth.checkingConnection')}</span>
+          </div>
+        </div>
+      )}
 
       <div className="app">
         <section className={`auth-panel auth-screen ${showAuthForm ? 'is-auth-open' : ''}`} lang={locale}>
@@ -95,14 +163,14 @@ export function LoginPage({
               RU
             </button>
           </div>
-          <main className="login-layout">
+          <main className="login-layout" ref={loginLayoutRef}>
             <section className="login-brand" aria-label="MSGi Studio">
               <h1 className="login-wordmark">
                 <span className="login-wordmark-top">
                   <span className="login-mark" aria-hidden="true" />
                   <span>{t('auth.loginHeroMain')}</span>
                 </span>
-                <span className="login-wordmark-bottom">{t('auth.loginHeroSub')}</span>
+                <span className="login-wordmark-bottom" ref={loginStudioRef}>{t('auth.loginHeroSub')}</span>
               </h1>
               <p className="login-tagline">
                 <span>{t('auth.loginHeroTagline')}</span>
@@ -116,15 +184,22 @@ export function LoginPage({
               aria-label={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
               aria-expanded={showAuthForm}
               aria-controls="telegram-login-form"
-              title={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+              data-tooltip={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
               onClick={() => {
                 setShowAuthForm((current) => !current);
                 setAuthStep('phone');
+                setPhoneNumber('');
+                setPhoneCode('');
+                setTwoFactorPassword('');
                 setAuthError('');
               }}
-            />
+            >
+              <span className="login-button-tooltip" aria-hidden="true">
+                {showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+              </span>
+            </button>
 
-            <section className="login-panel" aria-label={t('hero.signInIntro')}>
+            <section className="login-panel" ref={loginPanelRef} aria-label={t('hero.signInIntro')}>
               <div className={`login-method ${signedOut ? 'is-returning' : ''}`}>
                 {signedOut ? (
                   <div className="login-returning-user">
@@ -135,10 +210,11 @@ export function LoginPage({
                       onClick={handleWelcomeBack}
                       disabled={authBusy}
                       aria-label={returningUserActionLabel}
-                      title={returningUserActionLabel}
+                      data-tooltip={returningUserActionLabel}
                     >
                       <span>{returningUserLabel}</span>
                       <ArrowUpRight size={18} aria-hidden="true" />
+                      <span className="login-button-tooltip" aria-hidden="true">{returningUserActionLabel}</span>
                     </button>
                   </div>
                 ) : (
@@ -174,6 +250,17 @@ export function LoginPage({
                 )}
               </div>
 
+              <div ref={loginErrorSlotRef} className={`login-error-slot${visibleAuthMessage ? ' has-message' : ''}`} aria-live="polite">
+                <div className="login-error-slot-content">
+                  {visibleAuthMessage && (
+                    <p className={`login-error${isConnectionWarning ? ' is-warning' : ''}`} role={isConnectionWarning ? 'status' : 'alert'}>
+                      {!isConnectionWarning && <span className="login-error-mark" aria-hidden="true">!</span>}
+                      <span>{visibleAuthMessage}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {signedOut && (
                 <button
                   type="button"
@@ -183,6 +270,9 @@ export function LoginPage({
                   onClick={() => {
                     setShowAuthForm(true);
                     setAuthStep('phone');
+                    setPhoneNumber('');
+                    setPhoneCode('');
+                    setTwoFactorPassword('');
                     setAuthError('');
                   }}
                   disabled={authBusy}
@@ -202,59 +292,43 @@ export function LoginPage({
                   void handleTelegramAuth();
                 }}
               >
-                <div className="login-error-slot" aria-live="polite">
-                  {authError && <p className="login-error" role="alert">{authError}</p>}
-                </div>
-
-                {authStep === 'phone' && (
-                  <div className="login-field">
-                    <label className="login-field-label" htmlFor="login-phone">{t('auth.phone')}</label>
-                    <input
-                      className="login-field-input"
-                      id="login-phone"
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(event) => {
+                <div
+                  key={authStep}
+                  className={`login-field${authStep !== 'phone' ? ' login-field-step-transition' : ''}`}
+                >
+                  <label className="login-field-label" htmlFor={`login-${authStep}`}>
+                    {authStep === 'phone'
+                      ? t('auth.phone')
+                      : authStep === 'code'
+                        ? t('auth.loginCode')
+                        : t('auth.twoFactorPassword')}
+                  </label>
+                  <input
+                    className="login-field-input"
+                    id={`login-${authStep}`}
+                    ref={authStep === 'phone' ? loginPhoneRef : authStep === 'code' ? loginCodeRef : loginPasswordRef}
+                    type={authStep === 'phone' ? 'tel' : authStep === 'password' ? 'password' : 'text'}
+                    value={authStep === 'phone' ? phoneNumber : authStep === 'code' ? phoneCode : twoFactorPassword}
+                    onChange={(event) => {
+                      if (authStep === 'phone') {
                         const nextPhoneNumber = event.target.value;
                         const addInternationalPrefix = phoneNumber.length === 0 && /^\d/.test(nextPhoneNumber);
                         setPhoneNumber(addInternationalPrefix ? `+${nextPhoneNumber}` : nextPhoneNumber);
-                      }}
-                      placeholder={t('auth.phonePlaceholder')}
-                      autoComplete="tel"
-                    />
-                  </div>
-                )}
-
-                {authStep !== 'phone' && (
-                  <div className="login-field">
-                    <label className="login-field-label" htmlFor="login-code">{t('auth.loginCode')}</label>
-                    <input
-                      className="login-field-input"
-                      id="login-code"
-                      type="text"
-                      value={phoneCode}
-                      onChange={(event) => setPhoneCode(event.target.value)}
-                      placeholder={t('auth.loginCodePlaceholder')}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                    />
-                  </div>
-                )}
-
-                {authStep === 'password' && (
-                  <div className="login-field">
-                    <label className="login-field-label" htmlFor="login-password">{t('auth.twoFactorPassword')}</label>
-                    <input
-                      className="login-field-input"
-                      id="login-password"
-                      type="password"
-                      value={twoFactorPassword}
-                      onChange={(event) => setTwoFactorPassword(event.target.value)}
-                      placeholder={t('auth.twoFactorPasswordPlaceholder')}
-                      autoComplete="current-password"
-                    />
-                  </div>
-                )}
+                      } else if (authStep === 'code') {
+                        setPhoneCode(event.target.value);
+                      } else {
+                        setTwoFactorPassword(event.target.value);
+                      }
+                    }}
+                    placeholder={authStep === 'phone'
+                      ? t('auth.phonePlaceholder')
+                      : authStep === 'code'
+                        ? t('auth.loginCodePlaceholder')
+                        : t('auth.twoFactorPasswordPlaceholder')}
+                    inputMode={authStep === 'code' ? 'numeric' : undefined}
+                    autoComplete={authStep === 'phone' ? 'tel' : authStep === 'code' ? 'one-time-code' : 'current-password'}
+                  />
+                </div>
 
                 <button
                   className="login-submit"
@@ -276,6 +350,7 @@ export function LoginPage({
                     className="login-back-button"
                     onClick={() => {
                       setAuthStep('phone');
+                      setPhoneNumber('');
                       setPhoneCode('');
                       setTwoFactorPassword('');
                       setAuthError('');

@@ -276,7 +276,6 @@ function App() {
     handleWelcomeBack,
     handleForgetAccount,
   } = useTelegramAuth({
-    showNotification,
     setIsSettingsOpen,
     setChats: (value) => {
       chatsApiRef.current?.setChats(value);
@@ -923,8 +922,7 @@ function App() {
             />
           ) : <LoginPage
             connecting={connecting}
-            notification={notification}
-            closeNotification={closeNotification}
+            openingStudio={welcomeBackInProgress}
             signedOut={signedOut}
             returningUserName={returningUserName}
             returningUserUsername={returningUserUsername}

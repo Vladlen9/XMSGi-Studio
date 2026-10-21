@@ -1,10 +1,10 @@
 .auth-panel.auth-screen {
-  --login-bg: #050505;
-  --login-gold: #c5bd91;
-  --login-gold-dim: #625d46;
-  --login-ink: #f2f2f2;
-  --login-muted: #b8b8b8;
-  --login-studio: #e0e0e0;
+  --login-bg: #f7f8fa;
+  --login-gold: #536f80;
+  --login-gold-dim: #b9c4cb;
+  --login-ink: #242a31;
+  --login-muted: #66727d;
+  --login-studio: #536875;
   position: relative;
   display: flex;
   min-height: 100vh;
@@ -40,6 +40,19 @@
   padding: 0 18px;
 }
 
+@media (min-width: 461px) {
+  .login-layout {
+    height: 355px;
+    min-height: 355px;
+    grid-template-rows: minmax(0, 1fr);
+    transition: none;
+  }
+
+  .login-brand {
+    position: static;
+  }
+}
+
 .login-wordmark {
   width: max-content;
   max-width: 100%;
@@ -65,7 +78,7 @@
   margin-top: 3px;
   color: var(--login-studio);
   font-size: calc(0.44em + 5px);
-  font-weight: 400;
+  font-weight: 800;
   letter-spacing: 0.29232em;
   text-align: left;
   text-transform: uppercase;
@@ -138,8 +151,8 @@
   z-index: 2;
   top: 19px;
   bottom: 21px;
-  left: 50%;
-  width: 1px;
+  left: calc(50% - 16px);
+  width: 32px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -148,7 +161,10 @@
 
 .login-divider::before {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
   background: var(--login-gold-dim);
   content: "";
   transform: scaleY(0.8);
@@ -166,12 +182,54 @@
   outline-offset: 7px;
 }
 
+.login-divider > .login-button-tooltip,
+.login-returning-account > .login-button-tooltip {
+  position: absolute;
+  z-index: 7;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 32px));
+  padding: 7px 10px;
+  border: 1px solid var(--login-gold-dim);
+  border-radius: 3px;
+  background: var(--login-ink);
+  color: var(--login-bg);
+  font: 500 11px/1.35 "Exo 2", "Orbitron", Arial, sans-serif;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 3px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  visibility: hidden;
+}
+
+.login-divider:hover > .login-button-tooltip,
+.login-divider:focus > .login-button-tooltip,
+.login-returning-account:hover > .login-button-tooltip,
+.login-returning-account:focus > .login-button-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+
 .login-panel {
   min-width: 0;
   align-self: center;
   padding: 0 0 0 20px;
   transform: translate(7px, 0);
-  transition: transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: top 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (min-width: 461px) {
+  .login-panel {
+    align-self: start;
+    position: relative;
+    top: var(--login-panel-offset, 0px);
+  }
 }
 
 .login-method {
@@ -209,6 +267,7 @@
 }
 
 .login-returning-account {
+  position: relative;
   display: flex;
   min-width: 0;
   width: 100%;
@@ -230,6 +289,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.login-returning-account > .login-button-tooltip {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .login-returning-account > svg {
@@ -321,18 +387,17 @@
 
 .login-form {
   max-height: 0;
-  margin-top: 0;
+  margin-top: 12px;
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
   transform: translateY(10px);
-  transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), max-height 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), margin-top 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0.7s;
+  transition: opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), max-height 0.7s cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0.7s;
   visibility: hidden;
 }
 
 .auth-screen.is-auth-open .login-form {
   max-height: var(--login-form-open-height, 760px);
-  margin-top: 12px;
   padding-bottom: 24px;
   opacity: 1;
   pointer-events: auto;
@@ -342,10 +407,6 @@
 
 .auth-screen.is-auth-open .login-layout {
   min-height: 355px;
-}
-
-.auth-screen.is-auth-open .login-method {
-  transform: translateY(18px);
 }
 
 .auth-screen.is-auth-open .login-panel {
@@ -396,15 +457,23 @@
   cursor: not-allowed;
 }
 
+.login-field-step-transition {
+  animation: loginAuthFieldSwap 0.24s ease-out both;
+}
+
 .login-error {
-  display: block;
+  display: flex;
   width: 100%;
   max-width: 100%;
+  align-items: flex-start;
+  gap: 9px;
   margin: 0;
-  padding: 10px 12px;
-  border-left: 2px solid #d17b70;
-  background: rgb(209 123 112 / 8%);
-  color: #f2c7c0;
+  padding: 11px 12px;
+  border: 1px solid #d17e76;
+  border-left: 3px solid #b83232;
+  border-radius: 3px;
+  background: #ffe0dc;
+  color: #621b18;
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -414,8 +483,78 @@
   overflow-wrap: anywhere;
 }
 
+.login-error-mark {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #b83232;
+  color: #fff;
+  font: 700 12px/1 "Segoe UI", sans-serif;
+}
+
+.login-error.is-warning {
+  border-color: #c28b1b;
+  border-left-color: #9c6800;
+  background: #fff0c2;
+  color: #583f08;
+}
+
+.login-error.is-warning .login-error-mark {
+  background: #9c6800;
+}
+
 .login-error-slot {
-  min-height: 64px;
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  transition: grid-template-rows 0.36s cubic-bezier(0.22, 0.61, 0.36, 1), margin-top 0.36s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease;
+}
+
+.login-error-slot.has-message {
+  grid-template-rows: 1fr;
+  margin-top: 12px;
+  opacity: 1;
+}
+
+.login-error-slot-content {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.22s ease, transform 0.36s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.login-error-slot.has-message .login-error-slot-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+html[data-theme='dark'] .login-error {
+  border-color: #7f4545;
+  border-left-color: #ff7777;
+  background: #351f22;
+  color: #ffe6e3;
+}
+
+html[data-theme='dark'] .login-error.is-warning {
+  border-color: #a9853d;
+  border-left-color: #e1b956;
+  background: #382d15;
+  color: #ffe9ad;
+}
+
+html[data-theme='dark'] .login-error.is-warning .login-error-mark {
+  background: #e1b956;
+  color: #251d0d;
+}
+
+html[data-theme='dark'] .login-error-mark {
+  background: #ff7777;
+  color: #251315;
 }
 
 .login-submit {
@@ -462,6 +601,7 @@
   color: var(--login-muted);
   font: inherit;
   font-size: 12px;
+  font-family: "Orbitron", Arial, sans-serif;
   cursor: pointer;
   transition: color 0.18s ease, transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
@@ -493,10 +633,6 @@
     gap: 5px;
     font-size: clamp(9.5px, 2.55vw, 13.2px);
     letter-spacing: 0.11em;
-  }
-
-  .auth-screen.is-auth-open .login-method {
-    transform: translateY(18px);
   }
 
   .login-method-action:first-child {
@@ -539,18 +675,25 @@
 
 @media (min-width: 681px) {
   .login-field-label[for="login-phone"],
-  #login-phone {
+  .login-field-label[for="login-code"],
+  .login-field-label[for="login-password"],
+  #login-phone,
+  #login-code,
+  #login-password {
     position: relative;
     top: 12px;
   }
 
-  #login-phone {
+  #login-phone,
+  #login-code,
+  #login-password {
     margin-bottom: 33px;
   }
 }
 
 @media (min-width: 461px) and (max-width: 680px) {
-  #login-phone {
+  #login-phone,
+  #login-code {
     margin-bottom: 8px;
   }
 }
@@ -586,10 +729,16 @@
     bottom: auto;
     left: 22px;
     width: auto;
-    height: 1px;
+    height: 32px;
   }
 
   .login-divider::before {
+    top: 50%;
+    right: 0;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 1px;
     transform: scaleX(0.8);
     transform-origin: center;
   }
@@ -607,7 +756,8 @@
     letter-spacing: 0.3px;
   }
 
-  #login-phone {
+  #login-phone,
+  #login-code {
     margin-bottom: 8px;
   }
 
@@ -622,6 +772,9 @@
   .login-panel,
   .login-method,
   .login-form,
+  .login-error-slot,
+  .login-error-slot-content,
+  .login-field-step-transition,
   .login-submit,
   .login-back-button {
     animation-duration: 0.01ms !important;
@@ -642,4 +795,9 @@
 @keyframes loginArrive {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loginAuthFieldSwap {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
