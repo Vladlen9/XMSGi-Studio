@@ -28,9 +28,7 @@ export const DEFAULT_EDITOR_APPEARANCE: EditorAppearancePreferences = {
 };
 
 const appearanceStyles: EditorAppearanceStyle[] = ['outline'];
-const appearancePalettes: EditorAppearancePalette[] = ['automatic', 'custom'];
 const appearanceModes: EditorAppearanceMode[] = ['send', 'schedule', 'draft'];
-const hexColorPattern = /^#[\da-f]{6}$/i;
 const legacyAppearanceStyles: Record<string, EditorAppearanceStyle> = {
   ambient: 'outline',
   monochrome: 'outline',
@@ -38,10 +36,6 @@ const legacyAppearanceStyles: Record<string, EditorAppearanceStyle> = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function normalizeColor(value: unknown, fallback: string) {
-  return typeof value === 'string' && hexColorPattern.test(value) ? value.toLowerCase() : fallback;
 }
 
 export function normalizeEditorAppearancePreferences(value: unknown): EditorAppearancePreferences {
@@ -52,21 +46,16 @@ export function normalizeEditorAppearancePreferences(value: unknown): EditorAppe
     };
   }
 
-  const storedColors = isRecord(value.modeColors) ? value.modeColors : {};
   const style = typeof value.style === 'string' && legacyAppearanceStyles[value.style as string]
     ? legacyAppearanceStyles[value.style as string]
     : appearanceStyles.includes(value.style as EditorAppearanceStyle)
       ? value.style as EditorAppearanceStyle
       : DEFAULT_EDITOR_APPEARANCE.style;
-  const palette = appearancePalettes.includes(value.palette as EditorAppearancePalette)
-    ? value.palette as EditorAppearancePalette
-    : DEFAULT_EDITOR_APPEARANCE.palette;
-
   return {
     style,
-    palette,
+    palette: DEFAULT_EDITOR_APPEARANCE.palette,
     modeColors: Object.fromEntries(appearanceModes.map((mode) => (
-      [mode, normalizeColor(storedColors[mode], DEFAULT_EDITOR_APPEARANCE.modeColors[mode])]
+      [mode, DEFAULT_EDITOR_APPEARANCE.modeColors[mode]]
     ))) as Record<EditorAppearanceMode, string>,
   };
 }
@@ -98,9 +87,7 @@ export function writeEditorAppearancePreferences(value: EditorAppearancePreferen
 }
 
 export function resolveEditorAppearanceColor(preferences: EditorAppearancePreferences, mode: EditorAppearanceMode) {
-  return preferences.palette === 'custom'
-    ? preferences.modeColors[mode]
-    : DEFAULT_EDITOR_APPEARANCE.modeColors[mode];
+  return DEFAULT_EDITOR_APPEARANCE.modeColors[mode];
 }
 
 export function getEditorAppearanceCssTokens(

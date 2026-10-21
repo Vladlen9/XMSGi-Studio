@@ -1158,9 +1158,9 @@ export function QuickPlanner({
                       style={{
                         '--planner-accent': plannerAccent,
                         '--planner-accent-rgb': plannerAccentRgb,
-                        '--planner-ink': '#eef5f7',
-                        '--planner-dim': '#657984',
-                        '--planner-line': 'rgba(142, 170, 184, 0.17)',
+                        '--planner-ink': 'var(--text)',
+                        '--planner-dim': 'var(--dim)',
+                        '--planner-line': 'var(--line)',
                       } as CSSProperties}
                       onCategoryChange={setEmojiCategoryId}
                       onSearchQueryChange={setEmojiSearchQuery}

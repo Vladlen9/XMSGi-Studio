@@ -2,6 +2,7 @@ import { memo, startTransition, useCallback, useDeferredValue, useEffect, useLay
 import { AlertTriangle, ChevronDown, ImagePlus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ChatAvatar } from '../components/ChatAvatar';
+import { useConfirm } from '@/components/useConfirm';
 import { ChatRemoveModal } from '../components/ChatRemoveModal';
 import { ChatPreviewStand, type ChatWallpaper } from '../components/ChatPreviewStand';
 import { DraftColorPicker } from '../components/DraftColorPicker';
@@ -373,12 +374,13 @@ function useTimedStatus(
   message: string,
   clearMessage: React.Dispatch<React.SetStateAction<string>>,
   duration: number,
+  persistent = false,
 ) {
   useEffect(() => {
-    if (!message) return;
+    if (!message || persistent) return;
     const timer = window.setTimeout(() => clearMessage(''), duration);
     return () => window.clearTimeout(timer);
-  }, [clearMessage, duration, message]);
+  }, [clearMessage, duration, message, persistent]);
 }
 
 type WorkspaceAttachment = DraftAttachment;
@@ -638,6 +640,7 @@ export function WorkspacePage({
   onRegisterHistoryRescheduleHandler,
 }: WorkspacePageProps) {
   const { locale, t } = useLocale();
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const albumFileInputRef = useRef<HTMLInputElement | null>(null);
   const albumAttachmentPositionRef = useRef(0);
@@ -1028,7 +1031,7 @@ export function WorkspacePage({
   useTimedStatus(attachmentError, setAttachmentError, FOOTER_STATUS_DURATION_MS.attachmentError);
   useTimedStatus(textFileError, setTextFileError, FOOTER_STATUS_DURATION_MS.textFileError);
   useTimedStatus(sendError, setSendError, FOOTER_STATUS_DURATION_MS.sendError);
-  useTimedStatus(draftStoreError, setDraftStoreError, FOOTER_STATUS_DURATION_MS.draftStoreError);
+  useTimedStatus(draftStoreError, setDraftStoreError, FOOTER_STATUS_DURATION_MS.draftStoreError, draftStoreBackups.length > 0);
   useTimedStatus(chatLookupError, setChatLookupError, FOOTER_STATUS_DURATION_MS.chatLookupError);
   useTimedStatus(previewHistoryError, setPreviewHistoryError, FOOTER_STATUS_DURATION_MS.previewHistoryError);
 
@@ -1791,8 +1794,13 @@ export function WorkspacePage({
     );
   };
 
-  const handleDeleteTemplate = (template: Template) => {
-    if (!window.confirm(t('studio.confirmDeleteTemplate', { name: template.name }))) return;
+  const handleDeleteTemplate = async (template: Template) => {
+    if (!await confirm({
+      message: t('studio.confirmDeleteTemplate', { name: template.name }),
+      confirmLabel: t('common.remove'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    })) return;
 
     setTemplates((current) => deleteTemplate(current, template.id));
     showPublishFeedback(t('studio.templateDeleted'), 'success');
@@ -1932,7 +1940,12 @@ export function WorkspacePage({
   };
 
   const handleDeleteDraft = async (draft: SavedDraft) => {
-    if (!window.confirm(t('studio.confirmDeleteDraft', { name: draft.name }))) return;
+    if (!await confirm({
+      message: t('studio.confirmDeleteDraft', { name: draft.name }),
+      confirmLabel: t('common.remove'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    })) return;
 
     const checkpoint = await recordWorkspaceVersion(savedDraftToWorkspaceSnapshot(draft), 'before-delete', false);
     if (!checkpoint.success) {
@@ -2340,7 +2353,11 @@ export function WorkspacePage({
     if (isRestoringVersion) return;
     const timestamp = new Date(version.createdAt).toLocaleString(locale === 'ru' ? 'ru-RU' : 'en-US');
     const confirmationKey = openCopy ? 'studio.openVersionCopyConfirm' : 'studio.restoreVersionConfirm';
-    if (!window.confirm(t(confirmationKey, { time: timestamp }))) return;
+    if (!await confirm({
+      message: t(confirmationKey, { time: timestamp }),
+      confirmLabel: openCopy ? t('studio.openVersionCopy') : t('common.apply'),
+      cancelLabel: t('common.cancel'),
+    })) return;
 
     setIsRestoringVersion(true);
     setVersionRestoreError('');
@@ -2741,7 +2758,12 @@ export function WorkspacePage({
         setTextFileError(t('studio.textImportLimit', { limit: maxDraftLength }));
         return;
       }
-      if (draftBody.length > 0 && result.text !== draftBody && !window.confirm(t('studio.confirmReplaceText'))) return;
+      if (draftBody.length > 0 && result.text !== draftBody && !await confirm({
+        message: t('studio.confirmReplaceText'),
+        confirmLabel: t('common.apply'),
+        cancelLabel: t('common.cancel'),
+        destructive: true,
+      })) return;
       if (result.text !== draftBody) {
         const checkpoint = await recordWorkspaceVersion(createWorkspaceDraftSnapshot(), 'before-replacement');
         if (!checkpoint.success) {

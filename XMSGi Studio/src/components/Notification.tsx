@@ -4,11 +4,17 @@ interface Props extends NotificationState {
   onClose: () => void;
 }
 import { useLocale } from '@/lib/i18n';
+import './Notification.css';
 
 export function Notification({ message, type, title, visible, onClose }: Props) {
   const { t } = useLocale();
   return (
-    <div className={`app-notification ${type} ${visible ? 'show' : ''}`}>
+    <div
+      className={`app-notification ${type} ${visible ? 'show' : ''} shell-notification`}
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+    >
       <div className="notification-icon">
         {type === 'error' ? '!' : type === 'warning' ? '!' : type === 'success' ? '✓' : 'i'}
       </div>

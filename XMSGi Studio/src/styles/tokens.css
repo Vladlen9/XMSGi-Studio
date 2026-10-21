@@ -1,13 +1,48 @@
 :root {
-  --void: #0a0b0d;
-  --ink: #111316;
-  --text: #e2e6eb;
-  --dim: #7a828c;
-  --faint: #3a4048;
-  --line: #1c2026;
-  --signal: #9aa8b8;
-  --ok: #6f9b7c;
+  color-scheme: light;
+  --void: #f7f8fa;
+  --ink: #ffffff;
+  --text: #242a31;
+  --dim: #737d88;
+  --faint: #aeb6bf;
+  --line: #e2e6ea;
+  --signal: #667887;
+  --ok: #43865b;
+  --danger: #b42318;
+  --surface-raised: #ffffff;
+  --surface-muted: #f0f2f4;
+  --surface-hover: #e9edf0;
+  --accent: #477c9e;
+  --accent-soft: #e7f0f5;
+  --shadow-soft: 0 8px 28px rgba(34, 47, 58, 0.08);
 
   --mono: "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono", monospace;
   --sans: "Century Gothic", "Trebuchet MS", sans-serif;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --void: #0d1115;
+  --ink: #151a1f;
+  --text: #e2e7eb;
+  --dim: #a5afb8;
+  --faint: #515c66;
+  --line: #2a3239;
+  --signal: #93a9b9;
+  --ok: #73ad83;
+  --danger: #ff938b;
+  --surface-raised: #171d22;
+  --surface-muted: #1e252b;
+  --surface-hover: #252e35;
+  --accent: #239dfb;
+  --accent-soft: #17364d;
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.32);
+}
+
+html.is-theme-transitioning,
+html.is-theme-transitioning body,
+html.is-theme-transitioning body :where(*) {
+  transition-property: color, background, border-color, outline-color, fill, stroke, box-shadow, text-decoration-color !important;
+  transition-duration: 380ms !important;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
 }

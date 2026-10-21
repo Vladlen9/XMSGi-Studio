@@ -24,6 +24,7 @@ import {
   uid,
 } from '@/lib/utils';
 import { useLocale } from '@/lib/i18n';
+import { useConfirm } from '@/components/useConfirm';
 import {
   cancelScheduledMessage,
   getScheduleIdentities,
@@ -106,6 +107,7 @@ export function useScheduler({
   refreshChatPermissions,
 }: UseSchedulerOptions) {
   const { t } = useLocale();
+  const confirm = useConfirm();
   const showValidationNotification = (message: string, type: NotificationType, title: string, code: string) => (
     showNotification(message, type, title, createBridgeValidationError(message, code))
   );
@@ -1561,7 +1563,12 @@ export function useScheduler({
   }
 
   async function handleDeleteMessage(msg: ScheduledMessage, skipConfirmation = false) {
-    if (!skipConfirmation && !window.confirm(t('schedule.confirmDelete'))) return;
+    if (!skipConfirmation && !await confirm({
+      message: t('schedule.confirmDelete'),
+      confirmLabel: t('common.remove'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    })) return;
 
     if (msg.status !== 'sent') {
       const updatedUpcoming = upcomingStateRef.current.filter((item) => item.id !== msg.id);

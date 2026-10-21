@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { CircleUserRound, LogOut, X } from 'lucide-react';
+import { Notification } from '@/components/Notification';
 import { useLocale } from '@/lib/i18n';
-import brandIcon from '@/studio/assets/logo.png';
+import type { NotificationState } from '@/types';
 import {
   persistPostsReturnView,
   readPostsReturnView,
@@ -42,6 +43,8 @@ type AppShellProps = PropsWithChildren<{
   onViewChange: (view: ProductView) => void;
   settingsOpen?: boolean;
   onCloseSettings?: () => void;
+  notification?: NotificationState;
+  closeNotification?: () => void;
   browserDraftMode?: boolean;
   connected: boolean;
   headerPending?: boolean;
@@ -70,7 +73,8 @@ export function AppShell({
   onViewChange,
   settingsOpen = false,
   onCloseSettings,
-  browserDraftMode = false,
+  notification,
+  closeNotification,
   connected,
   headerPending = false,
   authBusy,
@@ -186,10 +190,6 @@ export function AppShell({
       )}
       {connected && (
         <header className={`topbar${settingsOpen ? ' settings-topbar' : ''}`}>
-          <div className="topbar-identity">
-            <span className="brand" aria-label="XMSGi"><img className="brand-mark" src={brandIcon} alt="" /><span>XMSGi</span></span>
-          </div>
-
           {!settingsOpen && (
             <button
               type="button"
@@ -294,6 +294,7 @@ export function AppShell({
           className="topbar-logout-modal-backdrop"
           onClick={() => {
             if (!authBusy) {
+              setShowAuthForm(false);
               setIsConfirmingLogout(false);
             }
           }}
@@ -308,7 +309,10 @@ export function AppShell({
             <button
               type="button"
               className="topbar-logout-modal-close"
-              onClick={() => setIsConfirmingLogout(false)}
+              onClick={() => {
+                setShowAuthForm(false);
+                setIsConfirmingLogout(false);
+              }}
               disabled={authBusy}
               aria-label={t('common.close')}
             >
@@ -324,15 +328,23 @@ export function AppShell({
                 <button
                   type="button"
                   className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
-                  onClick={handleForgetAccount}
+                  onClick={async () => {
+                    setShowAuthForm(false);
+                    setIsConfirmingLogout(false);
+                    await handleForgetAccount();
+                  }}
                   disabled={authBusy}
                 >
                   {t('auth.forgetMe')}
                 </button>
                 <button
                   type="button"
-                  className="topbar-logout-modal-action topbar-logout-modal-action--confirm"
-                  onClick={handleDisconnect}
+                  className="topbar-logout-modal-action topbar-logout-modal-action--cancel"
+                  onClick={async () => {
+                    setShowAuthForm(false);
+                    setIsConfirmingLogout(false);
+                    await handleDisconnect();
+                  }}
                   disabled={authBusy}
                 >
                   {t('auth.rememberMe')}
@@ -341,6 +353,15 @@ export function AppShell({
             </div>
           </div>
         </div>
+      )}
+      {notification && closeNotification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          title={notification.title}
+          visible={notification.visible}
+          onClose={closeNotification}
+        />
       )}
     </div>
   );

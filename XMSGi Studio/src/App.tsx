@@ -11,6 +11,7 @@ import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
 import { QuickPlanner } from './components/QuickPlanner';
+import { ConfirmDialogProvider } from './components/ConfirmDialog';
 import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
@@ -52,7 +53,7 @@ function getCurrentHashPath(): AppRoute {
   return '/';
 }
 
-function App() {
+function AppContent() {
   const browserDraftMode = !isDesktopTelegramRuntime();
   const [, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -824,6 +825,8 @@ function App() {
       }}
       settingsOpen={route === '/settings'}
       onCloseSettings={closeSettings}
+      notification={connected ? notification : undefined}
+      closeNotification={closeNotification}
       connected={connected && !signedOut}
       headerPending={connecting || !connectionResolved}
       authBusy={authBusy}
@@ -945,6 +948,14 @@ function App() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function App() {
+  return (
+    <ConfirmDialogProvider>
+      <AppContent />
+    </ConfirmDialogProvider>
   );
 }
 

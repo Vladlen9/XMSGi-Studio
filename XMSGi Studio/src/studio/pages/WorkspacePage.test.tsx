@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { readInitialWorkspaceDraft, type WorkspaceDraft } from '../lib/draftStore';
 import { EDITOR_APPEARANCE_STORAGE_KEY, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { LocaleProvider } from '@studio/lib/i18n';
+import { ConfirmDialogProvider } from '@/components/ConfirmDialog';
 import { hasDraftContent, normalizeAttachments, readWorkspaceDraftStoreFallback, remapAttachmentPositions, WorkspacePage, writeWorkspaceDraftStoreFallback } from './WorkspacePage';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -110,7 +111,7 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
     publishingDraft: false,
   };
 
-  const view = render(<LocaleProvider><WorkspacePage {...defaults} {...overrides} /></LocaleProvider>);
+  const view = render(<LocaleProvider><ConfirmDialogProvider><WorkspacePage {...defaults} {...overrides} /></ConfirmDialogProvider></LocaleProvider>);
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
@@ -119,7 +120,7 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
 
   return {
     rerender: (nextOverrides: Partial<React.ComponentProps<typeof WorkspacePage>> = {}) => act(() => {
-      view.rerender(<LocaleProvider><WorkspacePage {...defaults} {...overrides} {...nextOverrides} /></LocaleProvider>);
+      view.rerender(<LocaleProvider><ConfirmDialogProvider><WorkspacePage {...defaults} {...overrides} {...nextOverrides} /></ConfirmDialogProvider></LocaleProvider>);
     }),
     unmount: view.unmount,
   };
@@ -501,11 +502,12 @@ describe('WorkspacePage main-screen flows', () => {
     const outlineBaseRule = workspacePageStyles.match(/\.workspace-page-editor-shell\[data-editor-appearance='outline'\]\s*\{([^}]*)\}/)?.[1] ?? '';
     const outlineAfterRule = workspacePageStyles.match(/\.workspace-page-editor-shell\[data-editor-appearance='outline'\]::after\s*\{([^}]*)\}/)?.[1] ?? '';
     const toolbarRule = workspacePageStyles.match(/\.workspace-page-rich-text-toolbar\s*\{([^}]*)\}/)?.[1] ?? '';
+    const lightEditorInputRule = workspacePageStyles.match(/\.workspace-page \.workspace-page-rich-text-input\s*\{([^}]*)\}/)?.[1] ?? '';
 
     expect(editor.classList.contains('is-toolbar-active')).toBe(false);
-    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.34\)/);
-    expect(baseShellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\),\s*0\.05\)/);
-    expect(baseShellRule).toMatch(/0 10px 22px rgba\(0, 0, 0, 0\.12\)/);
+    expect(baseShellRule).toMatch(/border:\s*1px solid rgba\(112, 130, 143, 0\.24\)/);
+    expect(baseShellRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\),\s*0\.04\)/);
+    expect(baseShellRule).toMatch(/0 10px 28px rgba\(34, 47, 58, 0\.08\)/);
     expect(shellAfterRule).toMatch(/opacity:\s*1/);
     expect(shellAfterRule).toMatch(/border:\s*1px solid rgba\(var\(--editor-outline\),\s*0\.38\)/);
     expect(outlineBaseRule).toMatch(/border-color:\s*rgba\(var\(--editor-outline\),\s*0\.34\)/);
@@ -515,6 +517,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(toolbarRule).toMatch(/opacity:\s*1/);
     expect(toolbarRule).toMatch(/visibility:\s*visible/);
     expect(toolbarRule).toMatch(/transform:\s*none/);
+    expect(lightEditorInputRule).toMatch(/background:\s*#f7f8fa !important/);
+    expect(lightEditorInputRule).toMatch(/border:\s*1px solid #e5e9ec/);
     expect(workspacePageStyles).toMatch(/workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-input\s*\{[^}]*margin-bottom:\s*8px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor,\s*html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active\s*\{\s*padding-bottom:\s*12px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-input\s*\{\s*flex:\s*1 1 auto;\s*margin-bottom:\s*8px;/);
@@ -525,7 +529,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-chat-stage\.is-active\)\s*\{\s*height:\s*100%;\s*min-height:\s*0;\s*max-height:\s*calc\(100% - 25px\);\s*margin-bottom:\s*-20px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-chat-stage\.is-active \.workspace-page-chat-stage-main\s*\{\s*flex:\s*1 1 0%;\s*min-height:\s*0;\s*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-editor-canvas:has\(\.workspace-page-rich-text-schedule-stage\.is-active:is\(\.is-time-focus, \.is-repeat-focus\)\) \.workspace-page-form-row-body\s*\{/);
-    expect(workspacePageStyles).toMatch(/\.workspace-page-editor-shell:has\(\.workspace-page-rich-text-schedule-stage\.is-active\)\s*\{\s*width:\s*min\(100%, 760px\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-editor-shell:has\(\.workspace-page-rich-text-schedule-stage\.is-active\)\s*\{\s*width:\s*min\(100%, 815px\);/);
 
     unmount();
   });
@@ -546,7 +550,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-repeat-focus \.workspace-page-schedule-main\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
   });
 
-  it('uses custom action colors and switches them with the publish mode', async () => {
+  it('keeps the default blue accent when custom action colors are written', async () => {
     localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
     const { unmount } = await renderWorkspacePage();
     const editorShell = document.querySelector<HTMLElement>('.workspace-page-editor-shell')!;
@@ -563,14 +567,14 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     expect(editorShell.dataset.editorAppearance).toBe('outline');
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('40, 127, 166');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
 
     await act(async () => {
       (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
     });
     const scheduleOption = document.querySelector<HTMLButtonElement>('.workspace-page-publish-option.is-scheduled')!;
     await act(async () => scheduleOption.click());
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('180, 130, 245');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
 
     await act(async () => {
       writeEditorAppearancePreferences({
@@ -579,13 +583,13 @@ describe('WorkspacePage main-screen flows', () => {
         modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
       });
     });
-    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('180, 130, 245');
+    expect(editorShell.style.getPropertyValue('--editor-outline')).toBe('35, 157, 251');
 
     unmount();
     localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
   });
 
-  it('keeps the outline divider crisp over the restrained editor glow', () => {
+  it('keeps the outline divider crisp over the subtle light editor surface', () => {
     const pageRule = workspacePageStyles.match(/\.workspace-page\s*\{([^}]*)\}/)?.[1] ?? '';
     const shellRule = workspacePageStyles.match(/\.workspace-page-editor-shell\s*\{([^}]*)\}/)?.[1] ?? '';
     const stageRule = workspacePageStyles.match(/\.workspace-page-rich-text-stage\s*\{([^}]*)\}/)?.[1] ?? '';
@@ -594,7 +598,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(pageRule).toMatch(/radial-gradient\(ellipse 72% 62% at 45% 42%/);
     expect(pageRule).toMatch(/var\(--void\)/);
     expect(shellRule).toMatch(/radial-gradient\(ellipse 88% 48% at 50% 0%/);
-    expect(shellRule).toMatch(/0 0 9px rgba\(var\(--editor-outline\), 0\.14\)/);
+    expect(shellRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\), 0\.04\)/);
     expect(stageRule).toMatch(/rgba\(var\(--editor-outline-bright\), 0\.48\)/);
     expect(dividerRule).toMatch(/filter:\s*none/);
   });
@@ -1212,15 +1216,20 @@ describe('WorkspacePage main-screen flows', () => {
 
     const dialog = document.querySelector('.workspace-page-version-history-dialog') as HTMLElement;
     const dialogRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog\s*\{([^}]*)\}/)?.[1] ?? '';
+    const documentMenuRule = workspacePageStyles.match(/\.workspace-page-version-history-document-menu\s*\{([^}]*)\}/)?.[1] ?? '';
+    const documentMenuOpenRule = workspacePageStyles.match(/\.workspace-page-version-history-list\.is-document-menu-open\s*\{([^}]*)\}/)?.[1] ?? '';
     const headerRule = workspacePageStyles.match(/\.workspace-page-version-history-header\s*\{([^}]*)\}/)?.[1] ?? '';
     const dividerRule = workspacePageStyles.match(/\.workspace-page-version-history-list\s*\{([^}]*)\}/)?.[1] ?? '';
     const dialogFocusRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog:focus\s*\{([^}]*)\}/)?.[1] ?? '';
     const hoverRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog button:hover:not\(:disabled\),\s*\.workspace-page-version-history-dialog button:active:not\(:disabled\)\s*\{([^}]*)\}/)?.[1] ?? '';
     const electronBackdropRule = workspacePageStyles.match(/html\.electron-runtime \.workspace-page-version-history-backdrop\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('40, 127, 166');
+    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('35, 157, 251');
     expect(dialog.querySelector('.workspace-page-version-history-icon svg')).not.toBeNull();
     expect(headerRule).toMatch(/justify-content:\s*center/);
     expect(dialogRule).toMatch(/border:\s*1px solid rgba\(154, 168, 184, 0\.16\)/);
+    expect(dialogRule).toMatch(/height:\s*min\(700px, calc\(100dvh - 32px\)\)/);
+    expect(documentMenuRule).toMatch(/max-height:\s*min\(420px, calc\(100dvh - 340px\)\)/);
+    expect(documentMenuOpenRule).toMatch(/overflow:\s*hidden/);
     expect(dialogFocusRule).toMatch(/outline:\s*none/);
     expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(154, 168, 184, 0\.12\)/);
     expect(hoverRule).toMatch(/background:\s*transparent !important/);
@@ -1234,7 +1243,7 @@ describe('WorkspacePage main-screen flows', () => {
         modeColors: { send: '#ff6699', schedule: '#b482f5', draft: '#f58b37' },
       });
     });
-    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('255, 102, 153');
+    expect(dialog.style.getPropertyValue('--version-history-accent')).toBe('35, 157, 251');
 
     const documentPicker = dialog.querySelector('.workspace-page-version-history-document-trigger') as HTMLButtonElement;
     await act(async () => {
@@ -1366,7 +1375,6 @@ describe('WorkspacePage main-screen flows', () => {
     const setSelectedChat = vi.fn();
     const setDate = vi.fn();
     const setTime = vi.fn();
-    const confirmRestore = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { rerender, unmount } = await renderWorkspacePage({ setSelectedChat, setDate, setTime });
 
     await act(async () => {
@@ -1376,6 +1384,10 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => {
       (document.querySelector('.workspace-page-version-history-restore') as HTMLButtonElement).click();
       await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    const restoreConfirmation = screen.getByRole('alertdialog');
+    await act(async () => {
+      fireEvent.click(within(restoreConfirmation).getByRole('button', { name: 'Apply' }));
     });
     rerender({ date: '2035-01-15', time: '18:30' });
     await act(async () => {
@@ -1404,7 +1416,6 @@ describe('WorkspacePage main-screen flows', () => {
     expect(setDate).toHaveBeenCalledWith('2035-01-15');
     expect(setTime).toHaveBeenCalledWith('18:30');
     expect(inMemoryDraftStore.documentHistories?.[oldSnapshot.documentId!]).toHaveLength(2);
-    confirmRestore.mockRestore();
     unmount();
   });
 
@@ -1445,7 +1456,6 @@ describe('WorkspacePage main-screen flows', () => {
         savedAt: '12:00',
       },
     };
-    const confirmCopy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { unmount } = await renderWorkspacePage();
     await act(async () => {
       (document.querySelector('.workspace-page-version-history-trigger') as HTMLButtonElement).click();
@@ -1453,6 +1463,10 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => {
       (document.querySelector('.workspace-page-version-history-copy') as HTMLButtonElement).click();
       await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+    const copyConfirmation = screen.getByRole('alertdialog');
+    await act(async () => {
+      fireEvent.click(within(copyConfirmation).getByRole('button', { name: 'Open as copy' }));
     });
     await waitForWorkspaceAutosave();
 
@@ -1463,7 +1477,6 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Source document copy');
     expect(inMemoryDraftStore.documentHistories?.[sourceDocumentId]?.map((version) => version.id)).toEqual(['copy-source-version']);
     expect(inMemoryDraftStore.documentHistories?.[currentDocumentId]?.[0].snapshot).toMatchObject({ body: 'Current document stays available' });
-    confirmCopy.mockRestore();
     unmount();
   });
 
@@ -1502,7 +1515,6 @@ describe('WorkspacePage main-screen flows', () => {
       success: false,
       error: 'Source file does not exist.',
     });
-    const confirmRestore = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { unmount } = await renderWorkspacePage();
 
     await act(async () => {
@@ -1512,12 +1524,15 @@ describe('WorkspacePage main-screen flows', () => {
       (document.querySelector('.workspace-page-version-history-restore') as HTMLButtonElement).click();
       await new Promise((resolve) => window.setTimeout(resolve, 100));
     });
+    const restoreConfirmation = screen.getByRole('alertdialog');
+    await act(async () => {
+      fireEvent.click(within(restoreConfirmation).getByRole('button', { name: 'Apply' }));
+    });
 
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Current safe post');
     expect(getInMemoryWorkspaceDraft().body).toBe('Current safe post');
     expect(document.querySelector('.workspace-page-version-history-error')?.textContent).toContain('missing.pdf');
     expect(inMemoryDraftStore.documentHistories?.[documentId]).toHaveLength(1);
-    confirmRestore.mockRestore();
     unmount();
   });
 
@@ -2313,10 +2328,11 @@ describe('WorkspacePage main-screen flows', () => {
   });
 
   it('shows send progress and success ahead of an earlier draft-store error', async () => {
+    const longDraftError = `Draft storage failed. ${'UNBROKEN_ERROR_TOKEN_'.repeat(12)} Check the storage location and retry.`;
     vi.mocked(window.draftStorage.save).mockResolvedValueOnce({
       success: false,
       code: 'WRITE_FAILED',
-      error: 'Disk full',
+      error: longDraftError,
     });
     let resolveSend: ((sent: boolean) => void) | null = null;
     const handleSendDraftNow = vi.fn().mockImplementation(() => new Promise<boolean>((resolve) => {
@@ -2337,7 +2353,13 @@ describe('WorkspacePage main-screen flows', () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent).toContain('Disk full');
+    const longErrorFeedback = document.querySelector('.workspace-page-publish-transient-feedback.is-error');
+    expect(longErrorFeedback).toHaveTextContent(longDraftError);
+    expect(longErrorFeedback?.querySelector('.workspace-page-publish-transient-feedback-status')).toHaveTextContent(longDraftError);
+    expect(workspacePageStyles).toContain('overflow-wrap: anywhere;');
+    expect(workspacePageStyles).toContain('max-height: min(320px, calc(100dvh - 180px));');
+    expect(workspacePageStyles).toContain('overflow-y: auto;');
+    expect(workspacePageStyles).not.toContain('-webkit-line-clamp: 2;');
 
     await act(async () => {
       (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
@@ -2525,7 +2547,6 @@ describe('WorkspacePage main-screen flows', () => {
   });
 
   it('shows a success status after a saved draft is deleted', async () => {
-    const confirmDelete = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { unmount } = await renderWorkspacePage();
     await act(async () => {
       (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
@@ -2550,14 +2571,15 @@ describe('WorkspacePage main-screen flows', () => {
     const deleteButton = document.querySelector('.workspace-page-rich-text-draft-stage .workspace-page-template-stage-item > div button:last-child') as HTMLButtonElement;
     await act(async () => {
       deleteButton.click();
-      await Promise.resolve();
-      await Promise.resolve();
     });
 
-    expect(confirmDelete).toHaveBeenCalledWith(expect.stringContaining('Draft'));
+    const confirmation = screen.getByRole('alertdialog');
+    expect(confirmation).toHaveTextContent('Delete draft');
+    await act(async () => {
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'Remove' }));
+    });
     expect(document.querySelector('.workspace-page-template-stage-item')).toBeNull();
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Draft deleted.');
-    confirmDelete.mockRestore();
     unmount();
   });
 
@@ -2570,7 +2592,6 @@ describe('WorkspacePage main-screen flows', () => {
       createdAt: '2026-09-26T10:00:00.000Z',
       updatedAt: '2026-09-26T10:00:00.000Z',
     }]));
-    const confirmDelete = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { unmount } = await renderWorkspacePage();
     const templatesButton = Array.from(document.querySelectorAll('.workspace-page-action-left-group > button'))
       .find((button) => button.textContent?.trim() === 'Templates') as HTMLButtonElement;
@@ -2579,14 +2600,14 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     const deleteButton = document.querySelector('.workspace-page-rich-text-template-stage .workspace-page-template-stage-item > div button:last-child') as HTMLButtonElement;
+    await act(async () => deleteButton.click());
+    const confirmation = screen.getByRole('alertdialog');
+    expect(confirmation).toHaveTextContent('Delete template “Welcome”?');
     await act(async () => {
-      deleteButton.click();
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'Remove' }));
     });
-
-    expect(confirmDelete).toHaveBeenCalledWith('Delete template “Welcome”?');
     expect(document.querySelector('.workspace-page-rich-text-template-stage .workspace-page-template-stage-item')).toBeNull();
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Template deleted.');
-    confirmDelete.mockRestore();
     unmount();
   });
 
@@ -2648,7 +2669,6 @@ describe('WorkspacePage main-screen flows', () => {
       repeatDays: [],
       repeatOccurrences: 1,
     }));
-    const confirmReplace = vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(window.draftStorage.importText).mockResolvedValueOnce({ success: true, text: 'Imported plain text' });
     const { unmount } = await renderWorkspacePage();
     await openDraftsStage();
@@ -2660,13 +2680,15 @@ describe('WorkspacePage main-screen flows', () => {
       importButton.click();
       await Promise.resolve();
     });
+    const replaceConfirmation = screen.getByRole('alertdialog');
+    await act(async () => {
+      fireEvent.click(within(replaceConfirmation).getByRole('button', { name: 'Apply' }));
+    });
 
-    expect(confirmReplace).toHaveBeenCalled();
     expect(document.querySelector('.workspace-page-rich-text-draft-stage.is-active')).toBeNull();
     expect((document.querySelector('[role="textbox"]') as HTMLDivElement).textContent).toContain('Imported plain text');
     expect(document.querySelector('.workspace-page-attachment-name')?.textContent).toBe('photo.png');
     expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Text imported into the editor.');
-    confirmReplace.mockRestore();
     unmount();
   });
 

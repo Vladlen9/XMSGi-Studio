@@ -733,7 +733,12 @@ export function HistoryDrawer({
   }, [isOpen, selectedRecord]);
 
   useEffect(() => {
-    if (!isOpen) setConfirmAction(null);
+    if (!isOpen) {
+      setConfirmAction(null);
+      setIsExportMenuOpen(false);
+      setActionMenuOpenId(null);
+      setDraftUseTarget(null);
+    }
   }, [isOpen]);
 
   useEffect(() => {

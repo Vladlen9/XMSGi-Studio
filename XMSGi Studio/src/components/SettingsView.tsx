@@ -1,16 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ChevronRight, Send, X } from 'lucide-react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { ChevronRight, Moon, Send, Sun, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import {
-  DEFAULT_EDITOR_APPEARANCE,
-  readEditorAppearancePreferences,
-  resolveEditorAppearanceColor,
-  writeEditorAppearancePreferences,
-} from '@shared/editorAppearance';
 import { useLocale } from '@/lib/i18n';
+import { applyColorTheme, readColorTheme, type ColorTheme } from '@/lib/colorTheme';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { getTelegramStatusPresentation } from '@/workspace/AppShell';
-import type { EditorAppearanceMode, EditorAppearancePreferences } from '@shared/editorAppearance';
 
 type SettingsViewProps = {
   onClose: () => void;
@@ -82,8 +76,7 @@ export function SettingsView({
   const isElectronRuntime = typeof document !== 'undefined'
     && document.documentElement.classList.contains('electron-runtime');
   const [isTelegramManagementOpen, setIsTelegramManagementOpen] = useState(false);
-  const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
-  const [editorAppearanceSaveFailed, setEditorAppearanceSaveFailed] = useState(false);
+  const [colorTheme, setColorTheme] = useState(readColorTheme);
   const settingsScrollRange = Math.max(0, settingsScrollMetrics.scrollHeight - settingsScrollMetrics.clientHeight);
   const settingsScrollbarThumbHeight = settingsScrollMetrics.scrollHeight > 0
     ? Math.min(
@@ -101,15 +94,10 @@ export function SettingsView({
     : telegramStatus.error && statusPresentation.tone === 'error'
       ? `${t(statusPresentation.messageKey)} ${telegramStatus.error}`
       : t(statusPresentation.messageKey);
-  const saveEditorAppearance = (next: EditorAppearancePreferences) => {
-    setEditorAppearance(next);
-    setEditorAppearanceSaveFailed(!writeEditorAppearancePreferences(next));
+  const selectColorTheme = (nextTheme: ColorTheme) => {
+    applyColorTheme(nextTheme, { animate: true });
+    setColorTheme(nextTheme);
   };
-  const editorModeOptions: Array<{ id: EditorAppearanceMode; label: string }> = [
-    { id: 'send', label: t('settings.editorModeSend') },
-    { id: 'schedule', label: t('settings.editorModeSchedule') },
-    { id: 'draft', label: t('settings.editorModeDraft') },
-  ];
 
   const handleSettingsScrollbarPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     const content = settingsContentRef.current;
@@ -260,94 +248,27 @@ export function SettingsView({
             </div>
             <p className="settings-view-description">{t('settings.editorAppearanceDescription')}</p>
 
-            <div className="settings-editor-appearance-layout">
-              <div
-                className="settings-editor-preview is-outline"
-                data-appearance="outline"
-                data-palette={editorAppearance.palette}
-                style={{ '--settings-editor-accent': resolveEditorAppearanceColor(editorAppearance, 'send') } as CSSProperties}
-                role="region"
-                aria-label={t('settings.editorAppearancePreviewTitle')}
-              >
-                <div className="settings-editor-preview-header">
-                  <span>{t('settings.editorAppearancePreviewTitle')}</span>
-                  <span className="settings-editor-preview-indicator" aria-hidden="true" />
-                </div>
-                <div className="settings-editor-preview-modes">
-                  {editorModeOptions.map(({ id, label }) => (
-                    <div
-                      key={id}
-                      className={`settings-editor-preview-mode is-${id}`}
-                      style={{ '--settings-editor-accent': resolveEditorAppearanceColor(editorAppearance, id) } as CSSProperties}
-                    >
-                      <span>{label}</span>
-                      <span className="settings-editor-preview-mode-line" aria-hidden="true" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="settings-editor-appearance-controls">
-                <div className="settings-editor-control-group">
-                  <div className="settings-editor-control-heading">
-                    <span className="settings-editor-control-label">{t('settings.editorAppearancePalette')}</span>
-                    {editorAppearanceSaveFailed && (
-                      <span className="settings-editor-preview-badge is-error" role="status">
-                        {t('settings.editorAppearanceSaveFailed')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="settings-editor-style-switch settings-editor-palette-switch" role="group" aria-label={t('settings.editorAppearancePalette')}>
-                    <button
-                      type="button"
-                      className={editorAppearance.palette === 'automatic' ? 'is-selected' : ''}
-                      onClick={() => saveEditorAppearance({ ...editorAppearance, palette: 'automatic' })}
-                      aria-pressed={editorAppearance.palette === 'automatic'}
-                    >
-                      {t('settings.editorAppearanceMonochrome')}
-                    </button>
-                    <button
-                      type="button"
-                      className={editorAppearance.palette === 'custom' ? 'is-selected' : ''}
-                      onClick={() => saveEditorAppearance({ ...editorAppearance, palette: 'custom' })}
-                      aria-pressed={editorAppearance.palette === 'custom'}
-                    >
-                      {t('settings.editorAppearanceCustomByMode')}
-                    </button>
-                  </div>
-                  <div className="settings-editor-mode-colors">
-                    {editorModeOptions.map(({ id, label }) => {
-                      const color = editorAppearance.palette === 'automatic'
-                        ? DEFAULT_EDITOR_APPEARANCE.modeColors[id]
-                        : editorAppearance.modeColors[id];
-
-                      return (
-                        <div className="settings-editor-mode-color-row" key={id}>
-                          <span className="settings-editor-mode-color-label">{label}</span>
-                          {editorAppearance.palette === 'automatic' ? (
-                            <span className="settings-editor-mode-color-value">
-                              <span className="settings-editor-mode-color-dot" style={{ backgroundColor: color }} aria-hidden="true" />
-                              <span>{color.toUpperCase()}</span>
-                            </span>
-                          ) : (
-                            <label className="settings-editor-mode-color-picker">
-                              <input
-                                type="color"
-                                value={color}
-                                aria-label={t('settings.editorAppearanceModeColor', { mode: label })}
-                                onChange={(event) => saveEditorAppearance({
-                                  ...editorAppearance,
-                                  palette: 'custom',
-                                  modeColors: { ...editorAppearance.modeColors, [id]: event.target.value },
-                                })}
-                              />
-                              <span>{color.toUpperCase()}</span>
-                            </label>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+            <div className="settings-theme-choice-row">
+              <span className="settings-editor-control-label">{t('settings.colorTheme')}</span>
+              <div className="settings-theme-options" role="group" aria-label={t('settings.colorTheme')}>
+                <button
+                  type="button"
+                  className={colorTheme === 'light' ? 'is-selected' : ''}
+                  onClick={() => selectColorTheme('light')}
+                  aria-pressed={colorTheme === 'light'}
+                >
+                  <Sun size={16} strokeWidth={1.7} aria-hidden="true" />
+                  {t('settings.lightTheme')}
+                </button>
+                <button
+                  type="button"
+                  className={colorTheme === 'dark' ? 'is-selected' : ''}
+                  onClick={() => selectColorTheme('dark')}
+                  aria-pressed={colorTheme === 'dark'}
+                >
+                  <Moon size={16} strokeWidth={1.7} aria-hidden="true" />
+                  {t('settings.darkTheme')}
+                </button>
               </div>
             </div>
           </section>

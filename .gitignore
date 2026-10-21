@@ -1,4 +1,5 @@
 # Root ignores — nested project + standalone website clone
+.vite/
 website XMSGi Studio/
 XMSGi Studio/node_modules/
 XMSGi Studio/dist/

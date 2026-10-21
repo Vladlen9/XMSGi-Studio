@@ -547,6 +547,10 @@ img.chat-preview-avatar {
   gap: 8px;
 }
 
+.chat-preview-state.is-error {
+  color: var(--danger);
+}
+
 .chat-preview-state.is-error button {
   border: 0;
   background: transparent;

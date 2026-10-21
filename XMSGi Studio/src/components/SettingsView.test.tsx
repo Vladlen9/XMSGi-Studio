@@ -2,7 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { LocaleProvider } from '@/lib/i18n';
-import { EDITOR_APPEARANCE_STORAGE_KEY, EDITOR_APPEARANCE_UPDATED_EVENT } from '@shared/editorAppearance';
+import { EDITOR_APPEARANCE_STORAGE_KEY } from '@shared/editorAppearance';
+import { COLOR_THEME_STORAGE_KEY } from '@/lib/colorTheme';
 import { SettingsView } from './SettingsView';
 
 function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsView>> = {}) {
@@ -47,6 +48,10 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsV
 
 beforeEach(() => {
   localStorage.removeItem(EDITOR_APPEARANCE_STORAGE_KEY);
+  localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
+  document.documentElement.dataset.theme = 'light';
+  document.documentElement.style.colorScheme = 'light';
+  document.documentElement.classList.remove('is-theme-transitioning');
 });
 
 describe('SettingsView Telegram integration', () => {
@@ -83,60 +88,75 @@ describe('SettingsView Telegram integration', () => {
     expect(credentialsDetails).not.toHaveTextContent('API_HASH');
   });
 
-  it('labels the default editor palette in English and Russian', () => {
+  it('labels the theme switch in English and Russian', () => {
     const originalLocale = window.localStorage.getItem('awaitmsg_locale');
 
     try {
       window.localStorage.setItem('awaitmsg_locale', 'en');
       const english = renderSettings();
-      expect(within(english.container).getByRole('button', { name: 'Default' })).toBeInTheDocument();
+      expect(within(english.container).getByText('App theme')).toBeInTheDocument();
+      expect(within(english.container).getByText('Choose a light or dark theme for the entire app.')).toBeInTheDocument();
+      expect(within(english.container).getByRole('group', { name: 'Color theme' })).toBeInTheDocument();
+      expect(within(english.container).getByRole('button', { name: 'Light' })).toBeInTheDocument();
+      expect(within(english.container).getByRole('button', { name: 'Dark' })).toBeInTheDocument();
 
       window.localStorage.setItem('awaitmsg_locale', 'ru');
       const russian = renderSettings();
-      expect(within(russian.container).getByRole('button', { name: 'По умолчанию' })).toBeInTheDocument();
+      expect(within(russian.container).getByText('Тема приложения')).toBeInTheDocument();
+      expect(within(russian.container).getByText('Выберите светлую или тёмную тему для всего приложения.')).toBeInTheDocument();
+      expect(within(russian.container).getByRole('group', { name: 'Цветовая тема' })).toBeInTheDocument();
+      expect(within(russian.container).getByRole('button', { name: 'Светлая' })).toBeInTheDocument();
+      expect(within(russian.container).getByRole('button', { name: 'Тёмная' })).toBeInTheDocument();
     } finally {
       if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', originalLocale);
     }
   });
 
-  it('uses the blue monochrome accent for all editor modes by default', () => {
+  it('keeps the appearance section free of framed previews and custom color controls', () => {
     const { container } = renderSettings();
-    const appearance = screen.getByRole('region', { name: 'Editor appearance' });
-    const modeRows = appearance.querySelectorAll('.settings-editor-mode-color-row');
+    const appearance = screen.getByRole('region', { name: 'App theme' });
 
-    expect(modeRows).toHaveLength(3);
-    modeRows.forEach((row) => expect(row).toHaveTextContent('#239DFB'));
+    expect(within(appearance).queryByRole('region', { name: 'Editor preview' })).not.toBeInTheDocument();
     expect(appearance).not.toHaveTextContent('Saved on this device');
-    expect(container.querySelector('.settings-editor-palette-switch [aria-pressed="true"]'))
-      .toHaveTextContent('Default');
+    expect(container.querySelector('.settings-editor-mode-colors')).not.toBeInTheDocument();
+    expect(container.querySelector('input[type="color"]')).not.toBeInTheDocument();
   });
 
-  it('persists custom action colors and updates the editor preview', () => {
-    const onAppearanceUpdated = vi.fn();
-    window.addEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
+  it('switches and persists the app color theme', () => {
     renderSettings();
-    const appearance = screen.getByRole('region', { name: 'Editor appearance' });
-    const preview = within(appearance).getByRole('region', { name: 'Editor preview' });
 
-    expect(preview).toHaveClass('is-outline');
-    expect(within(appearance).getByRole('group', { name: 'Color mode' })).toBeInTheDocument();
-    expect(within(appearance).queryByRole('group', { name: 'Editor appearance style' })).not.toBeInTheDocument();
+    const themeGroup = screen.getByRole('group', { name: 'Color theme' });
+    const darkButton = within(themeGroup).getByRole('button', { name: 'Dark' });
+    const lightButton = within(themeGroup).getByRole('button', { name: 'Light' });
 
-    fireEvent.click(within(appearance).getByRole('button', { name: 'Custom' }));
-    fireEvent.change(within(appearance).getByLabelText('Schedule color'), { target: { value: '#287fa6' } });
+    fireEvent.click(darkButton);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement).toHaveClass('is-theme-transitioning');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('dark');
+    expect(darkButton).toHaveAttribute('aria-pressed', 'true');
 
-    const savedAppearance = JSON.parse(localStorage.getItem(EDITOR_APPEARANCE_STORAGE_KEY) || '{}');
-    expect(savedAppearance).toMatchObject({
+    fireEvent.click(lightButton);
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('light');
+    expect(lightButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ignores previously saved custom colors and keeps theme choices unframed', () => {
+    localStorage.setItem(EDITOR_APPEARANCE_STORAGE_KEY, JSON.stringify({
+      style: 'outline',
       palette: 'custom',
-      modeColors: { send: '#239dfb', schedule: '#287fa6', draft: '#239dfb' },
-    });
-    expect(preview).toHaveAttribute('data-palette', 'custom');
-    const scheduleRow = within(preview).getByText('Schedule').closest<HTMLElement>('.settings-editor-preview-mode');
-    expect(scheduleRow?.style.getPropertyValue('--settings-editor-accent')).toBe('#287fa6');
-    expect(onAppearanceUpdated).toHaveBeenCalledTimes(2);
+      modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
+    }));
+    renderSettings();
+    const appearance = screen.getByRole('region', { name: 'App theme' });
 
-    window.removeEventListener(EDITOR_APPEARANCE_UPDATED_EVENT, onAppearanceUpdated);
+    expect(within(appearance).queryByRole('region', { name: 'Editor preview' })).not.toBeInTheDocument();
+    expect(within(appearance).getByRole('group', { name: 'Color theme' })).toBeInTheDocument();
+    expect(within(appearance).queryByRole('group', { name: 'Editor appearance style' })).not.toBeInTheDocument();
+    expect(appearance.querySelector('.settings-editor-mode-colors')).not.toBeInTheDocument();
+    expect(appearance.querySelectorAll('input[type="color"]')).toHaveLength(0);
   });
 
   it('keeps API fields out of the main settings screen', () => {

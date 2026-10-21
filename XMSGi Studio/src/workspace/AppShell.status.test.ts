@@ -74,6 +74,8 @@ describe('shared History Drawer entry point', () => {
       view: 'planner' as const,
       onViewChange: vi.fn(),
       browserDraftMode: false,
+      notification: { message: 'Planner is ready.', title: 'Notice', type: 'info' as const, visible: true },
+      closeNotification: vi.fn(),
       connected: false,
       authBusy: false,
       isConfirmingLogout: false,
@@ -93,12 +95,15 @@ describe('shared History Drawer entry point', () => {
     const { rerender } = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Login'))));
 
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, connected: true }, createElement('div', null, 'Planner'))));
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, browserDraftMode: true }, createElement('div', null, 'Local planner'))));
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
   });
 
   it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {
@@ -404,6 +409,7 @@ describe('shared History Drawer entry point', () => {
     const onCancel = vi.fn();
     const onDisconnect = vi.fn(async () => undefined);
     const onForget = vi.fn(async () => undefined);
+    const setShowAuthForm = vi.fn();
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
       view: 'studio',
       onViewChange: vi.fn(),
@@ -411,7 +417,7 @@ describe('shared History Drawer entry point', () => {
       authBusy: false,
       isConfirmingLogout: true,
       setIsConfirmingLogout: onCancel,
-      setShowAuthForm: vi.fn(),
+      setShowAuthForm,
       handleDisconnect: onDisconnect,
       handleForgetAccount: onForget,
       onOpenSettings: vi.fn(),
@@ -438,8 +444,10 @@ describe('shared History Drawer entry point', () => {
     expect(onCancel).toHaveBeenCalledWith(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
+    expect(setShowAuthForm).toHaveBeenCalledWith(false);
     expect(onDisconnect).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole('button', { name: 'Forget me' }));
+    expect(setShowAuthForm).toHaveBeenCalledWith(false);
     expect(onForget).toHaveBeenCalledOnce();
     view.unmount();
   });

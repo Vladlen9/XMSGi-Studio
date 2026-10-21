@@ -18,3 +18,10 @@ topics-out.json
 *.dmg
 *.deb
 personal-website/
+testbenches/
+.playwright-mcp/
+app-current-view.png
+browser-*.txt
+login-open-jitter-check.png
+login-page-snapshot.txt
+workspace-theme-check.png

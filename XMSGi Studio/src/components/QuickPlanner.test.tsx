@@ -183,7 +183,7 @@ describe('QuickPlanner feedback', () => {
     expect(container.querySelector('.quick-planner-timezone')?.textContent).toBe('GMT+5:45');
   });
 
-  it('uses the default and custom theme accents for each action mode and refreshes live', () => {
+  it('keeps the default blue accent when custom colors are written or action modes change', () => {
     const { container } = render(<QuickPlanner />);
     const planner = container.querySelector<HTMLElement>('.quick-planner')!;
     const modeGroup = screen.getByRole('group', { name: 'Planner actions' });
@@ -197,13 +197,13 @@ describe('QuickPlanner feedback', () => {
         modeColors: { send: '#287fa6', schedule: '#b482f5', draft: '#f58b37' },
       });
     });
-    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#b482f5');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
 
     fireEvent.click(within(modeGroup).getByRole('button', { name: 'Draft' }));
-    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#f58b37');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
 
     fireEvent.click(within(modeGroup).getByRole('button', { name: 'Send now' }));
-    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#287fa6');
+    expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
 
     act(() => writeEditorAppearancePreferences(DEFAULT_EDITOR_APPEARANCE));
     expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');

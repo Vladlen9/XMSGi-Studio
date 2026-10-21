@@ -20,7 +20,6 @@ describe('useTelegramAuth', () => {
 
     const { result } = renderHook(() =>
       useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -53,7 +52,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider>{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -65,6 +63,42 @@ describe('useTelegramAuth', () => {
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
+  it('shows a user-friendly message when the auth-state IPC request is rejected', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockRejectedValue(
+          new Error("Error invoking remote method 'telegram-auth-state': Error: Untrusted renderer."),
+        ),
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => expect(result.current.connectionResolved).toBe(true));
+
+      expect(result.current.authError).toBe('Couldn’t check your Telegram sign-in. Restart XMSGi.');
+      expect(result.current.authError).not.toContain('Untrusted renderer');
+      expect(result.current.authError).not.toContain('telegram-auth-state');
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
     }
   });
 
@@ -87,7 +121,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider>{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -96,7 +129,7 @@ describe('useTelegramAuth', () => {
       await waitFor(() => expect(result.current.connectionResolved).toBe(true));
       await act(async () => result.current.handleTelegramAuth());
 
-      expect(result.current.authError).toBe('Telegram sign-in is available only in the XMSGi desktop app.');
+      expect(result.current.authError).toBe('Sign in to Telegram in the XMSGi desktop app.');
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');
@@ -128,7 +161,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider><LocaleSetterCapture />{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -137,12 +169,53 @@ describe('useTelegramAuth', () => {
       await waitFor(() => expect(result.current.connectionResolved).toBe(true));
       await act(async () => result.current.handleTelegramAuth());
 
-      expect(result.current.authError).toBe('Проверьте номер телефона, включая код страны.');
+      expect(result.current.authError).toBe('Введите номер телефона с кодом страны.');
       expect(result.current.authError).not.toContain('auth.SendCode');
       await act(async () => setTestLocale?.('en'));
-      expect(result.current.authError).toBe('Check the phone number and include the country code.');
+      expect(result.current.authError).toBe('Enter a valid phone number, including the country code.');
       await act(async () => setTestLocale?.('ru'));
-      expect(result.current.authError).toBe('Проверьте номер телефона, включая код страны.');
+      expect(result.current.authError).toBe('Введите номер телефона с кодом страны.');
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
+  });
+
+  it('turns bridge network failures into the localized connection message', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: false, signedOut: false, connected: false, userName: '', state: 'ready' },
+        }),
+        login: vi.fn().mockResolvedValue({
+          success: false,
+          error: 'TypeError: Failed to fetch (net::ERR_INTERNET_DISCONNECTED)',
+        }),
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => expect(result.current.connectionResolved).toBe(true));
+      await act(async () => result.current.handleTelegramAuth());
+
+      expect(result.current.authError).toBe('Can’t reach Telegram. Check your internet connection and try again.');
+      expect(result.current.authError).not.toContain('ERR_INTERNET_DISCONNECTED');
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');
@@ -154,7 +227,6 @@ describe('useTelegramAuth', () => {
   it('restores the saved account and reports a failed one-click reconnect', async () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
-    const showNotification = vi.fn();
     const welcomeBack = vi.fn().mockResolvedValue({ success: false, error: 'Session could not be restored.' });
     window.localStorage.setItem('awaitmsg_locale', 'en');
     Object.defineProperty(window, 'telegram', {
@@ -173,7 +245,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider>{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
-        showNotification,
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -183,7 +254,7 @@ describe('useTelegramAuth', () => {
       await act(async () => result.current.handleWelcomeBack());
 
       expect(welcomeBack).toHaveBeenCalledOnce();
-      expect(showNotification).toHaveBeenCalledWith('Session could not be restored.', 'error', 'Error');
+      expect(result.current.authError).toBe('Session could not be restored.');
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');
@@ -214,7 +285,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider>{children}</LocaleProvider>
       );
       const { result } = renderHook(() => useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),
@@ -262,7 +332,6 @@ describe('useTelegramAuth', () => {
         <LocaleProvider>{children}</LocaleProvider>
       );
       const { result, unmount } = renderHook(() => useTelegramAuth({
-        showNotification: vi.fn(),
         setIsSettingsOpen: vi.fn(),
         setChats: vi.fn(),
         setSelectedChat: vi.fn(),

@@ -3,7 +3,8 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { createPortal } from 'react-dom';
 import type { CSSProperties, MutableRefObject } from 'react';
 import { ChatAvatar } from './ChatAvatar';
-import carbonLivePreviewWallpaper from '../assets/carbon-live-preview.jpg';
+import carbonDarkWallpaper from '../assets/carbon-dark-wallpaper.jpg';
+import carbonLightWallpaper from '../assets/carbon-light-wallpaper.png';
 import type { Chat, PreviewChatHistory, RichTextEntity } from '@studio/types';
 import { toInlineKeyboardMarkup, type InlineButtonRow } from '@studio/lib/inlineKeyboard';
 import { useLocale } from '@studio/lib/i18n';
@@ -93,7 +94,7 @@ function loadSavedWallpaper(): SavedWallpaper {
       : uniqueWallpapers;
 
     return {
-      theme: saved.theme === 'custom'
+      theme: saved.theme === 'custom' && savedImage
         ? 'custom'
         : saved.theme === 'graphite' && (saved.version ?? 0) >= 2
           ? 'graphite'
@@ -315,7 +316,13 @@ export function ChatPreviewStand({
   const { t } = useLocale();
   const savedWallpaper = useMemo(loadSavedWallpaper, []);
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('mobile');
-  const [wallpaperTheme, setWallpaperTheme] = useState<WallpaperTheme>(savedWallpaper.theme);
+  const [appColorTheme, setAppColorTheme] = useState<'light' | 'dark'>(() => (
+    document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+  ));
+  const appDefaultWallpaperTheme: WallpaperTheme = appColorTheme === 'light' ? 'graphite' : 'telegram';
+  const [wallpaperTheme, setWallpaperTheme] = useState<WallpaperTheme>(() => (
+    savedWallpaper.theme === 'custom' && savedWallpaper.image ? 'custom' : appDefaultWallpaperTheme
+  ));
   const [customWallpaperImage, setCustomWallpaperImage] = useState(savedWallpaper.image);
   const [lastUploadedWallpaper, setLastUploadedWallpaper] = useState(savedWallpaper.image);
   const [uploadedWallpapers, setUploadedWallpapers] = useState<string[]>(savedWallpaper.wallpapers ?? []);
@@ -335,7 +342,21 @@ export function ChatPreviewStand({
     scrollHeight: 0,
     clientHeight: 0,
   });
-  const [chatListScrollMetrics, setChatListScrollMetrics] = useState({ scrollTop: 0, clientHeight: 0 });
+  const [chatListScrollMetrics, setChatListScrollMetrics] = useState({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncWithAppTheme = () => {
+      const nextColorTheme = root.dataset.theme === 'light' ? 'light' : 'dark';
+      setAppColorTheme(nextColorTheme);
+      setWallpaperTheme((current) => current === 'custom' && customWallpaperImage
+        ? current
+        : nextColorTheme === 'light' ? 'graphite' : 'telegram');
+    };
+    const observer = new MutationObserver(syncWithAppTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, [customWallpaperImage]);
 
   useEffect(() => {
     if (!expandedHistoryPhoto) return;
@@ -354,24 +375,23 @@ export function ChatPreviewStand({
   }, [expandedHistoryPhoto]);
 
   useEffect(() => {
-    try {
-      const serialized = JSON.stringify({ version: 2, theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent });
-      window.localStorage.setItem(CHAT_WALLPAPER_STORAGE_KEY, serialized);
-      window.localStorage.setItem(LEGACY_CHAT_WALLPAPER_STORAGE_KEY, serialized);
-    } catch {
-      // Ignore unavailable or full local storage; the current session still works.
-    }
-  }, [lastUploadedWallpaper, wallpaperAccent, wallpaperTheme]);
+    const nextTheme = wallpaperTheme === 'custom' && !customWallpaperImage ? appDefaultWallpaperTheme : wallpaperTheme;
+    const nextImage = nextTheme === 'custom' ? customWallpaperImage : '';
 
-  useEffect(() => {
     try {
-      const serialized = JSON.stringify({ version: 2, theme: wallpaperTheme, image: lastUploadedWallpaper, accent: wallpaperAccent, wallpapers: uploadedWallpapers });
+      const serialized = JSON.stringify({
+        version: 2,
+        theme: nextTheme,
+        image: nextImage,
+        accent: wallpaperAccent,
+        wallpapers: uploadedWallpapers,
+      });
       window.localStorage.setItem(CHAT_WALLPAPER_STORAGE_KEY, serialized);
       window.localStorage.setItem(LEGACY_CHAT_WALLPAPER_STORAGE_KEY, serialized);
     } catch {
       // Keep the current session usable when storage is unavailable.
     }
-  }, [lastUploadedWallpaper, uploadedWallpapers, wallpaperAccent, wallpaperTheme]);
+  }, [appDefaultWallpaperTheme, customWallpaperImage, uploadedWallpapers, wallpaperAccent, wallpaperTheme]);
 
   useEffect(() => {
     onWallpaperChange?.({
@@ -512,7 +532,7 @@ export function ChatPreviewStand({
     }
 
     const syncScrollMetrics = () => {
-      setChatListScrollMetrics({ scrollTop: list.scrollTop, clientHeight: list.clientHeight });
+      setChatListScrollMetrics({ scrollTop: list.scrollTop, scrollHeight: list.scrollHeight, clientHeight: list.clientHeight });
     };
     list.scrollTop = 0;
     list.addEventListener('scroll', syncScrollMetrics, { passive: true });
@@ -529,13 +549,18 @@ export function ChatPreviewStand({
   const hasHistoryMessages = Boolean(activePreviewHistory?.messages.length);
   const shouldShowEmptyPreviewHint = !hasDraft && !hasHistoryMessages;
   const wallpaperImage = customWallpaperImage;
+  const effectiveWallpaperTheme: WallpaperTheme = wallpaperTheme === 'custom' && !wallpaperImage
+    ? appDefaultWallpaperTheme
+    : wallpaperTheme;
   const wallpaperStyle = {
-    ...(wallpaperTheme === 'custom' && wallpaperImage
+    ...(effectiveWallpaperTheme === 'custom' && wallpaperImage
       ? { backgroundImage: `url(${wallpaperImage})`, backgroundPosition: 'center', backgroundSize: 'cover' }
-      : wallpaperTheme === 'telegram'
-        ? { backgroundImage: `url(${carbonLivePreviewWallpaper})`, backgroundPosition: 'center', backgroundSize: 'cover' }
-        : {}),
-    '--chat-preview-wallpaper-accent': wallpaperAccent || (wallpaperTheme === 'graphite' ? '#60727f' : '#6e9d9b'),
+      : effectiveWallpaperTheme === 'telegram'
+        ? { backgroundImage: `url(${carbonDarkWallpaper})`, backgroundPosition: 'center', backgroundSize: 'cover' }
+        : effectiveWallpaperTheme === 'graphite'
+          ? { backgroundImage: `url(${carbonLightWallpaper})`, backgroundPosition: 'center', backgroundSize: 'cover' }
+          : {}),
+    '--chat-preview-wallpaper-accent': wallpaperAccent || (effectiveWallpaperTheme === 'graphite' ? '#60727f' : '#6e9d9b'),
   } as CSSProperties;
 
   const handleWallpaperFile = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -569,17 +594,19 @@ export function ChatPreviewStand({
     }
     if (customWallpaperImage === image) {
       setCustomWallpaperImage('');
-      setWallpaperTheme('telegram');
+      setWallpaperTheme(appDefaultWallpaperTheme);
       setWallpaperAccent('');
     }
   };
 
-  const previewFeedCanScroll = previewScrollMetrics.scrollHeight > previewScrollMetrics.clientHeight + 1;
-  const previewScrollbarThumbHeight = previewFeedCanScroll
-    ? Math.min(100, Math.max(10, previewScrollMetrics.clientHeight / previewScrollMetrics.scrollHeight * 100))
+  const activeScrollMetrics = chatListOpen ? chatListScrollMetrics : previewScrollMetrics;
+  const activeScrollViewport = chatListOpen ? chatListItemsRef.current : previewFeedRef.current;
+  const previewScrollbarCanScroll = activeScrollMetrics.scrollHeight > activeScrollMetrics.clientHeight + 1;
+  const previewScrollbarThumbHeight = previewScrollbarCanScroll
+    ? Math.min(100, Math.max(10, activeScrollMetrics.clientHeight / activeScrollMetrics.scrollHeight * 100))
     : 100;
-  const previewScrollbarThumbTop = previewFeedCanScroll
-    ? previewScrollMetrics.scrollTop / (previewScrollMetrics.scrollHeight - previewScrollMetrics.clientHeight)
+  const previewScrollbarThumbTop = previewScrollbarCanScroll
+    ? activeScrollMetrics.scrollTop / (activeScrollMetrics.scrollHeight - activeScrollMetrics.clientHeight)
       * (100 - previewScrollbarThumbHeight)
     : 0;
 
@@ -590,57 +617,57 @@ export function ChatPreviewStand({
   };
 
   const handlePreviewScrollbarPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    const feed = previewFeedRef.current;
+    const viewport = activeScrollViewport;
     const track = previewScrollTrackRef.current;
-    if (!feed || !track) return;
+    if (!viewport || !track) return;
 
-    const maxScroll = Math.max(0, feed.scrollHeight - feed.clientHeight);
+    const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
     const trackHeight = track.clientHeight;
-    const thumbHeight = Math.min(trackHeight, Math.max(16, feed.clientHeight / Math.max(1, feed.scrollHeight) * trackHeight));
+    const thumbHeight = Math.min(trackHeight, Math.max(16, viewport.clientHeight / Math.max(1, viewport.scrollHeight) * trackHeight));
     const target = event.target as HTMLElement;
 
     if (target.closest('.chat-preview-scrollbar-thumb')) {
-      previewScrollDragRef.current = { pointerY: event.clientY, scrollTop: feed.scrollTop };
+      previewScrollDragRef.current = { pointerY: event.clientY, scrollTop: viewport.scrollTop };
       setPreviewScrollDragging(true);
       track.setPointerCapture(event.pointerId);
     } else {
       const trackBounds = track.getBoundingClientRect();
       const travel = Math.max(1, trackHeight - thumbHeight);
       const position = (event.clientY - trackBounds.top - thumbHeight / 2) / travel;
-      feed.scrollTop = Math.max(0, Math.min(maxScroll, position * maxScroll));
+      viewport.scrollTop = Math.max(0, Math.min(maxScroll, position * maxScroll));
     }
     event.preventDefault();
   };
 
   const handlePreviewScrollbarPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const drag = previewScrollDragRef.current;
-    const feed = previewFeedRef.current;
+    const viewport = activeScrollViewport;
     const track = previewScrollTrackRef.current;
-    if (!drag || !feed || !track) return;
+    if (!drag || !viewport || !track) return;
 
-    const maxScroll = Math.max(0, feed.scrollHeight - feed.clientHeight);
+    const maxScroll = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
     const trackHeight = track.clientHeight;
-    const thumbHeight = Math.min(trackHeight, Math.max(16, feed.clientHeight / Math.max(1, feed.scrollHeight) * trackHeight));
+    const thumbHeight = Math.min(trackHeight, Math.max(16, viewport.clientHeight / Math.max(1, viewport.scrollHeight) * trackHeight));
     const travel = Math.max(1, trackHeight - thumbHeight);
-    feed.scrollTop = Math.max(0, Math.min(maxScroll, drag.scrollTop + (event.clientY - drag.pointerY) / travel * maxScroll));
+    viewport.scrollTop = Math.max(0, Math.min(maxScroll, drag.scrollTop + (event.clientY - drag.pointerY) / travel * maxScroll));
   };
 
   const handlePreviewScrollbarKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const feed = previewFeedRef.current;
-    if (!feed) return;
+    const viewport = activeScrollViewport;
+    if (!viewport) return;
 
-    const pageStep = Math.max(40, feed.clientHeight * 0.75);
-    const nextScrollTop = event.key === 'ArrowDown' ? feed.scrollTop + 40
-      : event.key === 'ArrowUp' ? feed.scrollTop - 40
-        : event.key === 'PageDown' ? feed.scrollTop + pageStep
-          : event.key === 'PageUp' ? feed.scrollTop - pageStep
+    const pageStep = Math.max(40, viewport.clientHeight * 0.75);
+    const nextScrollTop = event.key === 'ArrowDown' ? viewport.scrollTop + 40
+      : event.key === 'ArrowUp' ? viewport.scrollTop - 40
+        : event.key === 'PageDown' ? viewport.scrollTop + pageStep
+          : event.key === 'PageUp' ? viewport.scrollTop - pageStep
             : event.key === 'Home' ? 0
-              : event.key === 'End' ? feed.scrollHeight - feed.clientHeight
+              : event.key === 'End' ? viewport.scrollHeight - viewport.clientHeight
                 : null;
     if (nextScrollTop === null) return;
 
     event.preventDefault();
-    feed.scrollTop = nextScrollTop;
+    viewport.scrollTop = nextScrollTop;
   };
 
   return (
@@ -655,15 +682,15 @@ export function ChatPreviewStand({
               type="button"
               className={`chat-preview-wallpaper-quick-choice is-default ${wallpaperTheme === 'telegram' ? 'is-selected' : ''}`}
               onClick={() => { setWallpaperTheme('telegram'); setWallpaperPickerOpen(false); }}
-              aria-label="Default background"
-              title="Default background"
+              aria-label="Dark background"
+              title="Dark background"
             />
             <button
               type="button"
               className={`chat-preview-wallpaper-quick-choice is-graphite ${wallpaperTheme === 'graphite' ? 'is-selected' : ''}`}
               onClick={() => { setWallpaperTheme('graphite'); setWallpaperPickerOpen(false); }}
-              aria-label="Graphite background"
-              title="Graphite background"
+              aria-label="Light background"
+              title="Light background"
             />
             {uploadedWallpapers.map((image, index) => (
               <div className="chat-preview-wallpaper-uploaded-item" key={image}>
@@ -710,7 +737,7 @@ export function ChatPreviewStand({
       </div>
 
       <div className="chat-preview-window-shell">
-      <div className={`chat-preview-window theme-${wallpaperTheme} ${chatListOpen ? 'is-chat-list-open' : ''}`} style={wallpaperStyle}>
+      <div className={`chat-preview-window theme-${effectiveWallpaperTheme} ${chatListOpen ? 'is-chat-list-open' : ''}`} style={wallpaperStyle}>
         <div className="chat-preview-mobile-system-bar" aria-hidden="true">
           <span>9:41</span>
           <span className="chat-preview-mobile-system-icons">
@@ -724,6 +751,7 @@ export function ChatPreviewStand({
             <div className="chat-preview-chat-list-heading">{t('studio.chats')}</div>
             <div
               className="chat-preview-chat-list-items"
+              id="chat-preview-chat-list-items"
               ref={chatListItemsRef}
               style={shouldVirtualizeChatList ? {
                 height: visibleChats.length * chatListRowHeight,
@@ -938,18 +966,18 @@ export function ChatPreviewStand({
         <div className="chat-preview-mobile-home-indicator" aria-hidden="true"><span /></div>
       </div>
       <div
-        className={`chat-preview-scrollbar-track ${previewFeedCanScroll && !collapsed ? '' : 'is-hidden'} ${previewScrollDragging ? 'is-dragging' : ''}`}
+        className={`chat-preview-scrollbar-track ${previewScrollbarCanScroll && !collapsed ? '' : 'is-hidden'} ${previewScrollDragging ? 'is-dragging' : ''}`}
         ref={previewScrollTrackRef}
         role="scrollbar"
-        tabIndex={previewFeedCanScroll && !collapsed ? 0 : -1}
-        aria-label="Live chat preview scroll"
-        aria-controls="chat-preview-feed"
+        tabIndex={previewScrollbarCanScroll && !collapsed ? 0 : -1}
+        aria-label={chatListOpen ? 'Chat list scroll' : 'Live chat preview scroll'}
+        aria-controls={chatListOpen ? 'chat-preview-chat-list-items' : 'chat-preview-feed'}
         aria-orientation="vertical"
-        aria-hidden={!previewFeedCanScroll || collapsed}
+        aria-hidden={!previewScrollbarCanScroll || collapsed}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={previewFeedCanScroll
-          ? Math.round(previewScrollMetrics.scrollTop / (previewScrollMetrics.scrollHeight - previewScrollMetrics.clientHeight) * 100)
+        aria-valuenow={previewScrollbarCanScroll
+          ? Math.round(activeScrollMetrics.scrollTop / (activeScrollMetrics.scrollHeight - activeScrollMetrics.clientHeight) * 100)
           : 0}
         onPointerDown={handlePreviewScrollbarPointerDown}
         onPointerMove={handlePreviewScrollbarPointerMove}
@@ -958,7 +986,7 @@ export function ChatPreviewStand({
           onLostPointerCapture={() => { previewScrollDragRef.current = null; setPreviewScrollDragging(false); }}
         onKeyDown={handlePreviewScrollbarKeyDown}
       >
-        {previewFeedCanScroll && !collapsed && (
+        {previewScrollbarCanScroll && !collapsed && (
           <div
             className="chat-preview-scrollbar-thumb"
             style={{

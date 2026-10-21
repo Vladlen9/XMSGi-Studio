@@ -102,6 +102,51 @@ describe('ChatPreviewStand wallpaper picker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     window.localStorage.clear();
+    document.documentElement.dataset.theme = 'dark';
+  });
+
+  it('falls back to the default wallpaper when a saved custom wallpaper is empty', () => {
+    window.localStorage.setItem('xmsgi-chat-preview-wallpaper', JSON.stringify({ version: 2, theme: 'custom', image: '', accent: '', wallpapers: [] }));
+
+    const { container, unmount } = renderChatPreviewStand();
+
+    try {
+      const preview = container.querySelector('.chat-preview-window');
+      expect(preview?.classList.contains('theme-telegram')).toBe(true);
+      expect(preview?.getAttribute('style') ?? '').toContain('carbon-dark-wallpaper.jpg');
+    } finally {
+      unmount();
+    }
+  });
+
+  it('switches the built-in wallpaper with the application color theme', async () => {
+    const { container, unmount } = renderChatPreviewStand();
+
+    try {
+      const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
+      expect(preview.classList.contains('theme-telegram')).toBe(true);
+      expect(preview.style.backgroundImage).toContain('carbon-dark-wallpaper.jpg');
+
+      await act(async () => {
+        document.documentElement.dataset.theme = 'light';
+        await Promise.resolve();
+      });
+
+      expect(preview.classList.contains('theme-graphite')).toBe(true);
+      expect(preview.style.backgroundImage).toContain('carbon-light-wallpaper.png');
+      openWallpaperPicker(container);
+      expect(container.querySelector('[aria-label="Light background"]')?.classList.contains('is-selected')).toBe(true);
+
+      await act(async () => {
+        document.documentElement.dataset.theme = 'dark';
+        await Promise.resolve();
+      });
+
+      expect(preview.classList.contains('theme-telegram')).toBe(true);
+      expect(preview.style.backgroundImage).toContain('carbon-dark-wallpaper.jpg');
+    } finally {
+      unmount();
+    }
   });
 
   it('opens history photos at original size and closes with the button or Escape', () => {
@@ -363,6 +408,39 @@ describe('ChatPreviewStand wallpaper picker', () => {
     }
   });
 
+  it('uses the external preview scrollbar for the open chat list', () => {
+    const chats: Chat[] = Array.from({ length: 500 }, (_, index) => ({
+      id: `chat-${index}`,
+      name: `Chat ${index + 1}`,
+      type: 'private',
+    }));
+    const { container, unmount } = renderChatPreviewStand([], '', [], null, chats, true);
+    const list = container.querySelector('.chat-preview-chat-list-items') as HTMLDivElement;
+    Object.defineProperties(list, {
+      scrollHeight: { configurable: true, value: chats.length * 58 },
+      clientHeight: { configurable: true, value: 290 },
+    });
+    list.scrollTop = 58 * 100;
+    fireEvent.scroll(list);
+    const scrollbar = container.querySelector('[role="scrollbar"]') as HTMLDivElement;
+
+    try {
+      expect(scrollbar.parentElement?.classList.contains('chat-preview-window-shell')).toBe(true);
+      expect(container.querySelector('.chat-preview-window')?.contains(scrollbar)).toBe(false);
+      expect(scrollbar).toHaveAttribute('aria-label', 'Chat list scroll');
+      expect(scrollbar).toHaveAttribute('aria-controls', 'chat-preview-chat-list-items');
+      expect(scrollbar).toHaveAttribute('aria-valuenow', '20');
+
+      act(() => scrollbar.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })));
+      fireEvent.scroll(list);
+
+      expect(list.scrollTop).toBe(chats.length * 58 - 290);
+      expect(scrollbar).toHaveAttribute('aria-valuenow', '100');
+    } finally {
+      unmount();
+    }
+  });
+
   it('keeps the wallpaper picker toggle in mobile preview', () => {
     const { container, unmount } = renderChatPreviewStand();
 
@@ -398,7 +476,7 @@ describe('ChatPreviewStand wallpaper picker', () => {
     try {
       const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
       expect(preview.classList.contains('theme-telegram')).toBe(true);
-      expect(preview.style.backgroundImage).toContain('carbon-live-preview.jpg');
+      expect(preview.style.backgroundImage).toContain('carbon-dark-wallpaper.jpg');
 
       openWallpaperPicker(container);
       expect(container.querySelector('.chat-preview-wallpaper-quick-choice.is-default')?.classList.contains('is-selected')).toBe(true);
@@ -414,19 +492,20 @@ describe('ChatPreviewStand wallpaper picker', () => {
     try {
       const preview = container.querySelector('.chat-preview-window') as HTMLDivElement;
       expect(preview.classList.contains('theme-telegram')).toBe(true);
-      expect(preview.style.backgroundImage).toContain('carbon-live-preview.jpg');
+      expect(preview.style.backgroundImage).toContain('carbon-dark-wallpaper.jpg');
     } finally {
       unmount();
     }
   });
 
-  it('remembers a newly selected Graphite wallpaper after remounting', () => {
+  it('remembers the light wallpaper after remounting in light mode', () => {
+    document.documentElement.dataset.theme = 'light';
     const firstPreview = renderChatPreviewStand();
 
     try {
       openWallpaperPicker(firstPreview.container);
       act(() => {
-        (firstPreview.container.querySelector('[aria-label="Graphite background"]') as HTMLButtonElement).click();
+        (firstPreview.container.querySelector('[aria-label="Light background"]') as HTMLButtonElement).click();
       });
 
       expect(JSON.parse(window.localStorage.getItem(wallpaperStorageKey) || '{}')).toMatchObject({ version: 2, theme: 'graphite' });
@@ -449,12 +528,12 @@ describe('ChatPreviewStand wallpaper picker', () => {
       switchToWebPreview(container);
       openWallpaperPicker(container);
       act(() => {
-        (container.querySelector('[aria-label="Default background"]') as HTMLButtonElement).click();
+        (container.querySelector('[aria-label="Dark background"]') as HTMLButtonElement).click();
       });
 
       expect(container.querySelector('.chat-preview-window')?.classList.contains('theme-telegram')).toBe(true);
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundImage)
-        .toContain('carbon-live-preview.jpg');
+        .toContain('carbon-dark-wallpaper.jpg');
       expect(container.querySelector<HTMLElement>('.chat-preview-window')?.style.backgroundSize).toBe('cover');
       expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).toBeNull();
 

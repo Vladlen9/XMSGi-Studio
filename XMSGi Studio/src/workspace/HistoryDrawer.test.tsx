@@ -131,6 +131,39 @@ function searchHistory(query: string) {
   });
 }
 
+describe('history drawer transient menus', () => {
+  it('closes export menus when the drawer closes', () => {
+    const renderDrawer = (isOpen: boolean) => (
+      <LocaleProvider>
+        <HistoryDrawer
+          isOpen={isOpen}
+          onClose={vi.fn()}
+          records={[upcomingRecord]}
+          onCancel={vi.fn()}
+          onReschedule={vi.fn()}
+          onSendNow={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenDraft={vi.fn()}
+          onClearSent={vi.fn()}
+          onClearDrafts={vi.fn().mockResolvedValue(true)}
+          onCancelQueue={vi.fn().mockResolvedValue(true)}
+        />
+      </LocaleProvider>
+    );
+    const view = render(renderDrawer(true));
+    const exportButton = screen.getByRole('button', { name: 'Export current category' });
+
+    fireEvent.click(exportButton);
+    expect(view.container.querySelector('.history-export-menu')).toBeInTheDocument();
+
+    view.rerender(renderDrawer(false));
+    view.rerender(renderDrawer(true));
+
+    expect(view.container.querySelector('.history-export-menu')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export current category' })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
 describe('history filter glass indicators', () => {
   it('keeps full Russian category labels accessible', () => {
     window.localStorage.removeItem('xmsgi-history-filters');

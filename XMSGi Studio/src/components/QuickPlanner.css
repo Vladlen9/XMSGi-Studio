@@ -1,17 +1,18 @@
 .quick-planner {
-  --planner-accent: #239dfb;
-  --planner-accent-rgb: 35, 157, 251;
-  --planner-ink: #eef5f7;
-  --planner-muted: #91a4af;
-  --planner-dim: #657984;
-  --planner-line: rgba(142, 170, 184, 0.17);
+  --planner-accent: #477c9e;
+  --planner-accent-rgb: 71, 124, 158;
+  --planner-ink: #242a31;
+  --planner-muted: #66727d;
+  --planner-dim: #66727d;
+  --planner-line: rgba(112, 130, 143, 0.2);
+  color-scheme: light;
   display: flex;
   min-height: 100%;
   box-sizing: border-box;
   justify-content: center;
   padding: 30px clamp(20px, 4vw, 60px) 136px;
   color: var(--planner-ink);
-  background-color: #050505;
+  background-color: var(--void);
 }
 
 .quick-planner-inner {
@@ -77,8 +78,8 @@
   border-radius: 11px;
   background:
     radial-gradient(ellipse 88% 48% at 50% 0%, rgba(var(--planner-accent-rgb), 0.035), transparent 74%),
-    linear-gradient(155deg, rgba(17, 19, 22, 0.96), rgba(10, 11, 13, 0.94));
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    linear-gradient(155deg, #ffffff, #f7f8fa);
+  box-shadow: 0 14px 36px rgba(34, 47, 58, 0.08), inset 0 1px 0 #ffffff;
 }
 
 .quick-planner-workbench:has(.quick-planner-emoji-picker--floating) {
@@ -126,8 +127,9 @@
 .quick-planner-label {
   color: var(--planner-dim);
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .quick-planner-chat {
@@ -184,8 +186,8 @@
   overflow: hidden;
   border: 1px solid rgba(var(--planner-accent-rgb), 0.22);
   border-radius: 8px;
-  background: rgba(8, 10, 10, 0.98);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(34, 47, 58, 0.16);
 }
 
 .quick-planner-chat-search {
@@ -366,7 +368,7 @@
 
 .quick-planner-chat-copy strong {
   overflow: hidden;
-  color: #dce8ed;
+  color: var(--planner-ink);
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 12px;
   font-weight: 600;
@@ -395,7 +397,7 @@
   padding: 3px;
   border: 1px solid var(--planner-line);
   border-radius: 7px;
-  background: rgba(0, 0, 0, 0.16);
+  background: #f0f2f4;
 }
 
 .quick-planner-mode-switch button {
@@ -407,19 +409,24 @@
   justify-content: center;
   gap: 6px;
   padding: 0 7px;
-  color: #81939e;
+  color: #5f6d77;
   border: 0;
   border-radius: 5px;
   background: transparent;
   font-family: "Orbitron", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .quick-planner-mode-switch button.is-active {
   color: var(--planner-accent);
-  background: rgba(var(--planner-accent-rgb), 0.075);
-  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.16);
+  background: #e7f0f5;
+  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.24);
+}
+
+.quick-planner-mode-switch button:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.72);
+  outline-offset: -2px;
 }
 
 .quick-planner-mode-switch button svg {
@@ -468,7 +475,7 @@
   justify-content: space-between;
   color: var(--planner-dim);
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -486,7 +493,7 @@
 
 .quick-planner-composer-meta i {
   padding: 0 3px;
-  color: rgba(145, 164, 175, 0.45);
+  color: #9aa4ad;
   font-style: normal;
 }
 
@@ -496,15 +503,15 @@
   min-height: 0;
   flex: 1 1 0;
   margin-top: 28px;
-  padding: 0;
-  color: #d9e4e9;
-  border: 0;
+  padding: 14px 34px 14px 16px;
+  color: var(--planner-ink);
+  border: 1px solid #c8d0d6;
+  border-radius: 8px;
   outline: 0;
-  background: transparent;
+  background: #f7f8fa;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.8;
-  padding-right: 34px;
   resize: none;
   overflow-x: hidden;
   overflow-y: auto;
@@ -513,8 +520,13 @@
 }
 
 .quick-planner-message::placeholder {
-  color: #718792;
-  font-size: 14px;
+  color: #626f79;
+  font-size: 15px;
+}
+
+.quick-planner-message:focus-visible {
+  border-color: var(--planner-accent);
+  box-shadow: 0 0 0 3px rgba(var(--planner-accent-rgb), 0.18);
 }
 
 .quick-planner-attachments {
@@ -535,7 +547,7 @@
   overflow: visible;
   border: 1px solid rgba(142, 170, 184, 0.14);
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.12);
+  background: #f7f8fa;
 }
 
 .quick-planner-attachments-scrollbar {
@@ -554,7 +566,7 @@
   overflow-x: auto;
   overflow-y: hidden;
   border-radius: 4px;
-  scrollbar-color: rgba(155, 171, 181, 0.66) rgba(20, 27, 32, 0.8);
+  scrollbar-color: rgba(103, 119, 131, 0.55) #f0f2f4;
   scrollbar-width: thin;
   cursor: ew-resize;
 }
@@ -570,12 +582,12 @@
 
 .quick-planner-attachments-scrollbar::-webkit-scrollbar-track {
   border-radius: 3px;
-  background: rgba(142, 170, 184, 0.22);
+  background: rgba(112, 130, 143, 0.16);
 }
 
 .quick-planner-attachments-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 4px;
-  background: rgba(155, 171, 181, 0.66);
+  background: rgba(103, 119, 131, 0.48);
 }
 
 .quick-planner-attachments-scrollbar-content {
@@ -619,8 +631,8 @@
   padding: 0 5px 0 8px;
   border: 1px solid rgba(142, 170, 184, 0.2);
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.025);
-  color: rgba(215, 228, 235, 0.78);
+  background: #ffffff;
+  color: #3e4a54;
   font-size: 11px;
 }
 
@@ -642,14 +654,14 @@
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: rgba(194, 211, 220, 0.58);
+  color: #66727d;
   cursor: pointer;
 }
 
 .quick-planner-attachment button:hover,
 .quick-planner-attachment button:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-  color: #eef7fa;
+  background: #e9edf0;
+  color: #26333d;
   outline: none;
 }
 
@@ -688,7 +700,7 @@
   height: 48px;
   place-items: center;
   padding: 0;
-  color: #8ca0ac;
+  color: #586975;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -704,6 +716,11 @@
   outline: none;
 }
 
+.quick-planner-tools button:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.72);
+  outline-offset: -2px;
+}
+
 .quick-planner-tool-anchor {
   position: relative;
   display: inline-flex;
@@ -717,8 +734,8 @@
   padding: 8px;
   border: 1px solid rgba(var(--planner-accent-rgb), 0.2);
   border-radius: 8px;
-  background: rgba(8, 10, 10, 0.98);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+  background: #ffffff;
+  box-shadow: 0 14px 32px rgba(34, 47, 58, 0.14);
 }
 
 .quick-planner-emoji-picker {
@@ -770,7 +787,7 @@
 
 .quick-planner-emoji-picker.is-modifier-held {
   border-color: rgba(var(--planner-accent-rgb), 0.12);
-  background: rgba(8, 10, 10, 0.38);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
@@ -808,7 +825,7 @@
   color: var(--planner-ink);
   border: 1px solid rgba(154, 168, 184, 0.18);
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.025);
+  background: #f7f8fa;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 11px;
 }
@@ -1108,12 +1125,12 @@
   align-items: center;
   gap: 7px;
   padding: 0 10px;
-  color: #c5d2d9;
+  color: #3c4852;
   border: 1px solid var(--planner-line);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.025);
+  background: #ffffff;
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
   transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
@@ -1130,7 +1147,7 @@
 .quick-planner-schedule-row button.is-readonly:focus-visible {
   cursor: default;
   border-color: var(--planner-line);
-  background: rgba(255, 255, 255, 0.025);
+  background: #ffffff;
 }
 
 .quick-planner-schedule-field {
@@ -1186,8 +1203,8 @@
   padding: 10px;
   border: 1px solid rgba(var(--planner-accent-rgb), 0.22);
   border-radius: 7px;
-  background: rgba(8, 10, 10, 0.98);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.44);
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(34, 47, 58, 0.14);
 }
 
 .quick-planner-date-picker,
@@ -1196,7 +1213,7 @@
   gap: 6px;
   padding: 8px;
   border-radius: 8px;
-  background: rgba(17, 25, 32, 0.98);
+  background: #ffffff;
 }
 
 .quick-planner-date-picker {
@@ -1232,7 +1249,7 @@
   flex: 0 0 24px;
   place-items: center;
   padding: 0;
-  color: #a2b1ba;
+  color: #5f6d77;
   border-color: transparent;
   border-radius: 6px;
   background: transparent;
@@ -1258,7 +1275,7 @@
 }
 
 .quick-planner-date-picker-weekdays span {
-  color: #7f8e9c;
+  color: #697680;
   font-size: 10px;
   font-weight: 600;
   text-align: center;
@@ -1272,7 +1289,7 @@
 
 .quick-planner-date-picker-grid button {
   padding: 0;
-  color: #c8d4dc;
+  color: #3c4852;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -1283,7 +1300,7 @@
 
 .quick-planner-date-picker-grid button:hover:not(:disabled),
 .quick-planner-date-picker-grid button:focus-visible:not(:disabled) {
-  color: #fff;
+  color: #26333d;
   border-color: rgba(var(--planner-accent-rgb), 0.5);
   background: rgba(var(--planner-accent-rgb), 0.1);
   outline: none;
@@ -1295,13 +1312,13 @@
 
 .quick-planner-date-picker-grid button.is-selected,
 .quick-planner-date-picker-grid button.is-selected:hover {
-  color: #0b1116;
+  color: #ffffff;
   border-color: var(--planner-accent);
   background: var(--planner-accent);
 }
 
 .quick-planner-date-picker-grid button:disabled {
-  color: rgba(162, 177, 186, 0.32);
+  color: #a2abb3;
   cursor: default;
 }
 
@@ -1312,7 +1329,7 @@
   color: var(--planner-ink);
   border: 1px solid rgba(154, 168, 184, 0.24);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f7f8fa;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -1337,7 +1354,7 @@
 .quick-planner-time-list button {
   height: 24px;
   padding: 0 8px;
-  color: #c8d4dc;
+  color: #3c4852;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -1349,19 +1366,19 @@
 
 .quick-planner-time-list button:hover:not(:disabled),
 .quick-planner-time-list button:focus-visible:not(:disabled) {
-  color: #fff;
+  color: #26333d;
   background: rgba(var(--planner-accent-rgb), 0.12);
   outline: none;
 }
 
 .quick-planner-time-list button[aria-selected="true"] {
-  color: #0b1116;
+  color: #ffffff;
   background: var(--planner-accent);
   font-weight: 700;
 }
 
 .quick-planner-time-list button:disabled {
-  color: rgba(162, 177, 186, 0.3);
+  color: #a2abb3;
   cursor: default;
 }
 
@@ -1370,10 +1387,10 @@
   height: 34px;
   padding: 0 8px;
   color: var(--planner-ink);
-  color-scheme: dark;
+  color-scheme: light;
   border: 1px solid var(--planner-line);
   border-radius: 5px;
-  background: #101313;
+  background: #f7f8fa;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 12px;
 }
@@ -1398,6 +1415,23 @@
   gap: 3px;
 }
 
+.quick-planner :is(.quick-planner-schedule-popover, .quick-planner-date-picker, .quick-planner-time-picker, .quick-planner-emoji-picker) {
+  color: var(--planner-ink);
+  border-color: var(--planner-line);
+  background-color: #ffffff;
+  box-shadow: 0 12px 30px rgba(34, 47, 58, 0.14);
+}
+
+.quick-planner :is(.quick-planner-chat-menu, .quick-planner-schedule-popover, .quick-planner-date-picker, .quick-planner-time-picker) :is(input, button, [role='option']) {
+  color-scheme: light;
+}
+
+.quick-planner :is(.quick-planner-chat-menu, .quick-planner-schedule-popover, .quick-planner-date-picker, .quick-planner-time-picker) input {
+  color: var(--planner-ink);
+  border-color: var(--planner-line);
+  background: #f7f8fa;
+}
+
 .quick-planner-timezone {
   display: inline-flex;
   width: 68px;
@@ -1411,7 +1445,7 @@
   border-left: 1px solid var(--planner-line);
   border-right: 1px solid var(--planner-line);
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 9px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1425,8 +1459,13 @@
   width: 150px;
   min-width: 150px;
   flex: 0 0 150px;
-  height: 40px;
+  height: 44px;
   margin-left: auto;
+  color: #ffffff;
+  border-color: var(--planner-accent);
+  background: var(--planner-accent);
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 12px;
 }
 
 @media (min-width: 1200px) {
@@ -1448,15 +1487,15 @@
 }
 
 .quick-planner-schedule-row .quick-planner-open-studio {
-  height: 40px;
+  height: 44px;
   min-width: 148px;
   justify-content: center;
   gap: 7px;
   padding: 0 12px;
   color: var(--planner-ink);
   border-color: var(--planner-line);
-  background: rgba(255, 255, 255, 0.025);
-  font-size: 10px;
+  background: #ffffff;
+  font-size: 12px;
 }
 
 .quick-planner-draft-actions {
@@ -1626,6 +1665,27 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 }
 
+@media (max-width: 780px) {
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-workbench {
+    height: auto;
+    min-height: 676px;
+  }
+
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-toolbar,
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-tools-row {
+    flex-shrink: 0;
+  }
+
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-composer {
+    min-height: 220px;
+    flex: 0 0 auto;
+  }
+
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-schedule-row {
+    flex-shrink: 0;
+  }
+}
+
 .quick-planner-presets {
   display: flex;
   flex: 0 0 auto;
@@ -1634,18 +1694,18 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   overflow: hidden;
   border: 1px solid rgba(142, 170, 184, 0.22);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.025);
+  background: #ffffff;
 }
 
 .quick-planner-presets button {
   min-height: 32px;
   padding: 0 11px;
-  color: #94a7b2;
+  color: #56646e;
   border: 0;
   border-radius: 0;
   background: transparent;
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -1663,31 +1723,31 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 .quick-planner-submit {
   display: inline-flex;
   min-width: 150px;
-  height: 40px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   gap: 9px;
   margin-left: auto;
   padding: 0 14px;
-  color: #101508;
+  color: #ffffff;
   border: 1px solid var(--planner-accent);
   border-radius: 6px;
   background: var(--planner-accent);
-  font-family: "Orbitron", Arial, sans-serif;
-  font-size: 10px;
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .quick-planner-schedule-row .quick-planner-submit:hover,
 .quick-planner-schedule-row .quick-planner-submit:focus-visible {
-  color: #101508;
+  color: #ffffff;
   border-color: var(--planner-accent);
   background: var(--planner-accent);
 }
 
 .quick-planner-schedule-row .quick-planner-submit:hover svg,
 .quick-planner-schedule-row .quick-planner-submit:focus-visible svg {
-  color: #101508;
+  color: #ffffff;
 }
 
 .quick-planner-guide {
@@ -1705,7 +1765,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
 .quick-planner-guide-heading h2 {
   margin: 0 0 24px;
-  color: #dce7ec;
+  color: #29343d;
   font-family: "Orbitron", Arial, sans-serif;
   font-size: 22px;
   font-weight: 500;
@@ -1746,7 +1806,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 .quick-planner-notes strong {
   display: block;
   margin-bottom: 4px;
-  color: #aab9c1;
+  color: #3a4650;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 14px;
   font-weight: 600;
@@ -1756,7 +1816,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 .quick-planner-notes p {
   max-width: 38ch;
   margin: 0;
-  color: #8b9ca5;
+  color: #66727d;
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -1821,7 +1881,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 }
 
-@media (max-width: 780px) {
+@media (max-width: 900px) {
   .quick-planner {
     padding: 24px 18px 136px;
   }
@@ -1890,7 +1950,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
   .quick-planner-message {
     margin-top: 26px;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .quick-planner-schedule-row {

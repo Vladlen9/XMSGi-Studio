@@ -426,17 +426,12 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
       }
 
       try {
-        let result = await draftStorage.load();
+        const result = await draftStorage.load();
         if (!result.success) {
           const backups = result.backupIndexes ?? [];
           drafts.setDraftStoreBackups(backups);
-          if (!backups.length || !window.confirm(translateRef.current('studio.draftsDamagedPrompt'))) {
-            drafts.setDraftStoreError(result.error || translateRef.current('studio.draftsCouldNotLoad'));
-            return;
-          }
-          const restored = await draftStorage.restoreBackup(backups[0]);
-          if (!restored.success) throw new Error(restored.error || translateRef.current('studio.backupCouldNotRestore'));
-          result = await draftStorage.load();
+          drafts.setDraftStoreError(result.error || translateRef.current('studio.draftsCouldNotLoad'));
+          return;
         }
         if (!result.success || !result.store) throw new Error(result.error || translateRef.current('studio.draftsCouldNotLoad'));
 
