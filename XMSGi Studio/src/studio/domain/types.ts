@@ -45,6 +45,7 @@ export interface Post {
   id: string;
   accountId: string;
   channelId: string;
+  sendAttemptId?: string;
   status: PublishStatus;
   body: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
@@ -113,6 +114,10 @@ export interface PublishResult {
   ok: boolean;
   provider: ChannelProvider;
   messageId?: string;
+  messageIds?: Array<string | number>;
+  sentAt?: string;
+  historyPersisted?: boolean;
+  historyError?: string;
   confirmed?: boolean;
   error?: string;
   errorDetails?: TelegramOperationErrorDetails;

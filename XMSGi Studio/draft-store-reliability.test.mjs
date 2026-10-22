@@ -60,6 +60,82 @@ describe('draft store reliability', () => {
     expect(fs.readFileSync(filePath, 'utf8')).toBe('{"drafts":[');
   });
 
+  it('does not restore a syntactically valid backup with an invalid draft structure', () => {
+    const directory = createDirectory();
+    const filePath = path.join(directory, 'drafts.json');
+    const backupPath = `${filePath}.bak`;
+    const damagedPrimary = '{"drafts":[';
+    const invalidBackup = JSON.stringify({
+      schemaVersion: 3,
+      savedDrafts: [{ id: 'incomplete', name: 'Draft' }],
+      workspaceDraft: null,
+      documentHistories: {},
+    });
+    fs.writeFileSync(filePath, damagedPrimary, 'utf8');
+    fs.writeFileSync(backupPath, invalidBackup, 'utf8');
+
+    expect(() => createDraftStore({ directory }).load()).toThrow(/corrupt|recover/i);
+    expect(fs.readFileSync(filePath, 'utf8')).toBe(damagedPrimary);
+    expect(fs.readFileSync(backupPath, 'utf8')).toBe(invalidBackup);
+  });
+
+  it('does not overwrite an unreadable primary with an older backup', () => {
+    const directory = createDirectory();
+    const filePath = path.join(directory, 'drafts.json');
+    const store = createDraftStore({ directory });
+    store.saveSync({ version: 1, drafts: [{ id: 'primary' }], backups: [] });
+    const originalPrimary = fs.readFileSync(filePath, 'utf8');
+    const originalBackup = fs.readFileSync(`${filePath}.bak`, 'utf8');
+    const failingFileSystem = new Proxy(fs, {
+      get(target, property) {
+        if (property === 'readFileSync') {
+          return (file, ...args) => {
+            if (file === filePath) {
+              const error = new Error('Simulated read permission failure');
+              error.code = 'EACCES';
+              throw error;
+            }
+            return target.readFileSync(file, ...args);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+
+    expect(() => createDraftStore({ directory, fileSystem: failingFileSystem }).load())
+      .toThrow(expect.objectContaining({ code: 'DRAFT_STORE_READ_FAILED' }));
+    expect(fs.readFileSync(filePath, 'utf8')).toBe(originalPrimary);
+    expect(fs.readFileSync(`${filePath}.bak`, 'utf8')).toBe(originalBackup);
+  });
+
+  it('preserves the source backup when restoring it to the primary fails', () => {
+    const directory = createDirectory();
+    const filePath = path.join(directory, 'drafts.json');
+    const backupPath = `${filePath}.bak`;
+    const store = createDraftStore({ directory });
+    store.saveSync({ version: 1, drafts: [{ id: 'recoverable' }], backups: [] });
+    const originalBackup = fs.readFileSync(backupPath, 'utf8');
+    fs.writeFileSync(filePath, '{"drafts":[', 'utf8');
+    const failingFileSystem = new Proxy(fs, {
+      get(target, property) {
+        if (property === 'renameSync') {
+          return (source, destination) => {
+            if (destination === filePath) throw new Error('Simulated recovery replace failure');
+            return target.renameSync(source, destination);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+
+    expect(() => createDraftStore({ directory, fileSystem: failingFileSystem }).load())
+      .toThrow(expect.objectContaining({ code: 'DRAFT_STORE_RECOVERY_FAILED' }));
+    expect(fs.readFileSync(filePath, 'utf8')).toBe('{"drafts":[');
+    expect(fs.readFileSync(backupPath, 'utf8')).toBe(originalBackup);
+  });
+
   it('writes complete JSON through temporary files and leaves no partial temp file', () => {
     const directory = createDirectory();
     const store = createDraftStore({ directory });
@@ -95,6 +171,69 @@ describe('draft store reliability', () => {
     expect(() => failingStore.saveSync({ version: 1, drafts: [{ id: 'lost' }], backups: [] }))
       .toThrow('Simulated atomic replace failure');
     expect(createDraftStore({ directory }).load()).toEqual(original);
+    expect(fs.readdirSync(directory).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('reports backup update failures without hiding the successfully saved primary', () => {
+    const directory = createDirectory();
+    const filePath = path.join(directory, 'drafts.json');
+    const backupPath = `${filePath}.bak`;
+    const original = { version: 1, drafts: [{ id: 'original' }], backups: [] };
+    const updated = { version: 1, drafts: [{ id: 'updated' }], backups: [] };
+    createDraftStore({ directory }).saveSync(original);
+    const originalBackup = fs.readFileSync(backupPath, 'utf8');
+    const failingFileSystem = new Proxy(fs, {
+      get(target, property) {
+        if (property === 'renameSync') {
+          return (source, destination) => {
+            if (destination === backupPath) throw new Error('Simulated backup replace failure');
+            return target.renameSync(source, destination);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+
+    let saveError;
+    try {
+      createDraftStore({ directory, fileSystem: failingFileSystem }).saveSync(updated);
+    } catch (error) {
+      saveError = error;
+    }
+
+    expect(saveError).toMatchObject({
+      code: 'DRAFT_STORE_BACKUP_UPDATE_FAILED',
+      message: 'Drafts were saved, but the backup could not be updated.',
+    });
+    expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual(updated);
+    expect(fs.readFileSync(backupPath, 'utf8')).toBe(originalBackup);
+    expect(createDraftStore({ directory }).load()).toEqual(updated);
+    expect(fs.readdirSync(directory).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('reports initial backup creation failures after preserving the primary write', () => {
+    const directory = createDirectory();
+    const filePath = path.join(directory, 'drafts.json');
+    const backupPath = `${filePath}.bak`;
+    const data = { version: 1, drafts: [{ id: 'saved-primary' }], backups: [] };
+    const failingFileSystem = new Proxy(fs, {
+      get(target, property) {
+        if (property === 'renameSync') {
+          return (source, destination) => {
+            if (destination === backupPath) throw new Error('Simulated backup creation failure');
+            return target.renameSync(source, destination);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+
+    expect(() => createDraftStore({ directory, fileSystem: failingFileSystem }).saveSync(data))
+      .toThrow(expect.objectContaining({ code: 'DRAFT_STORE_BACKUP_UPDATE_FAILED' }));
+    expect(JSON.parse(fs.readFileSync(filePath, 'utf8'))).toEqual(data);
+    expect(fs.existsSync(backupPath)).toBe(false);
     expect(fs.readdirSync(directory).filter((name) => name.endsWith('.tmp'))).toEqual([]);
   });
 

@@ -2,6 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, dialog } = require('electron');
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+  return;
+}
+
 const { resolveAppDataRoot } = require('./app-data-path.cjs');
 const appIconPath = process.platform === 'win32'
   ? path.join(__dirname, 'build', 'icon.ico')
@@ -83,7 +90,11 @@ const draftStoreModulePath = (() => {
 
   return path.resolve(__dirname, 'draft-store.cjs');
 })();
-const { createDraftStore } = require(draftStoreModulePath);
+const {
+  createDraftStore,
+  isPersistedSavedDraft,
+  normalizeDocumentHistories,
+} = require(draftStoreModulePath);
 const { classifyTelegramError } = require('./telegram-errors.cjs');
 
 const userDataPath = app.getPath('userData');
@@ -191,11 +202,6 @@ function keepConfirmedSendResults(scopeHistory, field, messages) {
 
 let tray = null;
 let isQuitting = false;
-const hasSingleInstanceLock = app.requestSingleInstanceLock();
-
-if (!hasSingleInstanceLock) {
-  app.quit();
-}
 
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -492,51 +498,6 @@ function assertDraftStorageRenderer(event) {
 }
 
 const DRAFT_STORE_SCHEMA_VERSION = 3;
-const DOCUMENT_HISTORY_REASONS = new Set([
-  'edit',
-  'before-clear',
-  'before-delete',
-  'before-replacement',
-  'before-attachment-removal',
-  'restore',
-  'publish',
-]);
-
-function isPersistedSavedDraft(value) {
-  return Boolean(value && typeof value === 'object'
-    && typeof value.id === 'string'
-    && typeof value.name === 'string'
-    && typeof value.body === 'string'
-    && typeof value.createdAt === 'string'
-    && typeof value.updatedAt === 'string');
-}
-
-function normalizeDocumentHistories(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const normalized = {};
-  for (const [documentId, rawVersions] of Object.entries(value)) {
-    if (!documentId || !Array.isArray(rawVersions)) continue;
-    const versions = rawVersions.filter((version) => (
-      version
-      && typeof version === 'object'
-      && !Array.isArray(version)
-      && version.documentId === documentId
-      && typeof version.id === 'string'
-      && version.id.length > 0
-      && typeof version.createdAt === 'string'
-      && Number.isFinite(Date.parse(version.createdAt))
-      && DOCUMENT_HISTORY_REASONS.has(version.reason)
-      && version.snapshot
-      && typeof version.snapshot === 'object'
-      && !Array.isArray(version.snapshot)
-      && typeof version.snapshot.body === 'string'
-      && Array.isArray(version.snapshot.attachments)
-      && (!version.snapshot.documentId || version.snapshot.documentId === documentId)
-    ));
-    if (versions.length) normalized[documentId] = versions.slice(-30);
-  }
-  return normalized;
-}
 
 function normalizeDraftStoreResult(value, { migrationVersionFallback = 0, migrated = false } = {}) {
   const response = value && typeof value === 'object' && !Array.isArray(value) ? value : {};

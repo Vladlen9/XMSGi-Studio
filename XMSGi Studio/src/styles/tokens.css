@@ -43,6 +43,15 @@ html.is-theme-transitioning,
 html.is-theme-transitioning body,
 html.is-theme-transitioning body :where(*) {
   transition-property: color, background-color, border-color, outline-color, fill, stroke, box-shadow, text-decoration-color !important;
-  transition-duration: 480ms !important;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-duration: 320ms !important;
+  transition-delay: 0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms, 0ms !important;
+  transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.is-theme-transitioning,
+  html.is-theme-transitioning body,
+  html.is-theme-transitioning body :where(*) {
+    transition-duration: 0ms !important;
+  }
 }

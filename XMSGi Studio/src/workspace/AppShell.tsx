@@ -102,12 +102,17 @@ export function AppShell({
   );
   const hasOpenedPostsRef = useRef(false);
   const activeProductView = view === 'posts' ? previousProductViewRef.current : view;
+  const isPlannerSurfaceActive = view === 'planner' && !postsOpen && !settingsOpen;
   const nextProductView = activeProductView === 'planner' ? 'studio' : 'planner';
   const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | 'workspace' | undefined>();
   const [historySourceFilterOnOpenMode, setHistorySourceFilterOnOpenMode] = useState<'initial' | 'temporary'>('temporary');
   const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
+
+  useEffect(() => {
+    if (isPlannerSurfaceActive && notification?.visible) closeNotification?.();
+  }, [closeNotification, isPlannerSurfaceActive, notification?.visible]);
 
   useLayoutEffect(() => {
     if (view === 'posts') return;
@@ -363,7 +368,7 @@ export function AppShell({
           </div>
         </div>
       )}
-      {notification && closeNotification && (
+      {!isPlannerSurfaceActive && notification && closeNotification && (
         <Notification
           message={notification.message}
           type={notification.type}

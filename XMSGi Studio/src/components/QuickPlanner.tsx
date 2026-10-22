@@ -1,5 +1,5 @@
 import { type ChangeEvent, type CSSProperties, type DragEvent, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { Chat } from '@/types';
+import type { Chat, ScheduledMessage } from '@/types';
 import { useLocale } from '@/lib/i18n';
 import { EmojiPickerPanel } from './EmojiPickerPanel';
 import {
@@ -79,11 +79,15 @@ type ChatPickerOption = {
 type QuickPlannerProps = {
   chats?: Chat[];
   selectedChat?: Chat | null;
+  upcoming?: ScheduledMessage[];
+  sent?: ScheduledMessage[];
+  historyReady?: boolean;
+  historyError?: boolean;
   onSelectChat?: (chat: Chat | null) => void;
   onRemoveChat?: (chat: Chat) => void;
   onOpenInStudio?: (payload: StudioPlannerTextPayload) => void;
-  onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string) => Promise<boolean>;
-  onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean>;
+  onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string) => Promise<boolean | 'sent-history-failed'>;
+  onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean | 'sent-history-failed'>;
   onSaveDraft?: (draft: { message: string; attachments: string[] }) => boolean;
   feedbackPreview?: QuickPlannerActionFeedback | null;
 };
@@ -168,9 +172,59 @@ function getNextScheduleDateTime(now: Date) {
   };
 }
 
+function getLocalDateKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getActivityDays(messages: ScheduledMessage[], now: Date) {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const firstDay = new Date(today);
+  firstDay.setDate(firstDay.getDate() - 6);
+  const dates = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(firstDay);
+    date.setDate(firstDay.getDate() + index);
+    return date;
+  });
+  const counts = new Map(dates.map((date) => [getLocalDateKey(date), 0]));
+  const seen = new Set<string>();
+
+  for (const message of messages) {
+    if (message.status !== 'sent' || !message.sentAt) continue;
+    const timestamp = Date.parse(message.sentAt);
+    if (!Number.isFinite(timestamp) || timestamp > now.getTime() || timestamp < firstDay.getTime()) continue;
+
+    const identity = message.sendAttemptId
+      ? `attempt:${message.sendAttemptId}`
+      : `message:${message.id}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+
+    const key = getLocalDateKey(new Date(timestamp));
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return dates.map((date) => ({ date, count: counts.get(getLocalDateKey(date)) ?? 0 }));
+}
+
+function getUpcomingMessages(messages: ScheduledMessage[], now: Date) {
+  return messages
+    .filter((message) => {
+      if (message.status !== 'scheduled') return false;
+      const timestamp = Date.parse(message.when);
+      return Number.isFinite(timestamp) && timestamp > now.getTime();
+    })
+    .sort((left, right) => Date.parse(left.when) - Date.parse(right.when))
+    .slice(0, 5);
+}
+
 export function QuickPlanner({
   chats = [],
   selectedChat: activeChat = null,
+  upcoming = [],
+  sent = [],
+  historyReady = true,
+  historyError = false,
   onSelectChat,
   onRemoveChat,
   onOpenInStudio,
@@ -183,6 +237,9 @@ export function QuickPlanner({
   const [selectedMode, setSelectedMode] = useState('Schedule');
   const [message, setMessage] = useState(readPlannerDraft);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const activityNow = new Date();
+  const activityDays = getActivityDays(sent, activityNow);
+  const upcomingMessages = getUpcomingMessages(upcoming, activityNow);
   const [initialScheduleDateTime] = useState(() => getNextScheduleDateTime(currentTime));
   const [selectedDate, setSelectedDate] = useState(initialScheduleDateTime.date);
   const [selectedTime, setSelectedTime] = useState(initialScheduleDateTime.time);
@@ -810,6 +867,10 @@ export function QuickPlanner({
             attachments.length > 0 ? attachments.map(({ path }) => path) : undefined,
             selectedEffectId ?? undefined,
           );
+          if (sent === 'sent-history-failed') {
+            showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
+            return;
+          }
           if (!sent) {
             showActionFeedback(t('quickPlanner.messageNotSent'), 'error');
             return;
@@ -840,6 +901,10 @@ export function QuickPlanner({
             ...(attachments.length > 0 ? { attachments: attachments.map(({ path }) => path) } : {}),
             ...(selectedEffectId ? { effect: selectedEffectId } : {}),
           });
+          if (scheduled === 'sent-history-failed') {
+            showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
+            return;
+          }
           if (!scheduled) {
             showActionFeedback(t('quickPlanner.messageCouldNotSchedule'), 'error');
             return;
@@ -1538,27 +1603,109 @@ export function QuickPlanner({
 
           </section>
 
-          <aside className="quick-planner-guide" aria-label={t('quickPlanner.notes')}>
-            <div className="quick-planner-guide-heading">
-              <h2 aria-label={t('quickPlanner.guideTitle')}>
-                {t('quickPlanner.guideTitleFirst')}<br />{t('quickPlanner.guideTitleSecond')}
-              </h2>
-            </div>
-            <ol className="quick-planner-notes">
-              {[
-                { number: '01', title: t('quickPlanner.noteOneTitle'), text: t('quickPlanner.noteOneText') },
-                { number: '02', title: t('quickPlanner.noteTwoTitle'), text: t('quickPlanner.noteTwoText') },
-                { number: '03', title: t('quickPlanner.noteThreeTitle'), text: t('quickPlanner.noteThreeText') },
-              ].map(({ number, title, text }) => (
-                <li key={number}>
-                  <span className="quick-planner-note-number">{number}</span>
-                  <div>
-                    <strong>{title}</strong>
-                    <p>{text}</p>
+          <aside className="quick-planner-activity" aria-label={t('quickPlanner.activityUpcoming')}>
+            <section className="quick-planner-activity-section" aria-labelledby="quick-planner-activity-heading">
+              <div className="quick-planner-activity-header">
+                <h2 id="quick-planner-activity-heading">{t('quickPlanner.activity')}</h2>
+                <span>{t('quickPlanner.activityPeriod')}</span>
+              </div>
+              {historyError ? (
+                <p className="quick-planner-activity-state is-error">{t('quickPlanner.historyError')}</p>
+              ) : !historyReady ? (
+                <p className="quick-planner-activity-state">{t('quickPlanner.loadingActivity')}</p>
+              ) : activityDays.every(({ count }) => count === 0) ? (
+                <p className="quick-planner-activity-state">{t('quickPlanner.emptyActivity')}</p>
+              ) : (
+                <>
+                  <p className="quick-planner-activity-total">
+                    {t('quickPlanner.activityTotal', {
+                      count: activityDays.reduce((total, day) => total + day.count, 0),
+                    })}
+                  </p>
+                  <div
+                    className="quick-planner-activity-chart"
+                    role="img"
+                    aria-label={t('quickPlanner.activityChartLabel', {
+                      count: activityDays.reduce((total, day) => total + day.count, 0),
+                    })}
+                  >
+                    {activityDays.map(({ date, count }) => {
+                      const barHeight = count === 0
+                        ? 3
+                        : Math.max(12, (count / Math.max(...activityDays.map((day) => day.count))) * 100);
+                      const dayLabel = new Intl.DateTimeFormat(dateLocale, { weekday: 'short' }).format(date);
+                      const fullDate = new Intl.DateTimeFormat(dateLocale, {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                      }).format(date);
+                      return (
+                        <div
+                          className="quick-planner-activity-day"
+                          key={getLocalDateKey(date)}
+                          title={t('quickPlanner.activityDayCount', { date: fullDate, count })}
+                        >
+                          <span className="quick-planner-activity-value">{count || ''}</span>
+                          <span className="quick-planner-activity-bar-track">
+                            <span
+                              className="quick-planner-activity-bar"
+                              style={{ height: `${barHeight}%` }}
+                            />
+                          </span>
+                          <span className="quick-planner-activity-day-label">{dayLabel}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </li>
-              ))}
-            </ol>
+                </>
+              )}
+            </section>
+            <section className="quick-planner-upcoming-section" aria-labelledby="quick-planner-upcoming-heading">
+              <div className="quick-planner-activity-header">
+                <h2 id="quick-planner-upcoming-heading">{t('quickPlanner.upcoming')}</h2>
+              </div>
+              {historyError ? (
+                <p className="quick-planner-activity-state is-error">{t('quickPlanner.historyError')}</p>
+              ) : !historyReady ? (
+                <p className="quick-planner-activity-state">{t('quickPlanner.loadingUpcoming')}</p>
+              ) : upcomingMessages.length === 0 ? (
+                <p className="quick-planner-activity-state">{t('quickPlanner.emptyUpcoming')}</p>
+              ) : (
+                <ul className="quick-planner-upcoming-list">
+                  {upcomingMessages.map((scheduledMessage) => {
+                    const scheduledDate = new Date(scheduledMessage.when);
+                    const preview = scheduledMessage.text.trim()
+                      || (scheduledMessage.attachments?.length
+                        ? t('quickPlanner.mediaMessage')
+                        : t('quickPlanner.emptyTextMessage'));
+                    return (
+                      <li className="quick-planner-upcoming-item" key={scheduledMessage.id}>
+                        <time
+                          dateTime={scheduledMessage.when}
+                          title={new Intl.DateTimeFormat(dateLocale, {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).format(scheduledDate)}
+                        >
+                          {new Intl.DateTimeFormat(dateLocale, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }).format(scheduledDate)}
+                        </time>
+                        <strong title={scheduledMessage.chatName}>{scheduledMessage.chatName}</strong>
+                        <span title={preview}>{preview}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
           </aside>
         </div>
 

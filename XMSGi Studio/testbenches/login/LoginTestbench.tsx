@@ -123,7 +123,7 @@ function ScenarioPreview({
 }
 
 export function LoginTestbench() {
-  const { locale, setLocale, t } = useLocale();
+  const { t } = useLocale();
   const [view, setView] = useState<'all' | 'single'>('single');
   const [scenario, setScenario] = useState<Scenario>('initial');
   const [theme, setTheme] = useState<ColorTheme>(readTestbenchColorTheme);
@@ -141,7 +141,7 @@ export function LoginTestbench() {
   useEffect(() => {
     const localizedError = getScenarioError(scenario, t);
     if (localizedError) setAuthError(localizedError);
-  }, [locale, scenario, t]);
+  }, [scenario, t]);
 
   const selectScenario = (nextScenario: Scenario) => {
     setScenario(nextScenario);
@@ -190,16 +190,12 @@ export function LoginTestbench() {
             <Moon size={16} aria-hidden="true" />
           </button>
         </div>
-        <div className="login-testbench-languages" role="group" aria-label={t('language.title')}>
-          <button type="button" aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>EN</button>
-          <button type="button" aria-pressed={locale === 'ru'} onClick={() => setLocale('ru')}>RU</button>
-        </div>
         <button type="button" className="login-testbench-reset" onClick={resetToInitial}>
           <RotateCcw size={15} aria-hidden="true" />
           <span>Reset sign-in</span>
         </button>
-        <a className="login-testbench-pages" href="../settings/">{locale === 'ru' ? 'Настройки' : 'Settings'}</a>
-        <a className="login-testbench-pages" href="../">{locale === 'ru' ? 'Все стенды' : 'All pages'}</a>
+        <a className="login-testbench-pages" href="../settings/">Settings</a>
+        <a className="login-testbench-pages" href="../">All pages</a>
         <a className="login-testbench-exit" href="/">Exit</a>
       </nav>
       {view === 'all' ? (

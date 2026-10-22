@@ -69,6 +69,21 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain('showMainWindow();');
   });
 
+  it('rejects a second instance before touching shared cache paths or debug ports', () => {
+    const lockIndex = mainSource.indexOf('const hasSingleInstanceLock = app.requestSingleInstanceLock();');
+    const dataPathIndex = mainSource.indexOf('const writableAppDataRoot');
+    const cachePathIndex = mainSource.indexOf("app.commandLine.appendSwitch('disk-cache-dir', writableCacheRoot)");
+    const debugPortIndex = mainSource.indexOf("app.commandLine.appendSwitch('remote-debugging-port', remoteDebuggingPort)");
+
+    expect(lockIndex).toBeGreaterThan(-1);
+    expect(lockIndex).toBeLessThan(dataPathIndex);
+    expect(lockIndex).toBeLessThan(cachePathIndex);
+    expect(lockIndex).toBeLessThan(debugPortIndex);
+    expect(mainSource.slice(lockIndex, dataPathIndex)).toContain('if (!hasSingleInstanceLock)');
+    expect(mainSource.slice(lockIndex, dataPathIndex)).toContain('app.quit();');
+    expect(mainSource.slice(lockIndex, dataPathIndex)).toContain('return;');
+  });
+
   it('restores the existing window when the app is activated', () => {
     const activateHandler = mainSource.match(/app\.on\('activate',[\s\S]*?\n\s{2}\}\);/)?.[0];
 

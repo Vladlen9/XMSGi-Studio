@@ -47,6 +47,43 @@ describe('publishingService', () => {
     );
   });
 
+  it('forwards a Studio send-attempt key and retains confirmed history persistence metadata', async () => {
+    const send = vi.fn().mockResolvedValue({
+      success: true,
+      telegramMessageId: 52,
+      telegramMessageIds: [52],
+      sentAt: '2026-10-22T18:00:00.000Z',
+      historyPersisted: true,
+    });
+    vi.stubGlobal('telegram', { send });
+
+    const result = await publishToChannel({
+      accountId: 'account-1',
+      channelId: 'channel-1',
+      body: 'Correlated Studio send',
+      sendAttemptId: 'stable:studio-attempt-1',
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      'channel-1',
+      'Correlated Studio send',
+      [],
+      [],
+      undefined,
+      false,
+      undefined,
+      'account-1',
+      'stable:studio-attempt-1',
+    );
+    expect(result.publishResult).toMatchObject({
+      ok: true,
+      messageId: '52',
+      messageIds: [52],
+      sentAt: '2026-10-22T18:00:00.000Z',
+      historyPersisted: true,
+    });
+  });
+
   it('does not claim publish success when Telegram rejects the message', async () => {
     vi.stubGlobal('telegram', {
       send: vi.fn().mockResolvedValue({ success: false, error: 'Telegram is disconnected.' }),

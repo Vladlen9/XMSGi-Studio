@@ -330,6 +330,8 @@ function AppContent() {
   const {
     upcoming: personalUpcoming,
     sent: personalSent,
+    historyReady: personalHistoryReady,
+    historyLoadError: personalHistoryLoadError,
     handleCancelMessage: handlePersonalCancelMessage,
     handleCancelMessages: handlePersonalCancelMessages,
     handleSchedule: handlePersonalSchedule,
@@ -899,6 +901,10 @@ function AppContent() {
             <QuickPlanner
               chats={chats}
               selectedChat={selectedChat}
+              upcoming={personalUpcoming}
+              sent={personalSent}
+              historyReady={personalHistoryReady}
+              historyError={Boolean(personalHistoryLoadError)}
               onSelectChat={setSelectedChat}
               onRemoveChat={handleRemoveChat}
               onSendNow={(chat, text, attachments, effect) => handlePersonalSendDraftNow(

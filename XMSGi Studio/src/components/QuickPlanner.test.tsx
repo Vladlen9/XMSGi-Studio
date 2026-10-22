@@ -1,7 +1,7 @@
 import { createElement, type ReactNode } from 'react';
 import { act, fireEvent, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Chat } from '@/types';
+import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { flushPlannerDraftWrite, readPlannerDraftAttachments, writePlannerDraft } from '../lib/plannerDraft';
@@ -10,6 +10,19 @@ import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigati
 
 function render(ui: ReactNode) {
   return renderTestingLibrary(createElement(LocaleProvider, null, ui));
+}
+
+function createScheduledMessage(overrides: Partial<ScheduledMessage> = {}): ScheduledMessage {
+  return {
+    id: 'message-1',
+    chatId: 'chat-1',
+    chatName: 'Test chat',
+    text: 'A scheduled message',
+    when: '2035-05-12T15:00:00.000Z',
+    createdAt: '2035-05-10T10:00:00.000Z',
+    status: 'scheduled',
+    ...overrides,
+  };
 }
 
 describe('QuickPlanner feedback', () => {
@@ -111,13 +124,8 @@ describe('QuickPlanner feedback', () => {
     expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ЗАПЛАНИРОВАТЬ');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
     expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Быстрая запись');
-    expect(screen.getByRole('heading', { name: 'Создай пространство для своих планов.' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Сохраняйте всё важное за секунды.');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Превращайте идеи в действия');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Ставьте напоминания и воплощайте идеи в жизнь.');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Продолжайте в Studio');
-    expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Редактируйте и улучшайте свои тексты в Studio.');
+    expect(screen.getByRole('heading', { name: 'Активность' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Предстоящие' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать дату' }));
     const datePicker = screen.getByRole('dialog', { name: 'Выбор даты отправки' });
@@ -131,18 +139,168 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
   });
 
-  it('shows the supplied English Planner guide copy', () => {
+  it('shows translated Activity and Upcoming empty states', () => {
     render(<QuickPlanner />);
 
-    expect(screen.getByRole('heading', { name: 'Make room for your plans.' })).toBeInTheDocument();
-    const guide = screen.getByRole('complementary', { name: 'Planner notes' });
-    expect(guide).toHaveTextContent('Quick capture');
-    expect(guide).toHaveTextContent('Save everything that matters in seconds.');
-    expect(guide).toHaveTextContent('Turn ideas into action');
-    expect(guide).toHaveTextContent('Set reminders and bring your ideas to life.');
-    expect(guide).toHaveTextContent('Continue in Studio');
-    expect(guide).toHaveTextContent('Edit and refine your writing in Studio.');
+    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Upcoming' })).toBeInTheDocument();
+    expect(screen.getByText('No confirmed sends in the last 7 days.')).toBeInTheDocument();
+    expect(screen.getByText('No upcoming messages.')).toBeInTheDocument();
     expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('SCHEDULE');
+  });
+
+  it('charts only distinct confirmed sends with valid sentAt timestamps over local days', () => {
+    const now = new Date(2035, 4, 12, 12, 0, 0);
+    vi.setSystemTime(now);
+    const sentAt = new Date(2035, 4, 12, 9, 30, 0).toISOString();
+    const sent = [
+      createScheduledMessage({ id: 'send-a', status: 'sent', sentAt, sendAttemptId: 'attempt-a' }),
+      createScheduledMessage({ id: 'duplicate', status: 'sent', sentAt, sendAttemptId: 'attempt-a' }),
+      createScheduledMessage({ id: 'send-b', status: 'sent', sentAt }),
+      createScheduledMessage({ id: 'unknown', status: 'unknown', sentAt }),
+      createScheduledMessage({ id: 'failed', status: 'failed', sentAt }),
+      createScheduledMessage({ id: 'missing-time', status: 'sent', sentAt: undefined }),
+      createScheduledMessage({ id: 'invalid-time', status: 'sent', sentAt: 'not-a-date' }),
+      createScheduledMessage({ id: 'planned', status: 'scheduled', sentAt }),
+    ];
+
+    render(<QuickPlanner sent={sent} />);
+
+    const dateLabel = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(now);
+    expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 2' })).toBeInTheDocument();
+    expect(screen.getByTitle(`${dateLabel}: 2 messages sent`)).toBeInTheDocument();
+    expect(screen.getByText('Confirmed sends: 2')).toBeInTheDocument();
+  });
+
+  it('includes a newly received confirmed send even when the scheduling clock state is stale', () => {
+    const initialTime = new Date('2035-05-12T12:00:00.000Z');
+    vi.setSystemTime(initialTime);
+    const view = render(<QuickPlanner sent={[]} />);
+
+    const sentAt = new Date(initialTime.getTime() + 500).toISOString();
+    vi.setSystemTime(new Date(initialTime.getTime() + 1000));
+    view.rerender(createElement(LocaleProvider, null, createElement(QuickPlanner, {
+      sent: [createScheduledMessage({ status: 'sent', sentAt })],
+    })));
+
+    expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 1' })).toBeInTheDocument();
+    expect(screen.queryByText('No confirmed sends in the last 7 days.')).not.toBeInTheDocument();
+  });
+
+  it('does not present history load errors as an empty activity state', () => {
+    render(<QuickPlanner historyReady={false} historyError />);
+
+    expect(screen.getAllByText('Message history could not be loaded.')).toHaveLength(2);
+    expect(screen.queryByText('No confirmed sends in the last 7 days.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No upcoming messages.')).not.toBeInTheDocument();
+  });
+
+  it('shows no chart when saved sent records have no valid sentAt value', () => {
+    render(<QuickPlanner sent={[
+      createScheduledMessage({ id: 'missing-time', status: 'sent' }),
+      createScheduledMessage({ id: 'invalid-time', status: 'sent', sentAt: 'invalid' }),
+    ]} />);
+
+    expect(screen.getByText('No confirmed sends in the last 7 days.')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('shows loading rather than empty states until history is restored', () => {
+    render(<QuickPlanner historyReady={false} />);
+
+    expect(screen.getByText('Loading activity…')).toBeInTheDocument();
+    expect(screen.getByText('Loading upcoming messages…')).toBeInTheDocument();
+  });
+
+  it('shows only future scheduled messages in chronological order and updates with props', () => {
+    vi.setSystemTime(new Date('2035-05-12T12:00:00.000Z'));
+    const first = createScheduledMessage({
+      id: 'first',
+      chatName: 'First chat',
+      text: 'First upcoming',
+      when: '2035-05-12T13:00:00.000Z',
+    });
+    const second = createScheduledMessage({
+      id: 'second',
+      chatName: 'Second chat',
+      text: 'Second upcoming',
+      when: '2035-05-12T14:00:00.000Z',
+    });
+    const cancelled = createScheduledMessage({ id: 'cancelled', text: 'Cancelled record' });
+    Object.assign(cancelled, { status: 'cancelled' });
+    const view = render(<QuickPlanner upcoming={[
+      second,
+      first,
+      createScheduledMessage({ id: 'past', text: 'Expired record', when: '2035-05-12T11:00:00.000Z' }),
+      createScheduledMessage({ id: 'sent', status: 'sent', text: 'Sent record' }),
+      createScheduledMessage({ id: 'failed', status: 'failed', text: 'Failed record' }),
+      createScheduledMessage({ id: 'sending', status: 'sending', text: 'Sending record' }),
+      createScheduledMessage({ id: 'unknown', status: 'unknown', text: 'Unknown record' }),
+      createScheduledMessage({ id: 'pending', status: 'pending', text: 'Pending record' }),
+      createScheduledMessage({ id: 'invalid', when: 'invalid-date', text: 'Invalid record' }),
+      cancelled,
+    ]} />);
+
+    const items = view.container.querySelectorAll('.quick-planner-upcoming-item');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('First upcoming');
+    expect(items[1]).toHaveTextContent('Second upcoming');
+    for (const excluded of ['Expired record', 'Sent record', 'Failed record', 'Sending record', 'Unknown record', 'Pending record', 'Invalid record', 'Cancelled record']) {
+      expect(screen.queryByText(excluded)).not.toBeInTheDocument();
+    }
+
+    view.rerender(createElement(LocaleProvider, null, createElement(QuickPlanner, {
+      upcoming: [createScheduledMessage({ id: 'updated', text: 'Updated schedule', when: '2035-05-12T16:00:00.000Z' })],
+    })));
+    expect(screen.getByText('Updated schedule')).toBeInTheDocument();
+    expect(screen.queryByText('First upcoming')).not.toBeInTheDocument();
+  });
+
+  it('formats upcoming ISO timestamps as the local scheduled instant', () => {
+    const when = '2035-05-12T15:00:00.000Z';
+    render(<QuickPlanner upcoming={[createScheduledMessage({ when })]} />);
+
+    const displayedTime = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(when));
+    expect(screen.getByText(displayedTime)).toBeInTheDocument();
+    expect(screen.getByText(displayedTime)).toHaveAttribute('title', new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(when)));
+  });
+
+  it('keeps full long Upcoming labels available while displaying compact previews', () => {
+    const chatName = 'A very long channel name that needs more than one line';
+    const messageText = 'A detailed message preview that should remain available in full';
+    render(<QuickPlanner upcoming={[createScheduledMessage({
+      chatName,
+      text: messageText,
+    })]} />);
+
+    expect(screen.getByText(chatName)).toHaveAttribute('title', chatName);
+    expect(screen.getByText(messageText)).toHaveAttribute('title', messageText);
+  });
+
+  it('uses a translated content label for a scheduled attachment with no text', () => {
+    render(<QuickPlanner upcoming={[createScheduledMessage({
+      text: '',
+      attachments: ['C:\\files\\image.png'],
+    })]} />);
+
+    expect(screen.getByText('Media message')).toBeInTheDocument();
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
   });
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {
@@ -685,6 +843,26 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Message could not be scheduled.');
     expect(screen.getByRole('alert')).not.toHaveTextContent('Posts');
     expect(openPosts).not.toHaveBeenCalled();
+  });
+
+  it('keeps Planner content and warns when Telegram sent but history persistence failed', async () => {
+    const chat: Chat = { id: 'chat-history-failure', name: 'History failure chat' };
+    const onSendNow = vi.fn().mockResolvedValue('sent-history-failed');
+    const { container } = render(
+      <QuickPlanner chats={[chat]} selectedChat={chat} onSendNow={onSendNow} />,
+    );
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
+
+    fireEvent.change(editor, { target: { value: 'Keep confirmed message' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+    await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
+
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep confirmed message', undefined, undefined);
+    expect(editor).toHaveValue('Keep confirmed message');
+    expect(screen.getByRole('status')).toHaveClass('is-warning');
+    expect(screen.getByRole('status')).toHaveTextContent('Message history could not be saved.');
+    expect(screen.getByRole('status')).not.toHaveClass('is-success');
   });
 
   it('uses the first chat-name letter in placeholder avatars', () => {

@@ -1,7 +1,8 @@
 export type ColorTheme = 'light' | 'dark';
 
 export const COLOR_THEME_STORAGE_KEY = 'xmsgi-color-theme-v1';
-const THEME_TRANSITION_DURATION_MS = 520;
+const THEME_TRANSITION_DURATION_MS = 320;
+const THEME_TRANSITION_RESET_DELAY_MS = THEME_TRANSITION_DURATION_MS + 40;
 let themeTransitionTimeout: number | undefined;
 
 export function readColorTheme(storageKey = COLOR_THEME_STORAGE_KEY): ColorTheme {
@@ -28,7 +29,7 @@ export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean;
       themeTransitionTimeout = window.setTimeout(() => {
         root.classList.remove('is-theme-transitioning');
         themeTransitionTimeout = undefined;
-      }, THEME_TRANSITION_DURATION_MS);
+      }, THEME_TRANSITION_RESET_DELAY_MS);
     } else {
       if (themeTransitionTimeout !== undefined) window.clearTimeout(themeTransitionTimeout);
       themeTransitionTimeout = undefined;

@@ -76,7 +76,7 @@ declare global {
         contacts?: { id: string; name: string; username?: string; phone?: string }[];
         error?: string;
       }>;
-      send: (chatId: string, message: string, attachments?: string[], entities?: TelegramFormattingEntity[], replyMarkup?: { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> }) => Promise<{
+      send: (chatId: string, message: string, attachments?: string[], entities?: TelegramFormattingEntity[], replyMarkup?: { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> }, silent?: boolean, effect?: string, accountId?: string, idempotencyKey?: string) => Promise<{
         success: boolean;
         error?: string;
         code?: string;
@@ -84,6 +84,11 @@ declare global {
         retryable?: boolean;
         waitSeconds?: number;
         cancelled?: boolean;
+        telegramMessageId?: string | number;
+        telegramMessageIds?: Array<string | number>;
+        sentAt?: string;
+        historyPersisted?: boolean;
+        historyError?: string;
       }>;
       schedule: (data: {
         chatId: string;

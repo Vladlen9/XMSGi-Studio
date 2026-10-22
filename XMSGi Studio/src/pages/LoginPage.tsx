@@ -51,7 +51,7 @@ export function LoginPage({
   handleTelegramAuth,
   handleWelcomeBack,
 }: LoginPageProps) {
-  const { locale, setLocale, t } = useLocale();
+  const { locale, t } = useLocale();
   const [colorTheme, setColorTheme] = useState(readColorTheme);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const returningUserLabel = returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'));
@@ -176,15 +176,6 @@ export function LoginPage({
       <div className="app">
         <section className={`auth-panel auth-screen ${showAuthForm ? 'is-auth-open' : ''}`} lang={locale}>
           <div className="auth-top-controls">
-            <div className="auth-language-switch" role="group" aria-label={t('language.title')}>
-              <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
-                RU
-              </button>
-              <span aria-hidden="true">|</span>
-              <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
-                EN
-              </button>
-            </div>
             <button
               type="button"
               className="auth-theme-button"

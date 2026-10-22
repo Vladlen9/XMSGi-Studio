@@ -13,10 +13,26 @@ function readJsonFile(filePath, fallback) {
 function writeJsonFile(filePath, data) {
   const temporaryPath = `${filePath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  let fileDescriptor;
   try {
-    fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { flag: 'wx', mode: 0o600 });
+    fileDescriptor = fs.openSync(temporaryPath, 'wx', 0o600);
+    fs.writeFileSync(fileDescriptor, JSON.stringify(data, null, 2), 'utf8');
+    fs.fsyncSync(fileDescriptor);
+    fs.closeSync(fileDescriptor);
+    fileDescriptor = undefined;
     fs.renameSync(temporaryPath, filePath);
+    if (process.platform !== 'win32') {
+      const directoryDescriptor = fs.openSync(path.dirname(filePath), 'r');
+      try {
+        fs.fsyncSync(directoryDescriptor);
+      } finally {
+        fs.closeSync(directoryDescriptor);
+      }
+    }
   } catch (error) {
+    if (fileDescriptor !== undefined) {
+      try { fs.closeSync(fileDescriptor); } catch { /* Preserve the original write error. */ }
+    }
     try { fs.unlinkSync(temporaryPath); } catch { /* Ignore temporary-file cleanup errors. */ }
     throw error;
   }

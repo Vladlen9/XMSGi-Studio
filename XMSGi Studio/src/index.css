@@ -2831,25 +2831,6 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   gap: 8px;
 }
 
-.auth-language-switch {
-  display: inline-flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 9px;
-  color: var(--faint);
-  font-family: var(--mono);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-}
-
-.auth-language-switch > span {
-  width: auto;
-  height: auto;
-  background: none;
-  font-size: inherit;
-}
-
 .auth-theme-button {
   display: grid;
   width: 36px;
@@ -2874,23 +2855,6 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 .auth-theme-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.auth-language-switch button {
-  padding: 5px 3px;
-  border: 0;
-  background: transparent;
-  color: var(--dim);
-  font: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
-}
-
-.auth-language-switch button.is-selected,
-.auth-language-switch button:hover,
-.auth-language-switch button:focus-visible {
-  color: var(--text);
-  outline: none;
 }
 
 .auth-version {

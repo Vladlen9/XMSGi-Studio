@@ -79,7 +79,13 @@ describe('App media publishing', () => {
           { id: 'telegram', name: 'Telegram', username: 'telegram', type: 'channel' },
         ] }),
         getChatHistory: vi.fn().mockResolvedValue({ success: true, history: { chat: { id: 'telegram', title: 'Telegram' }, messages: [] } }),
-        send: vi.fn().mockResolvedValue({ success: true }),
+        loadScheduleHistory: vi.fn().mockResolvedValue({ success: true, history: { upcoming: [], sent: [] } }),
+        saveScheduleHistory: vi.fn().mockResolvedValue({ success: true }),
+        send: vi.fn().mockResolvedValue({
+          success: true,
+          telegramMessageId: 42,
+          historyPersisted: true,
+        }),
         schedule: vi.fn().mockResolvedValue({ success: true, telegramMessageId: 42, confirmed: true }),
         cancel: vi.fn().mockResolvedValue({ success: true }),
         findChat: vi.fn().mockResolvedValue({ success: false, error: 'Chat not found.' }),
@@ -229,7 +235,7 @@ describe('App media publishing', () => {
     });
 
     expect(window.telegram.schedule).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('Choose a date and time in the future.');
+    expect(document.body.textContent).toContain('Choose a future date.');
     unmount();
   });
 
@@ -288,6 +294,10 @@ describe('App media publishing', () => {
       ['/managed/photo.png'],
       [{ type: 'bold', offset: 6, length: 4 }],
       undefined,
+      false,
+      undefined,
+      'account-1',
+      expect.any(String),
     );
     unmount();
   });

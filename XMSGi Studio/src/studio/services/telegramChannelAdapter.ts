@@ -80,6 +80,10 @@ function toPublishResult(result: {
   success: boolean;
   id?: string | number;
   telegramMessageId?: string | number;
+  telegramMessageIds?: Array<string | number>;
+  sentAt?: string;
+  historyPersisted?: boolean;
+  historyError?: string;
   confirmed?: boolean;
   error?: string;
   code?: string;
@@ -106,6 +110,10 @@ function toPublishResult(result: {
     ok: true,
     provider: 'telegram',
     ...(messageId === undefined ? {} : { messageId: String(messageId) }),
+    ...(result.telegramMessageIds === undefined ? {} : { messageIds: result.telegramMessageIds }),
+    ...(result.sentAt === undefined ? {} : { sentAt: result.sentAt }),
+    ...(result.historyPersisted === undefined ? {} : { historyPersisted: result.historyPersisted }),
+    ...(result.historyError === undefined ? {} : { historyError: result.historyError }),
     ...(result.confirmed === undefined ? {} : { confirmed: result.confirmed }),
     ...(result.error ? { error: result.error } : {}),
   };
@@ -133,16 +141,31 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
     try {
       const message = await this.normalizeMessage(post);
-      const result = post.effect
+      const sendArguments = [
+        post.channelId,
+        message.text,
+        message.mediaIds,
+        getFormattingEntities(message.entities),
+        getReplyMarkup(message.replyMarkup),
+        false,
+        post.effect,
+        post.accountId,
+        post.sendAttemptId,
+      ] as const;
+      const result = post.sendAttemptId
         ? await telegram.send(
-          post.channelId,
-          message.text,
-          message.mediaIds,
-          getFormattingEntities(message.entities),
-          getReplyMarkup(message.replyMarkup),
-          false,
-          post.effect,
+          ...sendArguments,
         )
+        : post.effect
+          ? await telegram.send(
+            post.channelId,
+            message.text,
+            message.mediaIds,
+            getFormattingEntities(message.entities),
+            getReplyMarkup(message.replyMarkup),
+            false,
+            post.effect,
+          )
         : await telegram.send(
           post.channelId,
           message.text,

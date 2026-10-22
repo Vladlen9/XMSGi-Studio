@@ -133,6 +133,7 @@ export function useScheduler({
     quiet?: boolean,
   ) => Promise<boolean>>(async () => false);
   const [historyReady, setHistoryReady] = useState(false);
+  const [historyLoadError, setHistoryLoadError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const schedulingLockRef = useRef(false);
   const [successPulse, setSuccessPulse] = useState(false);
@@ -208,6 +209,7 @@ export function useScheduler({
     let cancelled = false;
 
     const restoreHistory = async () => {
+      setHistoryLoadError(null);
       const fallbackUpcoming = loadUpcoming();
       const fallbackSent = loadSent();
 
@@ -268,6 +270,7 @@ export function useScheduler({
         if (cancelled) return;
         setUpcoming(fallbackUpcoming);
         setSent(fallbackSent);
+        setHistoryLoadError(error instanceof Error ? error.message : 'Schedule history could not be restored.');
         showNotification(
           error instanceof Error ? error.message : 'Schedule history could not be restored.',
           'error',
@@ -437,7 +440,7 @@ export function useScheduler({
     clearMessageOnSuccess?: boolean;
     waitForConfirmation?: boolean;
     replaceMessage?: ScheduledMessage;
-  }, repeatOptions: ScheduleRepeatOptions = { mode: 'none', occurrences: 1 }): Promise<boolean | void> {
+  }, repeatOptions: ScheduleRepeatOptions = { mode: 'none', occurrences: 1 }): Promise<boolean | 'sent-history-failed' | void> {
     if (!historyReady || scheduling || schedulingLockRef.current) return false;
 
     const scheduleChat = scheduleRequest
@@ -1414,10 +1417,13 @@ export function useScheduler({
     replyMarkup?: InlineKeyboardMarkup,
     silent: boolean | string[][] = false,
     effect?: string,
-    options: { clearMessageOnSuccess?: boolean; isNestedBatchGroup?: boolean } = {},
+    options: {
+      clearMessageOnSuccess?: boolean;
+      isNestedBatchGroup?: boolean;
+    } = {},
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
-  ): Promise<boolean> {
+  ): Promise<boolean | 'sent-history-failed'> {
     const isNestedBatchGroup = Boolean(options.isNestedBatchGroup);
     const suppliedGroups = Array.isArray(silent) ? silent : attachmentGroups;
     if (suppliedGroups?.length) {
@@ -1431,10 +1437,11 @@ export function useScheduler({
 
         let allSent = true;
         let sentGroupCount = 0;
+        let historyWriteFailed = false;
         try {
           for (const [groupIndex, group] of groups.entries()) {
             const isPrimaryGroup = groupIndex === 0;
-            const sent: boolean = await handleSendDraftNow(
+            const sentResult = await handleSendDraftNow(
               chat,
               isPrimaryGroup ? text : '',
               group,
@@ -1445,6 +1452,8 @@ export function useScheduler({
               { isNestedBatchGroup: true },
               [group],
             );
+            const sent = sentResult !== false;
+            if (sentResult === 'sent-history-failed') historyWriteFailed = true;
             onAttachmentGroupResult?.(groupIndex, sent);
             if (sent) {
               sentGroupCount += 1;
@@ -1459,13 +1468,18 @@ export function useScheduler({
           }
 
           if (allSent) {
-            if (options.clearMessageOnSuccess !== false) setMessage('');
-            draftSendAttemptRef.current = null;
-            setSuccessPulse(true);
-            setLastAction('sent');
-            showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
-            scheduleTimeout(() => setSuccessPulse(false), 1500);
-            scheduleTimeout(() => setLastAction(null), 1500);
+            if (historyWriteFailed) {
+              showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+              return 'sent-history-failed';
+            } else {
+              if (options.clearMessageOnSuccess !== false) setMessage('');
+              draftSendAttemptRef.current = null;
+              setSuccessPulse(true);
+              setLastAction('sent');
+              showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+              scheduleTimeout(() => setSuccessPulse(false), 1500);
+              scheduleTimeout(() => setLastAction(null), 1500);
+            }
           } else if (sentGroupCount > 0) {
             showNotification(t('schedule.partialAttachmentSend'), 'warning', t('schedule.sendFailedTitle'));
           } else {
@@ -1606,16 +1620,19 @@ export function useScheduler({
         upcoming: nextUpcoming,
         sent: updatedSent,
       });
-      if (isNestedBatchGroup) await historyWrite;
+      const historyPersisted = await historyWrite;
+      if (!historyPersisted) {
+        if (!isNestedBatchGroup) {
+          showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+        }
+        return 'sent-history-failed';
+      }
       if (options.clearMessageOnSuccess !== false && !isNestedBatchGroup) setMessage('');
       draftSendAttemptRef.current = null;
       if (!isNestedBatchGroup) {
         setSuccessPulse(true);
         setLastAction('sent');
         showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
-        void historyWrite.then((historyPersisted) => {
-          if (!historyPersisted) showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
-        });
         scheduleTimeout(() => setSuccessPulse(false), 1500);
         scheduleTimeout(() => setLastAction(null), 1500);
       }
@@ -1706,6 +1723,8 @@ export function useScheduler({
     sent,
     setSent,
     scheduling: scheduling || !historyReady,
+    historyReady,
+    historyLoadError,
     setScheduling,
     successPulse,
     lastAction,

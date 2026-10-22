@@ -103,7 +103,9 @@ function installTelegramMocks({ sendMessageDelayMs = 0 } = {}) {
       if (options.schedule) {
         scheduled.push({ id: 77, message: options.message, date: new Date(options.schedule * 1000) });
       }
-      return { id: 77 };
+      return Array.isArray(options.file)
+        ? options.file.map((_, index) => ({ id: 77 + index }))
+        : { id: 77 };
     }
 
     async getScheduledMessages() {
@@ -174,7 +176,7 @@ describe('Telegram operation log privacy', () => {
     try {
       const send = core.sendMessage('me', 'Album caption', ['/tmp/first.png', '/tmp/second.png']);
       await vi.advanceTimersByTimeAsync(20_000);
-      await expect(send).resolves.toBe(true);
+      await expect(send).resolves.toMatchObject({ success: true, telegramMessageId: 77 });
     } finally {
       vi.useRealTimers();
       await core.shutdownTelegram();
@@ -183,7 +185,7 @@ describe('Telegram operation log privacy', () => {
 
   it('omits message text, button data, and file paths from send, schedule, and error logs', async () => {
     vi.resetModules();
-    const { sendCalls, invokeCalls } = installTelegramMocks();
+    const { sendCalls } = installTelegramMocks();
     captureConsole();
 
     const { createTelegramCore } = await import('./telegram.cjs');
@@ -201,7 +203,7 @@ describe('Telegram operation log privacy', () => {
     try {
       await core.connectTelegram();
       await core.sendMessage('me', 'PRIVATE_DIRECT_SEND_TEXT');
-      expect(invokeCalls.at(-1).message).toBe('PRIVATE_DIRECT_SEND_TEXT');
+      expect(sendCalls.at(-1).message).toBe('PRIVATE_DIRECT_SEND_TEXT');
 
       await core.sendMessage(
         'me',
@@ -260,7 +262,7 @@ describe('Telegram operation log privacy', () => {
 describe('Telegram outbound message normalization', () => {
   it('removes invisible characters before sending and scheduling and preserves entity offsets', async () => {
     vi.resetModules();
-    const { invokeCalls } = installTelegramMocks();
+    const { invokeCalls, sendCalls } = installTelegramMocks();
     const { createTelegramCore } = await import('./telegram.cjs');
     const core = createTelegramCore({ apiId: 1, apiHash: 'hash', sessionString: 'session' });
     const text = 'A\u00A0B\u00ADC\u200BD\u200EE\u2060F\uFEFF';
@@ -271,8 +273,8 @@ describe('Telegram outbound message normalization', () => {
       await core.connectTelegram();
       await core.sendMessage('me', text, [], entities);
 
-      expect(invokeCalls.at(-1).message).toBe(expectedText);
-      expect(invokeCalls.at(-1).entities).toMatchObject([{ offset: 0, length: expectedText.length }]);
+      expect(sendCalls.at(-1).message).toBe(expectedText);
+      expect(sendCalls.at(-1).formattingEntities).toMatchObject([{ offset: 0, length: expectedText.length }]);
 
       await core.scheduleMessage('me', text, undefined, undefined, Math.floor(Date.now() / 1000) + 3600, [], entities);
 
@@ -285,7 +287,7 @@ describe('Telegram outbound message normalization', () => {
 
   it('converts Markdown markers from loaded templates before sending or scheduling', async () => {
     vi.resetModules();
-    const { invokeCalls } = installTelegramMocks();
+    const { invokeCalls, sendCalls } = installTelegramMocks();
     const { createTelegramCore } = await import('./telegram.cjs');
     const core = createTelegramCore({ apiId: 1, apiHash: 'hash', sessionString: 'session' });
     const source = '**ДЕЙСТВУЙ**\n**[Название]**\n[Главный результат]';
@@ -295,8 +297,8 @@ describe('Telegram outbound message normalization', () => {
       await core.connectTelegram();
       await core.sendMessage('me', source);
 
-      expect(invokeCalls.at(-1).message).toBe(expected);
-      expect(invokeCalls.at(-1).entities).toMatchObject([
+      expect(sendCalls.at(-1).message).toBe(expected);
+      expect(sendCalls.at(-1).formattingEntities).toMatchObject([
         { offset: 0, length: 8 },
         { offset: 9, length: 10 },
       ]);

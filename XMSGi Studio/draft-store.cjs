@@ -2,6 +2,65 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('node:crypto');
 
+const DOCUMENT_HISTORY_REASONS = new Set([
+  'edit',
+  'before-clear',
+  'before-delete',
+  'before-replacement',
+  'before-attachment-removal',
+  'restore',
+  'publish',
+]);
+
+function isPersistedSavedDraft(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value)
+    && typeof value.id === 'string'
+    && typeof value.name === 'string'
+    && typeof value.body === 'string'
+    && typeof value.createdAt === 'string'
+    && typeof value.updatedAt === 'string');
+}
+
+function isPersistedDocumentVersion(version, documentId) {
+  return Boolean(version
+    && typeof version === 'object'
+    && !Array.isArray(version)
+    && version.documentId === documentId
+    && typeof version.id === 'string'
+    && version.id.length > 0
+    && typeof version.createdAt === 'string'
+    && Number.isFinite(Date.parse(version.createdAt))
+    && DOCUMENT_HISTORY_REASONS.has(version.reason)
+    && version.snapshot
+    && typeof version.snapshot === 'object'
+    && !Array.isArray(version.snapshot)
+    && typeof version.snapshot.body === 'string'
+    && Array.isArray(version.snapshot.attachments)
+    && (!version.snapshot.documentId || version.snapshot.documentId === documentId));
+}
+
+function normalizeDocumentHistories(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const normalized = {};
+  for (const [documentId, rawVersions] of Object.entries(value)) {
+    if (!documentId || !Array.isArray(rawVersions)) continue;
+    const versions = rawVersions.filter((version) => isPersistedDocumentVersion(version, documentId));
+    if (versions.length) normalized[documentId] = versions.slice(-30);
+  }
+  return normalized;
+}
+
+function isValidDocumentHistories(value) {
+  return value === undefined || Boolean(value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.entries(value).every(([documentId, versions]) => (
+      documentId.length > 0
+      && Array.isArray(versions)
+      && versions.every((version) => isPersistedDocumentVersion(version, documentId))
+    )));
+}
+
 function normalizeStore(data = {}) {
   const draftList = Array.isArray(data.drafts) ? data.drafts : [];
   const backupList = Array.isArray(data.backups) ? data.backups : [];
@@ -47,19 +106,52 @@ function getStoreFilePath(directory) {
   return path.join(ensureDirectory(directory), 'drafts.json');
 }
 
+function validateStore(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    const error = new Error('Draft store must contain a JSON object.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed, 'drafts') && !Array.isArray(parsed.drafts)) {
+    const error = new Error('Draft store drafts must be an array.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed, 'backups') && !Array.isArray(parsed.backups)) {
+    const error = new Error('Draft store backups must be an array.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (Array.isArray(parsed.drafts)
+    && parsed.drafts.some((draft) => !draft || typeof draft !== 'object' || Array.isArray(draft))) {
+    const error = new Error('Draft store drafts have an invalid structure.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed, 'savedDrafts')
+    && (!Array.isArray(parsed.savedDrafts) || parsed.savedDrafts.some((draft) => !isPersistedSavedDraft(draft)))) {
+    const error = new Error('Draft store saved drafts have an invalid structure.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(parsed, 'workspaceDraft')
+    && parsed.workspaceDraft !== null
+    && (typeof parsed.workspaceDraft !== 'object' || Array.isArray(parsed.workspaceDraft))) {
+    const error = new Error('Draft store workspace draft has an invalid structure.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+  if (!isValidDocumentHistories(parsed.documentHistories)) {
+    const error = new Error('Draft store document histories have an invalid structure.');
+    error.code = 'DRAFT_STORE_INVALID';
+    throw error;
+  }
+}
+
 function readStoreFile(filePath, fileSystem) {
   const raw = fileSystem.readFileSync(filePath, 'utf8');
   const parsed = JSON.parse(raw);
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Draft store must contain a JSON object.');
-  }
-  if (Object.prototype.hasOwnProperty.call(parsed, 'drafts') && !Array.isArray(parsed.drafts)) {
-    throw new Error('Draft store drafts must be an array.');
-  }
-  if (Object.prototype.hasOwnProperty.call(parsed, 'backups') && !Array.isArray(parsed.backups)) {
-    throw new Error('Draft store backups must be an array.');
-  }
+  validateStore(parsed);
 
   return { raw, store: normalizeStore(parsed) };
 }
@@ -103,6 +195,13 @@ function createRecoveryError(mainError, backupError) {
   return error;
 }
 
+function createReadError(cause) {
+  const error = new Error('Draft store could not be read.');
+  error.code = 'DRAFT_STORE_READ_FAILED';
+  error.cause = cause;
+  return error;
+}
+
 function readStore(directory, fileSystem = fs) {
   const filePath = getStoreFilePath(directory);
   const backupPath = `${filePath}.bak`;
@@ -110,6 +209,12 @@ function readStore(directory, fileSystem = fs) {
   try {
     return readStoreFile(filePath, fileSystem).store;
   } catch (mainError) {
+    if (mainError.code !== 'ENOENT'
+      && mainError.code !== 'DRAFT_STORE_INVALID'
+      && !(mainError instanceof SyntaxError)) {
+      throw createReadError(mainError);
+    }
+
     let backup;
     try {
       backup = readStoreFile(backupPath, fileSystem);
@@ -136,17 +241,19 @@ function writeStore(directory, payload, fileSystem = fs) {
   const filePath = getStoreFilePath(directory);
   const backupPath = `${filePath}.bak`;
   const normalized = normalizeStore(payload);
+  validateStore(normalized);
   const serialized = JSON.stringify(normalized, null, 2);
 
-  if (fileSystem.existsSync(filePath) || fileSystem.existsSync(backupPath)) {
-    readStore(directory, fileSystem);
-  }
+  readStore(directory, fileSystem);
 
   writeFileAtomically(filePath, serialized, fileSystem);
   try {
     writeFileAtomically(backupPath, serialized, fileSystem);
   } catch (error) {
-    console.warn('Draft store backup update failed:', error?.code || error?.name || 'unknown');
+    const backupError = new Error('Drafts were saved, but the backup could not be updated.');
+    backupError.code = 'DRAFT_STORE_BACKUP_UPDATE_FAILED';
+    backupError.cause = error;
+    throw backupError;
   }
   return normalized;
 }
@@ -336,4 +443,8 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
   };
 }
 
-module.exports = { createDraftStore };
+module.exports = {
+  createDraftStore,
+  isPersistedSavedDraft,
+  normalizeDocumentHistories,
+};

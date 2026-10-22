@@ -109,10 +109,10 @@ type WorkspacePageProps = {
     replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>;
     effect?: string;
     replaceMessage?: ScheduledMessage;
-  }, repeat?: ScheduleRepeatOptions) => void | Promise<void | boolean>;
+  }, repeat?: ScheduleRepeatOptions) => void | Promise<void | boolean | 'sent-history-failed'>;
   handleCancelMessage: (message: ScheduledMessage) => void;
   handleCancelMessages?: (messages: ScheduledMessage[]) => Promise<boolean>;
-  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string) => Promise<boolean>;
+  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string) => Promise<boolean | 'sent-history-failed'>;
   publishingDraft: boolean;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
@@ -1614,10 +1614,17 @@ export function WorkspacePage({
       }
 
       setSendError('');
-      setDraftBody('');
-      setDraftEntities([]);
-      setMessageEffectId(null);
-      showPublishFeedback(t('studio.messageSent'), 'success');
+      if (sent !== 'sent-history-failed') {
+        setDraftBody('');
+        setDraftEntities([]);
+        setMessageEffectId(null);
+      }
+      showPublishFeedback(
+        sent === 'sent-history-failed'
+          ? 'Telegram sent the message, but local history could not be saved. Do not resend this message.'
+          : t('studio.messageSent'),
+        sent === 'sent-history-failed' ? 'warning' : 'success',
+      );
 
       setPreviewHistory((current) => {
         if (!current || current.chat.id !== chat.id) return current;

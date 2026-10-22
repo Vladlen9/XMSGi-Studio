@@ -1,6 +1,6 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat } from '@studio/types';
 import { useStudioScheduler } from './useStudioScheduler';
 
@@ -25,7 +25,29 @@ vi.mock('@studio/lib/i18n', () => ({
 
 const chat: Chat = { id: 'chat-1', name: 'Test chat', type: 'group' };
 
-function renderScheduler(showNotification = vi.fn()) {
+function renderScheduler(showNotification = vi.fn(), scheduleHistoryOverrides: Record<string, unknown> = {}) {
+  const history = { upcoming: [] as Array<Record<string, unknown>>, sent: [] as Array<Record<string, unknown>> };
+  const loadScheduleHistory = vi.fn(async () => ({
+    success: true,
+    history: { upcoming: [...history.upcoming], sent: [...history.sent] },
+  }));
+  const saveScheduleHistory = vi.fn(async (data:
+    | { field: 'snapshot'; messages: { upcoming: Array<Record<string, unknown>>; sent: Array<Record<string, unknown>> } }
+    | { field: 'upcoming' | 'sent'; messages: Array<Record<string, unknown>> }
+  ) => {
+    if (data.field === 'snapshot') {
+      history.upcoming = data.messages.upcoming;
+      history.sent = data.messages.sent;
+    } else {
+      history[data.field] = data.messages as Array<Record<string, unknown>>;
+    }
+    return { success: true };
+  });
+  vi.stubGlobal('telegram', {
+    loadScheduleHistory,
+    saveScheduleHistory,
+    ...scheduleHistoryOverrides,
+  });
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -43,6 +65,9 @@ function renderScheduler(showNotification = vi.fn()) {
   return {
     get result() { return current; },
     showNotification,
+    history,
+    loadScheduleHistory,
+    saveScheduleHistory,
     unmount() {
       act(() => root.unmount());
       container.remove();
@@ -54,6 +79,135 @@ describe('useStudioScheduler bridge errors', () => {
   beforeEach(() => {
     publishToChannel.mockReset();
     scheduleToChannel.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('persists the send attempt before publishing and forwards its idempotency key', async () => {
+    const events: string[] = [];
+    const historyRef: { current: { upcoming: Array<Record<string, unknown>>; sent: Array<Record<string, unknown>> } | null } = { current: null };
+    const scheduler = renderScheduler(vi.fn(), {
+      saveScheduleHistory: vi.fn(async (data: { field: string; messages: Array<Record<string, unknown>> }) => {
+        events.push('preflight-save');
+        if (historyRef.current) historyRef.current.upcoming = data.messages;
+        return { success: true };
+      }),
+    });
+    historyRef.current = scheduler.history;
+    publishToChannel.mockImplementationOnce(async (input: { sendAttemptId: string }) => {
+      events.push('telegram-send');
+      expect(historyRef.current?.upcoming).toHaveLength(1);
+      expect(historyRef.current?.upcoming[0]).toMatchObject({
+        status: 'sending',
+        retryAction: 'send',
+        sendAttemptId: input.sendAttemptId,
+      });
+      const [attempt] = historyRef.current!.upcoming;
+      historyRef.current!.upcoming = [];
+      historyRef.current!.sent = [{ ...attempt, status: 'sent', telegramMessageId: '42' }];
+      return {
+        publishResult: {
+          ok: true,
+          provider: 'telegram',
+          messageId: '42',
+          historyPersisted: true,
+        },
+      };
+    });
+
+    await act(async () => {
+      await expect(scheduler.result.handleSendDraftNow(chat, 'Persist first')).resolves.toBe(true);
+    });
+
+    expect(events).toEqual(['preflight-save', 'telegram-send']);
+    expect(publishToChannel).toHaveBeenCalledOnce();
+    expect(publishToChannel.mock.calls[0][0]).toMatchObject({
+      sendAttemptId: expect.any(String),
+    });
+    expect(historyRef.current?.upcoming).toHaveLength(0);
+    expect(historyRef.current?.sent).toMatchObject([{
+      sendAttemptId: publishToChannel.mock.calls[0][0].sendAttemptId,
+      status: 'sent',
+      telegramMessageId: '42',
+    }]);
+    scheduler.unmount();
+  });
+
+  it('does not contact Telegram when the pre-send history write fails', async () => {
+    const showNotification = vi.fn();
+    const scheduler = renderScheduler(showNotification, {
+      saveScheduleHistory: vi.fn().mockResolvedValue({ success: false, error: 'Disk full' }),
+    });
+
+    await act(async () => {
+      await expect(scheduler.result.handleSendDraftNow(chat, 'Do not send')).resolves.toBe(false);
+    });
+
+    expect(publishToChannel).not.toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledWith('Disk full', 'error', 'Studio');
+    scheduler.unmount();
+  });
+
+  it('does not retry after Telegram confirms but final history persistence fails', async () => {
+    const showNotification = vi.fn();
+    const scheduler = renderScheduler(showNotification);
+    publishToChannel.mockResolvedValueOnce({
+      publishResult: {
+        ok: true,
+        provider: 'telegram',
+        messageId: '43',
+        historyPersisted: false,
+        historyError: 'Disk full',
+      },
+    });
+
+    await act(async () => {
+      await expect(scheduler.result.handleSendDraftNow(chat, 'Send once')).resolves.toBe('sent-history-failed');
+    });
+
+    expect(publishToChannel).toHaveBeenCalledOnce();
+    expect(scheduler.history.upcoming).toHaveLength(1);
+    expect(scheduler.history.upcoming[0]).toMatchObject({ status: 'sending' });
+    expect(scheduler.result.upcoming).toHaveLength(0);
+    expect(scheduler.result.sent[0]).toMatchObject({ status: 'sent', telegramMessageId: '43' });
+    expect(showNotification).toHaveBeenCalledWith(
+      'Telegram sent the message, but its history could not be saved. Do not retry this message.',
+      'warning',
+      'Studio',
+    );
+    scheduler.unmount();
+  });
+
+  it('persists an ambiguous send as unknown without a retry action', async () => {
+    const scheduler = renderScheduler();
+    publishToChannel.mockResolvedValueOnce({
+      publishResult: {
+        ok: false,
+        provider: 'telegram',
+        error: 'Connection lost after request started.',
+        errorDetails: {
+          operation: 'publish',
+          category: 'network',
+          retryable: true,
+          message: 'Connection lost after request started.',
+        },
+      },
+    });
+
+    await act(async () => {
+      await expect(scheduler.result.handleSendDraftNow(chat, 'Unknown outcome')).resolves.toBe(false);
+    });
+
+    expect(publishToChannel).toHaveBeenCalledOnce();
+    expect(scheduler.history.upcoming).toHaveLength(1);
+    expect(scheduler.history.upcoming[0]).toMatchObject({
+      status: 'unknown',
+      retryAction: undefined,
+      sendAttemptId: expect.any(String),
+    });
+    scheduler.unmount();
   });
 
   it('preserves adapter FloodWait details in the Host/Studio notification', async () => {
@@ -80,8 +234,8 @@ describe('useStudioScheduler bridge errors', () => {
 
   it('sends each photo album separately and puts the caption on the first album only', async () => {
     publishToChannel
-      .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '201' } })
-      .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '202' } });
+      .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '201', historyPersisted: true } })
+      .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '202', historyPersisted: true } });
     const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
     const entities = [{ type: 'bold', offset: 0, length: 11 }];
     const scheduler = renderScheduler();
@@ -108,7 +262,7 @@ describe('useStudioScheduler bridge errors', () => {
 
   it('forwards the selected Telegram effect when sending from Studio', async () => {
     publishToChannel.mockResolvedValueOnce({
-      publishResult: { ok: true, provider: 'telegram', messageId: '203' },
+      publishResult: { ok: true, provider: 'telegram', messageId: '203', historyPersisted: true },
     });
     const scheduler = renderScheduler();
 

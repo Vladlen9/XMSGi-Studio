@@ -73,7 +73,9 @@ async function createCoreHarness(coreOptions = {}) {
         throw new Error('Attachment scheduling failed.');
       }
       const request = {
-        className: isAlbum ? 'messages.SendMultiMedia' : 'messages.SendMedia',
+        className: isAlbum
+          ? 'messages.SendMultiMedia'
+          : options.file ? 'messages.SendMedia' : 'messages.SendMessage',
         randomId: { constructor: (value) => value },
         message: options.message,
         scheduleDate: options.schedule,
@@ -243,7 +245,7 @@ describe('Telegram scheduled operation deduplication', () => {
     expect(client.scheduledListCalls).toBe(0);
 
     requestGate.resolve();
-    await expect(sendPromise).resolves.toBe(true);
+    await expect(sendPromise).resolves.toMatchObject({ success: true, telegramMessageId: 1 });
     await expect(schedulePromise).resolves.toMatchObject({ confirmed: true });
     expect(client.scheduledListCalls).toBeGreaterThan(0);
   });

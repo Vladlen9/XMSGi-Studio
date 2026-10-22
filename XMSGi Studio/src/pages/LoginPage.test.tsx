@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyColorTheme, COLOR_THEME_STORAGE_KEY } from '@/lib/colorTheme';
 import { LocaleProvider } from '@/lib/i18n';
@@ -57,17 +57,18 @@ describe('LoginPage', () => {
     localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
   });
 
-  it('places Russian and English language choices on the left', () => {
-    const { container } = renderLogin();
-    const languageGroup = within(screen.getByRole('group', { name: 'Language' }));
-    const languageButtons = languageGroup.getAllByRole('button');
+  it.each([false, true])('hides language controls on the login and welcome-back screens (signed out: %s)', (signedOut) => {
+    const { container } = renderLogin({ signedOut });
 
-    expect(languageButtons.map((button) => button.textContent)).toEqual(['RU', 'EN']);
-
-    fireEvent.click(languageButtons[0]);
-    expect(container.querySelector('.auth-screen')).toHaveAttribute('lang', 'ru');
-    fireEvent.click(languageButtons[1]);
-    expect(container.querySelector('.auth-screen')).toHaveAttribute('lang', 'en');
+    expect(screen.queryByRole('group', { name: 'Language' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'RU' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'EN' })).not.toBeInTheDocument();
+    expect(container.querySelector('.auth-screen')).toHaveAttribute('lang');
+    if (signedOut) {
+      expect(container.querySelector('.login-returning-user')).toBeInTheDocument();
+    } else {
+      expect(container.querySelector('.login-returning-user')).not.toBeInTheDocument();
+    }
   });
 
   it('toggles the saved color theme from one icon button', () => {

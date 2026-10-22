@@ -1,8 +1,20 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { applyTestbenchColorTheme } from '../shared/testbenchTheme';
 import { LocaleProvider } from '@/lib/i18n';
 import { LoginTestbench } from './LoginTestbench';
+
+const loginPageStyles = readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/pages/LoginPage.css'),
+  'utf8',
+);
+const themeTransitionStyles = readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/styles/tokens.css'),
+  'utf8',
+);
 
 describe('LoginTestbench', () => {
   beforeEach(() => {
@@ -51,6 +63,20 @@ describe('LoginTestbench', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Single scenario' }));
     expect(screen.getByLabelText('Preview state')).toBeInTheDocument();
+  });
+
+  it('synchronizes the primary slogan color transition with the hero heading', () => {
+    render(<LocaleProvider><LoginTestbench /></LocaleProvider>);
+    const sharedColorRule = loginPageStyles.match(
+      /\.login-wordmark-top,\s*\.login-tagline > span:first-child\s*\{([^}]*)\}/,
+    )?.[1] ?? '';
+    const sharedTransitionRule = themeTransitionStyles.match(
+      /html\.is-theme-transitioning body :where\(\*\)\s*\{([^}]*)\}/,
+    )?.[1] ?? '';
+    expect(sharedColorRule).toMatch(/color:\s*var\(--login-ink\);/);
+    expect(sharedTransitionRule).toMatch(/transition-duration:\s*320ms/);
+    expect(sharedTransitionRule).toMatch(/transition-delay:\s*0ms,\s*0ms/);
+    expect(sharedTransitionRule).toMatch(/transition-timing-function:\s*cubic-bezier\(0\.22, 0\.61, 0\.36, 1\)/);
   });
 
   it('previews validation, code, password, account, loading, and offline states', () => {
@@ -106,23 +132,15 @@ describe('LoginTestbench', () => {
     expect(screen.getByRole('button', { name: 'Continue with Telegram' })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('shows localized sign-in states in Russian and English', () => {
+  it('starts in English without a language control in the testbench toolbar', () => {
     render(<LocaleProvider><LoginTestbench /></LocaleProvider>);
     fireEvent.click(screen.getByRole('button', { name: 'Single scenario' }));
-    const statePicker = screen.getByLabelText('Preview state');
     const testbenchControls = within(screen.getByRole('navigation', { name: 'Login testbench controls' }));
 
-    fireEvent.change(statePicker, { target: { value: 'phone-error' } });
-    fireEvent.click(testbenchControls.getByRole('button', { name: 'RU' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Введите номер телефона с кодом страны.');
-
-    fireEvent.change(statePicker, { target: { value: 'opening-studio' } });
-    expect(document.querySelector('.connection-status-card')).toHaveTextContent('Открываем Studio…');
-
-    fireEvent.click(testbenchControls.getByRole('button', { name: 'EN' }));
-    expect(document.querySelector('.connection-status-card')).toHaveTextContent('Opening Studio…');
-    fireEvent.change(statePicker, { target: { value: 'offline' } });
-    expect(screen.getByRole('status')).toHaveTextContent('No internet connection. Reconnect and try again.');
+    expect(screen.getByRole('button', { name: 'Continue with Telegram' })).toBeInTheDocument();
+    expect(testbenchControls.queryByRole('group', { name: 'Language' })).not.toBeInTheDocument();
+    expect(testbenchControls.queryByRole('button', { name: 'EN' })).not.toBeInTheDocument();
+    expect(testbenchControls.queryByRole('button', { name: 'RU' })).not.toBeInTheDocument();
   });
 
   it('switches themes and returns to a clean initial login screen', () => {

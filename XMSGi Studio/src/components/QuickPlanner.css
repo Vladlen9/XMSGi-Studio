@@ -68,8 +68,9 @@
 .quick-planner-workbench {
   position: relative;
   display: flex;
-  width: calc(100% - 70px);
+  width: calc(100% - 72px);
   justify-self: start;
+  transform: translateX(-5px);
   min-width: 0;
   min-height: 500px;
   flex-direction: column;
@@ -1630,7 +1631,7 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
     min-height: 0;
   }
 
-  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-guide {
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-activity {
     height: min(510px, calc(100dvh - 292px));
     align-self: center;
     transform: translateY(-60px);
@@ -1672,8 +1673,11 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
       height: min(515px, calc(100dvh - 248px));
     }
 
-    html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-guide {
-      display: none;
+    html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-activity {
+      width: min(100%, 760px);
+      margin-top: -52px;
+      align-self: center;
+      transform: none;
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-heading h1 {
@@ -1832,80 +1836,150 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   color: #ffffff;
 }
 
-.quick-planner-guide {
+.quick-planner-activity {
   display: flex;
   width: min(100%, 360px);
   box-sizing: border-box;
   min-width: 0;
-  align-items: center;
   flex-direction: column;
-  justify-content: center;
   justify-self: center;
-  padding: 0;
-  text-align: left;
+  gap: 18px;
 }
 
-.quick-planner-guide-heading h2 {
-  margin: 0 0 24px;
+.quick-planner-activity-section,
+.quick-planner-upcoming-section {
+  min-width: 0;
+}
+
+.quick-planner-upcoming-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--planner-line);
+}
+
+.quick-planner-activity-header {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quick-planner-activity-header h2 {
+  margin: 0;
   color: #29343d;
   font-family: "Orbitron", Arial, sans-serif;
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1.25;
-  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
-.quick-planner-guide-heading {
-  width: 100%;
+.quick-planner-activity-header > span {
+  color: var(--planner-muted);
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
-.quick-planner-notes {
+.quick-planner-activity-total {
+  margin: 6px 0 8px;
+  color: #66727d;
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 12px;
+}
+
+.quick-planner-activity-chart {
   display: grid;
+  height: 94px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: 7px;
+}
+
+.quick-planner-activity-day {
+  display: grid;
+  height: 100%;
+  min-width: 0;
+  grid-template-rows: 15px minmax(0, 1fr) 16px;
+  justify-items: center;
+  gap: 3px;
+}
+
+.quick-planner-activity-value,
+.quick-planner-activity-day-label {
+  color: var(--planner-muted);
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.quick-planner-activity-bar-track {
+  display: flex;
   width: 100%;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  margin: 0;
-  padding-top: 18px;
+  height: 100%;
+  align-items: end;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(var(--planner-accent-rgb), 0.06);
+}
+
+.quick-planner-activity-bar {
+  display: block;
+  width: min(18px, 70%);
+  min-height: 3px;
+  border-radius: 4px 4px 2px 2px;
+  background: var(--planner-accent);
+}
+
+.quick-planner-activity-state {
+  margin: 12px 0 0;
+  color: #66727d;
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.quick-planner-activity-state.is-error {
+  color: #a33b3b;
+}
+
+.quick-planner-upcoming-list {
+  display: grid;
+  gap: 9px;
+  margin: 10px 0 0;
+  padding: 0;
   list-style: none;
 }
 
-.quick-planner-notes li {
+.quick-planner-upcoming-item {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  justify-items: stretch;
-  align-items: start;
-  gap: 12px;
-  text-align: left;
+  min-width: 0;
+  gap: 2px;
 }
 
-.quick-planner-note-number {
+.quick-planner-upcoming-item time {
   color: var(--planner-accent);
-  font-family: "Orbitron", Arial, sans-serif;
-  font-size: 12px;
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 11px;
   font-weight: 600;
 }
 
-.quick-planner-notes strong {
-  display: block;
-  margin-bottom: 4px;
+.quick-planner-upcoming-item strong,
+.quick-planner-upcoming-item > span {
+  display: -webkit-box;
+  overflow: hidden;
   color: #3a4650;
   font-family: "Exo 2", Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.quick-planner-notes p {
-  max-width: 38ch;
-  margin: 0;
+.quick-planner-upcoming-item > span {
   color: #66727d;
-  font-family: "Exo 2", Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.quick-planner[lang="ru"] .quick-planner-notes p {
-  text-wrap: balance;
 }
 
 @media (max-width: 1040px) {
@@ -1988,19 +2062,12 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
     min-height: 510px;
   }
 
-  .quick-planner-guide {
-    justify-content: flex-start;
+  .quick-planner-activity {
+    width: min(100%, 760px);
+    justify-self: center;
     padding: 12px 4px 0;
   }
 
-  .quick-planner-guide-heading h2 {
-    margin-bottom: 18px;
-  }
-
-  .quick-planner-notes {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
 }
 
 @media (max-width: 560px) {
@@ -2087,10 +2154,6 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
     margin-left: 0;
   }
 
-  .quick-planner-notes {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
 }
 
 .quick-planner-schedule-row {
@@ -2300,16 +2363,16 @@ html[data-theme='light'] .quick-planner-presets button + button {
   position: relative;
   inset: auto;
   display: grid;
-  width: 100%;
+  width: fit-content;
   max-width: 100%;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   box-sizing: border-box;
   height: auto;
   min-height: 30px;
   max-height: none;
   margin: 0;
   align-items: center;
-  justify-content: stretch;
+  justify-content: end;
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid transparent;
@@ -2362,9 +2425,9 @@ html[data-theme='light'] .quick-planner-presets button + button {
   flex: 0 0 auto;
   min-height: 48px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   padding-top: 16px;
-  padding-right: 6px;
+  padding-right: 16px;
   padding-bottom: 8px;
 }
 

@@ -69,13 +69,14 @@ describe('shared History Drawer entry point', () => {
     window.localStorage.removeItem('xmsgi-history-drawer-open');
   });
 
-  it('keeps the planner clock hidden on planner and login surfaces', () => {
+  it('hides the legacy toast on Planner and keeps it available on other surfaces', () => {
+    const closeNotification = vi.fn();
     const shellProps = {
       view: 'planner' as const,
       onViewChange: vi.fn(),
       browserDraftMode: false,
       notification: { message: 'Planner is ready.', title: 'Notice', type: 'info' as const, visible: true },
-      closeNotification: vi.fn(),
+      closeNotification,
       connected: false,
       authBusy: false,
       isConfirmingLogout: false,
@@ -95,15 +96,19 @@ describe('shared History Drawer entry point', () => {
     const { rerender } = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Login'))));
 
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
+    expect(screen.queryByText('Planner is ready.')).not.toBeInTheDocument();
+    expect(document.querySelector('.shell-notification')).not.toBeInTheDocument();
+    expect(closeNotification).toHaveBeenCalledOnce();
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, connected: true }, createElement('div', null, 'Planner'))));
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
+    expect(screen.queryByText('Planner is ready.')).not.toBeInTheDocument();
 
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, browserDraftMode: true }, createElement('div', null, 'Local planner'))));
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Planner is ready.');
+
+    rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'posts' }, createElement('div', null, 'Posts'))));
+    expect(document.querySelector('.shell-notification')).toHaveTextContent('Planner is ready.');
   });
 
   it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {

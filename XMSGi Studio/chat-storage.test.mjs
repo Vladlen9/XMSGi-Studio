@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const { readChats, writeChats, readJsonFile, writeJsonFile } = require('./chat-storage.cjs');
@@ -39,6 +39,54 @@ describe('Electron chat storage', () => {
 
     expect(readJsonFile(filePath, null)).toEqual(history);
     expect(fs.existsSync(filePath)).toBe(true);
+  });
+
+  it('flushes temporary JSON contents before replacing the persisted file', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'xmsgi-studio-json-storage-'));
+    temporaryDirectories.push(directory);
+    const filePath = path.join(directory, 'history.json');
+    const operations = [];
+    const originalFsync = fs.fsyncSync.bind(fs);
+    const originalRename = fs.renameSync.bind(fs);
+    const fsync = vi.spyOn(fs, 'fsyncSync').mockImplementation((...args) => {
+      operations.push('fsync');
+      return originalFsync(...args);
+    });
+    const rename = vi.spyOn(fs, 'renameSync').mockImplementation((...args) => {
+      operations.push('rename');
+      return originalRename(...args);
+    });
+
+    try {
+      writeJsonFile(filePath, { sent: [{ id: 'sent-1' }] });
+
+      expect(operations.indexOf('fsync')).toBeGreaterThanOrEqual(0);
+      expect(operations.indexOf('fsync')).toBeLessThan(operations.indexOf('rename'));
+      expect(readJsonFile(filePath, null)).toEqual({ sent: [{ id: 'sent-1' }] });
+    } finally {
+      fsync.mockRestore();
+      rename.mockRestore();
+    }
+  });
+
+  it('preserves the current JSON file when flushing the temporary write fails', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'xmsgi-studio-json-storage-'));
+    temporaryDirectories.push(directory);
+    const filePath = path.join(directory, 'history.json');
+    const current = { sent: [{ id: 'existing' }] };
+    writeJsonFile(filePath, current);
+    const fsync = vi.spyOn(fs, 'fsyncSync').mockImplementation(() => {
+      throw new Error('Simulated flush failure');
+    });
+
+    try {
+      expect(() => writeJsonFile(filePath, { sent: [{ id: 'new' }] }))
+        .toThrow('Simulated flush failure');
+      expect(readJsonFile(filePath, null)).toEqual(current);
+      expect(fs.readdirSync(directory).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+    } finally {
+      fsync.mockRestore();
+    }
   });
 
   it('persists a search-only channel across a fresh read and keeps its full metadata', () => {

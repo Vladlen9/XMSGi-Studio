@@ -1956,13 +1956,18 @@ describe('WorkspacePage main-screen flows', () => {
   });
 
   it('keeps the selected publish mode planner-blue and unchanged on hover', () => {
-    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:hover:not\(:disabled\),\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:focus-visible\s*\{[^}]*background:\s*var\(--accent\) !important;[^}]*color:\s*#ffffff !important;[^}]*transform:\s*none;/);
-    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected\s*\{[^}]*background:\s*var\(--accent\) !important;[^}]*color:\s*#ffffff !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:hover:not\(:disabled\),\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:focus-visible\s*\{[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;[^}]*transform:\s*none;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected\s*\{[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected\s*\{[^}]*background:\s*#239dfb;[^}]*color:\s*#ffffff;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected\.is-send,[\s\S]*?\.workspace-page-publish-option\.is-selected\.is-draft:focus-visible\s*\{[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-publish-menu \.workspace-page-publish-option\.is-selected,[\s\S]*?\.workspace-page-publish-option\.is-selected\.is-draft\s*\{[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;/);
     expect(workspacePageStyles).toMatch(/workspace-page-publish-option\.is-selected:hover::before,[\s\S]*?workspace-page-publish-option\.is-selected:focus-visible::after\s*\{\s*opacity:\s*0;/);
   });
 
-  it('keeps the light-theme Send button Planner blue, including on hover', () => {
-    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main\.is-send:not\(:disabled\),[\s\S]*?\.workspace-page-publish-main\.is-send:active:not\(:disabled\)\s*\{[^}]*border-color:\s*#477c9e !important;[^}]*background:\s*#477c9e !important;[^}]*color:\s*#ffffff !important;/);
+  it('keeps every publish mode Planner blue', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):not\(:disabled\)\s*\{[^}]*border-color:\s*#239dfb !important;[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{[^}]*background:\s*#239dfb !important;[^}]*filter:\s*brightness\(1\.04\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):active:not\(:disabled\)\s*\{[^}]*background:\s*#239dfb !important;[^}]*filter:\s*brightness\(0\.98\);/);
   });
 
   it('lightens selection and editing highlights in the light theme', () => {
@@ -3940,6 +3945,26 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('Disk full');
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent).toContain('Disk full');
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')).toBeNull();
+    unmount();
+  });
+
+  it('shows a warning instead of success when Telegram sent but history persistence failed', async () => {
+    const handleSendDraftNow = vi.fn().mockResolvedValue('sent-history-failed');
+    const { unmount } = await renderWorkspacePage({ handleSendDraftNow });
+    await editComposerText('Confirmed message');
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(handleSendDraftNow).toHaveBeenCalledOnce();
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent)
+      .toContain('Telegram sent the message, but local history could not be saved.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')).toBeNull();
+    expect(document.querySelector('[aria-label="Post content"]')).toHaveTextContent('Confirmed message');
     unmount();
   });
 

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { Chat, NotificationState, ScheduledMessage } from '@studio/types';
+import { useEffect, useRef, useState } from 'react';
+import type { Chat, NotificationState, RichTextEntity, ScheduledMessage } from '@studio/types';
 import type { InlineKeyboardMarkup } from '@studio/lib/inlineKeyboard';
 import { isFutureSchedule, type ScheduleRepeatOptions } from '@studio/lib/scheduling';
 import { createScheduledEntries } from '@studio/services/scheduleDomainService';
@@ -46,6 +46,42 @@ function resolveAttachmentGroups(attachments: string[] = [], suppliedGroups?: st
   return groups?.length ? groups : attachments.length > 0 ? [attachments] : [[]];
 }
 
+async function loadStudioScheduleHistory() {
+  const result = await window.telegram.loadScheduleHistory('workspace');
+  if (!result.success || !result.history) {
+    throw new Error(result.error || 'Studio send history could not be loaded.');
+  }
+  return result.history;
+}
+
+async function saveStudioSendAttempt(attempt: ScheduledMessage) {
+  const history = await loadStudioScheduleHistory();
+  const existing = history.upcoming.filter((message) => message.sendAttemptId !== attempt.sendAttemptId);
+  const result = await window.telegram.saveScheduleHistory({
+    scope: 'workspace',
+    field: 'upcoming',
+    messages: [attempt, ...existing],
+  });
+  if (!result.success) {
+    throw new Error(result.error || 'Studio send attempt could not be saved.');
+  }
+}
+
+async function updateStudioSendAttempt(attempt: ScheduledMessage) {
+  const history = await loadStudioScheduleHistory();
+  const upcoming = history.upcoming.map((message) => (
+    message.sendAttemptId === attempt.sendAttemptId ? attempt : message
+  ));
+  const result = await window.telegram.saveScheduleHistory({
+    scope: 'workspace',
+    field: 'upcoming',
+    messages: upcoming,
+  });
+  if (!result.success) {
+    throw new Error(result.error || 'Studio send result could not be saved.');
+  }
+}
+
 function getDefaultScheduleDateTime() {
   const nextHour = new Date();
   nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
@@ -66,6 +102,30 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
   const [lastAction, setLastAction] = useState<'sent' | 'scheduled' | null>(null);
   const [cancelingIds, setCancelingIds] = useState<Set<string>>(new Set());
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
+  const hasLocalHistoryChangesRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadHistory = async () => {
+      if (typeof window === 'undefined' || typeof window.telegram?.loadScheduleHistory !== 'function') return;
+      try {
+        const history = await loadStudioScheduleHistory();
+        if (cancelled || hasLocalHistoryChangesRef.current) return;
+        setUpcoming(history.upcoming);
+        setSent(history.sent);
+      } catch (error) {
+        if (!cancelled) {
+          showNotification(
+            error instanceof Error ? error.message : 'Studio send history could not be loaded.',
+            'warning',
+            'Studio',
+          );
+        }
+      }
+    };
+    void loadHistory();
+    return () => { cancelled = true; };
+  }, [showNotification]);
 
   const handleCancelMessage = async (message: ScheduledMessage) => {
     if (cancelingIds.has(message.id)) return;
@@ -130,6 +190,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     const attachmentGroups = resolveAttachmentGroups(payload.attachments ?? [], payload.attachmentGroups);
     setLastAction(null);
     setSuccessPulse(false);
+    hasLocalHistoryChangesRef.current = true;
     setScheduling(true);
 
     const scheduledMessages: ScheduledMessage[] = [];
@@ -207,53 +268,133 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     suppliedAttachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,
-  ) => {
+  ): Promise<boolean | 'sent-history-failed'> => {
+    hasLocalHistoryChangesRef.current = true;
     setPublishingDraft(true);
     try {
       const attachmentGroups = resolveAttachmentGroups(attachments ?? [], suppliedAttachmentGroups);
       const formattedEntities = Array.isArray(entities)
-        ? entities as Array<{ type: string; offset: number; length: number; url?: string }>
+        ? entities as RichTextEntity[]
         : [];
       const sentAt = new Date().toISOString();
-      const sentMessages: ScheduledMessage[] = [];
+      let historyPersistenceFailed = false;
 
       for (const [groupIndex, mediaIds] of attachmentGroups.entries()) {
         const isPrimaryGroup = groupIndex === 0;
-        const { publishResult } = await publishToChannel({
+        const sendAttemptId = `${Date.now()}:${crypto.randomUUID()}`;
+        const attemptTime = new Date().toISOString();
+        const sendingMessage: ScheduledMessage = {
+          ...makeMessage(chat, isPrimaryGroup ? text : '', attemptTime.slice(0, 10), attemptTime.slice(11, 16), 'sending', mediaIds),
+          id: sendAttemptId,
           accountId,
-          channelId: chat.id,
-          body: isPrimaryGroup ? text : '',
+          when: attemptTime,
+          createdAt: attemptTime,
+          sendAttemptId,
+          lastAttemptAt: attemptTime,
+          retryAction: 'send',
           entities: isPrimaryGroup ? formattedEntities : [],
-          mediaIds,
           replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
           effect: isPrimaryGroup ? effect : undefined,
-        });
-        if (!publishResult.ok) {
+        };
+
+        try {
+          await saveStudioSendAttempt(sendingMessage);
+        } catch (error) {
           onAttachmentGroupResult?.(groupIndex, false);
           for (let pendingGroupIndex = groupIndex + 1; pendingGroupIndex < attachmentGroups.length; pendingGroupIndex += 1) {
             onAttachmentGroupResult?.(pendingGroupIndex, false);
           }
+          showNotification(
+            error instanceof Error ? error.message : 'Send attempt could not be saved. Telegram was not contacted.',
+            'error',
+            'Studio',
+          );
+          return false;
+        }
+        setUpcoming((current) => [sendingMessage, ...current.filter((message) => message.sendAttemptId !== sendAttemptId)]);
+
+        let publishResult;
+        try {
+          ({ publishResult } = await publishToChannel({
+            accountId,
+            channelId: chat.id,
+            sendAttemptId,
+            body: isPrimaryGroup ? text : '',
+            entities: isPrimaryGroup ? formattedEntities : [],
+            mediaIds,
+            replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
+            effect: isPrimaryGroup ? effect : undefined,
+          }));
+        } catch (error) {
+          publishResult = {
+            ok: false as const,
+            provider: 'telegram' as const,
+            errorDetails: normalizeTelegramBridgeError(error, 'publish', 'Telegram send result is unknown.'),
+            error: error instanceof Error ? error.message : 'Telegram send result is unknown.',
+          };
+        }
+
+        if (!publishResult.ok) {
           const errorDetails = publishResult.errorDetails ?? normalizeTelegramBridgeError(publishResult, 'publish', 'Telegram could not send the message.');
-          if (sentMessages.length > 0) {
-            setSent((current) => [...sentMessages.slice().reverse(), ...current]);
-            showNotification(`${sentMessages.length} album group(s) sent; remaining groups failed.`, 'warning', 'Studio', errorDetails);
-          } else {
-            showNotification(errorDetails.message, 'error', 'Studio', errorDetails);
+          const definitelyRejected = ['auth', 'permission', 'flood', 'slowmode'].includes(errorDetails.category ?? '');
+          const failedMessage: ScheduledMessage = {
+            ...sendingMessage,
+            status: definitelyRejected ? 'failed' : 'unknown',
+            lastError: errorDetails.message,
+            retryAction: definitelyRejected ? 'send' : undefined,
+          };
+          try {
+            await updateStudioSendAttempt(failedMessage);
+            setUpcoming((current) => current.map((message) => (
+              message.sendAttemptId === sendAttemptId ? failedMessage : message
+            )));
+          } catch (error) {
+            historyPersistenceFailed = true;
+            showNotification(
+              error instanceof Error ? error.message : 'Send result could not be saved.',
+              'warning',
+              'Studio',
+            );
           }
+          onAttachmentGroupResult?.(groupIndex, false);
+          for (let pendingGroupIndex = groupIndex + 1; pendingGroupIndex < attachmentGroups.length; pendingGroupIndex += 1) {
+            onAttachmentGroupResult?.(pendingGroupIndex, false);
+          }
+          showNotification(
+            definitelyRejected ? errorDetails.message : 'Telegram send result is unknown. Do not retry this message.',
+            definitelyRejected ? 'error' : 'warning',
+            'Studio',
+            errorDetails,
+          );
           return false;
         }
 
-        sentMessages.push({
-          ...makeMessage(chat, isPrimaryGroup ? text : '', date, time, 'sent', mediaIds),
-          sentAt,
-          effect: isPrimaryGroup ? effect : undefined,
-        });
+        const sentMessage: ScheduledMessage = {
+          ...sendingMessage,
+          status: 'sent',
+          sentAt: publishResult.sentAt ?? sentAt,
+          telegramMessageId: publishResult.messageId,
+          telegramMessageIds: publishResult.messageIds,
+          lastError: undefined,
+          retryAction: undefined,
+        };
+        const historyPersisted = publishResult.historyPersisted === true;
+        if (!historyPersisted) historyPersistenceFailed = true;
+        setUpcoming((current) => current.filter((message) => message.sendAttemptId !== sendAttemptId));
+        setSent((current) => [sentMessage, ...current.filter((message) => message.sendAttemptId !== sendAttemptId)]);
         onAttachmentGroupResult?.(groupIndex, true);
       }
 
-      setSent((current) => [...sentMessages.slice().reverse(), ...current]);
       setLastAction('sent');
       setSuccessPulse(true);
+      if (historyPersistenceFailed) {
+        showNotification(
+          'Telegram sent the message, but its history could not be saved. Do not retry this message.',
+          'warning',
+          'Studio',
+        );
+        return 'sent-history-failed';
+      }
       showNotification('Message sent through Telegram.', 'success', 'Studio');
       return true;
     } catch (error) {
@@ -266,6 +407,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
   };
 
   const handleSendNow = async (message: ScheduledMessage) => {
+    hasLocalHistoryChangesRef.current = true;
     setSendingIds((current) => new Set(current).add(message.id));
     let failureDetails: BridgeErrorDetails | undefined;
     let failedOperation: 'publish' | 'cancel' = 'publish';
@@ -313,10 +455,14 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
   };
 
   const handleDeleteMessage = (message: ScheduledMessage) => {
+    hasLocalHistoryChangesRef.current = true;
     setUpcoming((current) => current.filter((item) => item.id !== message.id));
     setSent((current) => current.filter((item) => item.id !== message.id));
   };
-  const handleClearSent = () => setSent([]);
+  const handleClearSent = () => {
+    hasLocalHistoryChangesRef.current = true;
+    setSent([]);
+  };
 
   useEffect(() => {
     if (!successPulse) return;

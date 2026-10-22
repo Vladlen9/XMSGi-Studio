@@ -46,7 +46,7 @@ export interface StudioSchedulerActions {
   cancelingIds: ReadonlySet<string>;
   sendingIds: ReadonlySet<string>;
   publishingDraft: boolean;
-  handleSchedule: (payload?: StudioSchedulePayload, repeat?: StudioScheduleRepeatOptions) => void | Promise<void | boolean>;
+  handleSchedule: (payload?: StudioSchedulePayload, repeat?: StudioScheduleRepeatOptions) => void | Promise<void | boolean | 'sent-history-failed'>;
   handleSendDraftNow: (
     chat: Chat,
     text: string,
@@ -56,7 +56,7 @@ export interface StudioSchedulerActions {
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,
-  ) => Promise<boolean>;
+  ) => Promise<boolean | 'sent-history-failed'>;
   handleSendNow: (message: ScheduledMessage) => void | Promise<void>;
   handleDeleteMessage: (message: ScheduledMessage) => void | Promise<void>;
   handleClearSent: () => void;

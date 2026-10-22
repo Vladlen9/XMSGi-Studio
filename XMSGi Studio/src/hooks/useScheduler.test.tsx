@@ -125,6 +125,24 @@ describe('useScheduler native history', () => {
     expect(saveScheduleHistory).not.toHaveBeenCalled();
   });
 
+  it('exposes a failed history restore separately from a successfully empty history', async () => {
+    const restoreError = new Error('History service unavailable');
+    const showNotification = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], {
+      loadScheduleHistory: vi.fn().mockRejectedValue(restoreError),
+    }, showNotification);
+
+    await waitFor(() => expect(result.current.historyReady).toBe(true));
+
+    expect(result.current.historyLoadError).toBe(restoreError.message);
+    expect(result.current.sent).toEqual([]);
+    expect(showNotification).toHaveBeenCalledWith(
+      restoreError.message,
+      'error',
+      expect.any(String),
+    );
+  });
+
   it('uses workspace-scoped local history when native history is unavailable', async () => {
     const storageKeys = [
       'awaitmsg_upcoming',
@@ -651,7 +669,7 @@ describe('useScheduler native history', () => {
     await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('personal'));
     await waitFor(() => expect(result.current.upcoming).toEqual([]));
     let scheduled = false;
-    let scheduleRequest!: Promise<boolean | void>;
+    let scheduleRequest!: Promise<boolean | void | 'sent-history-failed'>;
     act(() => {
       scheduleRequest = result.current.handleSchedule({
         chatId: chat.id,
@@ -1411,7 +1429,7 @@ describe('useScheduler native history', () => {
     );
   });
 
-  it('finishes a confirmed send before history persistence and warns if history later fails', async () => {
+  it('does not report success or clear a confirmed send when its history write fails', async () => {
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'en');
     try {
@@ -1422,6 +1440,7 @@ describe('useScheduler native history', () => {
         ? new Promise<{ success: boolean; error?: string }>((resolve) => { resolveSnapshot = resolve; })
         : Promise.resolve({ success: true }));
       const showNotification = vi.fn();
+      const setMessage = vi.fn();
       const { result, loadScheduleHistory } = renderWorkspaceHistory(
         [],
         [],
@@ -1429,33 +1448,87 @@ describe('useScheduler native history', () => {
         showNotification,
         'workspace',
         chat,
+        setMessage,
       );
 
       await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
       await waitFor(() => expect(result.current.scheduling).toBe(false));
-      let sendPromise!: Promise<boolean>;
+      let sendPromise!: Promise<boolean | 'sent-history-failed'>;
       await act(async () => {
         sendPromise = result.current.handleSendDraftNow(chat, 'Send exactly once');
         await waitFor(() => expect(saveScheduleHistory).toHaveBeenCalledWith(expect.objectContaining({ field: 'snapshot' })));
       });
 
-      await act(async () => {
-        await expect(sendPromise).resolves.toBe(true);
-      });
       expect(send).toHaveBeenCalledOnce();
-      expect(result.current.sent).toHaveLength(1);
-      expect(result.current.publishingDraft).toBe(false);
-      expect(showNotification).toHaveBeenCalledWith('Message sent to Telegram.', 'success', 'Sent');
-
       await act(async () => {
         resolveSnapshot({ success: false, error: 'Disk full' });
-        await Promise.resolve();
+        await expect(sendPromise).resolves.toBe('sent-history-failed');
       });
+      expect(result.current.sent).toHaveLength(1);
+      expect(result.current.publishingDraft).toBe(false);
+      expect(setMessage).not.toHaveBeenCalledWith('');
+      expect(showNotification).not.toHaveBeenCalledWith('Message sent to Telegram.', 'success', 'Sent');
       expect(showNotification).toHaveBeenCalledWith(
         'Message history could not be saved. It may return after the app restarts.',
         'warning',
         'Error',
       );
+    } finally {
+      if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
+      else window.localStorage.setItem('awaitmsg_locale', previousLocale);
+    }
+  });
+
+  it('does not clear a confirmed grouped send when a group history commit fails', async () => {
+    const previousLocale = window.localStorage.getItem('awaitmsg_locale');
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    try {
+      const chat = { id: 'chat-group-history-failure', name: 'Grouped history failure chat' };
+      const send = vi.fn()
+        .mockResolvedValueOnce({ success: true, telegramMessageId: 11 })
+        .mockResolvedValueOnce({ success: true, telegramMessageId: 12 });
+      const saveScheduleHistory = vi.fn(async ({ field }: { field: string }) => ({
+        success: field !== 'snapshot',
+        error: 'Disk full',
+      }));
+      const showNotification = vi.fn();
+      const setMessage = vi.fn();
+      const onAttachmentGroupResult = vi.fn();
+      const { result, loadScheduleHistory } = renderWorkspaceHistory(
+        [],
+        [],
+        { send, saveScheduleHistory },
+        showNotification,
+        'workspace',
+        chat,
+        setMessage,
+      );
+
+      await waitFor(() => expect(loadScheduleHistory).toHaveBeenCalledWith('workspace'));
+      await act(async () => {
+        await expect(result.current.handleSendDraftNow(
+          chat,
+          'Grouped send',
+          ['first-media', 'second-media'],
+          [],
+          undefined,
+          false,
+          undefined,
+          {},
+          [['first-media'], ['second-media']],
+          onAttachmentGroupResult,
+        )).resolves.toBe('sent-history-failed');
+      });
+
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(onAttachmentGroupResult.mock.calls).toEqual([[0, true], [1, true]]);
+      expect(setMessage).not.toHaveBeenCalledWith('');
+      expect(showNotification).toHaveBeenCalledWith(
+        'Message history could not be saved. It may return after the app restarts.',
+        'warning',
+        'Error',
+      );
+      expect(showNotification).not.toHaveBeenCalledWith('Message sent to Telegram.', 'success', 'Sent');
     } finally {
       if (previousLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', previousLocale);
@@ -1474,7 +1547,7 @@ describe('useScheduler native history', () => {
     const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
-    let batchPromise!: Promise<boolean>;
+    let batchPromise!: Promise<boolean | 'sent-history-failed'>;
     await act(async () => {
       batchPromise = result.current.handleSendDraftNow(
         chat,
@@ -1522,7 +1595,7 @@ describe('useScheduler native history', () => {
     const groups = [['one.png', 'two.png'], ['three.png'], ['four.png']];
 
     await waitFor(() => expect(result.current.upcoming).toEqual([]));
-    let sent = true;
+    let sent: boolean | 'sent-history-failed' = true;
     await act(async () => {
       sent = await result.current.handleSendDraftNow(
         chat,
@@ -1825,8 +1898,8 @@ describe('useScheduler native history', () => {
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
-    let firstAttempt!: Promise<boolean>;
-    let duplicateResult = true;
+    let firstAttempt!: Promise<boolean | 'sent-history-failed'>;
+    let duplicateResult: boolean | 'sent-history-failed' = true;
     await act(async () => {
       firstAttempt = result.current.handleSendDraftNow(chat, 'Send once');
       await Promise.resolve();
@@ -3018,7 +3091,7 @@ describe('useScheduler native history', () => {
     const { date, time } = getFutureReplacementTimes().replacementDateTime;
 
     await waitFor(() => expect(result.current.upcoming).toEqual([cancelledMessage]));
-    let scheduleRequest!: Promise<boolean | void>;
+    let scheduleRequest!: Promise<boolean | void | 'sent-history-failed'>;
     act(() => {
       scheduleRequest = result.current.handleSchedule({
         chatId: chat.id,

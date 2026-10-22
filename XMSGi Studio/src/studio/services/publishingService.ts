@@ -6,6 +6,7 @@ import { createPublishPost } from './postStudioService';
 export type PublishDraftInput = {
   accountId?: string;
   channelId: string;
+  sendAttemptId?: string;
   body: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
@@ -21,6 +22,7 @@ export function createScheduledPost(input: PublishDraftInput): { post: Post; sch
   const post = createPublishPost({
     accountId,
     channelId: input.channelId,
+    sendAttemptId: input.sendAttemptId,
     body: input.body,
     entities: input.entities ?? [],
     mediaIds: input.mediaIds ?? [],

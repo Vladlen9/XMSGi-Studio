@@ -527,7 +527,7 @@ export function ChatPreviewStand({
   useEffect(() => {
     const list = chatListItemsRef.current;
     if (!chatListOpen || !list) {
-      setChatListScrollMetrics({ scrollTop: 0, clientHeight: 0 });
+      setChatListScrollMetrics({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 });
       return;
     }
 

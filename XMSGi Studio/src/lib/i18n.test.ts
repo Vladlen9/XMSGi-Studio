@@ -67,7 +67,7 @@ describe('i18n', () => {
       ['auth.sessionExpired', 'Your Telegram session expired. Sign in again.', 'Сессия Telegram истекла. Войдите снова.'],
     ] as const;
 
-    for (const [key, english, russian] of messages) {
+    for (const [key, english] of messages) {
       expect(result.current.t(key)).toBe(english);
     }
 

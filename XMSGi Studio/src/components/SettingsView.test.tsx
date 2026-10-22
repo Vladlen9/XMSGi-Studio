@@ -1,10 +1,18 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { LocaleProvider } from '@/lib/i18n';
 import { EDITOR_APPEARANCE_STORAGE_KEY } from '@shared/editorAppearance';
 import { COLOR_THEME_STORAGE_KEY } from '@/lib/colorTheme';
 import { SettingsView } from './SettingsView';
+
+const themeTransitionStyles = readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../styles/tokens.css'),
+  'utf8',
+);
 
 function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsView>> = {}) {
   const onTelegramDisconnect = vi.fn();
@@ -150,6 +158,17 @@ describe('SettingsView Telegram integration', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('light');
     expect(lightButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('uses the shared text color timing throughout Settings', () => {
+    const settingsTransitionRule = themeTransitionStyles.match(
+      /html\.is-theme-transitioning body :where\(\*\)\s*\{([^}]*)\}/,
+    )?.[1] ?? '';
+
+    expect(settingsTransitionRule).toMatch(/transition-duration:\s*320ms/);
+    expect(settingsTransitionRule).toMatch(/transition-delay:\s*0ms,\s*0ms/);
+    expect(settingsTransitionRule).toMatch(/transition-timing-function:\s*cubic-bezier\(0\.22, 0\.61, 0\.36, 1\)/);
+    expect(themeTransitionStyles).not.toMatch(/::view-transition/);
   });
 
   it('supports an isolated theme storage key for the settings testbench', () => {

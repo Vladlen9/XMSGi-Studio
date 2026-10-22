@@ -40,6 +40,7 @@ function normalizeDraftAttachments(value: CreateDraftInput['attachments']): Draf
 export type CreatePostInput = {
   accountId?: string;
   channelId: string;
+  sendAttemptId?: string;
   body: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
@@ -70,6 +71,7 @@ export function createPublishPost(input: CreatePostInput): Post {
     id: crypto.randomUUID(),
     accountId,
     channelId: input.channelId,
+    sendAttemptId: input.sendAttemptId,
     status: 'draft',
     body: input.body,
     entities: input.entities ?? [],
