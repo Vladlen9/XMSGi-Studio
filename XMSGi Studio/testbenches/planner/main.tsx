@@ -21,53 +21,183 @@ const demoChats: Chat[] = [
   { id: 'planner-demo-private', name: 'Saved Messages', type: 'private' },
 ];
 
-type Scenario = 'demo-chats' | 'no-chats';
-type FeedbackScenario =
-  | 'none'
-  | 'empty-message'
-  | 'schedule-confirmation'
-  | 'schedule-too-soon'
-  | 'chat-required'
-  | 'empty-studio'
-  | 'attachment-limit'
-  | 'attachment-error'
-  | 'send-error'
-  | 'schedule-error'
-  | 'draft-error';
+type FeedbackCategory = 'warning' | 'approval' | 'error';
+type FeedbackExample = {
+  value: string;
+  tone: QuickPlannerActionFeedback['tone'];
+  labelEn: string;
+  labelRu: string;
+  messageEn: string;
+  messageRu: string;
+  actions?: Array<'retry' | 'dismiss'>;
+};
+
+const feedbackExamples: Record<FeedbackCategory, FeedbackExample[]> = {
+  warning: [
+    {
+      value: 'empty-message',
+      tone: 'warning',
+      labelEn: 'Empty message · short',
+      labelRu: 'Пустое сообщение · короткое',
+      messageEn: 'Write a message.',
+      messageRu: 'Введите текст.',
+    },
+    {
+      value: 'chat-required',
+      tone: 'warning',
+      labelEn: 'Chat required · medium',
+      labelRu: 'Нужен чат · среднее',
+      messageEn: 'Select a chat before sending.',
+      messageRu: 'Сначала выберите чат.',
+    },
+    {
+      value: 'schedule-too-soon',
+      tone: 'warning',
+      labelEn: 'Schedule time · medium',
+      labelRu: 'Время отправки · среднее',
+      messageEn: 'Choose a time at least one minute from now.',
+      messageRu: 'Выберите время минимум через минуту.',
+    },
+    {
+      value: 'attachment-limit',
+      tone: 'warning',
+      labelEn: 'Attachment limit · medium',
+      labelRu: 'Лимит вложений · среднее',
+      messageEn: 'Max 10 files. Remove one to add another.',
+      messageRu: 'Лимит — 10 файлов. Удалите одно.',
+    },
+    {
+      value: 'attachment-unavailable',
+      tone: 'warning',
+      labelEn: 'Unavailable attachment · medium',
+      labelRu: 'Недоступное вложение · среднее',
+      messageEn: 'File unavailable. Check access and try again.',
+      messageRu: 'Файл недоступен. Проверьте доступ.',
+      actions: ['dismiss'],
+    },
+  ],
+  approval: [
+    {
+      value: 'message-sent',
+      tone: 'success',
+      labelEn: 'Message sent · short',
+      labelRu: 'Сообщение отправлено · короткое',
+      messageEn: 'Message sent.',
+      messageRu: 'Сообщение отправлено.',
+    },
+    {
+      value: 'draft-saved',
+      tone: 'success',
+      labelEn: 'Draft saved · medium',
+      labelRu: 'Черновик сохранён · среднее',
+      messageEn: 'Draft saved to your Posts.',
+      messageRu: 'Черновик сохранён в публикациях.',
+    },
+    {
+      value: 'message-scheduled',
+      tone: 'success',
+      labelEn: 'Message scheduled · short',
+      labelRu: 'Сообщение запланировано · короткое',
+      messageEn: 'Message scheduled.',
+      messageRu: 'Сообщение запланировано.',
+      actions: ['dismiss'],
+    },
+    {
+      value: 'attachment-added',
+      tone: 'success',
+      labelEn: 'Attachment added · short',
+      labelRu: 'Вложение добавлено · короткое',
+      messageEn: 'Attachment added to the message.',
+      messageRu: 'Вложение добавлено к сообщению.',
+    },
+    {
+      value: 'message-scheduled-details',
+      tone: 'success',
+      labelEn: 'Schedule confirmed · medium',
+      labelRu: 'Планирование подтверждено · среднее',
+      messageEn: 'Scheduled. Edit the post anytime in Posts.',
+      messageRu: 'Запланировано. Изменить можно в публикациях.',
+    },
+  ],
+  error: [
+    {
+      value: 'send-error',
+      tone: 'error',
+      labelEn: 'Send failed · short',
+      labelRu: 'Ошибка отправки · короткое',
+      messageEn: 'Message could not be sent.',
+      messageRu: 'Не удалось отправить сообщение.',
+      actions: ['retry', 'dismiss'],
+    },
+    {
+      value: 'schedule-error',
+      tone: 'error',
+      labelEn: 'Schedule failed · medium',
+      labelRu: 'Ошибка планирования · среднее',
+      messageEn: 'Could not schedule. Try again.',
+      messageRu: 'Не удалось запланировать. Повторите.',
+    },
+    {
+      value: 'draft-error',
+      tone: 'error',
+      labelEn: 'Draft save failed · medium',
+      labelRu: 'Черновик не сохранён · среднее',
+      messageEn: 'Draft not saved. Text remains in the editor.',
+      messageRu: 'Черновик не сохранён. Текст остался.',
+    },
+    {
+      value: 'connection-error',
+      tone: 'error',
+      labelEn: 'Telegram unavailable · medium',
+      labelRu: 'Telegram недоступен · среднее',
+      messageEn: 'Telegram offline. Check your connection.',
+      messageRu: 'Нет связи с Telegram. Проверьте интернет.',
+    },
+    {
+      value: 'rate-limit-error',
+      tone: 'error',
+      labelEn: 'Telegram rate limit · medium',
+      labelRu: 'Ограничение Telegram · среднее',
+      messageEn: 'Telegram limit reached. Try again later.',
+      messageRu: 'Лимит Telegram. Попробуйте позже.',
+    },
+  ],
+};
 
 function PlannerTestbench() {
   const { locale, setLocale } = useLocale();
   const [theme, setTheme] = useState<ColorTheme>(readTestbenchColorTheme);
-  const [scenario, setScenario] = useState<Scenario>('demo-chats');
-  const [feedbackScenario, setFeedbackScenario] = useState<FeedbackScenario>('none');
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>('warning');
+  const [feedbackExampleId, setFeedbackExampleId] = useState('empty-message');
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+  const [feedbackInstance, setFeedbackInstance] = useState(0);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(demoChats[0]);
   const [plannerRevision, setPlannerRevision] = useState(0);
   const isRussian = locale === 'ru';
-  const chats = scenario === 'demo-chats' ? demoChats : [];
-  const feedbackOptions: Array<{ value: FeedbackScenario; label: string }> = [
-    { value: 'none', label: isRussian ? 'Без ошибки' : 'No feedback' },
-    { value: 'empty-message', label: isRussian ? 'Пустое сообщение' : 'Empty message' },
-    { value: 'schedule-confirmation', label: isRussian ? 'Не выбрано время' : 'Schedule time required' },
-    { value: 'schedule-too-soon', label: isRussian ? 'Слишком раннее время' : 'Time too soon' },
-    { value: 'chat-required', label: isRussian ? 'Не выбран чат' : 'Chat required' },
-    { value: 'empty-studio', label: isRussian ? 'Пустой переход в Studio' : 'Open Studio with empty text' },
-    { value: 'attachment-limit', label: isRussian ? 'Лимит вложений' : 'Attachment limit' },
-    { value: 'attachment-error', label: isRussian ? 'Ошибка вложения' : 'Attachment unavailable' },
-    { value: 'send-error', label: isRussian ? 'Ошибка отправки' : 'Send failure' },
-    { value: 'schedule-error', label: isRussian ? 'Ошибка планирования' : 'Schedule failure' },
-    { value: 'draft-error', label: isRussian ? 'Ошибка черновика' : 'Draft failure' },
+  const feedbackCategoryOptions: Array<{ value: FeedbackCategory; label: string }> = [
+    { value: 'warning', label: isRussian ? 'Предупреждения' : 'Warnings' },
+    { value: 'approval', label: isRussian ? 'Статусы одобрения' : 'Approval statuses' },
+    { value: 'error', label: isRussian ? 'Ошибки' : 'Errors' },
   ];
-  const feedbackPreviewByScenario: Partial<Record<FeedbackScenario, QuickPlannerActionFeedback>> = {
-    'empty-message': { tone: 'warning', message: isRussian ? 'Введите текст сообщения.' : 'Write a message.' },
-    'schedule-confirmation': { tone: 'warning', message: isRussian ? 'Выберите время отправки.' : 'Choose a send time.' },
-    'schedule-too-soon': { tone: 'warning', message: isRussian ? 'Выберите время минимум через минуту.' : 'Choose a time at least one minute ahead.' },
-    'chat-required': { tone: 'warning', message: isRussian ? 'Выберите подключённый чат.' : 'Choose a connected chat.' },
-    'empty-studio': { tone: 'warning', message: isRussian ? 'Сначала введите сообщение.' : 'Write a message first.' },
-    'attachment-limit': { tone: 'warning', message: isRussian ? 'Можно прикрепить до 10 файлов.' : 'Attach up to 10 files.' },
-    'attachment-error': { tone: 'warning', message: isRussian ? 'Не удалось прикрепить файл.' : 'Could not attach the file.' },
-    'send-error': { tone: 'error', message: isRussian ? 'Не удалось отправить сообщение.' : 'Could not send the message.' },
-    'schedule-error': { tone: 'error', message: isRussian ? 'Не удалось запланировать отправку.' : 'Could not schedule the message.' },
-    'draft-error': { tone: 'error', message: isRussian ? 'Не удалось сохранить черновик.' : 'Could not save the draft.' },
+  const categoryExamples = feedbackExamples[feedbackCategory];
+  const selectedFeedbackExample = categoryExamples.find(({ value }) => value === feedbackExampleId) ?? categoryExamples[0];
+  const feedbackExampleOptions = categoryExamples.map(({ value, labelEn, labelRu }) => ({
+    value,
+    label: isRussian ? labelRu : labelEn,
+  }));
+  const feedbackPreview: QuickPlannerActionFeedback | null = feedbackDismissed ? null : {
+    tone: selectedFeedbackExample.tone,
+    message: isRussian ? selectedFeedbackExample.messageRu : selectedFeedbackExample.messageEn,
+    instance: feedbackInstance,
+    actions: selectedFeedbackExample.actions?.map((id) => ({
+      id,
+      label: id === 'retry'
+        ? (isRussian ? 'Повторить' : 'Retry')
+        : (isRussian ? 'Закрыть' : 'Dismiss'),
+      onClick: id === 'retry'
+        ? () => setFeedbackInstance((instance) => instance + 1)
+        : () => setFeedbackDismissed(true),
+    })),
   };
 
   useEffect(() => {
@@ -82,8 +212,10 @@ function PlannerTestbench() {
   const reset = () => {
     writePlannerDraft('');
     flushPlannerDraftWrite();
-    setScenario('demo-chats');
-    setFeedbackScenario('none');
+    setFeedbackCategory('warning');
+    setFeedbackExampleId('empty-message');
+    setFeedbackDismissed(false);
+    setFeedbackInstance(0);
     setSelectedChat(demoChats[0]);
     setPlannerRevision((revision) => revision + 1);
   };
@@ -95,29 +227,32 @@ function PlannerTestbench() {
         setLocale={setLocale}
         theme={theme}
         onThemeChange={changeTheme}
-        scenarioLabel={isRussian ? 'Список чатов' : 'Chat scenario'}
-        scenario={scenario}
-        scenarioOptions={[
-          { value: 'demo-chats', label: isRussian ? 'Демо-чаты' : 'Demo chats' },
-          { value: 'no-chats', label: isRussian ? 'Без чатов' : 'No chats' },
-        ]}
+        scenarioLabel={isRussian ? 'Тип уведомления' : 'Notification type'}
+        scenario={feedbackCategory}
+        scenarioOptions={feedbackCategoryOptions}
         onScenarioChange={(value) => {
-          const nextScenario = value as Scenario;
-          setScenario(nextScenario);
-          setSelectedChat(nextScenario === 'demo-chats' ? demoChats[0] : null);
+          const nextCategory = value as FeedbackCategory;
+          setFeedbackCategory(nextCategory);
+          setFeedbackExampleId(feedbackExamples[nextCategory][0].value);
+          setFeedbackDismissed(false);
+          setFeedbackInstance(0);
         }}
-        confirmationLabel={isRussian ? 'Сценарий ошибки' : 'Feedback scenario'}
-        confirmationScenario={feedbackScenario}
-        confirmationOptions={feedbackOptions}
-        onConfirmationScenarioChange={(value) => setFeedbackScenario(value as FeedbackScenario)}
+        confirmationLabel={isRussian ? 'Пример уведомления' : 'Notification example'}
+        confirmationScenario={selectedFeedbackExample.value}
+        confirmationOptions={feedbackExampleOptions}
+        onConfirmationScenarioChange={(value) => {
+          setFeedbackExampleId(value);
+          setFeedbackDismissed(false);
+          setFeedbackInstance(0);
+        }}
         onReset={reset}
         resetLabel={isRussian ? 'Сбросить' : 'Reset'}
         currentPage="planner"
       />
       <div className="planner-testbench-notice" role="note">
         {isRussian
-          ? 'Демо-режим: отправка и планирование сообщений отключены.'
-          : 'Demo mode: sending and scheduling messages are disabled.'}
+          ? 'Предпросмотр пользовательских уведомлений в Planner. Отправка и планирование отключены.'
+          : 'Preview user-facing Planner notifications. Sending and scheduling are disabled.'}
       </div>
       <div className="product-shell planner-shell">
         <QuickPlannerNavigationContext.Provider value={{
@@ -129,13 +264,13 @@ function PlannerTestbench() {
         }}>
           <QuickPlanner
             key={plannerRevision}
-            chats={chats}
+            chats={demoChats}
             selectedChat={selectedChat}
             onSelectChat={setSelectedChat}
             onSendNow={async () => false}
             onSchedule={async () => false}
             onSaveDraft={() => false}
-            feedbackPreview={feedbackPreviewByScenario[feedbackScenario] ?? null}
+            feedbackPreview={feedbackPreview}
           />
         </QuickPlannerNavigationContext.Provider>
       </div>

@@ -38,7 +38,9 @@ type ErrorVariant =
   | 'warning'
   | 'mass-warning'
   | 'progress'
-  | 'success';
+  | 'success'
+  | 'action-retry-error'
+  | 'action-dismiss-warning';
 type ConfirmationVariant = 'none' | 'delete-draft' | 'discard-changes';
 
 function Demo() {
@@ -47,6 +49,8 @@ function Demo() {
   const [errorVariant, setErrorVariant] = useState<ErrorVariant>('none');
   const [confirmationVariant, setConfirmationVariant] = useState<ConfirmationVariant>('none');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(botFatherChat);
+  const [actionFeedbackDismissed, setActionFeedbackDismissed] = useState(false);
+  const [actionFeedbackRevision, setActionFeedbackRevision] = useState(0);
   const isRussian = locale === 'ru';
   const errorOptions: Array<{ value: ErrorVariant; label: string }> = [
     { value: 'none', label: isRussian ? 'Без уведомления' : 'No notification' },
@@ -63,6 +67,8 @@ function Demo() {
     { value: 'mass-warning', label: isRussian ? 'Массовое планирование' : 'Mass scheduling warning' },
     { value: 'progress', label: isRussian ? 'Отправка' : 'Sending' },
     { value: 'success', label: isRussian ? 'Успешная отправка' : 'Send success' },
+    { value: 'action-retry-error', label: isRussian ? 'Ошибка с повтором и закрытием' : 'Error with retry and dismiss' },
+    { value: 'action-dismiss-warning', label: isRussian ? 'Предупреждение с закрытием' : 'Dismissible warning' },
   ];
   const errorMessage = {
     'send-error': t('studio.sendFailed'),
@@ -80,6 +86,8 @@ function Demo() {
     'mass-warning': t('schedule.massWarningMessage', { count: 12 }),
     progress: '',
     success: t('studio.messageSent'),
+    'action-retry-error': '',
+    'action-dismiss-warning': '',
     none: '',
   }[errorVariant];
   const confirmationOptions: Array<{ value: ConfirmationVariant; label: string }> = [
@@ -111,16 +119,31 @@ function Demo() {
       {
         message: errorMessage,
         title: errorVariant === 'mass-warning' ? t('schedule.massWarningTitle') : 'Studio',
-        type: errorVariant === 'warning' || errorVariant === 'mass-warning'
+        type: errorVariant === 'warning' || errorVariant === 'mass-warning' || errorVariant === 'action-dismiss-warning'
           ? 'warning'
           : errorVariant === 'success'
             ? 'success'
             : 'error',
-        visible: !['none', 'progress'].includes(errorVariant),
+        visible: !['none', 'progress', 'action-retry-error', 'action-dismiss-warning'].includes(errorVariant),
       },
       () => setErrorVariant('none'),
     );
   }, [errorMessage, errorVariant, t]);
+  const actionFeedback = errorVariant === 'action-retry-error'
+        ? {
+          kind: 'error' as const,
+          message: isRussian
+            ? 'Не удалось отправить сообщение. Проверьте подключение к Telegram и повторите попытку. Текст останется в редакторе.'
+            : 'Could not send the message. Check your Telegram connection and try again. Your text will remain in the editor.',
+        }
+        : errorVariant === 'action-dismiss-warning'
+          ? {
+            kind: 'warning' as const,
+            message: isRussian
+              ? 'Для повторного планирования проверьте выбранные дату, время и чат.'
+              : 'Check the selected date, time, and chat before trying to schedule again.',
+          }
+          : null;
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -141,7 +164,11 @@ function Demo() {
         scenarioLabel={isRussian ? 'Сценарий уведомления' : 'Status scenario'}
         scenario={errorVariant}
         scenarioOptions={errorOptions}
-        onScenarioChange={(value) => setErrorVariant(value as ErrorVariant)}
+        onScenarioChange={(value) => {
+          setErrorVariant(value as ErrorVariant);
+          setActionFeedbackDismissed(false);
+          setActionFeedbackRevision(0);
+        }}
         confirmationLabel={isRussian ? 'Сценарий подтверждения' : 'Confirmation scenario'}
         confirmationScenario={confirmationVariant}
         confirmationOptions={confirmationOptions}
@@ -149,6 +176,8 @@ function Demo() {
         onReset={() => {
           setErrorVariant('none');
           setConfirmationVariant('none');
+          setActionFeedbackDismissed(false);
+          setActionFeedbackRevision(0);
         }}
         resetLabel={isRussian ? 'Сбросить' : 'Reset'}
         currentPage="studio"
@@ -160,6 +189,33 @@ function Demo() {
         onSelectChat={setSelectedChat}
         scheduler={scheduler}
       />
+      {actionFeedback && !actionFeedbackDismissed && (
+        <div
+          key={actionFeedbackRevision}
+          className={`workspace-page-publish-transient-feedback studio-editor-testbench-feedback is-${actionFeedback.kind} has-detail`}
+          role={actionFeedback.kind === 'error' ? 'alert' : 'status'}
+          aria-live={actionFeedback.kind === 'error' ? 'assertive' : 'polite'}
+        >
+          <span className="workspace-page-publish-transient-feedback-status">{actionFeedback.message}</span>
+          {errorVariant === 'action-retry-error' && (
+            <button
+              type="button"
+              className="workspace-page-send-retry"
+              onClick={() => setActionFeedbackRevision((revision) => revision + 1)}
+            >
+              {isRussian ? 'Повторить' : 'Retry'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="workspace-page-publish-status-dismiss"
+            aria-label={isRussian ? 'Закрыть уведомление' : 'Dismiss notification'}
+            onClick={() => setActionFeedbackDismissed(true)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {confirmationVariant !== 'none' && (
         <ConfirmDialogSurface
           title={confirmationVariant === 'delete-draft'

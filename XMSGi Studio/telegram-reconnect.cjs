@@ -38,39 +38,75 @@ function createTelegramReconnect({
     assertRunning();
     lifecycleState.status = 'reconnecting';
 
-    if (!getClient()) return;
+    const reconnectClient = getClient();
+    if (!reconnectClient) return;
     if (lifecycleState.reconnectInProgress) return;
 
+    const reconnectGeneration = lifecycleState.reconnectGeneration;
     lifecycleState.reconnectInProgress = true;
     notifyStatus('reconnecting');
 
     try {
       try {
-        if (getClient().connected) {
-          await getClient().disconnect();
+        if (reconnectClient.connected) {
+          await reconnectClient.disconnect();
         }
       } catch (error) {
         console.error('Telegram disconnect during reconnect failed:', error?.code || error?.name || 'unknown');
       }
 
+      if (
+        reconnectGeneration !== lifecycleState.reconnectGeneration
+        || getClient() !== reconnectClient
+        || lifecycleState.status === 'shutting-down'
+        || lifecycleState.status === 'stopped'
+      ) {
+        return false;
+      }
+
       await telegramRequest(() => withTimeout(
-        getClient().connect(),
+        reconnectClient.connect(),
         15000,
         'Telegram reconnect'
       ));
+
+      if (
+        reconnectGeneration !== lifecycleState.reconnectGeneration
+        || getClient() !== reconnectClient
+        || lifecycleState.status === 'shutting-down'
+        || lifecycleState.status === 'stopped'
+      ) {
+        try {
+          await reconnectClient.disconnect();
+        } catch (error) {
+          console.error('Stale Telegram reconnect disconnect failed:', error?.code || error?.name || 'unknown');
+        }
+
+        return false;
+      }
 
       console.log('Telegram reconnected.');
       notifyStatus('connected');
       lifecycleState.status = 'connected';
       return true;
     } catch (error) {
+      if (
+        reconnectGeneration !== lifecycleState.reconnectGeneration
+        || getClient() !== reconnectClient
+        || lifecycleState.status === 'shutting-down'
+        || lifecycleState.status === 'stopped'
+      ) {
+        return false;
+      }
       if (error?.code === 'TELEGRAM_SESSION_INVALID') throw error;
       console.error('Telegram reconnect failed:', error?.code || error?.name || 'unknown');
       notifyStatus('disconnected');
       lifecycleState.status = 'disconnected';
       return false;
     } finally {
-      lifecycleState.reconnectInProgress = false;
+      if (reconnectGeneration === lifecycleState.reconnectGeneration) {
+        lifecycleState.reconnectInProgress = false;
+      }
     }
   }
 

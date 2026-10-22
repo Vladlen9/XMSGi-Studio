@@ -15,10 +15,12 @@ const {
   createLifecycleState,
   beginShutdown,
   runShared,
-  startPendingLogin,
   trackOperation,
+  startPendingLogin,
+  stopReconnect,
   withTimeout
 } = lifecycle;
+const { createTelegramReconnect } = nodeRequire('./telegram-reconnect.cjs');
 
 function commitLoginIfCurrent(state, loginGeneration, client) {
   if (
@@ -125,6 +127,52 @@ describe('single-account Telegram lifecycle', () => {
     expect(state.status).toBe('shutting-down');
     await shutdown;
     expect(state.status).toBe('stopped');
+  });
+
+  it('does not publish a late reconnect after Remember me signs out', async () => {
+    const state = createLifecycleState();
+    const connectGate = createDeferred();
+    const connectStarted = createDeferred();
+    const reconnectClient = {
+      connected: false,
+      connect: vi.fn(async () => {
+        connectStarted.resolve();
+        await connectGate.promise;
+        reconnectClient.connected = true;
+      }),
+      disconnect: vi.fn(async () => {
+        reconnectClient.connected = false;
+      })
+    };
+    const notifyStatus = vi.fn();
+    state.status = 'connected';
+    state.client = reconnectClient;
+
+    const reconnect = createTelegramReconnect({
+      assertRunning: () => lifecycle.assertLifecycleRunning(state),
+      getClient: () => state.client,
+      lifecycleState: state,
+      notifyStatus,
+      runShared: (lifecycle, key, operation) => runShared(lifecycle, key, operation),
+      stopReconnect: lifecycle.stopReconnect,
+      telegramRequest: (operation) => operation(),
+      trackOperation: (type, operation) => trackOperation(state, type, operation),
+      withTimeout: (operation) => operation
+    });
+
+    const reconnecting = reconnect.reconnectTelegram();
+    await connectStarted.promise;
+
+    stopReconnect(state);
+    state.status = 'disconnected';
+    state.client = null;
+    connectGate.resolve();
+
+    await expect(reconnecting).resolves.toBe(false);
+    expect(reconnectClient.disconnect).toHaveBeenCalledOnce();
+    expect(reconnectClient.connected).toBe(false);
+    expect(notifyStatus).not.toHaveBeenCalledWith('connected');
+    expect(state.status).toBe('disconnected');
   });
 
   it('rejects network and reconnect starts after shutdown', async () => {

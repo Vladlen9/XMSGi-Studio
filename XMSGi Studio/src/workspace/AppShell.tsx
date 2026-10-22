@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PropsWithChildren } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { CircleUserRound, LogOut, X } from 'lucide-react';
 import { Notification } from '@/components/Notification';
 import { useLocale } from '@/lib/i18n';
@@ -108,6 +108,15 @@ export function AppShell({
   const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | 'workspace' | undefined>();
   const [historySourceFilterOnOpenMode, setHistorySourceFilterOnOpenMode] = useState<'initial' | 'temporary'>('temporary');
   const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
+
+  useLayoutEffect(() => {
+    if (view === 'posts') return;
+    setPostsOpen(false);
+    setHistorySourceFilterOnOpen(undefined);
+    setHistorySourceFilterOnOpenMode('temporary');
+    setHistoryStatusFilterOnOpen(undefined);
+  }, [view]);
+
   useEffect(() => {
     if (!isConfirmingLogout || authBusy) return undefined;
 

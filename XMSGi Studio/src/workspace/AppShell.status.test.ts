@@ -192,6 +192,48 @@ describe('shared History Drawer entry point', () => {
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
+  it('closes Posts when Remember me changes the parent view to Planner', async () => {
+    let currentView: 'planner' | 'posts' = 'planner';
+    let rerenderShell: (ui: React.ReactNode) => void = () => undefined;
+    const renderShell = (isConfirmingLogout = false) => createElement(LocaleProvider, null, createElement(AppShell, {
+      view: currentView,
+      onViewChange: (view) => {
+        currentView = view === 'posts' ? 'posts' : 'planner';
+        rerenderShell(renderShell());
+      },
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => {
+        currentView = 'planner';
+        rerenderShell(renderShell());
+      },
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement(QuickPlannerNavigationTestButtons)));
+    const view = render(renderShell());
+    rerenderShell = view.rerender;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
+    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+
+    rerenderShell(renderShell(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    });
+  });
+
   it('uses the active product on the first Posts open, then keeps the manually selected source', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const onViewChange = vi.fn();

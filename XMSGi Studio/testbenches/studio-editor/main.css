@@ -72,6 +72,61 @@ body {
   margin-top: auto;
 }
 
+.studio-editor-testbench-feedback {
+  position: fixed !important;
+  z-index: 10002 !important;
+  top: 78px !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  display: flex !important;
+  width: min(640px, calc(100vw - 32px)) !important;
+  max-width: calc(100vw - 32px) !important;
+  max-height: min(180px, calc(100vh - 96px)) !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  box-sizing: border-box;
+  padding: 10px 12px !important;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+  text-align: left !important;
+  transform: translateX(-50%) !important;
+  animation: none !important;
+}
+
+.studio-editor-testbench-feedback .workspace-page-publish-transient-feedback-status {
+  max-height: 140px;
+  flex: 1 1 auto;
+  overflow: auto;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.studio-editor-testbench-feedback .workspace-page-send-retry,
+.studio-editor-testbench-feedback .workspace-page-publish-status-dismiss {
+  position: static;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: inherit;
+  font: 600 12px/1.2 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.studio-editor-testbench-feedback .workspace-page-publish-status-dismiss {
+  min-width: 30px;
+  padding: 0;
+  font-size: 18px;
+}
+
 @media (min-width: 761px) {
   .studio-editor-stand .workspace-page-main {
     align-items: stretch;

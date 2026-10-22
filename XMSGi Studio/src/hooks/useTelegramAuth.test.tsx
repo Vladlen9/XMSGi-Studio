@@ -66,6 +66,49 @@ describe('useTelegramAuth', () => {
     }
   });
 
+  it('ignores a stale connected status after Remember me has signed out', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    let emitStatus: (status: unknown) => void = () => undefined;
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: true, signedOut: true, connected: false, userName: 'Alex', state: 'SIGNED_OUT' },
+        }),
+        getStatus: vi.fn().mockResolvedValue({ success: true }),
+        getRateLimitState: vi.fn().mockResolvedValue({ success: true }),
+        onStatus: vi.fn((callback: (status: unknown) => void) => {
+          emitStatus = callback;
+          return vi.fn();
+        }),
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.connectionResolved).toBe(true);
+        expect(result.current.signedOut).toBe(true);
+      });
+      act(() => emitStatus('connected'));
+
+      expect(result.current.connected).toBe(false);
+      expect(result.current.signedOut).toBe(true);
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
   it('shows a user-friendly message when the auth-state IPC request is rejected', async () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
@@ -301,6 +344,91 @@ describe('useTelegramAuth', () => {
       expect(onRestored).toHaveBeenCalledOnce();
       await waitFor(() => expect(result.current.connected).toBe(true));
       expect(result.current.signedOut).toBe(false);
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
+  it('reports successful Remember me sign-out so the app can show the return screen', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    const signOutKeepSession = vi.fn().mockResolvedValue({
+      success: true,
+      authState: { hasSession: true, signedOut: true, connected: false, userName: 'Alex', username: 'alex', state: 'SIGNED_OUT' },
+    });
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: false, signedOut: false, connected: false, userName: '', state: 'NO_SESSION' },
+        }),
+        getStatus: vi.fn().mockResolvedValue({ success: true }),
+        getRateLimitState: vi.fn().mockResolvedValue({ success: true }),
+        signOutKeepSession,
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => expect(result.current.connectionResolved).toBe(true));
+      let signedOut = false;
+      await act(async () => {
+        signedOut = await result.current.handleDisconnect();
+      });
+
+      expect(signOutKeepSession).toHaveBeenCalledOnce();
+      expect(signedOut).toBe(true);
+      expect(result.current.signedOut).toBe(true);
+      expect(result.current.connected).toBe(false);
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
+  it('does not report Remember me sign-out when the request fails', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: false, signedOut: false, connected: false, userName: '', state: 'NO_SESSION' },
+        }),
+        getStatus: vi.fn().mockResolvedValue({ success: true }),
+        getRateLimitState: vi.fn().mockResolvedValue({ success: true }),
+        signOutKeepSession: vi.fn().mockResolvedValue({ success: false, error: 'Sign out failed.' }),
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => expect(result.current.connectionResolved).toBe(true));
+      let signedOut = true;
+      await act(async () => {
+        signedOut = await result.current.handleDisconnect();
+      });
+
+      expect(signedOut).toBe(false);
+      expect(result.current.signedOut).toBe(false);
+      expect(result.current.authError).toBe('Sign out failed.');
     } finally {
       if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
       else Reflect.deleteProperty(window, 'telegram');

@@ -81,6 +81,8 @@ export function LoginPage({
     const layout = loginLayoutRef.current;
     const form = loginFormRef.current;
     const studio = loginStudioRef.current;
+    const brand = layout?.querySelector<HTMLElement>('.login-brand');
+    const divider = layout?.querySelector<HTMLElement>('.login-divider');
     const panel = loginPanelRef.current;
     const errorSlot = loginErrorSlotRef.current;
     const phoneInput = loginPhoneRef.current;
@@ -98,6 +100,20 @@ export function LoginPage({
       const layoutTop = layout.getBoundingClientRect().top;
       const appliedTop = Number.parseFloat(getComputedStyle(panel).top) || 0;
       const studioRect = studio.getBoundingClientRect();
+
+      if (divider && brand && window.innerWidth >= 461) {
+        const heading = brand.querySelector<HTMLElement>('.login-wordmark');
+        const tagline = brand.querySelector<HTMLElement>('.login-tagline');
+        if (heading) {
+          const headingRect = heading.getBoundingClientRect();
+          const taglineRect = tagline?.getBoundingClientRect();
+          const dividerRect = divider.getBoundingClientRect();
+          const heroTop = headingRect.top;
+          const heroBottom = taglineRect?.bottom ?? headingRect.bottom;
+          divider.style.setProperty('--login-divider-line-top', `${heroTop - dividerRect.top}px`);
+          divider.style.setProperty('--login-divider-line-height', `${heroBottom - heroTop}px`);
+        }
+      }
 
       if (showAuthForm && visibleAuthMessage && errorSlot && window.innerWidth >= 461) {
         const errorMessage = errorSlot.querySelector<HTMLElement>('.login-error');
@@ -129,6 +145,9 @@ export function LoginPage({
     syncPanelTop();
     const resizeObserver = new ResizeObserver(syncPanelTop);
     resizeObserver.observe(studio);
+    if (brand) {
+      resizeObserver.observe(brand);
+    }
     if (visibleAuthMessage && errorSlot) {
       resizeObserver.observe(errorSlot);
     }
@@ -156,30 +175,32 @@ export function LoginPage({
 
       <div className="app">
         <section className={`auth-panel auth-screen ${showAuthForm ? 'is-auth-open' : ''}`} lang={locale}>
-          <div className="auth-language-switch" role="group" aria-label={t('language.title')}>
-            <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
-              RU
-            </button>
-            <span aria-hidden="true">|</span>
-            <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
-              EN
+          <div className="auth-top-controls">
+            <div className="auth-language-switch" role="group" aria-label={t('language.title')}>
+              <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
+                RU
+              </button>
+              <span aria-hidden="true">|</span>
+              <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
+                EN
+              </button>
+            </div>
+            <button
+              type="button"
+              className="auth-theme-button"
+              aria-label={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
+              title={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
+              onClick={() => {
+                const nextTheme: ColorTheme = colorTheme === 'light' ? 'dark' : 'light';
+                applyColorTheme(nextTheme, { animate: true });
+                setColorTheme(nextTheme);
+              }}
+            >
+              {colorTheme === 'light'
+                ? <Moon size={19} strokeWidth={1.8} aria-hidden="true" />
+                : <Sun size={19} strokeWidth={1.8} aria-hidden="true" />}
             </button>
           </div>
-          <button
-            type="button"
-            className="auth-theme-button"
-            aria-label={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
-            title={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
-            onClick={() => {
-              const nextTheme: ColorTheme = colorTheme === 'light' ? 'dark' : 'light';
-              applyColorTheme(nextTheme, { animate: true });
-              setColorTheme(nextTheme);
-            }}
-          >
-            {colorTheme === 'light'
-              ? <Moon size={19} strokeWidth={1.8} aria-hidden="true" />
-              : <Sun size={19} strokeWidth={1.8} aria-hidden="true" />}
-          </button>
           <main className="login-layout" ref={loginLayoutRef}>
             <section className="login-brand" aria-label="MSGi Studio">
               <h1 className="login-wordmark">
@@ -195,26 +216,30 @@ export function LoginPage({
               </p>
             </section>
 
-            <button
-              className="login-divider"
-              type="button"
-              aria-label={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
-              aria-expanded={showAuthForm}
-              aria-controls="telegram-login-form"
-              data-tooltip={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
-              onClick={() => {
-                setShowAuthForm((current) => !current);
-                setAuthStep('phone');
-                setPhoneNumber('');
-                setPhoneCode('');
-                setTwoFactorPassword('');
-                setAuthError('');
-              }}
-            >
-              <span className="login-button-tooltip" aria-hidden="true">
-                {showAuthForm ? t('auth.startOver') : t('auth.signIn')}
-              </span>
-            </button>
+            {signedOut ? (
+              <div className="login-divider" aria-hidden="true" />
+            ) : (
+              <button
+                className="login-divider"
+                type="button"
+                aria-label={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+                aria-expanded={showAuthForm}
+                aria-controls="telegram-login-form"
+                data-tooltip={showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+                onClick={() => {
+                  setShowAuthForm((current) => !current);
+                  setAuthStep('phone');
+                  setPhoneNumber('');
+                  setPhoneCode('');
+                  setTwoFactorPassword('');
+                  setAuthError('');
+                }}
+              >
+                <span className="login-button-tooltip" aria-hidden="true">
+                  {showAuthForm ? t('auth.startOver') : t('auth.signIn')}
+                </span>
+              </button>
+            )}
 
             <section className="login-panel" ref={loginPanelRef} aria-label={t('hero.signInIntro')}>
               <div className={`login-method ${signedOut ? 'is-returning' : ''}`}>
@@ -229,9 +254,8 @@ export function LoginPage({
                       aria-label={returningUserActionLabel}
                       data-tooltip={returningUserActionLabel}
                     >
-                      <span>{returningUserLabel}</span>
+                      <span>{returningUserActionLabel}</span>
                       <ArrowUpRight size={18} aria-hidden="true" />
-                      <span className="login-button-tooltip" aria-hidden="true">{returningUserActionLabel}</span>
                     </button>
                   </div>
                 ) : (

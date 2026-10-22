@@ -787,6 +787,9 @@ describe('WorkspacePage main-screen flows', () => {
       expect(toggle?.getAttribute('aria-label')).toBe('Show preview');
       expect(toggle?.querySelector('.workspace-page-preview-eyelashes')).toBeNull();
       expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-editor-panel\s*\{\s*align-items:\s*center;/);
+      expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-editor-panel\s*\{\s*width:\s*100%;\s*flex:\s*1 1 100%;/);
+      expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-preview-panel\[data-visible='false'\]\s*\{\s*display:\s*none;/);
+      expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-editor-panel \.workspace-page-textarea\s*\{\s*width:\s*min\(100%, 720px\);\s*max-width:\s*720px;/);
 
       const modeButtons = [...document.querySelectorAll('.workspace-page-mode-button, .workspace-page-schedule-compact-button')];
       expect(modeButtons.length).toBeGreaterThan(0);
@@ -803,6 +806,8 @@ describe('WorkspacePage main-screen flows', () => {
   it('aligns Electron editor and preview panel heights on desktop', () => {
     expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\)[\s\S]*?html\.electron-runtime \.workspace-page-main\s*\{[^}]*padding:\s*20px clamp\(10px, 1\.5vw, 16px\) 20px;/);
     expect(workspacePageStyles).toMatch(/@media \(min-width: 1101px\)[\s\S]*?html\.electron-runtime \.workspace-page-main\s*\{\s*padding-top:\s*32px;/);
+    expect(workspacePageStyles).toMatch(/@media \(min-width: 1101px\)\s*\{\s*html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-editor-panel\s*\{\s*flex-basis:\s*100%;\s*align-items:\s*center;/);
+    expect(workspacePageStyles).toMatch(/@media \(min-width: 1101px\)[\s\S]*?html\.electron-runtime \.workspace-page-main:has\(\.workspace-page-preview-panel\[data-visible='false'\]\) \.workspace-page-preview-panel\[data-visible='false'\]\s*\{\s*display:\s*none;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-panel\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*none;\s*margin-bottom:\s*0;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-preview-panel:not\(\[data-collapsed='true'\]\)\s*\{\s*height:\s*min\(100%, 655px\);\s*max-height:\s*655px;\s*align-self:\s*flex-start;/);
@@ -2165,6 +2170,41 @@ describe('WorkspacePage main-screen flows', () => {
       await vi.advanceTimersByTimeAsync(3360);
     });
     expect(closeNotification).toHaveBeenCalledTimes(1);
+
+    unmount();
+    vi.useRealTimers();
+  });
+
+  it('restarts the footer notification when the same notification is shown again', async () => {
+    vi.useFakeTimers();
+    const closeNotification = vi.fn();
+    const notification = {
+      ...baseNotification,
+      message: 'Saved to local queue.',
+      title: 'Studio',
+      type: 'success' as const,
+      visible: true,
+      revision: 1,
+    };
+    const { rerender, unmount } = await renderWorkspacePage({ notification, closeNotification });
+    const firstNotification = document.querySelector('.workspace-page-publish-transient-feedback');
+    expect(firstNotification).not.toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    rerender({ notification: { ...notification, revision: 2 }, closeNotification });
+    const repeatedNotification = document.querySelector('.workspace-page-publish-transient-feedback');
+
+    expect(repeatedNotification).not.toBe(firstNotification);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(closeNotification).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(360);
+    });
+    expect(closeNotification).toHaveBeenCalledOnce();
 
     unmount();
     vi.useRealTimers();

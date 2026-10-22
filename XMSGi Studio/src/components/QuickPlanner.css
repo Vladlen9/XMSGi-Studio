@@ -420,8 +420,9 @@
 
 .quick-planner-mode-switch button.is-active {
   color: var(--planner-accent);
-  background: #e7f0f5;
-  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.24);
+  background: #dceefa;
+  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.42);
+  font-weight: 600;
 }
 
 .quick-planner-mode-switch button:focus-visible {
@@ -1456,9 +1457,9 @@
 }
 
 .quick-planner-schedule-row .quick-planner-submit {
-  width: 150px;
-  min-width: 150px;
-  flex: 0 0 150px;
+  width: 160px;
+  min-width: 160px;
+  flex: 0 0 160px;
   height: 44px;
   margin-left: auto;
   color: #ffffff;
@@ -1520,9 +1521,12 @@
 
 .quick-planner-compose-footer {
   display: flex;
+  box-sizing: border-box;
+  flex: 0 0 48px;
   min-height: 48px;
-  align-items: center;
-  padding: 0 26px;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 16px 16px;
   border-top: 1px solid var(--planner-line);
 }
 
@@ -1532,6 +1536,7 @@
   }
 
   .quick-planner-compose-footer {
+    flex-basis: 68px;
     min-height: calc(48px + 20px);
   }
 }
@@ -1562,18 +1567,6 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   flex: 1 1 0;
 }
 
-html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-compose-footer {
-  position: absolute;
-  right: 26px;
-  bottom: 14px;
-  left: 26px;
-  min-height: 0;
-  flex: 0 0 auto;
-  padding: 0;
-  border-top: 0;
-  pointer-events: none;
-}
-
 @media (min-width: 781px) {
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner {
     padding-top: 20px;
@@ -1591,12 +1584,12 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-workbench {
     box-sizing: border-box;
-    height: clamp(270px, calc(100dvh - 300px), 570px);
+    height: min(510px, calc(100dvh - 292px));
     min-height: 0;
   }
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-guide {
-    height: clamp(270px, calc(100dvh - 300px), 570px);
+    height: min(510px, calc(100dvh - 292px));
     align-self: center;
     transform: translateY(-60px);
   }
@@ -1606,30 +1599,35 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-message {
-    margin-bottom: 58px;
+    margin-bottom: 18px;
   }
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-tools-row {
-    transform: translateY(-65px);
+    transform: translateY(-25px);
   }
 
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-schedule-row {
-    transform: translateY(-65px);
+    transform: translateY(-25px);
+  }
+
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-compose-footer {
+    transform: translateY(-25px);
   }
 
   @media (max-width: 1040px) {
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-layout {
       grid-template-columns: minmax(0, 1fr);
       justify-items: center;
+      align-self: center;
       width: min(calc(100% + 12px), 760px);
-      margin-left: -8px;
+      margin-left: 0;
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-workbench {
       top: -68px;
       left: 0;
       width: min(100%, 760px);
-      height: min(575px, calc(100dvh - 188px));
+      height: min(515px, calc(100dvh - 248px));
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-guide {
@@ -1650,9 +1648,9 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
     }
 
     html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-schedule-row .quick-planner-submit {
-      width: 150px;
-      min-width: 150px;
-      flex: 0 0 150px;
+      width: 160px;
+      min-width: 160px;
+      flex: 0 0 160px;
       margin-left: auto;
     }
   }
@@ -1723,7 +1721,8 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 
 .quick-planner-submit {
   display: inline-flex;
-  min-width: 150px;
+  width: 160px;
+  min-width: 160px;
   height: 44px;
   align-items: center;
   justify-content: center;
@@ -1875,9 +1874,9 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 
   .quick-planner-schedule-row .quick-planner-submit {
-    width: 150px;
-    min-width: 150px;
-    flex: 0 0 150px;
+    width: 160px;
+    min-width: 160px;
+    flex: 0 0 160px;
     margin-left: auto;
   }
 }
@@ -1970,9 +1969,9 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 
   .quick-planner-schedule-row .quick-planner-submit {
-    width: 150px;
-    min-width: 150px;
-    flex: 0 0 150px;
+    width: 160px;
+    min-width: 160px;
+    flex: 0 0 160px;
     margin-left: auto;
   }
 
@@ -2000,7 +1999,9 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   }
 
   .quick-planner-submit {
-    min-width: 150px;
+    width: 160px;
+    min-width: 160px;
+    flex: 0 0 160px;
     margin-left: 0;
   }
 
@@ -2013,26 +2014,404 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 .quick-planner-schedule-row {
   position: relative;
   box-sizing: border-box;
-  min-height: 104px;
-  align-content: flex-start;
-  padding-bottom: 52px;
+  min-height: 62px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.quick-planner-schedule-row::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-planner-schedule-row > .quick-planner-schedule-label {
+  flex: 0 0 84px;
 }
 
 .quick-planner-schedule-row > .quick-planner-submit,
 .quick-planner-schedule-row > .quick-planner-draft-actions {
-  position: absolute;
-  right: 26px;
-  bottom: 7px;
+  position: static;
+  right: auto;
+  bottom: auto;
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+}
+
+.quick-planner-draft-actions {
+  flex-wrap: nowrap;
+}
+
+.quick-planner-draft-actions .quick-planner-submit {
+  width: 160px;
+  min-width: 160px;
+  flex-basis: 160px;
+}
+
+.quick-planner-schedule-row > .quick-planner-schedule-label {
+  display: none;
+}
+
+.quick-planner-schedule-row .quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
+  width: 100px;
+  flex: 0 0 100px;
+}
+
+.quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
+  width: 88px;
+  flex: 0 0 88px;
+}
+
+.quick-planner-schedule-row .quick-planner-timezone {
+  width: 42px;
+  flex-basis: 42px;
+}
+
+.quick-planner-schedule-row .quick-planner-presets button {
+  min-width: 0;
+  padding-inline: 5px;
+  font-size: 10px;
+}
+
+@media (max-width: 1040px) {
+  .quick-planner-schedule-row .quick-planner-presets {
+    flex: 0 0 auto;
+  }
+
+  .quick-planner-schedule-row .quick-planner-presets button {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .quick-planner-schedule-row .quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
+    width: 90px;
+    flex-basis: 90px;
+  }
+
+  .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
+    width: 78px;
+    flex-basis: 78px;
+  }
+
+  .quick-planner-schedule-row .quick-planner-timezone {
+    display: none;
+  }
+
+  .quick-planner-schedule-row .quick-planner-presets button {
+    padding-inline: 3px;
+    font-size: 9px;
+  }
+}
+
+.quick-planner-workbench {
+  border-color: #28b8f4;
+  box-shadow: 0 0 0 1px rgba(40, 184, 244, 0.42), 0 0 8px rgba(40, 184, 244, 0.24);
+}
+
+.quick-planner-message {
+  border-color: #28b8f4;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(40, 184, 244, 0.42), 0 0 8px rgba(40, 184, 244, 0.24);
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-message {
+  color-scheme: light;
+  background-color: #ffffff;
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-message.is-file-drag-over {
+  background-color: #e2e8ed;
+  border-color: #238fbd;
+}
+
+html[data-theme='dark'] .quick-planner .quick-planner-message {
+  color-scheme: dark;
+  background-color: #151b20;
+}
+
+.quick-planner-schedule-field > button[aria-label="Choose date"],
+.quick-planner-schedule-field > button[aria-label="Choose time"] {
+  border-color: rgba(40, 184, 244, 0.62);
+  background: rgba(40, 184, 244, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(40, 184, 244, 0.12);
+  color: var(--planner-ink);
+  font-weight: 600;
+}
+
+.quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
+  width: 120px;
+  flex-basis: 120px;
+}
+
+.quick-planner-schedule-field > button[aria-label="Choose date"] svg,
+.quick-planner-schedule-field > button[aria-label="Choose time"] svg {
+  color: #159ce0;
+  stroke-width: 2.2;
+}
+
+html[data-theme='dark'] .quick-planner-schedule-field > button[aria-label="Choose date"],
+html[data-theme='dark'] .quick-planner-schedule-field > button[aria-label="Choose time"] {
+  border-color: #28b8f4;
+  background: rgba(40, 184, 244, 0.14);
+  color: #e0f5ff;
+}
+
+html[data-theme='light'] .quick-planner-schedule-field > button[aria-label="Choose date"],
+html[data-theme='light'] .quick-planner-schedule-field > button[aria-label="Choose time"] {
+  color: #173b52;
+}
+
+.quick-planner-presets {
+  gap: 4px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.quick-planner-presets button,
+.quick-planner-presets button + button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(40, 184, 244, 0.62);
+  border-radius: 6px;
+  background: rgba(40, 184, 244, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(40, 184, 244, 0.12);
+  color: #173b52;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quick-planner-presets button:hover,
+.quick-planner-presets button:focus-visible {
+  border-color: #28b8f4;
+  background: rgba(40, 184, 244, 0.18);
+  outline: none;
+}
+
+html[data-theme='dark'] .quick-planner-presets button,
+html[data-theme='dark'] .quick-planner-presets button + button {
+  border-color: #28b8f4;
+  background: rgba(40, 184, 244, 0.14);
+  color: #e0f5ff;
+}
+
+html[data-theme='light'] .quick-planner-presets button,
+html[data-theme='light'] .quick-planner-presets button + button {
+  color: #173b52;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback {
+  position: relative;
+  inset: auto;
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 30px;
+  max-height: none;
   margin: 0;
+  align-items: center;
+  justify-content: stretch;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  overflow: visible;
+  text-align: right;
+  white-space: normal;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  animation: none;
+  translate: none;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback > span {
+  display: block;
+  min-width: 0;
+  width: auto;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: right;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback.has-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 4px 10px;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback.has-actions > .quick-planner-action-feedback-message {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback.has-actions > .quick-planner-feedback-action {
+  box-sizing: border-box;
+  height: 26px;
+  min-height: 26px;
+  padding: 2px 8px;
+}
+
+.quick-planner-compose-footer {
+  flex: 0 0 auto;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 16px;
+  padding-right: 6px;
+  padding-bottom: 8px;
+}
+
+@media (min-width: 1200px) {
+  .quick-planner-compose-footer {
+    flex-basis: 68px;
+    min-height: 68px;
+  }
+}
+
+.quick-planner-schedule-row {
+  padding-right: 16px;
+}
+
+.quick-planner-action-feedback-message {
+  flex: 1 1 auto;
+}
+
+.quick-planner-feedback-action {
+  display: inline-flex;
+  min-height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quick-planner-feedback-action.is-retry {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.quick-planner-feedback-action.is-dismiss {
+  width: 26px;
+  padding: 3px;
+  font-size: 16px;
+}
+
+.quick-planner-feedback-action:hover,
+.quick-planner-feedback-action:focus-visible {
+  background: rgba(127, 145, 158, 0.12);
+  outline: none;
+}
+
+.quick-planner-compose-footer .quick-planner-action-feedback.is-retriggered {
+  animation: planner-notification-retrigger 620ms ease-out;
+  filter: none !important;
+}
+
+@keyframes planner-notification-retrigger {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  35% {
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-planner-compose-footer .quick-planner-action-feedback.is-retriggered {
+    animation: none;
+  }
+}
+
+.quick-planner .quick-planner-action-feedback.is-error {
+  color: var(--danger, #e07871);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+html[data-theme='light'] .quick-planner-compose-footer .quick-planner-action-feedback.is-error {
+  width: fit-content;
+  max-width: min(100%, 800px);
+  flex: 0 1 auto;
+}
+
+html[data-theme='light'] .quick-planner-compose-footer .quick-planner-action-feedback.is-error.has-actions {
+  margin-left: auto;
+}
+
+.quick-planner .quick-planner-action-feedback.is-warning,
+.quick-planner .quick-planner-action-feedback.is-info {
+  color: #f0c75e;
+}
+
+.quick-planner .quick-planner-action-feedback.is-info {
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.quick-planner .quick-planner-action-feedback.is-warning {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.quick-planner .quick-planner-action-feedback.is-success {
+  color: #70c995;
+}
+
+.quick-planner .quick-planner-action-feedback {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-error {
+  border-color: #d17e76;
+  background: #fff0ef;
+  color: #b42318;
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-warning,
+html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-info {
+  color: #694900;
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-success {
+  color: #267544;
 }
 
 @media (max-width: 560px) {
   .quick-planner-schedule-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    overflow-y: visible;
     padding-bottom: 56px;
+    padding-right: 16px;
   }
 
   .quick-planner-schedule-row > .quick-planner-submit,
   .quick-planner-schedule-row > .quick-planner-draft-actions {
     right: 15px;
+    margin-left: auto;
   }
 }

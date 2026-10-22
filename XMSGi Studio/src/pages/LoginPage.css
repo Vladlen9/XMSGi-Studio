@@ -173,19 +173,21 @@ html[data-theme='dark'] .login-submit:active {
   padding: 0;
   border: 0;
   background: transparent;
+  cursor: default;
+}
+
+button.login-divider {
   cursor: pointer;
 }
 
 .login-divider::before {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--login-divider-line-top, 0px);
   left: 50%;
   width: 1px;
+  height: var(--login-divider-line-height, 100%);
   background: var(--login-gold-dim);
   content: "";
-  transform: scaleY(0.8);
-  transform-origin: center;
   transition: background 0.25s ease, transform 0.45s ease;
 }
 
@@ -199,8 +201,7 @@ html[data-theme='dark'] .login-submit:active {
   outline-offset: 7px;
 }
 
-.login-divider > .login-button-tooltip,
-.login-returning-account > .login-button-tooltip {
+.login-divider > .login-button-tooltip {
   position: absolute;
   z-index: 7;
   bottom: calc(100% + 8px);
@@ -225,9 +226,7 @@ html[data-theme='dark'] .login-submit:active {
 }
 
 .login-divider:hover > .login-button-tooltip,
-.login-divider:focus > .login-button-tooltip,
-.login-returning-account:hover > .login-button-tooltip,
-.login-returning-account:focus > .login-button-tooltip {
+.login-divider:focus > .login-button-tooltip {
   opacity: 1;
   transform: translate(-50%, 0);
   visibility: visible;
@@ -272,7 +271,8 @@ html[data-theme='dark'] .login-submit:active {
 
 .login-returning-user {
   display: grid;
-  gap: 10px;
+  justify-items: start;
+  gap: 8px;
 }
 
 .login-returning-greeting {
@@ -281,21 +281,22 @@ html[data-theme='dark'] .login-submit:active {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
+  white-space: nowrap;
 }
 
 .login-returning-account {
   position: relative;
   display: flex;
   min-width: 0;
-  width: 100%;
+  max-width: 100%;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--login-ink);
-  font: 600 20px "Exo 2", "Orbitron", Arial, sans-serif;
+  font: 600 14px/1.2 "Exo 2", "Orbitron", Arial, sans-serif;
   letter-spacing: 0;
   text-align: left;
   cursor: pointer;
@@ -306,13 +307,6 @@ html[data-theme='dark'] .login-submit:active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.login-returning-account > .login-button-tooltip {
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
 }
 
 .login-returning-account > svg {

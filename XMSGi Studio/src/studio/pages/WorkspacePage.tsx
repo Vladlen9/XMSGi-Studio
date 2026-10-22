@@ -1080,7 +1080,7 @@ export function WorkspacePage({
 
     const timer = window.setTimeout(closeNotification, NOTIFICATION_DURATION_MS[notification.type]);
     return () => window.clearTimeout(timer);
-  }, [closeNotification, notification.message, notification.type, notification.visible]);
+  }, [closeNotification, notification.message, notification.revision, notification.type, notification.visible]);
 
   const showPublishFeedback = useCallback((message: string, kind: 'warning' | 'success' = 'warning', detail = '') => {
     if (publishFeedbackTimerRef.current !== null) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Chat } from '@/types';
 import { savePersistentChats } from '@/lib/storage';
@@ -79,6 +79,7 @@ export function useTelegramAuth({
   const { t } = useLocale();
   const [connected, setConnected] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
+  const signedOutRef = useRef(false);
   const [returningUserName, setReturningUserName] = useState('');
   const [returningUserUsername, setReturningUserUsername] = useState('');
   const [connecting, setConnecting] = useState(true);
@@ -199,6 +200,7 @@ export function useTelegramAuth({
 
       setConnecting(false);
       setConnected(true);
+      signedOutRef.current = false;
       setSignedOut(false);
       setShowAuthForm(false);
       setAuthError('');
@@ -211,7 +213,7 @@ export function useTelegramAuth({
     }
   }, [authStep, phoneCode, phoneNumber, setAuthError, setLocalizedAuthError, twoFactorPassword, t]);
 
-  const handleDisconnect = useCallback(async () => {
+  const handleDisconnect = useCallback(async (): Promise<boolean> => {
     setAuthBusy(true);
     setAuthError('');
 
@@ -220,10 +222,11 @@ export function useTelegramAuth({
 
       if (!result.success) {
         setAuthError(result.error || t('auth.disconnectFailed'));
-        return;
+        return false;
       }
 
       setConnected(false);
+      signedOutRef.current = true;
       setSignedOut(true);
       setShowAuthForm(false);
       setReturningUserName(result.authState?.userName || returningUserName);
@@ -236,12 +239,14 @@ export function useTelegramAuth({
       setAuthStep('phone');
       setPhoneCode('');
       setTwoFactorPassword('');
+      return true;
     } catch (error) {
       setAuthError(
         error instanceof Error
           ? error.message
           : t('auth.disconnectFailed')
       );
+      return false;
     } finally {
       setAuthBusy(false);
     }
@@ -277,6 +282,7 @@ export function useTelegramAuth({
       }
 
       onRestored?.();
+      signedOutRef.current = false;
       setSignedOut(false);
       setConnected(true);
       setShowAuthForm(false);
@@ -312,6 +318,7 @@ export function useTelegramAuth({
       }
 
       setConnected(false);
+      signedOutRef.current = false;
       setSignedOut(false);
       setReturningUserName('');
       setReturningUserUsername('');
@@ -353,7 +360,8 @@ export function useTelegramAuth({
           const authState = authResult.authState;
           const hasSession = authState.hasSession;
 
-          setSignedOut(hasSession && authState.signedOut);
+          signedOutRef.current = hasSession && authState.signedOut;
+          setSignedOut(signedOutRef.current);
           setConnected(authState.connected);
           setReturningUserName(authState.userName || '');
           setReturningUserUsername(authState.username || '');
@@ -428,11 +436,11 @@ export function useTelegramAuth({
           });
         }
 
-        if (typeof value.connected === 'boolean') {
+        if (typeof value.connected === 'boolean' && (!value.connected || !signedOutRef.current)) {
           setConnected(value.connected);
         }
 
-        if (value.status === 'connected') {
+        if (value.status === 'connected' && !signedOutRef.current) {
           setConnected(true);
           setConnecting(false);
           setConnectionResolved(true);
@@ -466,7 +474,7 @@ export function useTelegramAuth({
       }
 
       if (typeof status === 'string') {
-        if (status === 'connected') {
+        if (status === 'connected' && !signedOutRef.current) {
           setConnected(true);
           setConnecting(false);
           setConnectionResolved(true);

@@ -9937,7 +9937,21 @@ html.electron-runtime .workspace-page-version-history-backdrop {
   }
 
   html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-editor-panel {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-preview-panel[data-visible='false'] {
+    display: none;
+  }
+
+  html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-editor-panel {
     align-items: center;
+  }
+
+  html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-editor-panel .workspace-page-textarea {
+    width: min(100%, 720px);
+    max-width: 720px;
   }
 
   html.electron-runtime .workspace-page-action-left-group {
@@ -10002,6 +10016,17 @@ html.electron-runtime .workspace-page-main {
   width: 100%;
   max-width: 1280px;
   margin-inline: auto;
+}
+
+@media (min-width: 1101px) {
+  html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-editor-panel {
+    flex-basis: 100%;
+    align-items: center;
+  }
+
+  html.electron-runtime .workspace-page-main:has(.workspace-page-preview-panel[data-visible='false']) .workspace-page-preview-panel[data-visible='false'] {
+    display: none;
+  }
 }
 
 @media (min-width: 1101px) {

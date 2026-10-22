@@ -335,18 +335,32 @@ describe('LoginPage', () => {
   });
 
   it('offers one-click return for a saved account after sign-out', () => {
-    const { props } = renderLogin({
+    const { container, props } = renderLogin({
       signedOut: true,
       returningUserName: 'Alex Example',
     });
 
     expect(screen.getByText('WELCOME BACK,')).toBeInTheDocument();
     const returnButton = screen.getByRole('button', { name: 'Continue as Alex Example' });
-    expect(returnButton).toHaveTextContent('Alex Example');
+    const greeting = screen.getByText('WELCOME BACK,');
+    expect(greeting.nextElementSibling).toBe(returnButton);
+    expect(returnButton).toHaveTextContent('Continue as Alex Example');
+    expect(returnButton.querySelector('.login-button-tooltip')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Continue with Telegram' })).not.toBeInTheDocument();
+    expect(container.querySelector('.login-divider')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.login-divider')).not.toBeInstanceOf(HTMLButtonElement);
 
     fireEvent.click(returnButton);
     expect(props.handleWelcomeBack).toHaveBeenCalledOnce();
+  });
+
+  it('does not open sign-in from the divider on the saved-account screen', () => {
+    const { container, props } = renderLogin({ signedOut: true, returningUserName: 'Alex Example' });
+    const divider = container.querySelector('.login-divider');
+
+    fireEvent.click(divider!);
+
+    expect(props.setShowAuthForm).not.toHaveBeenCalled();
   });
 
   it('opens phone sign-in from the saved-account screen', () => {

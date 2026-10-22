@@ -1,4 +1,4 @@
-import { type ChangeEvent, type CSSProperties, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, type DragEvent, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Chat } from '@/types';
 import { useLocale } from '@/lib/i18n';
 import { EmojiPickerPanel } from './EmojiPickerPanel';
@@ -22,6 +22,7 @@ import {
   Send,
   Smile,
   Sparkles,
+  RotateCcw,
   X,
 } from 'lucide-react';
 import {
@@ -54,6 +55,12 @@ const actionModes = [
 export type QuickPlannerActionFeedback = {
   message: string;
   tone: 'error' | 'warning' | 'success' | 'info';
+  instance?: number;
+  actions?: Array<{
+    id: 'retry' | 'dismiss';
+    label: string;
+    onClick: () => void;
+  }>;
 };
 
 type PlannerAttachment = {
@@ -87,6 +94,10 @@ function getChatInitial(name: string) {
 
 function getAttachmentName(path: string) {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+function isFileDrag(dataTransfer: DataTransfer) {
+  return Array.from(dataTransfer.types).includes('Files') || dataTransfer.files.length > 0;
 }
 
 const scheduleTimeOptions = Array.from({ length: 96 }, (_, index) => (
@@ -187,10 +198,12 @@ export function QuickPlanner({
   const [attachments, setAttachments] = useState<PlannerAttachment[]>(() => (
     readPlannerDraftAttachments().map((path) => ({ name: getAttachmentName(path), path }))
   ));
+  const [isFileDragOver, setIsFileDragOver] = useState(false);
   const [attachmentScroll, setAttachmentScroll] = useState({ max: 0, position: 0, contentWidth: 0 });
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
   const [actionFeedback, setActionFeedback] = useState<QuickPlannerActionFeedback | null>(null);
   const [actionFeedbackInstance, setActionFeedbackInstance] = useState(0);
+  const [actionFeedbackRetriggered, setActionFeedbackRetriggered] = useState(false);
   const [chatPickerOpen, setChatPickerOpen] = useState(false);
   const [chatQuery, setChatQuery] = useState('');
   const [selectedChatId, setSelectedChatId] = useState(activeChat?.id ?? '');
@@ -391,10 +404,12 @@ export function QuickPlanner({
       window.clearTimeout(actionFeedbackTimeoutRef.current);
     }
 
+    setActionFeedbackRetriggered(actionFeedback?.message === message && actionFeedback.tone === tone);
     setActionFeedbackInstance((instance) => instance + 1);
     setActionFeedback({ message, tone });
     actionFeedbackTimeoutRef.current = window.setTimeout(() => {
       setActionFeedback(null);
+      setActionFeedbackRetriggered(false);
       actionFeedbackTimeoutRef.current = null;
     }, feedbackDurationMs[tone]);
   };
@@ -405,6 +420,7 @@ export function QuickPlanner({
       actionFeedbackTimeoutRef.current = null;
     }
     setActionFeedback(null);
+    setActionFeedbackRetriggered(false);
   };
 
   const toggleEffectPicker = () => {
@@ -854,8 +870,7 @@ export function QuickPlanner({
     openStudio();
   };
 
-  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.currentTarget.files ?? []);
+  const handleAttachmentFiles = (selectedFiles: File[]) => {
     if (selectedFiles.length > 0) {
       const resolvedFiles = selectedFiles.flatMap((file) => {
         try {
@@ -883,10 +898,14 @@ export function QuickPlanner({
         limitReached || someFilesUnavailable ? 'warning' : 'success',
       );
     }
+  };
+
+  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleAttachmentFiles(Array.from(event.currentTarget.files ?? []));
     event.currentTarget.value = '';
   };
 
-  const visibleActionFeedback = feedbackPreview ?? actionFeedback;
+  const visibleActionFeedback = feedbackPreview !== undefined ? feedbackPreview : actionFeedback;
 
   return (
     <main
@@ -1048,12 +1067,33 @@ export function QuickPlanner({
               </div>
               <textarea
                 ref={messageInputRef}
-                className="quick-planner-message"
+                className={`quick-planner-message${isFileDragOver ? ' is-file-drag-over' : ''}`}
                 wrap="soft"
                 aria-label={t('quickPlanner.reminderText')}
                 aria-describedby="quick-planner-counter"
                 maxLength={1023}
                 value={message}
+                onDragEnter={(event: DragEvent<HTMLTextAreaElement>) => {
+                  if (!isFileDrag(event.dataTransfer)) return;
+                  event.preventDefault();
+                  setIsFileDragOver(true);
+                }}
+                onDragOver={(event: DragEvent<HTMLTextAreaElement>) => {
+                  if (!isFileDrag(event.dataTransfer)) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
+                  setIsFileDragOver(true);
+                }}
+                onDragLeave={(event: DragEvent<HTMLTextAreaElement>) => {
+                  if (!isFileDrag(event.dataTransfer)) return;
+                  setIsFileDragOver(false);
+                }}
+                onDrop={(event: DragEvent<HTMLTextAreaElement>) => {
+                  if (!isFileDrag(event.dataTransfer)) return;
+                  event.preventDefault();
+                  setIsFileDragOver(false);
+                  handleAttachmentFiles(Array.from(event.dataTransfer.files));
+                }}
                 onChange={(event) => {
                   const nextMessage = event.target.value;
                   setMessage(nextMessage);
@@ -1461,14 +1501,31 @@ export function QuickPlanner({
             <div className="quick-planner-compose-footer">
               {visibleActionFeedback && (
                 <div
-                  key={feedbackPreview ? `${feedbackPreview.tone}:${feedbackPreview.message}` : actionFeedbackInstance}
-                  className={`planner-inline-notification quick-planner-action-feedback is-${visibleActionFeedback.tone}`}
+                  key={feedbackPreview
+                    ? `${feedbackPreview.tone}:${feedbackPreview.message}:${feedbackPreview.instance ?? 0}`
+                    : actionFeedbackInstance}
+                  className={`planner-inline-notification quick-planner-action-feedback is-${visibleActionFeedback.tone}${visibleActionFeedback.actions?.length ? ' has-actions' : ''}${(feedbackPreview ? (feedbackPreview.instance ?? 0) > 0 : actionFeedbackRetriggered) ? ' is-retriggered' : ''}`}
                   role={visibleActionFeedback.tone === 'error' ? 'alert' : 'status'}
                   aria-live={visibleActionFeedback.tone === 'error' ? 'assertive' : 'polite'}
                   aria-atomic="true"
                   title={visibleActionFeedback.message}
                 >
-                  <span>{visibleActionFeedback.message}</span>
+                  <span className="quick-planner-action-feedback-message">{visibleActionFeedback.message}</span>
+                  {visibleActionFeedback.actions?.map((action) => (
+                    <button
+                      key={action.id}
+                      type="button"
+                      className={`quick-planner-feedback-action is-${action.id}`}
+                      aria-label={action.label}
+                      title={action.label}
+                      onClick={action.onClick}
+                    >
+                      {action.id === 'retry'
+                        ? <RotateCcw size={14} aria-hidden="true" />
+                        : <X size={14} aria-hidden="true" />}
+                      {action.id === 'retry' && <span>{action.label}</span>}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

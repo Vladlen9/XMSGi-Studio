@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useChats, useNotifications, useScheduler, useTelegramAuth } from './core';
 import type { Chat, RichTextEntity } from '@/types';
 import type { SavedDraft, ScheduledMessage as StudioScheduledMessage } from '@shared/types';
@@ -174,10 +174,8 @@ function AppContent() {
 
     persistProductView(view);
     productViewRef.current = view;
-    startTransition(() => {
-      if (view === 'studio') setStudioHasBeenOpened(true);
-      dispatch({ type: 'SET_PRODUCT_VIEW', view });
-    });
+    if (view === 'studio') setStudioHasBeenOpened(true);
+    dispatch({ type: 'SET_PRODUCT_VIEW', view });
   }, [dispatch]);
   const setRoute = useCallback((nextRoute: AppRoute) => {
     dispatch({ type: 'SET_ROUTE', route: nextRoute });
@@ -287,10 +285,10 @@ function AppContent() {
   });
 
   useLayoutEffect(() => {
-    if (connectionResolved && !connected && productView !== 'posts') {
+    if (connectionResolved && (!connected || signedOut) && productView !== 'planner') {
       setProductView('planner');
     }
-  }, [connected, connectionResolved, productView, setProductView]);
+  }, [connected, connectionResolved, productView, setProductView, signedOut]);
 
   const {
     chats,
@@ -834,13 +832,7 @@ function AppContent() {
       setIsConfirmingLogout={setIsConfirmingLogout}
       setShowAuthForm={setShowAuthForm}
       handleDisconnect={async () => {
-        await handleDisconnect();
-        if (hasTelegramBridge()) {
-          const authResult = await telegramGetAuthState();
-          if (authResult.success && authResult.authState?.signedOut) {
-            setProductView('planner');
-          }
-        }
+        if (await handleDisconnect()) setProductView('planner');
       }}
       handleForgetAccount={handleForgetAccount}
       onOpenSettings={() => {

@@ -2821,12 +2821,20 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   transform: none;
 }
 
-.auth-language-switch {
+.auth-top-controls {
   position: fixed;
-  top: 24px;
-  left: 30px;
+  top: 19px;
+  right: 30px;
   z-index: 6;
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-language-switch {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 9px;
   color: var(--faint);
@@ -2835,10 +2843,14 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   letter-spacing: 0.08em;
 }
 
+.auth-language-switch > span {
+  width: auto;
+  height: auto;
+  background: none;
+  font-size: inherit;
+}
+
 .auth-theme-button {
-  position: fixed;
-  top: 19px;
-  right: 30px;
   display: grid;
   width: 36px;
   height: 36px;

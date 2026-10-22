@@ -62,6 +62,27 @@ describe('QuickPlanner feedback', () => {
     expect(feedback).toHaveClass('quick-planner-action-feedback', 'is-error');
   });
 
+  it('renders retry and dismiss actions in notification previews', () => {
+    const onRetry = vi.fn();
+    const onDismiss = vi.fn();
+    render(<QuickPlanner feedbackPreview={{
+      tone: 'error',
+      message: 'Could not send the message.',
+      actions: [
+        { id: 'retry', label: 'Retry', onClick: onRetry },
+        { id: 'dismiss', label: 'Dismiss', onClick: onDismiss },
+      ],
+    }} />);
+
+    const feedback = screen.getByRole('alert');
+    expect(feedback).toHaveTextContent('Could not send the message.');
+    expect(feedback).toHaveClass('has-actions');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
   it('restores the Planner text and attachment chips after remounting', () => {
     writePlannerDraft('Survives reload', [], ['C:\\files\\report.pdf']);
     expect(flushPlannerDraftWrite()).toBe(true);
@@ -130,10 +151,12 @@ describe('QuickPlanner feedback', () => {
 
     fireEvent.click(submitButton);
     const firstStatus = screen.getByRole('status');
+    expect(firstStatus).not.toHaveClass('is-retriggered');
     fireEvent.click(submitButton);
     const repeatedStatus = screen.getByRole('status');
 
     expect(repeatedStatus).not.toBe(firstStatus);
+    expect(repeatedStatus).toHaveClass('is-retriggered');
     expect(repeatedStatus).toHaveClass('is-warning');
     expect(repeatedStatus).toHaveClass('planner-inline-notification');
     expect(repeatedStatus.querySelector('svg')).toBeNull();
@@ -143,6 +166,12 @@ describe('QuickPlanner feedback', () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    fireEvent.click(submitButton);
+    const nextStatus = screen.getByRole('status');
+    expect(nextStatus).not.toHaveClass('is-retriggered');
+    fireEvent.click(submitButton);
+    expect(screen.getByRole('status')).toHaveClass('is-retriggered');
   });
 
   it('uses the Studio warning and success notification durations', () => {
@@ -685,7 +714,7 @@ describe('QuickPlanner feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('Write text before continuing to Studio.');
+    expect(screen.getByRole('status')).toHaveTextContent('Write a message before opening Studio.');
     expect(openStudio).not.toHaveBeenCalled();
   });
 
@@ -793,6 +822,34 @@ describe('QuickPlanner feedback', () => {
     expect(onOpenInStudio).not.toHaveBeenCalled();
   });
 
+  it('accepts file drops on the text field and highlights it while dragging', () => {
+    const getFilePath = vi.fn((file: File) => `C:/photos/${file.name}`);
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: { getFilePath },
+    });
+    render(<QuickPlanner />);
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const file = new File(['photo'], 'dropped.png', { type: 'image/png' });
+    const dataTransfer = {
+      files: [file],
+      types: ['Files'],
+      dropEffect: 'none',
+    };
+
+    fireEvent.dragEnter(editor, { dataTransfer });
+    expect(editor).toHaveClass('is-file-drag-over');
+    fireEvent.dragOver(editor, { dataTransfer });
+    fireEvent.drop(editor, { dataTransfer });
+
+    expect(editor).not.toHaveClass('is-file-drag-over');
+    expect(editor).toHaveValue('');
+    expect(screen.getByText('dropped.png')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('File added.');
+    expect(getFilePath).toHaveBeenCalledWith(file);
+    expect(readPlannerDraftAttachments()).toEqual(['C:/photos/dropped.png']);
+  });
+
   it('limits Planner attachments to ten and reports the limit', () => {
     Object.defineProperty(window, 'telegram', {
       configurable: true,
@@ -807,7 +864,7 @@ describe('QuickPlanner feedback', () => {
     });
 
     expect(container.querySelectorAll('.quick-planner-attachment')).toHaveLength(10);
-    expect(screen.getByRole('status')).toHaveTextContent('You can attach up to 10 files.');
+    expect(screen.getByRole('status')).toHaveTextContent('Max 10 files per message.');
     expect(screen.getByRole('status')).toHaveClass('is-warning');
   });
 
@@ -911,7 +968,7 @@ describe('QuickPlanner feedback', () => {
 
     expect(onSchedule).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveClass('is-warning');
-    expect(screen.getByRole('status')).toHaveTextContent('Choose a time to schedule.');
+    expect(screen.getByRole('status')).toHaveTextContent('Schedule now? Press again to confirm.');
 
     await act(async () => {
       fireEvent.click(submit);
