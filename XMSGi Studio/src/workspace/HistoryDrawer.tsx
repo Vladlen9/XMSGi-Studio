@@ -138,6 +138,7 @@ function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) 
   if (filter === 'scheduled') {
     return record.status === 'scheduled'
       || record.status === 'sending'
+      || record.status === 'unknown'
       || record.status === 'cancelled';
   }
   if (filter === 'sent') return record.status === 'sent';
@@ -349,6 +350,7 @@ function getHistoryStatusLabel(status: HistoryItem['status'], t: HistoryTranslat
   if (status === 'sending') return t('history.statusSending');
   if (status === 'sent') return t('history.statusSent');
   if (status === 'failed') return t('history.statusFailed');
+  if (status === 'unknown') return t('history.statusUnknown');
   if (status === 'cancelled') return t('history.statusCancelled');
   return t('history.statusDraft');
 }

@@ -1,6 +1,30 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const telegramStatusSubscriptions = new WeakMap();
 
+function createRendererSendHistoryWarningSubscription() {
+  const callbacks = new Set();
+  let pending = false;
+
+  ipcRenderer.on('telegram-send-history-warning', () => {
+    if (callbacks.size === 0) {
+      pending = true;
+      return;
+    }
+    for (const callback of callbacks) callback();
+  });
+
+  return (callback) => {
+    if (typeof callback !== 'function') return () => {};
+
+    callbacks.add(callback);
+    if (pending) {
+      pending = false;
+      callback();
+    }
+    return () => callbacks.delete(callback);
+  };
+}
+
 function subscribeToTelegramStatus(callback) {
   if (typeof callback !== 'function') return () => {};
 
@@ -26,6 +50,9 @@ function subscribeToTelegramStatus(callback) {
     }
   };
 }
+
+const subscribeToSendHistoryWarning = createRendererSendHistoryWarningSubscription();
+
 contextBridge.exposeInMainWorld('telegram', {
 
   getConfig: () =>
@@ -110,11 +137,17 @@ contextBridge.exposeInMainWorld('telegram', {
       idempotencyKey
     }),
 
+  reconcileSendAttempt: (data) =>
+    ipcRenderer.invoke('telegram-send-reconcile', data),
+
   getScheduleIdentities: (operations) =>
     ipcRenderer.invoke('telegram-schedule-identities', { operations }),
 
   schedule: (data) =>
     ipcRenderer.invoke('telegram-schedule', data),
+
+  reconcilePendingSchedule: (data) =>
+    ipcRenderer.invoke('telegram-schedule-reconcile', data),
 
   getChatHistory: (data) =>
     ipcRenderer.invoke('telegram-chat-history', data),
@@ -128,7 +161,9 @@ contextBridge.exposeInMainWorld('telegram', {
   cancel: (data) =>
     ipcRenderer.invoke('telegram-cancel', data),
 
-  onStatus: subscribeToTelegramStatus
+  onStatus: subscribeToTelegramStatus,
+
+  onSendHistoryWarning: subscribeToSendHistoryWarning
 
 });
 

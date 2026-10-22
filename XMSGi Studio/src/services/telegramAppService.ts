@@ -179,3 +179,25 @@ export function telegramOnStatus(callback: (status: unknown) => void): () => voi
 
   return bridge.onStatus(callback);
 }
+
+export function telegramOnSendHistoryWarning(callback: () => void): () => void {
+  const bridge = getTelegramBridge();
+  if (!bridge || typeof bridge.onSendHistoryWarning !== 'function') {
+    return () => undefined;
+  }
+
+  return bridge.onSendHistoryWarning(callback);
+}
+
+export function subscribeToConfirmedSendHistoryWarning(
+  showNotification: (message: string, type: 'warning', title: string) => void,
+  translate: (key: 'schedule.confirmedSendHistoryWriteFailed' | 'schedule.errorTitle') => string,
+): () => void {
+  return telegramOnSendHistoryWarning(() => {
+    showNotification(
+      translate('schedule.confirmedSendHistoryWriteFailed'),
+      'warning',
+      translate('schedule.errorTitle'),
+    );
+  });
+}

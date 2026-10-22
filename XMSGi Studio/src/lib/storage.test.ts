@@ -89,7 +89,7 @@ describe('Upcoming storage', () => {
     vi.stubGlobal('localStorage', restartedStorage);
 
     expect(loadUpcoming()).toMatchObject([
-      { id: 'pending-1', status: 'failed', retryAction: 'schedule' },
+      { id: 'pending-1', status: 'pending' },
       { id: 'scheduled-1', status: 'scheduled' },
     ]);
   });
@@ -102,7 +102,7 @@ describe('Upcoming storage', () => {
     expect(loadUpcoming()).toEqual([]);
   });
 
-  it('migrates legacy pending to Failed and preserves Scheduled', () => {
+  it('preserves Pending for Telegram reconciliation and preserves Scheduled', () => {
     const messages = [
       createMessage('pending-1', 'pending'),
       createMessage('scheduled-1', 'scheduled'),
@@ -111,7 +111,7 @@ describe('Upcoming storage', () => {
     saveUpcoming(messages);
 
     expect(loadUpcoming().map((message) => message.status)).toEqual([
-      'failed',
+      'pending',
       'scheduled',
     ]);
   });
@@ -127,8 +127,8 @@ describe('Upcoming storage', () => {
 
     expect(loadUpcoming()).toMatchObject([
       { id: 'confirmed-1', status: 'scheduled' },
-      { id: 'sending-1', status: 'failed', retryAction: 'send', sendAttemptId: '1736962920000:attempt' },
-      { id: 'pending-1', status: 'failed', retryAction: 'schedule' },
+      { id: 'sending-1', status: 'unknown', retryAction: undefined, sendAttemptId: '1736962920000:attempt' },
+      { id: 'pending-1', status: 'pending' },
       { id: 'unknown-1', status: 'failed', retryAction: 'send' },
     ]);
   });
@@ -185,7 +185,10 @@ describe('Chat storage migration', () => {
     const channel = { id: '-1004431408545', name: 'Новости топ 5 дня', type: 'channel' as const };
     storage.setItem('awaitmsg_chats', JSON.stringify([channel]));
     const saveSavedChats = vi.fn().mockResolvedValue({ success: true });
-    vi.stubGlobal('telegram', { loadSavedChats: vi.fn().mockResolvedValue([]), saveSavedChats });
+    vi.stubGlobal('telegram', {
+      loadSavedChats: vi.fn().mockResolvedValue({ success: true, chats: [] }),
+      saveSavedChats,
+    });
 
     await expect(loadPersistentChats()).resolves.toEqual([channel]);
     expect(saveSavedChats).toHaveBeenCalledWith([channel]);
@@ -200,5 +203,21 @@ describe('Chat storage migration', () => {
 
     expect(await loadPersistentChats()).toEqual(chats);
     expect(saveSavedChats).toHaveBeenCalledWith(chats);
+  });
+
+  it('reports corrupt browser chat data rather than treating it as an empty list', async () => {
+    const original = '{damaged chats';
+    storage.setItem('awaitmsg_chats', original);
+
+    await expect(loadPersistentChats()).rejects.toThrow();
+    await expect(savePersistentChats([])).rejects.toThrow();
+    expect(storage.getItem('awaitmsg_chats')).toBe(original);
+  });
+
+  it('preserves browser legacy chats when no Electron bridge is available', async () => {
+    const chats = [{ id: 'legacy-chat', name: 'Legacy chat', type: 'channel' as const }];
+    storage.setItem('awaitmsg_chats', JSON.stringify(chats));
+
+    await expect(loadPersistentChats()).resolves.toEqual(chats);
   });
 });

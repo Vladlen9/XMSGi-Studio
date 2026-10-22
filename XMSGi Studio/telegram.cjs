@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { TelegramClient, Api } = require('teleproto');
+const { Raw } = require('teleproto/events');
 const { StringSession } = require('teleproto/sessions');
 const { normalizeTelegramMessage } = require('./packages/shared/telegramText.cjs');
 const { prepareInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
@@ -33,6 +34,7 @@ const {
 } = require('./telegram-search.cjs');
 const { toTelegramFormattingEntities } = require('./telegram-message-entities.cjs');
 const {
+  createTelegramRandomId,
   getTelegramEntityIdentity,
   getEffectIdentity,
   getScheduleOperationIdentities,
@@ -43,6 +45,7 @@ const {
   withTelegramInvokeDiagnostics,
 } = require('./telegram-publish-diagnostics.cjs');
 const { createTelegramSender } = require('./telegram-send.cjs');
+const { createTelegramSendRecovery } = require('./telegram-send-recovery.cjs');
 const { createTelegramScheduler } = require('./telegram-scheduling.cjs');
 const { createTelegramChatResolver } = require('./telegram-chat-resolution.cjs');
 const { createTelegramChatData } = require('./telegram-chat-data.cjs');
@@ -508,11 +511,22 @@ function loginUser(params = {}) {
 let client = null;
 let loginPromise = null;
 let telegramStatusCallback = null;
+let telegramSendResultCallback = null;
 let activeTelegramStatus = 'normal';
 let activeTelegramStatusError = null;
 let activeTelegramStatusCategory = null;
 let invalidSessionCleanupPromise = null;
 let shutdownPromise = null;
+const telegramSendRecovery = createTelegramSendRecovery({
+  createRandomId: createTelegramRandomId,
+  onConfirmed: (idempotencyKey, result) => {
+    try {
+      telegramSendResultCallback?.(idempotencyKey, result);
+    } catch (error) {
+      console.error('Telegram send recovery callback failed:', error?.code || error?.name || 'unknown');
+    }
+  },
+});
 
 const REQUEST_TIMEOUT = 15000;
 const MEDIA_REQUEST_TIMEOUT = 120000;
@@ -856,6 +870,14 @@ async function connectTelegramInternal({ allowSignedOut = false } = {}) {
 
   const connectGeneration = lifecycleState.reconnectGeneration;
   const clientToConnect = client;
+  const recoveryUpdateTypes = [Api.UpdateMessageID, Api.UpdateNewMessage, Api.UpdateNewChannelMessage];
+  if (typeof clientToConnect.addEventHandler === 'function'
+    && recoveryUpdateTypes.every((type) => typeof type === 'function')) {
+    clientToConnect.addEventHandler(
+      (update) => telegramSendRecovery.observeUpdate(update),
+      new Raw({ types: recoveryUpdateTypes }),
+    );
+  }
 
   notifyTelegramStatus('connecting');
 
@@ -1050,14 +1072,15 @@ function resolveChat(query) {
 // =========================================================
 
 const sendMessageInternal = createTelegramSender({
-  Api,
   connectTelegram,
   getClient: () => client,
   getTelegramRequestTimeout,
   logTelegramOperation,
   normalizeTelegramMessage,
   prepareInlineKeyboard,
+  observeTelegramResponse: telegramSendRecovery.observeResponse,
   telegramRequest,
+  trackSendAttempt: telegramSendRecovery.trackSendAttempt,
   toTelegramFormattingEntities,
   withTelegramInvokeDiagnostics,
   withTimeout,
@@ -1076,11 +1099,40 @@ function sendMessage(chatId, message, attachments, entities, replyMarkup, silent
   ));
 }
 
+async function reconcileSendAttempt(idempotencyKey, attachmentCount = 0) {
+  telegramSendRecovery.trackSendAttempt(idempotencyKey, attachmentCount);
+  try {
+    const connectedClient = await connectTelegram();
+    if (typeof connectedClient.catchUp === 'function') {
+      await telegramRequest(() => withTimeout(
+        connectedClient.catchUp(),
+        REQUEST_TIMEOUT,
+        'Telegram send recovery',
+      ));
+    }
+    const result = telegramSendRecovery.getResult(idempotencyKey, attachmentCount);
+    return result
+      ? { success: true, state: 'sent', ...result }
+      : { success: true, state: 'unknown' };
+  } catch (error) {
+    return {
+      success: false,
+      state: 'unknown',
+      error: error instanceof Error ? error.message : 'Telegram send result could not be checked.',
+    };
+  }
+}
+
+function setTelegramSendResultCallback(callback) {
+  telegramSendResultCallback = typeof callback === 'function' ? callback : null;
+}
+
 // =========================================================
 // SCHEDULE MESSAGE
 // =========================================================
 
 const {
+  reconcilePendingScheduleInternal,
   scheduleMessageInternal,
   cancelScheduledMessageInternal,
 } = createTelegramScheduler({
@@ -1106,6 +1158,10 @@ function scheduleMessage(chatId, message, date, time, targetTimestamp, attachmen
     silent,
     effect,
   ));
+}
+
+function reconcilePendingSchedule(operation) {
+  return trackTelegramOperation('reconcilePendingSchedule', () => reconcilePendingScheduleInternal(operation));
 }
 
 // =========================================================
@@ -1146,13 +1202,16 @@ function cancelScheduledMessage(chatId, messageId, message, targetTimestamp) {
     resolveChat,
     getScheduleOperationIdentities,
     sendMessage,
+    reconcileSendAttempt,
     scheduleMessage,
+    reconcilePendingSchedule,
     cancelScheduledMessage,
     getTelegramRateLimitState,
     getTelegramStatus,
     waitForTelegramRateLimit,
     shutdownTelegram,
     setTelegramStatusCallback,
+    setTelegramSendResultCallback,
     lifecycleState,
     resolveMessageDirection,
     normalizeHistoryMessage,
@@ -1187,7 +1246,10 @@ module.exports = {
   resolveChat: (...args) => defaultCore.resolveChat(...args),
   getScheduleOperationIdentities: (...args) => defaultCore.getScheduleOperationIdentities(...args),
   sendMessage: (...args) => defaultCore.sendMessage(...args),
+  reconcileSendAttempt: (...args) => defaultCore.reconcileSendAttempt(...args),
+  setTelegramSendResultCallback: (...args) => defaultCore.setTelegramSendResultCallback(...args),
   scheduleMessage: (...args) => defaultCore.scheduleMessage(...args),
+  reconcilePendingSchedule: (...args) => defaultCore.reconcilePendingSchedule(...args),
   cancelScheduledMessage: (...args) => defaultCore.cancelScheduledMessage(...args),
   getTelegramRateLimitState: (...args) => defaultCore.getTelegramRateLimitState(...args),
   getTelegramStatus: (...args) => defaultCore.getTelegramStatus(...args),

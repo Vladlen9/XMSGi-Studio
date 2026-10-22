@@ -3,15 +3,21 @@ import { createDraftRecord, type DraftAttachment, type DraftRecord, type DraftSt
 const ACTIVE_DRAFT_KEY = 'xmsgi:active-draft:v1';
 const SAVED_DRAFTS_KEY = 'xmsgi:saved-drafts:v1';
 
+function getStorageErrorMessage(error: unknown, fallback: string): string {
+  return typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+    ? error.message
+    : fallback;
+}
+
 function readLocalStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
 
   try {
     const value = window.localStorage.getItem(key);
-    if (!value) return fallback;
+    if (value === null) return fallback;
     return JSON.parse(value) as T;
-  } catch {
-    return fallback;
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, `Local storage key "${key}" could not be read.`));
   }
 }
 
@@ -61,9 +67,19 @@ export function readDraftStore(): DraftStoreSnapshot {
   const activeDraft = readLocalStorage<DraftRecord | null>(ACTIVE_DRAFT_KEY, null);
   const savedDrafts = readLocalStorage<DraftRecord[]>(SAVED_DRAFTS_KEY, []);
 
+  if (activeDraft !== null && (!activeDraft || typeof activeDraft !== 'object'
+    || typeof activeDraft.message !== 'string')) {
+    throw new Error('Active draft has an invalid structure.');
+  }
+  if (!Array.isArray(savedDrafts)
+    || savedDrafts.some((draft) => !draft || typeof draft !== 'object'
+      || typeof draft.id !== 'string' || typeof draft.message !== 'string')) {
+    throw new Error('Saved drafts have an invalid structure.');
+  }
+
   return {
     activeDraft,
-    savedDrafts: Array.isArray(savedDrafts) ? savedDrafts : [],
+    savedDrafts,
   };
 }
 
@@ -75,6 +91,12 @@ export function writeDraftStore(snapshot: DraftStoreSnapshot): boolean {
   } satisfies DraftStoreSnapshot;
 
   if (typeof window === 'undefined') return false;
+
+  try {
+    readDraftStore();
+  } catch {
+    return false;
+  }
 
   let previousActive: string | null;
   let previousSaved: string | null;
@@ -114,22 +136,43 @@ export function readActiveDraftState(): {
   available: boolean;
   exists: boolean;
   draft: DraftRecord | null;
+  error?: string;
 } {
-  if (typeof window === 'undefined') return { available: false, exists: false, draft: null };
+  if (typeof window === 'undefined') {
+    return { available: false, exists: false, draft: null, error: 'Browser storage is unavailable.' };
+  }
+
+  let raw: string | null;
+  try {
+    raw = window.localStorage.getItem(ACTIVE_DRAFT_KEY);
+  } catch (error) {
+    return {
+      available: false,
+      exists: false,
+      draft: null,
+      error: getStorageErrorMessage(error, 'Active draft could not be read.'),
+    };
+  }
+  if (raw === null) return { available: true, exists: false, draft: null };
+  if (raw === 'null') return { available: true, exists: true, draft: null };
 
   try {
-    const raw = window.localStorage.getItem(ACTIVE_DRAFT_KEY);
-    if (raw === null) return { available: true, exists: false, draft: null };
-    if (raw === 'null') return { available: true, exists: true, draft: null };
-
     const value = JSON.parse(raw) as Partial<DraftRecord> | null;
-    if (!value || typeof value !== 'object' || typeof value.message !== 'string') {
-      return { available: false, exists: true, draft: null };
+    if (!value || typeof value !== 'object' || typeof value.message !== 'string'
+      || typeof value.id !== 'string'
+      || (value.entities !== undefined && !Array.isArray(value.entities))
+      || (value.attachments !== undefined && !Array.isArray(value.attachments))) {
+      return { available: false, exists: true, draft: null, error: 'Active draft has an invalid structure.' };
     }
 
     return { available: true, exists: true, draft: value as DraftRecord };
-  } catch {
-    return { available: false, exists: false, draft: null };
+  } catch (error) {
+    return {
+      available: false,
+      exists: true,
+      draft: null,
+      error: getStorageErrorMessage(error, 'Active draft contains invalid JSON.'),
+    };
   }
 }
 
@@ -152,6 +195,7 @@ export function createActiveDraftSnapshot(input: {
 }
 
 export function writeActiveDraft(draft: DraftRecord | null): boolean {
+  if (!readActiveDraftState().available) return false;
   return writeLocalStorage(ACTIVE_DRAFT_KEY, draft);
 }
 
@@ -171,10 +215,10 @@ export function upsertSavedDraft(draft: DraftRecord): DraftRecord[] {
   const snapshot = readDraftStore();
   const nextSavedDrafts = snapshot.savedDrafts.filter((entry) => entry.id !== draft.id);
   nextSavedDrafts.unshift(draft);
-  writeDraftStore({
+  if (!writeDraftStore({
     ...snapshot,
     savedDrafts: nextSavedDrafts,
-  });
+  })) throw new Error('Saved drafts could not be written.');
   return nextSavedDrafts;
 }
 

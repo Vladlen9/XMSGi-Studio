@@ -29,6 +29,8 @@ import {
   cancelScheduledMessage,
   getScheduleIdentities,
   loadScheduleHistory,
+  reconcileImmediateSendAttempt,
+  reconcilePendingSchedule,
   scheduleMessage,
   scheduleTelegramMessage,
   sendNow,
@@ -54,17 +56,23 @@ async function waitForTelegramAccount() {
 function normalizeRestoredMessage(message: ScheduledMessage): ScheduledMessage {
   const status = String(message.status);
   if (status === 'confirmed') return { ...message, status: 'scheduled' };
-  if (status === 'sending' || status === 'pending') {
+  if (status === 'sending') {
+    if (message.retryAction === 'schedule') {
+      return {
+        ...message,
+        status: 'failed',
+        lastError: message.lastError || 'The app closed while this message was being scheduled.',
+        retryAction: 'schedule',
+      };
+    }
     return {
       ...message,
-      status: 'failed',
-      lastError: message.lastError || (status === 'pending'
-        ? 'This schedule was interrupted before Telegram confirmed it.'
-        : 'The app closed while this message was sending. Check Telegram before retrying.'),
-      retryAction: message.retryAction ?? (status === 'pending' ? 'schedule' : 'send'),
+      status: 'unknown',
+      lastError: message.lastError || 'The app closed while this message was sending. Studio cannot verify the result automatically after restart; check Telegram before sending again.',
+      retryAction: undefined,
     };
   }
-  if (['pending', 'scheduled', 'sent', 'failed'].includes(status)) return message;
+  if (['pending', 'scheduled', 'sent', 'failed', 'unknown'].includes(status)) return message;
   return {
     ...message,
     status: 'failed',
@@ -214,10 +222,32 @@ export function useScheduler({
 
         const nativeUpcoming = result.history?.upcoming ?? [];
         const nativeSent = result.history?.sent ?? [];
-        const restoredUpcoming = (result.needsMigration ? fallbackUpcoming : nativeUpcoming)
+        let restoredUpcoming = (result.needsMigration ? fallbackUpcoming : nativeUpcoming)
           .map(normalizeRestoredMessage);
-        const restoredSent = (result.needsMigration ? fallbackSent : nativeSent)
+        let restoredSent = (result.needsMigration ? fallbackSent : nativeSent)
           .map(normalizeRestoredMessage);
+
+        for (const message of [...restoredUpcoming]) {
+          if (message.status !== 'unknown' || !message.sendAttemptId) continue;
+          const reconciliation = await reconcileImmediateSendAttempt(
+            message.sendAttemptId,
+            message.attachments?.length ?? 0,
+          );
+          if (reconciliation.state !== 'sent') continue;
+
+          const sentMessage: ScheduledMessage = {
+            ...message,
+            status: 'sent',
+            ...(reconciliation.sentAt ? { sentAt: reconciliation.sentAt } : {}),
+            telegramMessageId: reconciliation.telegramMessageId,
+            telegramMessageIds: reconciliation.telegramMessageIds,
+            lastError: undefined,
+            lastErrorDetails: undefined,
+            retryAction: undefined,
+          };
+          restoredUpcoming = restoredUpcoming.filter((item) => item.id !== message.id);
+          restoredSent = [sentMessage, ...restoredSent.filter((item) => item.id !== message.id)];
+        }
         if (cancelled) return;
 
         setUpcoming(restoredUpcoming);
@@ -258,30 +288,59 @@ export function useScheduler({
     let cancelled = false;
 
     async function recoverPendingSchedules() {
-      const pendingMessages = getPendingSchedules(loadUpcoming());
+      const pendingMessages = getPendingSchedules(upcomingStateRef.current);
 
       for (const pendingMessage of pendingMessages) {
         const pendingTimestamp = new Date(pendingMessage.when).getTime();
 
         if (Number.isFinite(pendingTimestamp) && pendingTimestamp <= Date.now()) {
-          const updatedUpcoming = upcomingStateRef.current.map((message) => message.id === pendingMessage.id
-            ? {
-              ...message,
-              status: 'failed' as const,
-              lastError: 'The scheduled time passed before Telegram confirmed the schedule.',
-              retryAction: 'schedule' as const,
-            }
-            : message);
-          upcomingStateRef.current = updatedUpcoming;
-          setUpcoming(updatedUpcoming);
-          const persisted = await persistScheduleHistoryAndWait(historyScope, 'upcoming', updatedUpcoming);
-          showNotification(
-            persisted
-              ? 'The scheduled time passed before Telegram confirmed the schedule.'
-              : t('schedule.historyWriteFailed'),
-            persisted ? 'error' : 'warning',
-            t('schedule.errorTitle'),
-          );
+          await waitForTelegramAccount();
+          if (cancelled) return;
+
+          const reconciliation = await reconcilePendingSchedule({
+            chatId: pendingMessage.chatId,
+            message: pendingMessage.text,
+            targetTimestamp: Math.floor(pendingTimestamp / 1000),
+            attachments: pendingMessage.attachments ?? [],
+            entities: pendingMessage.entities ?? [],
+            replyMarkup: pendingMessage.replyMarkup,
+            silent: pendingMessage.silent,
+            effect: pendingMessage.effect,
+            telegramMessageIds: pendingMessage.telegramMessageIds
+              ?? (pendingMessage.telegramMessageId === undefined ? [] : [pendingMessage.telegramMessageId]),
+          });
+          if (cancelled) return;
+
+          if (reconciliation.state === 'unknown') {
+            showNotification(
+              reconciliation.error || 'Telegram could not confirm the operation state. No automatic retry was made.',
+              'warning',
+              t('schedule.errorTitle'),
+            );
+            continue;
+          }
+
+          const updatedUpcoming = upcomingStateRef.current.filter((message) => message.id !== pendingMessage.id);
+          const nextSent = sentStateRef.current;
+          const nextUpcoming = [{
+            ...pendingMessage,
+            status: 'scheduled' as const,
+            telegramMessageId: reconciliation.telegramMessageId,
+            telegramMessageIds: reconciliation.telegramMessageIds,
+            retryAction: undefined,
+            lastError: undefined,
+            lastErrorDetails: undefined,
+          }, ...updatedUpcoming];
+          upcomingStateRef.current = nextUpcoming;
+          setUpcoming(nextUpcoming);
+
+          const persisted = await persistScheduleHistoryAndWait(historyScope, 'snapshot', {
+            upcoming: nextUpcoming,
+            sent: nextSent,
+          });
+          if (!persisted) {
+            showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+          }
           continue;
         }
 
@@ -1115,6 +1174,7 @@ export function useScheduler({
     setUpcoming(sendingUpcoming);
     let failureDetails: ReturnType<typeof normalizeTelegramBridgeError> | undefined;
     let failureOperation: 'publish' | 'cancel' = 'publish';
+    let sendRequestStarted = false;
 
     try {
       if (!await persistScheduleHistoryAndWait(historyScope, 'upcoming', sendingUpcoming)) {
@@ -1166,6 +1226,7 @@ export function useScheduler({
       }
 
       failureOperation = 'publish';
+      sendRequestStarted = true;
       const result = await sendNow({
         action: 'send-now',
         chatId: sendingMessage.chatId,
@@ -1186,7 +1247,9 @@ export function useScheduler({
       const sentMessage: ScheduledMessage = {
         ...sendingMessage,
         status: 'sent',
-        sentAt: new Date().toISOString(),
+        ...(result.sentAt ? { sentAt: result.sentAt } : { sentAt: new Date().toISOString() }),
+        telegramMessageId: result.telegramMessageId,
+        telegramMessageIds: result.telegramMessageIds,
         lastError: undefined,
         retryAction: undefined,
       };
@@ -1218,17 +1281,22 @@ export function useScheduler({
       const lastError = errorDetails.message;
       const failedMessage: ScheduledMessage = {
         ...sendingMessage,
-        status: 'failed',
+        status: sendRequestStarted ? 'unknown' : 'failed',
         lastError,
         lastErrorDetails: errorDetails,
-        retryAction: 'send',
+        retryAction: sendRequestStarted ? undefined : 'send',
       };
       const failedUpcoming = upcomingStateRef.current.map((item) => item.id === msg.id ? failedMessage : item);
       upcomingStateRef.current = failedUpcoming;
       setUpcoming(failedUpcoming);
       await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
       if (refreshChatPermissions) void refreshChatPermissions(msg.chatId);
-      showNotification(lastError, 'error', t('schedule.errorTitle'), errorDetails);
+      showNotification(
+        sendRequestStarted ? t('schedule.sendResultUnknown') : lastError,
+        sendRequestStarted ? 'warning' : 'error',
+        t('schedule.errorTitle'),
+        errorDetails,
+      );
     } finally {
       activePublishIdsRef.current.delete(msg.id);
       setSendingIds((current) => {
@@ -1422,6 +1490,24 @@ export function useScheduler({
     publishingDraftLockRef.current = true;
     setPublishingDraft(true);
     const fingerprint = JSON.stringify([chat.id, text, attachments, entities, replyMarkup, sendSilently, effect]);
+    const unresolvedAttempt = upcomingStateRef.current.find((item) => (
+      item.status === 'unknown'
+      && JSON.stringify([
+        item.chatId,
+        item.text,
+        item.attachments ?? [],
+        item.entities ?? [],
+        item.replyMarkup,
+        item.silent ?? false,
+        item.effect,
+      ]) === fingerprint
+    ));
+    if (unresolvedAttempt) {
+      publishingDraftLockRef.current = false;
+      setPublishingDraft(false);
+      showNotification(t('schedule.sendResultUnknown'), 'warning', t('schedule.errorTitle'));
+      return false;
+    }
     const restoredAttempt = upcomingStateRef.current.find((item) => (
       item.status === 'failed'
       && item.retryAction === 'send'
@@ -1474,12 +1560,14 @@ export function useScheduler({
     ];
     upcomingStateRef.current = sendingUpcoming;
     setUpcoming(sendingUpcoming);
+    let sendRequestStarted = false;
 
     try {
       if (!await persistScheduleHistoryAndWait(historyScope, 'upcoming', sendingUpcoming)) {
         throw new Error('The sending state could not be saved. Telegram was not contacted.');
       }
       await waitForTelegramAccount();
+      sendRequestStarted = true;
       const result = await sendNow({
         action: 'send-now',
         chatId: chat.id,
@@ -1501,7 +1589,9 @@ export function useScheduler({
       const sentMessage: ScheduledMessage = {
         ...sendingMessage,
         status: 'sent',
-        sentAt: new Date().toISOString(),
+        ...(result.sentAt ? { sentAt: result.sentAt } : { sentAt: new Date().toISOString() }),
+        telegramMessageId: result.telegramMessageId,
+        telegramMessageIds: result.telegramMessageIds,
         lastError: undefined,
         lastErrorDetails: undefined,
         retryAction: undefined,
@@ -1536,10 +1626,10 @@ export function useScheduler({
         ?? normalizeTelegramBridgeError(error, 'publish', t('schedule.networkSending'));
       const failedMessage: ScheduledMessage = {
         ...sendingMessage,
-        status: 'failed',
+        status: sendRequestStarted ? 'unknown' : 'failed',
         lastError: errorDetails.message,
         lastErrorDetails: errorDetails,
-        retryAction: 'send',
+        retryAction: sendRequestStarted ? undefined : 'send',
       };
       const failedUpcoming = upcomingStateRef.current.map((item) => item.id === attemptRecordId ? failedMessage : item);
       upcomingStateRef.current = failedUpcoming;
@@ -1547,8 +1637,8 @@ export function useScheduler({
       await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
       if (!isNestedBatchGroup) {
         showNotification(
-          errorDetails.message,
-          'error',
+          sendRequestStarted ? t('schedule.sendResultUnknown') : errorDetails.message,
+          sendRequestStarted ? 'warning' : 'error',
           t('schedule.sendFailedTitle'),
           errorDetails,
         );

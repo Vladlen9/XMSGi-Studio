@@ -95,6 +95,27 @@ describe('useChats persistence merge', () => {
     expect(getChats).toHaveBeenCalledTimes(3);
   });
 
+  it('reports persisted chat read errors without marking storage ready or saving an empty list', async () => {
+    const original = '{corrupt';
+    window.localStorage.setItem('awaitmsg_chats', original);
+    const onStorageError = vi.fn();
+    const saveSavedChats = vi.fn().mockResolvedValue({ success: true });
+    window.telegram = {
+      loadSavedChats: vi.fn().mockResolvedValue({
+        success: false,
+        error: 'Saved chats are corrupted.',
+      }),
+      saveSavedChats,
+    } as unknown as Window['telegram'];
+
+    const { result } = renderHook(() => useChats({ connected: false, onStorageError }));
+
+    await waitFor(() => expect(onStorageError).toHaveBeenCalledWith('Saved chats are corrupted.'));
+    expect(result.current.chats).toEqual([]);
+    expect(saveSavedChats).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('awaitmsg_chats')).toBe(original);
+  });
+
   it('keeps a search-only channel selected when refreshed permissions deny sending', async () => {
     saveChats([savedChannel]);
     window.telegram = {
@@ -125,7 +146,7 @@ describe('useChats persistence merge', () => {
     const persistedSnapshots: Chat[][] = [];
 
     window.telegram = {
-      loadSavedChats: vi.fn().mockResolvedValue([]),
+      loadSavedChats: vi.fn().mockResolvedValue({ success: true, chats: [] }),
       saveSavedChats: vi.fn().mockImplementation(async (chats: Chat[]) => {
         persistedSnapshots.push(chats);
         return { success: true };
@@ -162,7 +183,7 @@ describe('useChats persistence merge', () => {
     const persistedSnapshots: Chat[][] = [];
 
     window.telegram = {
-      loadSavedChats: vi.fn().mockResolvedValue([]),
+      loadSavedChats: vi.fn().mockResolvedValue({ success: true, chats: [] }),
       saveSavedChats: vi.fn().mockImplementation(async (chats: Chat[]) => {
         persistedSnapshots.push(chats);
         return { success: true };
@@ -212,7 +233,7 @@ describe('useChats persistence merge', () => {
       return requests.get(chatId)!.promise.finally(() => { activeRequests -= 1; });
     });
     window.telegram = {
-      loadSavedChats: vi.fn().mockResolvedValue([]),
+      loadSavedChats: vi.fn().mockResolvedValue({ success: true, chats: [] }),
       saveSavedChats: vi.fn().mockResolvedValue({ success: true }),
       getChats: vi.fn().mockResolvedValue({ success: true, chats: telegramChats }),
       getChatAvatar,
@@ -248,7 +269,7 @@ describe('useChats persistence merge', () => {
     const persistedChats: Chat[] = [];
     const getChatAvatar = vi.fn().mockResolvedValue({ success: true, avatarDataUrl: 'cached-avatar' });
     window.telegram = {
-      loadSavedChats: vi.fn().mockImplementation(async () => persistedChats),
+      loadSavedChats: vi.fn().mockImplementation(async () => ({ success: true, chats: persistedChats })),
       saveSavedChats: vi.fn().mockImplementation(async (chats: Chat[]) => {
         persistedChats.splice(0, persistedChats.length, ...chats);
         return { success: true };
@@ -286,7 +307,7 @@ describe('useChats persistence merge', () => {
       { id: 'avatar-ok-2', name: 'Avatar two', type: 'channel' },
     ];
     window.telegram = {
-      loadSavedChats: vi.fn().mockResolvedValue([]),
+      loadSavedChats: vi.fn().mockResolvedValue({ success: true, chats: [] }),
       saveSavedChats: vi.fn().mockResolvedValue({ success: true }),
       getChats: vi.fn().mockResolvedValue({ success: true, chats }),
       getChatAvatar: vi.fn().mockImplementation(async (chatId: string) => {

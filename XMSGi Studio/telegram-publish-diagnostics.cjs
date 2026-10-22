@@ -37,7 +37,7 @@ async function withTelegramInvokeDiagnostics(clientAtStart, label, operation, id
         || update?.className === 'UpdateNewChannelMessage'
       )).length,
     });
-    onResponse?.(response);
+    onResponse?.(response, request);
     return response;
   };
   try {

@@ -234,7 +234,7 @@ export function useTelegramAuth({
       setIsConfirmingLogout(false);
       setIsSettingsOpen(false);
       setChats([]);
-      void savePersistentChats([]);
+      await savePersistentChats([]);
       setSelectedChat(null);
       setAuthStep('phone');
       setPhoneCode('');
@@ -324,7 +324,7 @@ export function useTelegramAuth({
       setReturningUserUsername('');
       setIsConfirmingLogout(false);
       setChats([]);
-      void savePersistentChats([]);
+      await savePersistentChats([]);
       setSelectedChat(null);
       setShowAuthForm(false);
       setAuthStep('phone');

@@ -197,6 +197,328 @@ describe('useScheduler native history', () => {
     expect(loadScheduleHistory).toHaveBeenCalledWith('personal');
   });
 
+  it('reconciles an overdue Pending operation as Scheduled without scheduling it again', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-scheduled',
+      operationId: 'pending-operation-1',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Still scheduled in Telegram',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'scheduled',
+      telegramMessageId: '42001',
+      telegramMessageIds: ['42001'],
+    });
+    const schedule = vi.fn();
+    const { result, saveScheduleHistory } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule },
+    );
+
+    await waitFor(() => expect(result.current.upcoming).toMatchObject([{
+      id: pending.id,
+      status: 'scheduled',
+      telegramMessageId: '42001',
+    }]));
+    expect(reconcilePendingSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      chatId: pending.chatId,
+      message: pending.text,
+      telegramMessageIds: [],
+    }));
+    expect(schedule).not.toHaveBeenCalled();
+    expect(saveScheduleHistory).toHaveBeenCalledWith(expect.objectContaining({
+      scope: 'workspace',
+      field: 'snapshot',
+      messages: expect.objectContaining({
+        upcoming: [expect.objectContaining({ id: pending.id, status: 'scheduled' })],
+      }),
+    }));
+  });
+
+  it('keeps an unlinked sent response Pending instead of trusting its message ID or sentAt', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-sent',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Already sent by Telegram',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'sent',
+      telegramMessageId: 'telegram-sent-1',
+      sentAt: '2035-01-15T18:01:30.000Z',
+    });
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule, send },
+    );
+
+    await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+    expect(result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(result.current.sent).toEqual([]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      'Telegram returned an unsupported or unlinked reconciliation state.',
+      'sent',
+    );
+  });
+
+  it('keeps an overdue operation Pending when Telegram lists provide no proof it was rejected', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-unknown',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'State not present in available lists',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({ state: 'unknown' });
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule, send },
+    );
+
+    await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+
+    expect(result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(result.current.sent).toEqual([]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('retains Pending after a network failure during Telegram reconciliation', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-network-error',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Telegram unavailable',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const reconcilePendingSchedule = vi.fn().mockRejectedValue(new Error('Telegram timeout'));
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule, send },
+    );
+
+    await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+
+    expect(result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('keeps an ambiguous Telegram response Pending and does not repeat the operation', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-ambiguous',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Ambiguous Telegram result',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({ success: true });
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule, send },
+    );
+
+    await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+
+    expect(result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('keeps Pending when the bridge returns an unknown reconciliation status', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-invalid-state',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Unexpected bridge status',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'complete',
+      telegramMessageId: 'telegram-id',
+    });
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, schedule, send },
+    );
+
+    await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+
+    expect(result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(result.current.sent).toEqual([]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('rechecks Pending after a confirmed schedule cannot be saved', async () => {
+    const pending: ScheduledMessage = {
+      id: 'overdue-pending-save-failure',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'Keep pending on disk when write fails',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const showNotification = vi.fn();
+    const reconcilePendingSchedule = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'scheduled',
+      telegramMessageId: '42002',
+    });
+    const failingSave = vi.fn().mockResolvedValue({ success: false, error: 'Disk full' });
+    const firstRun = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule, saveScheduleHistory: failingSave },
+      showNotification,
+    );
+
+    await waitFor(() => expect(firstRun.result.current.upcoming).toMatchObject([{
+      id: pending.id,
+      status: 'scheduled',
+    }]));
+    expect(failingSave).toHaveBeenCalledWith(expect.objectContaining({
+      scope: 'workspace',
+      field: 'snapshot',
+      messages: expect.objectContaining({
+        upcoming: [expect.objectContaining({ id: pending.id, status: 'scheduled' })],
+      }),
+    }));
+    expect(showNotification).toHaveBeenCalledWith(
+      expect.any(String),
+      'warning',
+      expect.any(String),
+    );
+    firstRun.unmount();
+
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const retryReconciliation = vi.fn().mockResolvedValue({ state: 'unknown' });
+    const secondRun = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule: retryReconciliation, schedule, send },
+    );
+    await waitFor(() => expect(retryReconciliation).toHaveBeenCalledOnce());
+
+    expect(secondRun.result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it.each(['personal', 'workspace'] as const)(
+    'preserves %s scope while reconciling an overdue operation',
+    async (scope) => {
+      const pending: ScheduledMessage = {
+        id: `${scope}-overdue-pending`,
+        chatId: 'chat-1',
+        chatName: 'Test chat',
+        text: 'Scope remains isolated',
+        when: new Date(Date.now() - 10 * 60_000).toISOString(),
+        createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+        status: 'pending',
+      };
+      const reconcilePendingSchedule = vi.fn().mockResolvedValue({
+        success: true,
+        state: 'scheduled',
+        telegramMessageId: '42003',
+      });
+      const { saveScheduleHistory } = renderWorkspaceHistory(
+        [pending],
+        [],
+        { reconcilePendingSchedule },
+        vi.fn(),
+        scope,
+      );
+
+      await waitFor(() => expect(reconcilePendingSchedule).toHaveBeenCalledOnce());
+
+      expect(saveScheduleHistory).toHaveBeenCalledWith(expect.objectContaining({
+        scope,
+        field: 'snapshot',
+      }));
+    },
+  );
+
+  it('rechecks the same Pending operation after restart without duplicating it', async () => {
+    const pending: ScheduledMessage = {
+      id: 'restart-pending-idempotency',
+      chatId: 'chat-1',
+      chatName: 'Test chat',
+      text: 'One operation across restarts',
+      when: new Date(Date.now() - 10 * 60_000).toISOString(),
+      createdAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      status: 'pending',
+    };
+    const schedule = vi.fn();
+    const send = vi.fn();
+    const firstReconciliation = vi.fn().mockResolvedValue({ state: 'unknown' });
+    const firstRun = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule: firstReconciliation, schedule, send },
+    );
+    await waitFor(() => expect(firstReconciliation).toHaveBeenCalledOnce());
+    firstRun.unmount();
+
+    const secondReconciliation = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'sent',
+      telegramMessageId: '42004',
+      sentAt: '2035-01-15T18:01:30.000Z',
+    });
+    const secondRun = renderWorkspaceHistory(
+      [pending],
+      [],
+      { reconcilePendingSchedule: secondReconciliation, schedule, send },
+    );
+    await waitFor(() => expect(secondReconciliation).toHaveBeenCalledOnce());
+
+    expect(schedule).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(secondRun.result.current.upcoming).toMatchObject([{ id: pending.id, status: 'pending' }]);
+    expect(secondRun.result.current.sent).toEqual([]);
+  });
+
   it('normalizes legacy confirmed records to Scheduled during restore', async () => {
     const legacyRecord: ScheduledMessage = {
       id: 'legacy-confirmed-1',
@@ -1067,7 +1389,7 @@ describe('useScheduler native history', () => {
 
   it('allows attachment-only messages to be sent immediately', async () => {
     const chat = { id: 'chat-1', name: 'Test chat' };
-    const send = vi.fn().mockResolvedValue({ success: true, id: 'telegram-send-1' });
+    const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 501 });
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
@@ -1094,7 +1416,7 @@ describe('useScheduler native history', () => {
     window.localStorage.setItem('awaitmsg_locale', 'en');
     try {
       const chat = { id: 'chat-send-history-failure', name: 'Send history failure chat' };
-      const send = vi.fn().mockResolvedValue({ success: true });
+      const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 1 });
       let resolveSnapshot!: (result: { success: boolean; error?: string }) => void;
       const saveScheduleHistory = vi.fn(({ field }: { field: string }) => field === 'snapshot'
         ? new Promise<{ success: boolean; error?: string }>((resolve) => { resolveSnapshot = resolve; })
@@ -1142,11 +1464,11 @@ describe('useScheduler native history', () => {
 
   it('keeps a single sending status while a multi-album draft is sent in groups', async () => {
     const chat = { id: 'chat-send-album-groups', name: 'Album send chat' };
-    let resolveFirst!: (value: { success: boolean; id: string }) => void;
-    let resolveSecond!: (value: { success: boolean; id: string }) => void;
+    let resolveFirst!: (value: { success: boolean; telegramMessageIds: number[]; telegramMessageId: number }) => void;
+    let resolveSecond!: (value: { success: boolean; telegramMessageId: number }) => void;
     const send = vi.fn()
-      .mockImplementationOnce(() => new Promise<{ success: boolean; id: string }>((resolve) => { resolveFirst = resolve; }))
-      .mockImplementationOnce(() => new Promise<{ success: boolean; id: string }>((resolve) => { resolveSecond = resolve; }));
+      .mockImplementationOnce(() => new Promise<{ success: boolean; telegramMessageIds: number[]; telegramMessageId: number }>((resolve) => { resolveFirst = resolve; }))
+      .mockImplementationOnce(() => new Promise<{ success: boolean; telegramMessageId: number }>((resolve) => { resolveSecond = resolve; }));
     const showNotification = vi.fn();
     const onAttachmentGroupResult = vi.fn();
     const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
@@ -1171,7 +1493,7 @@ describe('useScheduler native history', () => {
 
     expect(result.current.publishingDraft).toBe(true);
     await act(async () => {
-      resolveFirst({ success: true, id: 'telegram-send-album-1' });
+      resolveFirst({ success: true, telegramMessageId: 1, telegramMessageIds: [1, 2] });
       await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
     });
     expect(result.current.publishingDraft).toBe(true);
@@ -1179,7 +1501,7 @@ describe('useScheduler native history', () => {
     expect(showNotification).not.toHaveBeenCalled();
 
     await act(async () => {
-      resolveSecond({ success: true, id: 'telegram-send-album-2' });
+      resolveSecond({ success: true, telegramMessageId: 3 });
       await expect(batchPromise).resolves.toBe(true);
     });
     expect(result.current.publishingDraft).toBe(false);
@@ -1192,7 +1514,7 @@ describe('useScheduler native history', () => {
   it('stops a grouped send at the first failure and reports later groups as unattempted', async () => {
     const chat = { id: 'chat-send-album-partial', name: 'Partial album chat' };
     const send = vi.fn()
-      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-1' })
+      .mockResolvedValueOnce({ success: true, telegramMessageId: 1, telegramMessageIds: [1, 2] })
       .mockResolvedValueOnce({ success: false, error: 'Album upload failed.' });
     const showNotification = vi.fn();
     const onAttachmentGroupResult = vi.fn();
@@ -1230,8 +1552,8 @@ describe('useScheduler native history', () => {
   it('sends each attachment group separately and keeps the caption on the first group', async () => {
     const chat = { id: 'chat-send-album-groups', name: 'Album send chat' };
     const send = vi.fn()
-      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-1' })
-      .mockResolvedValueOnce({ success: true, id: 'telegram-send-album-2' });
+      .mockResolvedValueOnce({ success: true, telegramMessageId: 1, telegramMessageIds: [1, 2] })
+      .mockResolvedValueOnce({ success: true, telegramMessageId: 3 });
     const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 7 }];
     const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
     const setMessage = vi.fn();
@@ -1263,7 +1585,7 @@ describe('useScheduler native history', () => {
     const chat = { id: 'chat-current-minute', name: 'Current minute chat' };
     const attachments = ['C:/demo/photo.jpg'];
     const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 5 }];
-    const send = vi.fn().mockResolvedValue({ success: true, id: 'telegram-current-minute' });
+    const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 502 });
     const schedule = vi.fn();
     const { result, loadScheduleHistory } = renderWorkspaceHistory(
       [],
@@ -1295,7 +1617,7 @@ describe('useScheduler native history', () => {
     const chat = { id: 'chat-1', name: 'Test chat' };
     const setMessage = vi.fn();
     const { result } = renderWorkspaceHistory([], [], {
-      send: vi.fn().mockResolvedValue({ success: true, id: 'telegram-send-2' }),
+      send: vi.fn().mockResolvedValue({ success: true, telegramMessageId: 503 }),
     }, vi.fn(), 'personal', chat, setMessage);
 
     await waitFor(() => expect(result.current.upcoming).toEqual([]));
@@ -1316,33 +1638,40 @@ describe('useScheduler native history', () => {
     expect(setMessage).not.toHaveBeenCalled();
   });
 
-  it('reuses the same Telegram idempotency key after an uncertain draft-send failure', async () => {
+  it('keeps an uncertain draft send unknown and does not repeat the request', async () => {
     const chat = { id: 'draft-retry', name: 'Draft retry chat' };
-    const send = vi.fn()
-      .mockResolvedValueOnce({ success: false, error: 'Network response was lost.', code: 'ETIMEDOUT', category: 'network', retryable: true })
-      .mockResolvedValueOnce({ success: true, messageId: 'draft-retry-sent' });
+    const send = vi.fn().mockResolvedValue({
+      success: false,
+      error: 'Network response was lost.',
+      code: 'ETIMEDOUT',
+      category: 'network',
+      retryable: true,
+    });
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
     await act(async () => {
       await expect(result.current.handleSendDraftNow(chat, 'Retry same payload')).resolves.toBe(false);
     });
-    const firstAttemptKey = send.mock.calls[0][8];
+    expect(result.current.upcoming[0]).toMatchObject({ status: 'unknown', retryAction: undefined });
 
     await act(async () => {
-      await expect(result.current.handleSendDraftNow(chat, 'Retry same payload')).resolves.toBe(true);
+      await expect(result.current.handleSendDraftNow(chat, 'Retry same payload')).resolves.toBe(false);
     });
 
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[1][8]).toBe(firstAttemptKey);
-    expect(result.current.sent).toHaveLength(1);
+    expect(send).toHaveBeenCalledOnce();
+    expect(result.current.sent).toHaveLength(0);
   });
 
-  it('restores and reuses a persisted draft-send attempt ID after remount', async () => {
+  it('restores an uncertain draft-send attempt without automatically repeating it', async () => {
     const chat = { id: 'draft-restart-retry', name: 'Draft restart chat' };
-    const send = vi.fn()
-      .mockResolvedValueOnce({ success: false, error: 'Network response was lost.', code: 'ETIMEDOUT', category: 'network', retryable: true })
-      .mockResolvedValueOnce({ success: true, messageId: 'draft-restart-message' });
+    const send = vi.fn().mockResolvedValue({
+      success: false,
+      error: 'Network response was lost.',
+      code: 'ETIMEDOUT',
+      category: 'network',
+      retryable: true,
+    });
     const firstRun = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(firstRun.result.current.scheduling).toBe(false));
@@ -1351,27 +1680,148 @@ describe('useScheduler native history', () => {
     });
     const interruptedAttempt = firstRun.result.current.upcoming[0];
     const originalAttemptId = interruptedAttempt.sendAttemptId;
-    expect(interruptedAttempt).toMatchObject({ status: 'failed', retryAction: 'send' });
+    expect(interruptedAttempt).toMatchObject({ status: 'unknown', retryAction: undefined });
     expect(originalAttemptId).toEqual(expect.stringMatching(/^\d+:[a-z0-9]+$/i));
     firstRun.unmount();
 
     const restarted = renderWorkspaceHistory([interruptedAttempt], [], { send }, vi.fn(), 'workspace', chat);
     await waitFor(() => expect(restarted.result.current.scheduling).toBe(false));
     await act(async () => {
-      await expect(restarted.result.current.handleSendDraftNow(chat, 'Persist this attempt')).resolves.toBe(true);
+      await expect(restarted.result.current.handleSendDraftNow(chat, 'Persist this attempt')).resolves.toBe(false);
     });
 
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[1][8]).toBe(originalAttemptId);
-    expect(restarted.result.current.sent).toHaveLength(1);
-    expect(restarted.result.current.upcoming).toHaveLength(0);
+    expect(send).toHaveBeenCalledOnce();
+    expect(restarted.result.current.upcoming[0]).toMatchObject({
+      status: 'unknown',
+      sendAttemptId: originalAttemptId,
+    });
+    expect(restarted.result.current.sent).toHaveLength(0);
     restarted.unmount();
+  });
+
+  it('restores an unknown send as Sent only when Telegram returns its correlated message ID', async () => {
+    const unknown: ScheduledMessage = {
+      id: 'unknown-send',
+      chatId: 'chat-unknown',
+      chatName: 'Unknown chat',
+      text: 'Correlated send',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'unknown',
+      sendAttemptId: '1736962920000:stable-attempt',
+    };
+    const send = vi.fn();
+    const reconcileSendAttempt = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'sent',
+      telegramMessageId: 42,
+      telegramMessageIds: [42],
+      sentAt: '2035-01-15T18:00:10.000Z',
+    });
+    const { result, saveScheduleHistory } = renderWorkspaceHistory(
+      [unknown],
+      [],
+      { send, reconcileSendAttempt },
+      vi.fn(),
+    );
+
+    await waitFor(() => expect(reconcileSendAttempt).toHaveBeenCalledOnce());
+    await waitFor(() => expect(result.current.sent).toHaveLength(1));
+    expect(result.current.upcoming).toHaveLength(0);
+    expect(reconcileSendAttempt).toHaveBeenCalledWith({
+      idempotencyKey: unknown.sendAttemptId,
+      attachmentCount: 0,
+    });
+    expect(result.current.sent[0]).toMatchObject({
+      id: unknown.id,
+      status: 'sent',
+      telegramMessageId: 42,
+      sentAt: '2035-01-15T18:00:10.000Z',
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(saveScheduleHistory).toHaveBeenCalledWith(expect.objectContaining({
+      field: 'snapshot',
+      messages: expect.objectContaining({
+        sent: [expect.objectContaining({ id: unknown.id, telegramMessageId: 42 })],
+      }),
+    }));
+  });
+
+  it('keeps a nominally successful send unknown when the bridge omits its Telegram message ID', async () => {
+    const chat = { id: 'missing-send-id', name: 'Missing send ID' };
+    const send = vi.fn().mockResolvedValue({ success: true });
+    const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(chat, 'Do not assume sent')).resolves.toBe(false);
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(result.current.sent).toHaveLength(0);
+    expect(result.current.upcoming[0]).toMatchObject({
+      status: 'unknown',
+      retryAction: undefined,
+    });
+  });
+
+  it('does not contact Telegram when the draft Sending record cannot be persisted', async () => {
+    const chat = { id: 'draft-persist-before-send', name: 'Draft persist chat' };
+    const send = vi.fn();
+    const saveScheduleHistory = vi.fn(async ({ field, messages }: {
+      field: string;
+      messages: ScheduledMessage[] | { upcoming: ScheduledMessage[]; sent: ScheduledMessage[] };
+    }) => {
+      const containsSending = field === 'upcoming'
+        && Array.isArray(messages)
+        && messages.some((item) => item.status === 'sending');
+      return { success: !containsSending, error: containsSending ? 'Disk full' : undefined };
+    });
+    const { result } = renderWorkspaceHistory([], [], { send, saveScheduleHistory }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(chat, 'Persist before send')).resolves.toBe(false);
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.current.upcoming[0]).toMatchObject({ status: 'failed', retryAction: 'send' });
+  });
+
+  it('keeps recovery Pending when the bridge returns an unknown send status', async () => {
+    const unknown: ScheduledMessage = {
+      id: 'unsupported-send-state',
+      chatId: 'chat-unknown-state',
+      chatName: 'Unknown state chat',
+      text: 'Do not infer delivery',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'unknown',
+      sendAttemptId: '1736962920000:unsupported-state-attempt',
+    };
+    const reconcileSendAttempt = vi.fn().mockResolvedValue({
+      success: true,
+      state: 'delivered',
+      telegramMessageId: 42,
+    });
+    const send = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [unknown],
+      [],
+      { send, reconcileSendAttempt },
+    );
+
+    await waitFor(() => expect(reconcileSendAttempt).toHaveBeenCalledOnce());
+    await waitFor(() => expect(result.current.upcoming[0]?.status).toBe('unknown'));
+
+    expect(result.current.sent).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('ignores a duplicate immediate draft-send while the first request is in flight', async () => {
     const chat = { id: 'draft-send-once', name: 'Draft send chat' };
-    let resolveSend!: (result: { success: boolean; messageId?: string }) => void;
-    const send = vi.fn(() => new Promise<{ success: boolean; messageId?: string }>((resolve) => { resolveSend = resolve; }));
+    let resolveSend!: (result: { success: boolean; telegramMessageId?: string }) => void;
+    const send = vi.fn(() => new Promise<{ success: boolean; telegramMessageId?: string }>((resolve) => { resolveSend = resolve; }));
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
@@ -1389,7 +1839,7 @@ describe('useScheduler native history', () => {
     expect(idempotencyKey).toEqual(expect.stringMatching(/^\d+:[a-z0-9]+$/i));
 
     await act(async () => {
-      resolveSend({ success: true, messageId: 'draft-send-once-message' });
+      resolveSend({ success: true, telegramMessageId: '506' });
       await expect(firstAttempt).resolves.toBe(true);
     });
 
@@ -1849,7 +2299,7 @@ describe('useScheduler native history', () => {
     });
     const send = vi.fn(async () => {
       events.push('send');
-      return { success: true, messageId: 'sent-1' };
+      return { success: true, telegramMessageId: '507' };
     });
     const saveScheduleHistory = vi.fn(async ({ field, messages }: { field: string; messages: ScheduledMessage[] }) => {
       if (field === 'upcoming' && messages.some((item) => item.id === message.id && item.telegramMessageId === undefined)) {
@@ -1890,6 +2340,98 @@ describe('useScheduler native history', () => {
     expect(showNotification.mock.calls.some(([, , , , actions]) => actions)).toBe(false);
   });
 
+  it('keeps Send Now confirmed in memory and warns when its final history save fails', async () => {
+    const message: ScheduledMessage = {
+      id: 'send-now-history-write-failure',
+      chatId: 'chat-send-now-history',
+      chatName: 'Send Now history chat',
+      text: 'Confirmed before local save',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+    };
+    const send = vi.fn().mockResolvedValue({
+      success: true,
+      telegramMessageId: 508,
+      telegramMessageIds: [508],
+      sentAt: '2035-01-15T18:00:10.000Z',
+    });
+    const saveScheduleHistory = vi.fn(async ({ field, messages }: {
+      field: string;
+      messages: ScheduledMessage[] | { upcoming: ScheduledMessage[]; sent: ScheduledMessage[] };
+    }) => {
+      const isFailedFinalSnapshot = field === 'snapshot'
+        && !Array.isArray(messages)
+        && messages.sent.some((item) => item.id === message.id && item.status === 'sent');
+      return { success: !isFailedFinalSnapshot, error: isFailedFinalSnapshot ? 'Disk full' : undefined };
+    });
+    const showNotification = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [message],
+      [],
+      { send, saveScheduleHistory },
+      showNotification,
+    );
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([message]));
+    await act(async () => {
+      await result.current.handleSendNow(message);
+    });
+
+    expect(result.current.sent[0]).toMatchObject({
+      id: message.id,
+      status: 'sent',
+      telegramMessageId: 508,
+      sentAt: '2035-01-15T18:00:10.000Z',
+    });
+    expect(result.current.upcoming).toHaveLength(0);
+    expect(showNotification).toHaveBeenCalledWith(
+      'Telegram sent the message, but history could not be saved. Do not retry this message.',
+      'warning',
+      expect.any(String),
+    );
+
+    await act(async () => {
+      await result.current.handleSendNow(result.current.sent[0]);
+    });
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('does not call Telegram when the Send Now Sending record cannot be persisted', async () => {
+    const message: ScheduledMessage = {
+      id: 'send-now-persist-before-send',
+      chatId: 'chat-send-now-persist',
+      chatName: 'Send Now persist chat',
+      text: 'Persist this Sending status first',
+      when: '2035-01-15T18:00:00.000Z',
+      createdAt: '2035-01-15T17:00:00.000Z',
+      status: 'scheduled',
+    };
+    const send = vi.fn();
+    const saveScheduleHistory = vi.fn(async ({ field, messages }: {
+      field: string;
+      messages: ScheduledMessage[] | { upcoming: ScheduledMessage[]; sent: ScheduledMessage[] };
+    }) => {
+      const containsSending = field === 'upcoming'
+        && Array.isArray(messages)
+        && messages.some((item) => item.status === 'sending');
+      return { success: !containsSending, error: containsSending ? 'Disk full' : undefined };
+    });
+    const { result } = renderWorkspaceHistory(
+      [message],
+      [],
+      { send, saveScheduleHistory },
+    );
+
+    await waitFor(() => expect(result.current.upcoming).toEqual([message]));
+    await act(async () => {
+      await result.current.handleSendNow(message);
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(result.current.upcoming[0]).toMatchObject({ status: 'failed', retryAction: 'send' });
+  });
+
   it('records Telegram reconciliation as Sent without sending a duplicate', async () => {
     const message: ScheduledMessage = {
       id: 'already-delivered-1',
@@ -1925,7 +2467,7 @@ describe('useScheduler native history', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('marks a rejected send-now as retryable Failed without marking it Sent', async () => {
+  it('keeps an uncertain Send Now result unknown and blocks a repeat send', async () => {
     const message: ScheduledMessage = {
       id: 'send-now-failed',
       chatId: 'chat-1',
@@ -1938,9 +2480,13 @@ describe('useScheduler native history', () => {
     };
     const showNotification = vi.fn();
     const cancel = vi.fn().mockResolvedValue({ success: true });
-    const send = vi.fn()
-      .mockResolvedValueOnce({ success: false, error: 'Telegram rejected the message.', code: 'HTTP_503', category: 'network', retryable: true })
-      .mockResolvedValueOnce({ success: true, messageId: 'retry-sent' });
+    const send = vi.fn().mockResolvedValue({
+      success: false,
+      error: 'Telegram rejected the message.',
+      code: 'HTTP_503',
+      category: 'network',
+      retryable: true,
+    });
     const { result } = renderWorkspaceHistory([message], [], { cancel, send }, showNotification);
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));
@@ -1949,32 +2495,30 @@ describe('useScheduler native history', () => {
     });
 
     await waitFor(() => expect(showNotification).toHaveBeenCalledWith(
-      'Telegram rejected the message.',
-      'error',
+      expect.any(String),
+      'warning',
       expect.any(String),
       expect.objectContaining({ operation: 'publish', category: 'network', code: 'HTTP_503', retryable: true }),
     ));
     expect(result.current.upcoming[0]).toMatchObject({
       id: message.id,
-      status: 'failed',
+      status: 'unknown',
       lastError: 'Telegram rejected the message.',
       lastErrorDetails: expect.objectContaining({ operation: 'publish', category: 'network', code: 'HTTP_503', retryable: true }),
-      retryAction: 'send',
+      retryAction: undefined,
       telegramMessageId: undefined,
     });
     expect(result.current.sent).toHaveLength(0);
 
-    const failedMessage = result.current.upcoming[0];
+    const unknownMessage = result.current.upcoming[0];
     await act(async () => {
-      await result.current.handleRetry(failedMessage);
+      await result.current.handleRetry(unknownMessage);
     });
 
-    expect(result.current.sent).toHaveLength(1);
-    expect(result.current.sent[0]).toMatchObject({ status: 'sent', id: message.id });
-    expect(result.current.upcoming).toHaveLength(0);
+    expect(result.current.sent).toHaveLength(0);
+    expect(result.current.upcoming[0]).toMatchObject({ status: 'unknown', id: message.id });
     expect(cancel).toHaveBeenCalledOnce();
-    expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[0][8]).toBe(send.mock.calls[1][8]);
+    expect(send).toHaveBeenCalledOnce();
   });
 
   it('ignores a second concurrent Send Now call for the same record', async () => {
@@ -1988,8 +2532,8 @@ describe('useScheduler native history', () => {
       status: 'scheduled',
       telegramMessageId: 'telegram-scheduled-duplicate',
     };
-    let resolveSend!: (result: { success: boolean }) => void;
-    const send = vi.fn(() => new Promise<{ success: boolean }>((resolve) => { resolveSend = resolve; }));
+    let resolveSend!: (result: { success: boolean; telegramMessageId: number }) => void;
+    const send = vi.fn(() => new Promise<{ success: boolean; telegramMessageId: number }>((resolve) => { resolveSend = resolve; }));
     const cancel = vi.fn().mockResolvedValue({ success: true });
     const { result } = renderWorkspaceHistory([message], [], { cancel, send });
 
@@ -2004,7 +2548,7 @@ describe('useScheduler native history', () => {
     expect(cancel).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledOnce();
     await act(async () => {
-      resolveSend({ success: true });
+      resolveSend({ success: true, telegramMessageId: 42 });
       await firstAttempt;
     });
     expect(result.current.sent).toHaveLength(1);
@@ -2025,9 +2569,9 @@ describe('useScheduler native history', () => {
       id: 'send-now-parallel-2',
       text: 'Second message',
     };
-    let resolveFirst!: (result: { success: boolean }) => void;
-    let resolveSecond!: (result: { success: boolean }) => void;
-    const send = vi.fn((chatId: string) => new Promise<{ success: boolean }>((resolve) => {
+    let resolveFirst!: (result: { success: boolean; telegramMessageId: number }) => void;
+    let resolveSecond!: (result: { success: boolean; telegramMessageId: number }) => void;
+    const send = vi.fn((chatId: string) => new Promise<{ success: boolean; telegramMessageId: number }>((resolve) => {
       if (chatId === 'chat-1') {
         if (!resolveFirst) resolveFirst = resolve;
         else resolveSecond = resolve;
@@ -2045,11 +2589,11 @@ describe('useScheduler native history', () => {
     await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
 
     await act(async () => {
-      resolveFirst({ success: true });
+      resolveFirst({ success: true, telegramMessageId: 41 });
       await firstAttempt;
     });
     await act(async () => {
-      resolveSecond({ success: true });
+      resolveSecond({ success: true, telegramMessageId: 42 });
       await secondAttempt;
     });
 
@@ -2122,7 +2666,7 @@ describe('useScheduler native history', () => {
     let resumeRateLimit!: (result: { success: boolean }) => void;
     const rateLimitGate = new Promise<{ success: boolean }>((resolve) => { resumeRateLimit = resolve; });
     const waitForRateLimit = vi.fn(() => rateLimitGate);
-    const send = vi.fn().mockResolvedValue({ success: true, messageId: 'send-now-after-pause' });
+    const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 505 });
     const { result, loadScheduleHistory } = renderWorkspaceHistory([message], [], { waitForRateLimit, send });
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));

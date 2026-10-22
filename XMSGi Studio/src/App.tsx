@@ -6,6 +6,7 @@ import { createStudioSchedulerRuntime } from '@shared/bridge';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 
 import { AppShell, StudioMount } from './workspace';
+import { useLocale } from '@/lib/i18n';
 import { hasPlannerPayloadContent } from './workspace/plannerText';
 import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
@@ -32,6 +33,7 @@ import {
   telegramGetAuthState,
   telegramGetConfig,
   telegramSaveCredentials,
+  subscribeToConfirmedSendHistoryWarning,
 } from './services/telegramAppService';
 import {
   getBackgroundProductView,
@@ -54,6 +56,7 @@ function getCurrentHashPath(): AppRoute {
 }
 
 function AppContent() {
+  const { t } = useLocale();
   const browserDraftMode = !isDesktopTelegramRuntime();
   const [, setSavedPlannerDraftRevision] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -212,6 +215,12 @@ function AppContent() {
     closeNotification,
   } = useNotifications();
   const studioNotifications = useNotifications();
+  useEffect(() => {
+    const notify = productView === 'studio'
+      ? studioNotifications.showNotification
+      : showNotification;
+    return subscribeToConfirmedSendHistoryWarning(notify, t);
+  }, [productView, showNotification, studioNotifications.showNotification, t]);
   const [studioMessage, setStudioMessage] = useState('');
   const studioDraftOpenerRef = useRef<((draft: SavedDraft) => void) | null>(null);
   const studioDraftUseRef = useRef<((draft: SavedDraft) => void) | null>(null);
@@ -297,7 +306,14 @@ function AppContent() {
     setSelectedChat,
     refreshChatPermissions,
     handleRemoveChat,
-  } = useChats({ connected });
+  } = useChats({
+    connected,
+    onStorageError: (error) => showNotification(
+      error,
+      'error',
+      'Saved chats unavailable',
+    ),
+  });
 
   useEffect(() => {
     selectedChatIdRef.current = selectedChat?.id ?? null;

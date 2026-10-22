@@ -44,6 +44,7 @@ type WorkspaceDraftState = {
 
 type WorkspaceDraftLifecycleOptions = {
   initialWorkspaceDraftRef: MutableRefObject<Partial<WorkspaceDraft> | null>;
+  initialWorkspaceDraftError?: string;
   workspace: WorkspaceDraftState;
   chats: Chat[];
   setSelectedChat: Dispatch<SetStateAction<Chat | null>>;
@@ -54,9 +55,9 @@ type WorkspaceDraftLifecycleOptions = {
   onWorkspaceDraftLoaded: (draft: Partial<WorkspaceDraft> | null) => void;
 };
 
-function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
+function useSavedDraftCollection() {
   const { t } = useLocale();
-  const [savedDrafts, setSavedDrafts] = useState(loadInitialDrafts);
+  const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
   const savedDraftsRef = useRef(savedDrafts);
   const [draftStoreReady, setDraftStoreReady] = useState(false);
   const [draftStoreSaving, setDraftStoreSaving] = useState(false);
@@ -156,7 +157,7 @@ function useSavedDraftCollection(loadInitialDrafts: () => SavedDraft[]) {
 }
 
 export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
-  const drafts = useSavedDraftCollection(loadSavedDrafts);
+  const drafts = useSavedDraftCollection();
   const { t } = useLocale();
   const optionsRef = useRef(options);
   const translateRef = useRef(t);
@@ -395,11 +396,20 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     const initializeDraftStore = async () => {
       const draftStorage = getDraftStorageApi();
       if (!draftStorage) {
-        const fallbackStore = readWorkspaceDraftStoreFallback();
+        let fallbackStore: PersistedDraftStore | null;
+        try {
+          fallbackStore = readWorkspaceDraftStoreFallback();
+        } catch (error) {
+          drafts.setDraftStoreError(error instanceof Error ? error.message : translateRef.current('studio.draftsCouldNotLoad'));
+          return;
+        }
         if (fallbackStore) {
           const seeded = seedDefaultDraft(fallbackStore);
           if (seeded.added) {
-            writeWorkspaceDraftStoreFallback(seeded.store);
+            if (!writeWorkspaceDraftStoreFallback(seeded.store)) {
+              drafts.setDraftStoreError(translateRef.current('studio.defaultDraftCouldNotSave'));
+              return;
+            }
             markDefaultDraftSeeded();
           }
           applyPersistedDraftStore(seeded.store);
@@ -407,15 +417,33 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
         }
 
         if (isBrowserRuntimeFallback()) {
+          if (optionsRef.current.initialWorkspaceDraftError) {
+            drafts.setDraftStoreError(optionsRef.current.initialWorkspaceDraftError);
+            return;
+          }
+          let legacySavedDrafts: SavedDraft[];
+          try {
+            legacySavedDrafts = loadSavedDrafts();
+          } catch (error) {
+            drafts.setDraftStoreError(error instanceof Error ? error.message : translateRef.current('studio.draftsCouldNotLoad'));
+            return;
+          }
+          const initialWorkspaceDraft = optionsRef.current.initialWorkspaceDraftRef.current;
           const emptyStore: PersistedDraftStore = {
             schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
             migrationVersion: 1,
-            savedDrafts: [],
-            workspaceDraft: null,
+            savedDrafts: legacySavedDrafts,
+            workspaceDraft: initialWorkspaceDraft && (
+              typeof initialWorkspaceDraft.body === 'string'
+              || Boolean(initialWorkspaceDraft.attachments?.length)
+            ) ? initialWorkspaceDraft as Record<string, unknown> : null,
             documentHistories: {},
           };
           const seeded = seedDefaultDraft(emptyStore);
-          writeWorkspaceDraftStoreFallback(seeded.store);
+          if (!writeWorkspaceDraftStoreFallback(seeded.store)) {
+            drafts.setDraftStoreError(translateRef.current('studio.draftsCouldNotSave'));
+            return;
+          }
           if (seeded.added) markDefaultDraftSeeded();
           applyPersistedDraftStore(seeded.store);
           return;
@@ -463,7 +491,9 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
         window.localStorage.removeItem('xmsgi_saved_drafts');
         window.localStorage.removeItem(WORKSPACE_DRAFT_KEY);
         window.localStorage.removeItem(LEGACY_WORKSPACE_DRAFT_KEY);
-        writeWorkspaceDraftStoreFallback(store);
+        if (!writeWorkspaceDraftStoreFallback(store)) {
+          drafts.setDraftStoreError(translateRef.current('studio.draftsCouldNotSave'));
+        }
         applyPersistedDraftStore(store);
       } catch (error) {
         if (!cancelled) {
@@ -566,7 +596,18 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
       };
       const draftStorage = getDraftStorageApi();
       if (!draftStorage) {
-        writeWorkspaceDraftStoreFallback(data);
+        let errorMessage: string;
+        try {
+          if (writeWorkspaceDraftStoreFallback(data)) return;
+          errorMessage = translateRef.current('studio.latestDraftCouldNotSave');
+        } catch (error) {
+          errorMessage = error instanceof Error
+            ? error.message
+            : translateRef.current('studio.latestDraftCouldNotSave');
+        }
+        event.preventDefault();
+        event.returnValue = 'Draft data could not be saved. Keep this page open and retry.';
+        drafts.setDraftStoreError(errorMessage);
         return;
       }
 
@@ -589,12 +630,16 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
   const handleRestoreDraftBackup = async (index: number) => {
     const draftStorage = getDraftStorageApi();
     if (!draftStorage) {
-      const fallback = readWorkspaceDraftStoreFallback();
-      if (!fallback) {
-        drafts.setDraftStoreError('No saved draft backup is available for this runtime.');
-        return;
+      try {
+        const fallback = readWorkspaceDraftStoreFallback();
+        if (!fallback) {
+          drafts.setDraftStoreError('No saved draft backup is available for this runtime.');
+          return;
+        }
+        applyPersistedDraftStore(fallback);
+      } catch (error) {
+        drafts.setDraftStoreError(error instanceof Error ? error.message : t('studio.selectedBackupCouldNotRestore'));
       }
-      applyPersistedDraftStore(fallback);
       return;
     }
 
@@ -614,13 +659,17 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
 
     const draftStorage = getDraftStorageApi();
     if (!draftStorage) {
-      writeWorkspaceDraftStoreFallback({
+      const saved = writeWorkspaceDraftStoreFallback({
         schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
         migrationVersion: 1,
         savedDrafts: drafts.savedDraftsRef.current,
         workspaceDraft,
         documentHistories: drafts.documentHistoriesRef.current,
       });
+      if (!saved) {
+        drafts.setDraftStoreError(t('studio.draftsCouldNotSave'));
+        return;
+      }
       showFeedback(t('studio.draftStorageSaved'), 'success');
       return;
     }
@@ -636,10 +685,14 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
   const handleImportDrafts = async (showFeedback: (message: string, kind?: 'warning' | 'success') => void) => {
     const draftStorage = getDraftStorageApi();
     if (!draftStorage) {
-      const fallback = readWorkspaceDraftStoreFallback();
-      if (fallback) {
-        applyPersistedDraftStore(fallback);
-        showFeedback(t('studio.draftsRestored'), 'success');
+      try {
+        const fallback = readWorkspaceDraftStoreFallback();
+        if (fallback) {
+          applyPersistedDraftStore(fallback);
+          showFeedback(t('studio.draftsRestored'), 'success');
+        }
+      } catch (error) {
+        drafts.setDraftStoreError(error instanceof Error ? error.message : t('studio.backupCouldNotImport'));
       }
       return;
     }

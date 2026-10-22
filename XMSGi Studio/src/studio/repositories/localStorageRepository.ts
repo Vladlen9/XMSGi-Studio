@@ -1,37 +1,55 @@
 import type { Repository } from '../domain/types';
 
+function getStorageErrorMessage(error: unknown, fallback: string): string {
+  return typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+    ? error.message
+    : fallback;
+}
+
 export function createLocalStorageRepository<T extends { id: string }>(
   key: string,
   legacyKey?: string,
 ): Repository<T> {
   const readAll = (): T[] => {
+    let storage: Storage;
     try {
-      const primaryRaw = globalThis.localStorage.getItem(key);
-      if (primaryRaw !== null) {
-        const parsed = JSON.parse(primaryRaw) as T[];
-        return Array.isArray(parsed) ? parsed : [];
-      }
-
-      if (!legacyKey) return [];
-
-      const legacyRaw = globalThis.localStorage.getItem(legacyKey);
-      if (legacyRaw === null) return [];
-
-      const parsed = JSON.parse(legacyRaw) as T[];
-      if (!Array.isArray(parsed)) return [];
-
-      globalThis.localStorage.setItem(key, legacyRaw);
-      return parsed;
-    } catch {
-      return [];
+      storage = globalThis.localStorage;
+    } catch (error) {
+      throw new Error(getStorageErrorMessage(error, 'Local storage is unavailable.'));
     }
+
+    let primaryRaw: string | null;
+    try {
+      primaryRaw = storage.getItem(key);
+    } catch (error) {
+      throw new Error(getStorageErrorMessage(error, 'Local storage could not be read.'));
+    }
+
+    if (primaryRaw !== null) return parseEntityList<T>(primaryRaw, key);
+
+    if (!legacyKey) return [];
+
+    let legacyRaw: string | null;
+    try {
+      legacyRaw = storage.getItem(legacyKey);
+    } catch (error) {
+      throw new Error(getStorageErrorMessage(error, 'Legacy local storage could not be read.'));
+    }
+    if (legacyRaw === null) return [];
+    return parseEntityList<T>(legacyRaw, legacyKey);
   };
 
   const writeAll = (items: T[]) => {
     const serialized = JSON.stringify(items);
-    globalThis.localStorage.setItem(key, serialized);
+    let storage: Storage;
+    try {
+      storage = globalThis.localStorage;
+    } catch (error) {
+      throw new Error(getStorageErrorMessage(error, 'Local storage is unavailable.'));
+    }
+    storage.setItem(key, serialized);
     if (legacyKey) {
-      globalThis.localStorage.setItem(legacyKey, serialized);
+      storage.setItem(legacyKey, serialized);
     }
   };
 
@@ -63,4 +81,19 @@ export function createLocalStorageRepository<T extends { id: string }>(
       writeAll(items);
     },
   };
+}
+
+function parseEntityList<T extends { id: string }>(raw: string, key: string): T[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Local storage data for "${key}" is invalid JSON: ${getStorageErrorMessage(error, 'parse failed')}`);
+  }
+  if (!Array.isArray(parsed)
+    || parsed.some((item) => !item || typeof item !== 'object' || Array.isArray(item)
+      || typeof item.id !== 'string' || !item.id)) {
+    throw new Error(`Local storage data for "${key}" has an invalid structure.`);
+  }
+  return parsed as T[];
 }

@@ -27,8 +27,14 @@ function applyTelegramIdempotency(request, idempotencyKey) {
   if (!request || typeof request !== 'object' || !idempotencyKey) return request;
 
   const setRandomId = (target, part) => {
-    if (!target || typeof target.randomId !== 'object' || typeof target.randomId.constructor !== 'function') return;
-    target.randomId = target.randomId.constructor(createTelegramRandomId(idempotencyKey, part).toString());
+    if (!target) return;
+    const randomId = createTelegramRandomId(idempotencyKey, part);
+    if (typeof target.randomId === 'bigint') {
+      target.randomId = randomId;
+      return;
+    }
+    if (typeof target.randomId !== 'object' || typeof target.randomId.constructor !== 'function') return;
+    target.randomId = target.randomId.constructor(randomId.toString());
   };
 
   if (Array.isArray(request.multiMedia)) {

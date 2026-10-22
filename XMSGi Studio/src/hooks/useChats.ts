@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Chat, ChatPermissions } from '@/types';
 import { createChatAvatarLoader } from '@/services/chatAvatarLoader';
 import {
@@ -18,13 +18,30 @@ import {
   telegramGetChats,
 } from '@/services/chatAppService';
 
-export function useChats({ connected }: { connected: boolean }) {
+export function useChats({
+  connected,
+  onStorageError,
+}: {
+  connected: boolean;
+  onStorageError?: (message: string) => void;
+}) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [persistentChatsReady, setPersistentChatsReady] = useState(false);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [chatPermissions, setChatPermissions] = useState<Record<string, ChatPermissions>>({});
   const avatarLoaderRef = useRef<ReturnType<typeof createChatAvatarLoader> | null>(null);
+  const onStorageErrorRef = useRef(onStorageError);
   if (!avatarLoaderRef.current) avatarLoaderRef.current = createChatAvatarLoader();
+  onStorageErrorRef.current = onStorageError;
+
+  const persistChats = useCallback((nextChats: Chat[]) => {
+    void savePersistentChats(nextChats).catch((error: unknown) => {
+      onStorageErrorRef.current?.(
+        error instanceof Error ? error.message : 'Saved chats could not be saved.',
+      );
+    });
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -41,6 +58,11 @@ export function useChats({ connected }: { connected: boolean }) {
       }
 
       setPersistentChatsReady(true);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      onStorageErrorRef.current?.(
+        error instanceof Error ? error.message : 'Saved chats could not be loaded.',
+      );
     });
 
     return () => {
@@ -57,10 +79,10 @@ export function useChats({ connected }: { connected: boolean }) {
       if (selectedIndex <= 0) return current;
 
       const ordered = [current[selectedIndex], ...current.slice(0, selectedIndex), ...current.slice(selectedIndex + 1)];
-      void savePersistentChats(ordered);
+      persistChats(ordered);
       return ordered;
     });
-  }, [selectedChat]);
+  }, [persistChats, selectedChat]);
 
   useEffect(() => {
     if (!connected) {
@@ -105,7 +127,7 @@ export function useChats({ connected }: { connected: boolean }) {
 
         setChats((current) => {
           const nextChats = mergeChats(current, telegramChats, hidden);
-          void savePersistentChats(nextChats);
+          persistChats(nextChats);
           return nextChats;
         });
 
@@ -129,7 +151,7 @@ export function useChats({ connected }: { connected: boolean }) {
               return avatarDataUrl ? { ...chat, avatarDataUrl } : chat;
             });
 
-            void savePersistentChats(updatedChats);
+            persistChats(updatedChats);
             return updatedChats;
           });
           setSelectedChat((current) => {
@@ -148,7 +170,7 @@ export function useChats({ connected }: { connected: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [connected, persistentChatsReady]);
+  }, [connected, persistChats, persistentChatsReady]);
 
   useEffect(() => {
     if (!connected || !selectedChat) return;
@@ -184,7 +206,7 @@ export function useChats({ connected }: { connected: boolean }) {
     if (!existing) {
       setChats((current) => {
         const updated = [...current, chat];
-        void savePersistentChats(updated);
+        persistChats(updated);
         return updated;
       });
 
@@ -207,7 +229,7 @@ export function useChats({ connected }: { connected: boolean }) {
     };
     setChats((current) => {
       const updated = current.map((item) => item.id === chat.id ? enriched : item);
-      void savePersistentChats(updated);
+      persistChats(updated);
       return updated;
     });
     setSelectedChat(enriched);
@@ -224,7 +246,7 @@ export function useChats({ connected }: { connected: boolean }) {
 
     setChats((current) => {
       const latest = current.filter((item) => item.id !== chat.id);
-      void savePersistentChats(latest);
+      persistChats(latest);
       return latest;
     });
 

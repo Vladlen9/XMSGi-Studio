@@ -12,7 +12,9 @@ const {
   validateLoginPayload,
   validateTelegramCredentialsPayload,
   validateSchedulePayload,
+  validateScheduleReconciliationPayload,
   validateSendPayload,
+  validateSendAttemptReconciliationPayload,
   validateTimestamp,
   assertTrustedRenderer
 } = security;
@@ -109,6 +111,24 @@ describe('IPC security validation', () => {
     expect(() => validateDeleteSavedMessagePayload({ chatId: 'me', messageId: 'invalid' })).toThrow('messageId');
   });
 
+  it('validates read-only immediate-send recovery requests', () => {
+    expect(validateSendAttemptReconciliationPayload({
+      idempotencyKey: '1736962920000:send-attempt',
+      attachmentCount: 2,
+    })).toEqual({
+      idempotencyKey: '1736962920000:send-attempt',
+      attachmentCount: 2,
+    });
+    expect(() => validateSendAttemptReconciliationPayload({
+      idempotencyKey: '',
+      attachmentCount: 0,
+    })).toThrow('idempotencyKey');
+    expect(() => validateSendAttemptReconciliationPayload({
+      idempotencyKey: '1736962920000:send-attempt',
+      attachmentCount: '2',
+    })).toThrow('attachmentCount');
+  });
+
   it('allows loading the 100 Saved Messages shown by the Reminders history category', () => {
     expect(validateHistoryPayload({ chatId: '123456789', limit: 100 })).toEqual({
       chatId: '123456789',
@@ -164,6 +184,23 @@ describe('IPC security validation', () => {
       message: 'Reminder',
       targetTimestamp: 'tomorrow'
     })).toThrow('targetTimestamp');
+  });
+
+  it('rejects malformed Telegram message ID lists for reconciliation', () => {
+    const valid = {
+      chatId: 'me',
+      message: 'Pending message',
+      targetTimestamp: 2052547200,
+    };
+    expect(validateScheduleReconciliationPayload(valid)).toMatchObject({ telegramMessageIds: [] });
+    expect(() => validateScheduleReconciliationPayload({
+      ...valid,
+      telegramMessageIds: '42',
+    })).toThrow('telegramMessageIds must be an array');
+    expect(() => validateScheduleReconciliationPayload({
+      ...valid,
+      telegramMessageIds: [null],
+    })).toThrow('telegramMessageIds contains an invalid Telegram ID');
   });
 
   it('allows attachment-only scheduled messages but still requires text without attachments', () => {

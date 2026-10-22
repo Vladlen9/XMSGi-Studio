@@ -133,7 +133,7 @@ export interface ScheduledMessage {
   text: string;
   when: string;
   createdAt: string;
-  status: 'pending' | 'scheduled' | 'confirmed' | 'sending' | 'sent' | 'failed';
+  status: 'pending' | 'scheduled' | 'confirmed' | 'sending' | 'sent' | 'failed' | 'unknown';
   lastError?: string;
   lastErrorDetails?: BridgeErrorDetails;
   retryAction?: 'schedule' | 'send' | 'cancel';

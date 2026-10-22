@@ -156,6 +156,27 @@ function validateSchedulePayload(value) {
   };
 }
 
+function validateScheduleReconciliationPayload(value) {
+  const validated = validateSchedulePayload(value);
+  let telegramMessageIds = [];
+
+  if (Object.prototype.hasOwnProperty.call(value, 'telegramMessageIds')) {
+    if (!Array.isArray(value.telegramMessageIds) || value.telegramMessageIds.length > 30) {
+      invalidInput('telegramMessageIds must be an array of at most 30 Telegram IDs');
+    }
+    telegramMessageIds = value.telegramMessageIds.map((id) => {
+      const validNumber = typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+      const validString = typeof id === 'string' && /^\d{1,20}$/.test(id) && Number(id) > 0;
+      if (!validNumber && !validString) {
+        invalidInput('telegramMessageIds contains an invalid Telegram ID');
+      }
+      return id;
+    });
+  }
+
+  return { ...validated, telegramMessageIds };
+}
+
 function validateHistoryPayload(value) {
   if (!isPlainObject(value)) {
     invalidInput('history payload must be an object');
@@ -305,6 +326,22 @@ function validateSendPayload(value) {
   };
 }
 
+function validateSendAttemptReconciliationPayload(value) {
+  if (!isPlainObject(value)) {
+    invalidInput('send recovery payload must be an object');
+  }
+
+  const attachmentCount = value.attachmentCount ?? 0;
+  if (!Number.isSafeInteger(attachmentCount) || attachmentCount < 0 || attachmentCount > MAX_ATTACHMENTS) {
+    invalidInput('attachmentCount has an invalid format');
+  }
+
+  return {
+    idempotencyKey: validateString(value.idempotencyKey, 'idempotencyKey', { max: 128 }),
+    attachmentCount,
+  };
+}
+
 function validateLoginPayload(value) {
   if (!isPlainObject(value)) {
     invalidInput('login payload must be an object');
@@ -384,10 +421,12 @@ module.exports = {
   validateTimestamp,
   validateQuery,
   validateSchedulePayload,
+  validateScheduleReconciliationPayload,
   validateHistoryPayload,
   validateDeleteSavedMessagePayload,
   validateCancelPayload,
   validateSendPayload,
+  validateSendAttemptReconciliationPayload,
   validateLoginPayload,
   validateTelegramCredentialsPayload,
   assertTrustedRenderer

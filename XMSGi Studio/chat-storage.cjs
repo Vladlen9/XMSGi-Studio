@@ -23,12 +23,15 @@ function writeJsonFile(filePath, data) {
 }
 
 function normalizeChat(value) {
-  if (!value || typeof value !== 'object') return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const id = typeof value.id === 'string' ? value.id.trim() : '';
   const name = typeof value.name === 'string' ? value.name : '';
 
   if (!id || !name) return null;
+  if ((value.username !== undefined && typeof value.username !== 'string')
+    || (value.type !== undefined && typeof value.type !== 'string')
+    || (value.avatarDataUrl !== undefined && typeof value.avatarDataUrl !== 'string')) return null;
 
   return {
     id,
@@ -40,27 +43,52 @@ function normalizeChat(value) {
 }
 
 function readChats(filePath) {
+  let raw;
   try {
-    const raw = fs.readFileSync(filePath, 'utf8');
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { success: true, chats: [], exists: false };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Saved chats could not be read.',
+    };
+  }
+
+  try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeChat).filter(Boolean);
-  } catch {
-    return [];
+    if (!Array.isArray(parsed)) throw new Error('Saved chats have an invalid structure.');
+    const normalized = parsed.map(normalizeChat);
+    if (normalized.some((chat) => chat === null)) {
+      throw new Error('Saved chats contain an invalid record.');
+    }
+    return { success: true, chats: normalized, exists: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Saved chats could not be read.',
+    };
   }
 }
 
 function writeChats(filePath, chats) {
-  const normalized = Array.isArray(chats)
-    ? chats.map(normalizeChat).filter(Boolean)
-    : [];
+  const existing = readChats(filePath);
+  if (!existing.success) throw new Error(`Existing saved chats could not be read: ${existing.error}`);
+  if (!Array.isArray(chats)) throw new Error('Saved chats must be an array.');
+
+  const normalized = chats.map(normalizeChat);
+  if (normalized.some((chat) => chat === null)) throw new Error('Saved chats contain an invalid record.');
   const chatsById = new Map(normalized.map((chat) => [chat.id, chat]));
   const deduplicated = [...chatsById.values()];
-  const temporaryPath = `${filePath}.tmp`;
+  const temporaryPath = `${filePath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
 
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(temporaryPath, JSON.stringify(deduplicated, null, 2), 'utf8');
-  fs.renameSync(temporaryPath, filePath);
+  try {
+    fs.writeFileSync(temporaryPath, JSON.stringify(deduplicated, null, 2), { flag: 'wx', mode: 0o600 });
+    fs.renameSync(temporaryPath, filePath);
+  } catch (error) {
+    try { fs.unlinkSync(temporaryPath); } catch { /* Ignore temporary-file cleanup errors. */ }
+    throw error;
+  }
 }
 
 module.exports = { readChats, writeChats, readJsonFile, writeJsonFile };

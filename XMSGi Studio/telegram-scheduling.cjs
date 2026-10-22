@@ -292,6 +292,70 @@ function createTelegramScheduler({
     };
   }
 
+  async function reconcilePendingScheduleInternal({
+    chatId,
+    message,
+    targetTimestamp,
+    attachments = [],
+    entities = [],
+    replyMarkup,
+    silent = false,
+    effect,
+    telegramMessageIds = [],
+  }) {
+    if (!getClient()) {
+      await connectTelegram();
+    }
+
+    const target = chatId === 'me' ? 'me' : chatId;
+    const clientAtStart = getClient();
+    const operation = {
+      message,
+      targetTimestamp,
+      attachments,
+      entities,
+      replyMarkup,
+      silent: silent === true,
+      effect,
+    };
+    const expectedIds = new Set(telegramMessageIds.map(String));
+    const scheduledMessages = await telegramRequest(() => withTimeout(
+      clientAtStart.getScheduledMessages(target),
+      REQUEST_TIMEOUT,
+      'Checking restored Telegram schedule'
+    ));
+    if (getClient() !== clientAtStart) {
+      throw new Error('Telegram schedule reconciliation was cancelled.');
+    }
+
+    const matchingById = expectedIds.size > 0
+      ? scheduledMessages.filter((scheduledMessage) => expectedIds.has(String(scheduledMessage.id)))
+      : [];
+    if (expectedIds.size > 0 && matchingById.length === expectedIds.size) {
+      const ids = matchingById.map((item) => item.id);
+      return {
+        state: 'scheduled',
+        telegramMessageId: ids[0],
+        telegramMessageIds: ids,
+      };
+    }
+    if (expectedIds.size > 0) return { state: 'unknown' };
+
+    const matchingScheduled = attachments.length === 0
+      ? scheduledMessages.filter((scheduledMessage) => matchesScheduledOperation(scheduledMessage, operation))
+      : [];
+    if (matchingScheduled.length === 1) {
+      return {
+        state: 'scheduled',
+        telegramMessageId: matchingScheduled[0].id,
+        telegramMessageIds: [matchingScheduled[0].id],
+      };
+    }
+    if (matchingScheduled.length > 1) return { state: 'unknown' };
+
+    return { state: 'unknown' };
+  }
+
   async function cancelScheduledMessageInternal(chatId, messageId, message, targetTimestamp) {
     if (!getClient()) {
       await connectTelegram();
@@ -386,7 +450,7 @@ function createTelegramScheduler({
     return { success: true, alreadySent: false };
   }
 
-  return { scheduleMessageInternal, cancelScheduledMessageInternal };
+  return { scheduleMessageInternal, reconcilePendingScheduleInternal, cancelScheduledMessageInternal };
 }
 
 module.exports = { createTelegramScheduler };

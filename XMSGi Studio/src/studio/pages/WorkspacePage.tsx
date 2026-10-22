@@ -467,11 +467,18 @@ type PreviewLayout = {
 
 const DEFAULT_PREVIEW_LAYOUT: PreviewLayout = { visible: true };
 
-function loadTemplatesWithDefault(): Template[] {
-  const templates = loadTemplates();
+function loadTemplatesWithDefault(): { templates: Template[]; storageError: boolean } {
+  let templates: Template[];
+  try {
+    templates = loadTemplates();
+  } catch {
+    return { templates: [], storageError: true };
+  }
 
   try {
-    if (window.localStorage.getItem(DEFAULT_TEMPLATE_SEEDED_KEY) === '1') return templates;
+    if (window.localStorage.getItem(DEFAULT_TEMPLATE_SEEDED_KEY) === '1') {
+      return { templates, storageError: false };
+    }
 
     if (!templates.some((template) => template.name === DEFAULT_DRAFT_NAME && template.body === DEFAULT_DRAFT_BODY)) {
       const defaultTemplate = createTemplate({ name: DEFAULT_DRAFT_NAME, body: DEFAULT_DRAFT_BODY });
@@ -481,10 +488,10 @@ function loadTemplatesWithDefault(): Template[] {
 
     window.localStorage.setItem(DEFAULT_TEMPLATE_SEEDED_KEY, '1');
   } catch {
-    // Keep the editor available if defaults cannot be written to storage.
+    return { templates, storageError: true };
   }
 
-  return templates;
+  return { templates, storageError: false };
 }
 
 function isLivePreviewSurface() {
@@ -680,13 +687,21 @@ export function WorkspacePage({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const initialPreviewLayoutRef = useRef<PreviewLayout | null>(null);
   const initialDraftRef = useRef<Partial<WorkspaceDraft> | null>(null);
+  const initialDraftLoadErrorRef = useRef('');
 
   if (initialPreviewLayoutRef.current === null) {
     initialPreviewLayoutRef.current = readPreviewLayout();
   }
 
   if (initialDraftRef.current === null) {
-    initialDraftRef.current = readInitialWorkspaceDraft();
+    try {
+      initialDraftRef.current = readInitialWorkspaceDraft();
+    } catch (error) {
+      initialDraftRef.current = {};
+      initialDraftLoadErrorRef.current = error instanceof Error
+        ? error.message
+        : 'Saved workspace draft could not be read.';
+    }
   }
 
   const [workspaceDocumentId, setWorkspaceDocumentIdState] = useState(
@@ -742,7 +757,9 @@ export function WorkspacePage({
   const [inlineButtons, setInlineButtons] = useState<InlineButtonRow[]>(
     () => initialDraftRef.current?.inlineButtons ?? [],
   );
-  const [templates, setTemplates] = useState<Template[]>(loadTemplatesWithDefault);
+  const [initialTemplateState] = useState(loadTemplatesWithDefault);
+  const [templates, setTemplates] = useState<Template[]>(initialTemplateState.templates);
+  const [templateStorageError, setTemplateStorageError] = useState(initialTemplateState.storageError);
   const [stageMode, setStageMode] = useState<'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons'>(() => {
     return isLivePreviewSurface() ? 'schedule' : 'editor';
   });
@@ -947,6 +964,7 @@ export function WorkspacePage({
 
   const draftLifecycle = useStudioDrafts({
     initialWorkspaceDraftRef: initialDraftRef,
+    initialWorkspaceDraftError: initialDraftLoadErrorRef.current,
     workspace: {
       documentId: workspaceDocumentId,
       body: draftBody,
@@ -1258,8 +1276,17 @@ export function WorkspacePage({
   }, [showPublishFeedback, successPulse, t]);
 
   useEffect(() => {
-    saveTemplates(templates);
-  }, [templates]);
+    if (templateStorageError) {
+      showPublishFeedback(t('studio.templateStorageError'), 'warning');
+      return;
+    }
+
+    try {
+      saveTemplates(templates);
+    } catch {
+      setTemplateStorageError(true);
+    }
+  }, [showPublishFeedback, t, templateStorageError, templates]);
 
   const selectedChatId = selectedChat?.id;
 

@@ -3,7 +3,7 @@ import type { DraftColor, PersistedDraftStore, SavedDraft } from '@shared/types'
 import { normalizeTelegramMessage } from '@shared/telegramText.cjs';
 
 export type HistorySource = 'personal' | 'workspace';
-export type HistoryStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'draft' | 'cancelled';
+export type HistoryStatus = 'scheduled' | 'sending' | 'sent' | 'failed' | 'unknown' | 'draft' | 'cancelled';
 export type PlannerReminderType = 'task' | 'meeting' | 'reminder' | 'event' | 'idea';
 export type SavedPlannerDraft = {
   id: string;
@@ -55,6 +55,8 @@ export function normalizeScheduledMessages(
       ? 'failed'
       : runtimeStatus === 'sending'
         ? 'sending'
+      : runtimeStatus === 'unknown'
+        ? 'unknown'
       : runtimeStatus === 'cancelled'
         ? 'cancelled'
         : runtimeStatus === 'sent' || collection === 'sent'
@@ -70,7 +72,7 @@ export function normalizeScheduledMessages(
       text: normalized.message,
       channelName: message.chatName,
       channelLabel: chat?.username ? `@${chat.username}` : '',
-      scheduledAt: status === 'scheduled' || status === 'sending' || status === 'failed' || status === 'cancelled'
+      scheduledAt: status === 'scheduled' || status === 'sending' || status === 'failed' || status === 'unknown' || status === 'cancelled'
         ? message.when
         : undefined,
       sentAt: status === 'sent' ? message.sentAt || message.when : undefined,

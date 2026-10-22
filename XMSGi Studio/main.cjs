@@ -52,12 +52,23 @@ const {
   validateTelegramCredentialsPayload,
   validateQuery,
   validateSchedulePayload,
+  validateScheduleReconciliationPayload,
   validateSendPayload,
+  validateSendAttemptReconciliationPayload,
   assertTrustedRenderer
 } = require('./ipc-security.cjs');
 const { readChats, writeChats, readJsonFile, writeJsonFile } = require('./chat-storage.cjs');
 const { resolveAppDataPath } = require('./app-data-path.cjs');
-const { normalizeScheduleMessages } = require('./schedule-history.cjs');
+const {
+  commitConfirmedImmediateSend,
+  loadScheduleHistoryScope,
+  normalizeScheduleMessages,
+  validateScheduleHistoryStore,
+} = require('./schedule-history.cjs');
+const {
+  createTelegramSendHistoryWarningNotifier,
+  persistConfirmedSendResult,
+} = require('./telegram-send-history-warning.cjs');
 const draftStoreModulePath = (() => {
   const candidates = [
     app.isPackaged ? path.join(process.resourcesPath, 'draft-store.cjs') : null,
@@ -99,8 +110,85 @@ const SCHEDULE_HISTORY_PATH = resolveAppDataPath(
   'xmsgi-studio-schedule-history.json',
   'awaitmsg-schedule-history.json',
 );
-
 let mainWindow = null;
+const immediateSendAttemptsInFlight = new Set();
+const deferredSendHistoryWarnings = new Set();
+const sendHistoryWarningNotifier = createTelegramSendHistoryWarningNotifier(() => mainWindow);
+
+function persistConfirmedImmediateSend(idempotencyKey, result) {
+  if (typeof idempotencyKey !== 'string' || !idempotencyKey) return undefined;
+
+  try {
+    const exists = fs.existsSync(SCHEDULE_HISTORY_PATH);
+    const current = readJsonFile(SCHEDULE_HISTORY_PATH, null);
+    if (exists && (!current || typeof current !== 'object' || Array.isArray(current))) {
+      throw new Error('Existing schedule history could not be read.');
+    }
+
+    const commitResult = commitConfirmedImmediateSend(
+      current,
+      idempotencyKey,
+      result,
+      (updated) => writeJsonFile(SCHEDULE_HISTORY_PATH, updated),
+    );
+    if (!commitResult.success) {
+      console.error('Confirmed Telegram send history could not be saved:', commitResult.error);
+      return { historyPersisted: false, historyError: commitResult.error };
+    }
+    return { historyPersisted: true };
+  } catch (error) {
+    console.error('Confirmed Telegram send history could not be saved:', error?.code || error?.name || 'unknown');
+    return {
+      historyPersisted: false,
+      historyError: error instanceof Error ? error.message : 'Confirmed Telegram send history could not be saved.',
+    };
+  }
+}
+
+function persistConfirmedImmediateSendAndReport(idempotencyKey, result, reportFailure = true) {
+  const historyResult = persistConfirmedSendResult(idempotencyKey, result, {
+    persist: persistConfirmedImmediateSend,
+    notifier: sendHistoryWarningNotifier,
+    reportFailure,
+  });
+  if (historyResult?.historyPersisted === true) {
+    deferredSendHistoryWarnings.delete(idempotencyKey);
+  } else if (historyResult?.historyPersisted === false
+    && !reportFailure
+    && immediateSendAttemptsInFlight.has(idempotencyKey)) {
+    deferredSendHistoryWarnings.add(idempotencyKey);
+  }
+  return historyResult;
+}
+
+function keepConfirmedSendResults(scopeHistory, field, messages) {
+  const confirmedByAttempt = new Map(
+    normalizeScheduleMessages(scopeHistory?.sent ?? [])
+      .filter((message) => message.status === 'sent' && message.sendAttemptId)
+      .map((message) => [message.sendAttemptId, message]),
+  );
+  if (confirmedByAttempt.size === 0) return messages;
+
+  if (field === 'snapshot') {
+    const staleAttempts = new Set(messages.upcoming
+      .map((message) => message.sendAttemptId)
+      .filter((attemptId) => confirmedByAttempt.has(attemptId)));
+    if (staleAttempts.size === 0) return messages;
+    return {
+      upcoming: messages.upcoming.filter((message) => !staleAttempts.has(message.sendAttemptId)),
+      sent: [
+        ...confirmedByAttempt.values(),
+        ...messages.sent.filter((message) => !staleAttempts.has(message.sendAttemptId)),
+      ],
+    };
+  }
+
+  if (field === 'upcoming') {
+    return messages.filter((message) => !confirmedByAttempt.has(message.sendAttemptId));
+  }
+  return messages;
+}
+
 let tray = null;
 let isQuitting = false;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -221,12 +309,24 @@ const {
   getTelegramStatus,
   waitForTelegramRateLimit,
   sendMessage,
+  reconcileSendAttempt,
+  setTelegramSendResultCallback,
   getScheduleOperationIdentities,
   scheduleMessage,
+  reconcilePendingSchedule,
   cancelScheduledMessage,
   shutdownTelegram,
   setTelegramStatusCallback
 } = require('./telegram.cjs');
+
+setTelegramSendResultCallback((idempotencyKey, result) => {
+  persistConfirmedImmediateSendAndReport(
+    idempotencyKey,
+    result,
+    !immediateSendAttemptsInFlight.has(idempotencyKey),
+  );
+});
+
 function telegramOperationFailure(error) {
   const classification = classifyTelegramError(error);
   const normalizedError = classification.error;
@@ -310,6 +410,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.session.setSpellCheckerLanguages(['ru-RU', 'en-US']);
+  mainWindow.webContents.once('did-finish-load', () => sendHistoryWarningNotifier.flush());
 
   const appUrl = getAppUrl();
 
@@ -371,8 +472,15 @@ ipcMain.handle('chat-storage-save', async (event, chats) => {
     mainWindow?.webContents,
     pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
   );
-  writeChats(CHAT_STORAGE_PATH, chats);
-  return { success: true };
+  try {
+    writeChats(CHAT_STORAGE_PATH, chats);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Saved chats could not be written.',
+    };
+  }
 });
 
 function assertDraftStorageRenderer(event) {
@@ -486,12 +594,7 @@ ipcMain.handle('schedule-history:load', (event, scope) => {
   }
 
   try {
-    const scopeStore = store?.[scope];
-    const history = {
-      upcoming: normalizeScheduleMessages(scopeStore?.upcoming ?? [], { recoverInterrupted: true }),
-      sent: normalizeScheduleMessages(scopeStore?.sent ?? [], { recoverInterrupted: true }),
-    };
-    return { success: true, history, needsMigration: !scopeStore };
+    return loadScheduleHistoryScope(store, scope, { recoverInterrupted: true });
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Schedule history could not be read.' };
   }
@@ -510,7 +613,8 @@ ipcMain.handle('schedule-history:save', (event, data = {}) => {
     if (exists && (!current || typeof current !== 'object' || Array.isArray(current))) {
       throw new Error('Existing schedule history could not be read.');
     }
-    const validatedMessages = field === 'snapshot'
+    const validatedCurrent = current ? validateScheduleHistoryStore(current) : null;
+    let validatedMessages = field === 'snapshot'
       ? {
         upcoming: normalizeScheduleMessages(messages?.upcoming),
         sent: normalizeScheduleMessages(messages?.sent),
@@ -519,12 +623,13 @@ ipcMain.handle('schedule-history:save', (event, data = {}) => {
     if (Buffer.byteLength(JSON.stringify(validatedMessages), 'utf8') > 8 * 1024 * 1024) {
       throw new Error('Schedule history exceeds the supported size.');
     }
-    const scopeHistory = current?.[scope] && typeof current[scope] === 'object'
-      ? current[scope]
+    const scopeHistory = validatedCurrent?.[scope]
+      ? validatedCurrent[scope]
       : { upcoming: [], sent: [] };
+    validatedMessages = keepConfirmedSendResults(scopeHistory, field, validatedMessages);
     writeJsonFile(SCHEDULE_HISTORY_PATH, {
       schemaVersion: 1,
-      ...(current ?? {}),
+      ...(validatedCurrent ?? {}),
       [scope]: field === 'snapshot'
         ? validatedMessages
         : { ...scopeHistory, [field]: validatedMessages },
@@ -1079,9 +1184,11 @@ ipcMain.handle('telegram-send', async (event, data) => {
     pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
   );
   const validated = validateSendPayload(data);
+  immediateSendAttemptsInFlight.add(validated.idempotencyKey);
+  let confirmedResultReturned = false;
 
   try {
-    await sendMessage(
+    const result = await sendMessage(
       validated.chatId,
       validated.message,
       validated.attachments,
@@ -1091,9 +1198,19 @@ ipcMain.handle('telegram-send', async (event, data) => {
       validated.effect,
       validated.idempotencyKey
     );
+    confirmedResultReturned = result?.success === true;
 
+    const historyResult = persistConfirmedImmediateSendAndReport(validated.idempotencyKey, result, false);
+    if (historyResult?.historyPersisted === false && event.sender.isDestroyed()) {
+      sendHistoryWarningNotifier.report(validated.idempotencyKey);
+    }
+    if (confirmedResultReturned) deferredSendHistoryWarnings.delete(validated.idempotencyKey);
     return {
-      success: true
+      success: true,
+      ...(result.telegramMessageId === undefined ? {} : { telegramMessageId: result.telegramMessageId }),
+      ...(result.telegramMessageIds === undefined ? {} : { telegramMessageIds: result.telegramMessageIds }),
+      ...(result.sentAt === undefined ? {} : { sentAt: result.sentAt }),
+      ...(historyResult ?? {}),
     };
 
   } catch (error) {
@@ -1103,6 +1220,44 @@ ipcMain.handle('telegram-send', async (event, data) => {
       ...(error.telegramMessageId === undefined ? {} : { telegramMessageId: error.telegramMessageId }),
       ...(error.telegramMessageIds === undefined ? {} : { telegramMessageIds: error.telegramMessageIds }),
     };
+  } finally {
+    immediateSendAttemptsInFlight.delete(validated.idempotencyKey);
+    if (deferredSendHistoryWarnings.delete(validated.idempotencyKey) && !confirmedResultReturned) {
+      sendHistoryWarningNotifier.report(validated.idempotencyKey);
+    }
+  }
+});
+
+ipcMain.handle('telegram-send-reconcile', async (event, data) => {
+  assertTrustedRenderer(
+    event,
+    mainWindow?.webContents,
+    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
+  );
+  const validated = validateSendAttemptReconciliationPayload(data);
+  immediateSendAttemptsInFlight.add(validated.idempotencyKey);
+  let confirmedResultReturned = false;
+
+  try {
+    const result = await reconcileSendAttempt(validated.idempotencyKey, validated.attachmentCount);
+    if (result.state !== 'sent') return result;
+    confirmedResultReturned = true;
+    const historyResult = persistConfirmedImmediateSendAndReport(validated.idempotencyKey, result, false);
+    if (historyResult?.historyPersisted === false && event.sender.isDestroyed()) {
+      sendHistoryWarningNotifier.report(validated.idempotencyKey);
+    }
+    return { ...result, ...(historyResult ?? {}) };
+  } catch (error) {
+    return {
+      success: false,
+      state: 'unknown',
+      error: error instanceof Error ? error.message : 'Telegram send result could not be checked.',
+    };
+  } finally {
+    immediateSendAttemptsInFlight.delete(validated.idempotencyKey);
+    if (deferredSendHistoryWarnings.delete(validated.idempotencyKey) && !confirmedResultReturned) {
+      sendHistoryWarningNotifier.report(validated.idempotencyKey);
+    }
   }
 });
 
@@ -1173,6 +1328,28 @@ ipcMain.handle('telegram-schedule', async (event, data) => {
       ...telegramOperationFailure(error),
       ...(error.telegramMessageId === undefined ? {} : { telegramMessageId: error.telegramMessageId }),
       ...(error.telegramMessageIds === undefined ? {} : { telegramMessageIds: error.telegramMessageIds }),
+    };
+  }
+});
+
+ipcMain.handle('telegram-schedule-reconcile', async (event, data) => {
+  assertTrustedRenderer(
+    event,
+    mainWindow?.webContents,
+    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
+  );
+  const validated = validateScheduleReconciliationPayload(data);
+
+  try {
+    return {
+      success: true,
+      ...(await reconcilePendingSchedule(validated)),
+    };
+  } catch (error) {
+    console.error('Schedule reconciliation error:', error?.code || error?.name || 'unknown');
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Telegram schedule state could not be checked.',
     };
   }
 });

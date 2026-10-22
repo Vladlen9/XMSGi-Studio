@@ -79,7 +79,11 @@ export function hasChatHistoryBridge(): boolean {
 export async function telegramLoadSavedChats() {
   const bridge = getTelegramBridge();
   if (!bridge || typeof bridge.loadSavedChats !== 'function') return undefined;
-  return bridge.loadSavedChats();
+  const result = await bridge.loadSavedChats();
+  if (!result.success || !Array.isArray(result.chats)) {
+    throw new Error(result.error || 'Saved chats could not be loaded.');
+  }
+  return result.chats;
 }
 
 export function hasSavedChatStorage(): boolean {
@@ -93,5 +97,5 @@ export async function telegramSaveSavedChats(chats: Chat[]): Promise<{ success: 
     return { success: false, error: 'desktopBridgeRequired' };
   }
   const result = await bridge.saveSavedChats(chats);
-  return result.success ? result : { success: false, error: 'Chats could not be saved.' };
+  return result.success ? result : { success: false, error: result.error || 'Chats could not be saved.' };
 }

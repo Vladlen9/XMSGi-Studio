@@ -61,8 +61,13 @@ declare global {
         state?: { accountId: string; paused: boolean; pausedUntil: number | null; pausedUntilText?: string; remainingMs: number; remainingMsText?: string; waitSeconds?: number; waitSecondsText?: string; reason?: 'FLOOD_WAIT' };
         error?: string;
       }>;
-      loadSavedChats: () => Promise<{ id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]>;
-      saveSavedChats: (chats: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]) => Promise<{ success: boolean }>;
+      loadSavedChats: () => Promise<{
+        success: boolean;
+        chats?: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[];
+        exists?: boolean;
+        error?: string;
+      }>;
+      saveSavedChats: (chats: { id: string; name: string; username?: string; phone?: string; type?: 'private' | 'group' | 'supergroup' | 'channel' | 'unknown'; avatarDataUrl?: string }[]) => Promise<{ success: boolean; error?: string }>;
       loadScheduleHistory: (scope: 'personal' | 'workspace') => Promise<{
         success: boolean;
         history?: { upcoming: import('@/types').ScheduledMessage[]; sent: import('@/types').ScheduledMessage[] };
@@ -106,6 +111,19 @@ declare global {
         retryable?: boolean;
         waitSeconds?: number;
         cancelled?: boolean;
+        telegramMessageId?: string | number;
+        telegramMessageIds?: Array<string | number>;
+        sentAt?: string;
+        historyPersisted?: boolean;
+      }>;
+      reconcileSendAttempt: (data: { idempotencyKey: string; attachmentCount?: number }) => Promise<{
+        success: boolean;
+        state?: 'sent' | 'unknown';
+        telegramMessageId?: string | number;
+        telegramMessageIds?: Array<string | number>;
+        sentAt?: string;
+        historyPersisted?: boolean;
+        error?: string;
       }>;
       getScheduleIdentities: (operations: Array<{
         chatId: string;
@@ -140,6 +158,23 @@ declare global {
         retryable?: boolean;
         waitSeconds?: number;
         cancelled?: boolean;
+      }>;
+      reconcilePendingSchedule: (data: {
+        chatId: string;
+        message: string;
+        targetTimestamp: number;
+        attachments?: string[];
+        entities?: TelegramFormattingEntity[];
+        replyMarkup?: { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> };
+        silent?: boolean;
+        effect?: string;
+        telegramMessageIds?: Array<string | number>;
+      }) => Promise<{
+        success: boolean;
+        state?: 'scheduled' | 'unknown';
+        telegramMessageId?: string | number;
+        telegramMessageIds?: Array<string | number>;
+        error?: string;
       }>;
       getChatHistory: (data: { chatId: string; limit?: number }) => Promise<{
         success: boolean;
@@ -202,6 +237,7 @@ declare global {
         error?: string;
       }>;
       onStatus: (callback: (status: unknown) => void) => () => void;
+      onSendHistoryWarning: (callback: () => void) => () => void;
     };
   }
 }

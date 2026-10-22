@@ -8,6 +8,8 @@ describe('Telegram send idempotency', () => {
 
     expect(createTelegramRandomId(key)).toBe(createTelegramRandomId(key));
     expect(createTelegramRandomId(key, 0)).not.toBe(createTelegramRandomId(key, 1));
+    expect(createTelegramRandomId('stable:attempt-one'))
+      .not.toBe(createTelegramRandomId('stable:attempt-two'));
   });
 
   it('replaces Teleproto message and media random IDs with the retry-stable ID', () => {

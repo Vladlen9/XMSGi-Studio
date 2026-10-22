@@ -50,25 +50,25 @@ function normalizeScheduleMessage(value: unknown): ScheduledMessage | null {
     || typeof message.createdAt !== 'string'
   ) return null;
 
-  const knownStatuses = ['pending', 'scheduled', 'confirmed', 'sending', 'sent', 'failed'];
+  const knownStatuses = ['pending', 'scheduled', 'confirmed', 'sending', 'sent', 'failed', 'unknown'];
   const unknownStatus = typeof message.status !== 'string' || !knownStatuses.includes(message.status);
-  const legacyPending = message.status === 'pending';
-  const status: ScheduledMessage['status'] = unknownStatus || legacyPending
+  const status: ScheduledMessage['status'] = unknownStatus
     ? 'failed'
     : message.status === 'confirmed'
       ? 'scheduled'
       : message.status as ScheduledMessage['status'];
+  const interruptedSchedule = status === 'sending' && message.retryAction === 'schedule';
 
   return {
     ...message as ScheduledMessage,
-    status: status === 'sending' ? 'failed' : status,
-    ...((unknownStatus || legacyPending || status === 'sending') ? {
-      lastError: message.lastError || (legacyPending
-        ? 'This schedule was interrupted before Telegram confirmed it.'
-        : status === 'sending'
-          ? 'The app closed while this message was sending. Check Telegram before retrying.'
-          : 'This message had an unknown saved status and needs review.'),
-      retryAction: message.retryAction ?? (legacyPending ? 'schedule' : 'send'),
+    status: status === 'sending' ? (interruptedSchedule ? 'failed' : 'unknown') : status,
+    ...((unknownStatus || status === 'sending') ? {
+      lastError: message.lastError || (status === 'sending'
+        ? interruptedSchedule
+          ? 'The app closed while this message was being scheduled.'
+          : 'The app closed while this message was sending. Studio cannot verify the result automatically after restart; check Telegram before sending again.'
+        : 'This message had an unknown saved status and needs review.'),
+      retryAction: interruptedSchedule ? 'schedule' : status === 'sending' ? undefined : (message.retryAction ?? 'send'),
     } : {}),
   };
 }
@@ -154,11 +154,41 @@ export function saveHiddenChats(chats: string[]): void {
 }
 
 export function loadChats(): { id: string; name: string }[] {
-  return load<{ id: string; name: string }[]>(CHATS_KEY, []);
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(CHATS_KEY);
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Saved chats could not be read.');
+  }
+  if (raw === null) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)
+      || parsed.some((chat) => !chat || typeof chat !== 'object' || Array.isArray(chat)
+        || typeof chat.id !== 'string' || !chat.id.trim()
+        || typeof chat.name !== 'string')) {
+      throw new Error('Saved chats have an invalid structure.');
+    }
+    return parsed as { id: string; name: string }[];
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Saved chats could not be read.');
+  }
 }
 
 export function saveChats(chats: { id: string; name: string }[]): void {
-  save(CHATS_KEY, chats);
+  loadChats();
+  if (!Array.isArray(chats)
+    || chats.some((chat) => !chat || typeof chat !== 'object'
+      || typeof chat.id !== 'string' || !chat.id.trim()
+      || typeof chat.name !== 'string')) {
+    throw new Error('Saved chats have an invalid structure.');
+  }
+  try {
+    localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : 'Saved chats could not be written.');
+  }
 }
 
 export async function loadPersistentChats(): Promise<Chat[]> {
@@ -179,12 +209,11 @@ export async function loadPersistentChats(): Promise<Chat[]> {
 
 export async function savePersistentChats(chats: Chat[]): Promise<void> {
   const write = async () => {
-    save(CHATS_KEY, chats);
-
     if (hasSavedChatStorage()) {
       const result = await telegramSaveSavedChats(chats);
       if (!result.success) throw new Error(result.error || 'Chats could not be saved.');
     }
+    saveChats(chats);
   };
 
   const queuedWrite = persistentChatWriteQueue.then(write, write);

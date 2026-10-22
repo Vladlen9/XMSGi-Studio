@@ -6,7 +6,7 @@ import { normalizeWorkspaceDocumentHistories } from './documentHistory';
 import { normalizeRichTextEntities } from './richText';
 import type { ScheduleRepeatOptions } from './scheduling';
 import { createDraftRecord, normalizeDraftAttachments, normalizeDraftEntities, type DraftRecord } from '@/domain/messageDraft';
-import { readActiveDraft } from '@/services/draftStoreService';
+import { readActiveDraftState } from '@/services/draftStoreService';
 
 export const WORKSPACE_DRAFT_KEY = 'xmsgi-workspace-draft';
 export const LEGACY_WORKSPACE_DRAFT_KEY = 'awaitmsg-workspace-draft';
@@ -17,6 +17,12 @@ export const DEFAULT_DRAFT_BODY = '💣 **ДЕЙСТВУЙ**\n\n🔥 **[Назв
 
 const DRAFT_STORE_FALLBACK_KEY = 'xmsgi-draft-store-fallback';
 const LEGACY_DRAFT_STORE_FALLBACK_KEY = 'awaitmsg-draft-store-fallback';
+
+function getStorageErrorMessage(error: unknown, fallback: string): string {
+  return typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string'
+    ? error.message
+    : fallback;
+}
 
 export type WorkspaceDraft = {
   documentId?: string;
@@ -50,7 +56,11 @@ function normalizeDraftChat(value: unknown): Chat | null {
 }
 
 export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
-  const unifiedDraft = readActiveDraft();
+  const activeDraftState = readActiveDraftState();
+  if (!activeDraftState.available) {
+    throw new Error(activeDraftState.error || 'Active draft could not be read.');
+  }
+  const unifiedDraft = activeDraftState.draft;
   if (unifiedDraft) {
     if (unifiedDraft.id === 'quick-planner:active') return {};
 
@@ -67,16 +77,25 @@ export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
   try {
     const primaryRaw = window.localStorage.getItem(WORKSPACE_DRAFT_KEY);
     const raw = primaryRaw ?? window.localStorage.getItem(LEGACY_WORKSPACE_DRAFT_KEY);
-    const parsed = raw ? JSON.parse(raw) as Partial<WorkspaceDraft> : {};
-    if (!primaryRaw && raw) window.localStorage.setItem(WORKSPACE_DRAFT_KEY, raw);
+    if (raw === null) return {};
+    const parsed = JSON.parse(raw) as Partial<WorkspaceDraft>;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Saved workspace draft has an invalid structure.');
+    }
+    if (!primaryRaw && raw) {
+      window.localStorage.setItem(WORKSPACE_DRAFT_KEY, raw);
+      if (window.localStorage.getItem(WORKSPACE_DRAFT_KEY) !== raw) {
+        throw new Error('Legacy workspace draft migration could not be verified.');
+      }
+    }
     return {
       ...parsed,
       entities: normalizeRichTextEntities(parsed.entities, parsed.body?.length ?? 0),
       attachments: normalizeAttachments(parsed.attachments),
       selectedChat: normalizeDraftChat(parsed.selectedChat),
     };
-  } catch {
-    return {};
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, 'Saved workspace draft could not be read.'));
   }
 }
 
@@ -171,45 +190,107 @@ export function readWorkspaceDraftRecord(): DraftRecord | null {
 }
 
 export function readWorkspaceDraftStoreFallback(): PersistedDraftStore | null {
+  let storage: Storage;
   try {
-    const primaryRaw = window.localStorage.getItem(DRAFT_STORE_FALLBACK_KEY);
-    const raw = primaryRaw ?? window.localStorage.getItem(LEGACY_DRAFT_STORE_FALLBACK_KEY);
-    if (!raw) return null;
-    if (!primaryRaw) window.localStorage.setItem(DRAFT_STORE_FALLBACK_KEY, raw);
-
-    const parsed = JSON.parse(raw) as Partial<PersistedDraftStore>;
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.savedDrafts)) return null;
-    const storedSchemaVersion = typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : 1;
-    if (!Number.isInteger(storedSchemaVersion)
-      || storedSchemaVersion < 1
-      || storedSchemaVersion > DRAFT_STORE_SCHEMA_VERSION) return null;
-
-    return {
-      schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
-      migrationVersion: typeof parsed.migrationVersion === 'number' ? parsed.migrationVersion : 1,
-      savedDrafts: parsed.savedDrafts,
-      workspaceDraft: parsed.workspaceDraft ?? null,
-      documentHistories: normalizeWorkspaceDocumentHistories(parsed.documentHistories),
-    };
-  } catch {
-    return null;
+    storage = window.localStorage;
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, 'Browser storage is unavailable.'));
   }
+
+  let primaryRaw: string | null;
+  try {
+    primaryRaw = storage.getItem(DRAFT_STORE_FALLBACK_KEY);
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, 'Draft storage could not be read.'));
+  }
+  if (primaryRaw !== null) return parseDraftStoreFallback(primaryRaw);
+
+  let legacyRaw: string | null;
+  try {
+    legacyRaw = storage.getItem(LEGACY_DRAFT_STORE_FALLBACK_KEY);
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, 'Legacy draft storage could not be read.'));
+  }
+  if (legacyRaw === null) return null;
+
+  const legacyStore = parseDraftStoreFallback(legacyRaw);
+  try {
+    storage.setItem(DRAFT_STORE_FALLBACK_KEY, legacyRaw);
+    if (storage.getItem(DRAFT_STORE_FALLBACK_KEY) !== legacyRaw) {
+      throw new Error('Legacy draft storage migration could not be verified.');
+    }
+  } catch (error) {
+    throw new Error(getStorageErrorMessage(error, 'Legacy draft storage could not be migrated.'));
+  }
+  return legacyStore;
 }
 
 export function writeWorkspaceDraftStoreFallback(store: PersistedDraftStore): boolean {
+  let storage: Storage;
   try {
-    const serialized = JSON.stringify(store);
-    window.localStorage.setItem(DRAFT_STORE_FALLBACK_KEY, serialized);
-    if (window.localStorage.getItem(DRAFT_STORE_FALLBACK_KEY) !== serialized) return false;
-    try {
-      window.localStorage.setItem(LEGACY_DRAFT_STORE_FALLBACK_KEY, serialized);
-    } catch {
-      // The primary fallback is authoritative; the legacy copy is best-effort.
-    }
-    return true;
+    storage = window.localStorage;
   } catch {
     return false;
   }
+  try {
+    parseDraftStoreFallback(JSON.stringify(store));
+    readWorkspaceDraftStoreFallback();
+  } catch {
+    return false;
+  }
+
+  const serialized = JSON.stringify(store);
+  try {
+    storage.setItem(DRAFT_STORE_FALLBACK_KEY, serialized);
+    if (storage.getItem(DRAFT_STORE_FALLBACK_KEY) !== serialized) return false;
+  } catch {
+    return false;
+  }
+
+  try {
+    storage.setItem(LEGACY_DRAFT_STORE_FALLBACK_KEY, serialized);
+  } catch {
+    // The primary fallback is authoritative; the legacy copy remains available.
+  }
+  return true;
+}
+
+function parseDraftStoreFallback(raw: string): PersistedDraftStore {
+  let parsed: Partial<PersistedDraftStore>;
+  try {
+    parsed = JSON.parse(raw) as Partial<PersistedDraftStore>;
+  } catch (error) {
+    throw new Error(`Saved drafts contain invalid JSON: ${getStorageErrorMessage(error, 'parse failed')}`);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+    || !Array.isArray(parsed.savedDrafts)
+    || parsed.savedDrafts.some((draft) => !draft || typeof draft !== 'object' || Array.isArray(draft)
+      || typeof draft.id !== 'string'
+      || typeof draft.name !== 'string'
+      || typeof draft.body !== 'string')
+    || (parsed.workspaceDraft !== undefined
+      && parsed.workspaceDraft !== null
+      && (typeof parsed.workspaceDraft !== 'object' || Array.isArray(parsed.workspaceDraft)))
+    || (parsed.documentHistories !== undefined
+      && (!parsed.documentHistories || typeof parsed.documentHistories !== 'object' || Array.isArray(parsed.documentHistories)))) {
+    throw new Error('Saved drafts have an invalid structure.');
+  }
+
+  const storedSchemaVersion = typeof parsed.schemaVersion === 'number' ? parsed.schemaVersion : 1;
+  if (!Number.isInteger(storedSchemaVersion)
+    || storedSchemaVersion < 1
+    || storedSchemaVersion > DRAFT_STORE_SCHEMA_VERSION) {
+    throw new Error('Saved drafts have an unsupported version.');
+  }
+
+  return {
+    ...parsed,
+    schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
+    migrationVersion: typeof parsed.migrationVersion === 'number' ? parsed.migrationVersion : 1,
+    savedDrafts: parsed.savedDrafts,
+    workspaceDraft: parsed.workspaceDraft ?? null,
+    documentHistories: normalizeWorkspaceDocumentHistories(parsed.documentHistories),
+  };
 }
 
 export function getDraftStorageApi(): DraftStorageApi | null {
