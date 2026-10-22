@@ -198,6 +198,7 @@ export function LoginTestbench() {
           <RotateCcw size={15} aria-hidden="true" />
           <span>Reset sign-in</span>
         </button>
+        <a className="login-testbench-pages" href="../settings/">{locale === 'ru' ? 'Настройки' : 'Settings'}</a>
         <a className="login-testbench-pages" href="../">{locale === 'ru' ? 'Все стенды' : 'All pages'}</a>
         <a className="login-testbench-exit" href="/">Exit</a>
       </nav>

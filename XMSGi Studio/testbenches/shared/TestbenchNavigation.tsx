@@ -109,6 +109,7 @@ export function TestbenchNavigation({
         <a href="../login/">{isRussian ? 'Вход' : 'Login'}</a>
         <a href="../studio-editor/" aria-current={currentPage === 'studio' ? 'page' : undefined}>Studio</a>
         <a href="../planner/" aria-current={currentPage === 'planner' ? 'page' : undefined}>Planner</a>
+        <a href="../settings/">{isRussian ? 'Настройки' : 'Settings'}</a>
         <a href="../">{isRussian ? 'Все стенды' : 'All pages'}</a>
       </div>
     </nav>

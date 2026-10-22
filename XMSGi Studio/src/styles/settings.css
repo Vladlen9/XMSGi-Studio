@@ -73,12 +73,12 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 
 .settings-view-content h1 {
   margin: 0;
-  color: #29343d;
+  color: var(--text);
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: clamp(2.2rem, 5vw, 4.2rem);
-  line-height: 0.96;
-  letter-spacing: 0.5px;
-  font-weight: 400;
+  font-size: clamp(2.35rem, 5vw, 2.85rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  font-weight: 650;
 }
 
 .settings-sections {
@@ -87,7 +87,7 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 
 .settings-view-section {
   padding: 0 20px 56px;
-  border-bottom: 1px solid rgba(154, 168, 184, 0.1);
+  border-bottom: 1px solid var(--line);
 }
 
 .settings-view-section + .settings-view-section {
@@ -101,11 +101,11 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 
 .settings-view-section h2 {
   margin: 0;
-  color: #3a4650;
+  color: var(--text);
   font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.2;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
   letter-spacing: 0;
 }
 
@@ -124,9 +124,9 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
   justify-content: space-between;
   gap: 16px;
   padding: 14px 16px;
-  border: 1px solid #dfe5e9;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: transparent;
+  background: var(--surface-raised);
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -137,16 +137,18 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 
 .settings-telegram-summary:hover,
 .settings-telegram-summary:focus-visible {
-  color: #26333d;
-  border-color: rgba(71, 124, 158, 0.48);
-  box-shadow: 0 0 0 1px rgba(71, 124, 158, 0.08), 0 8px 20px rgba(34, 47, 58, 0.08);
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 1px var(--accent-soft), 0 8px 20px rgba(34, 47, 58, 0.08);
   filter: none;
   outline: none;
 }
 
 .settings-telegram-summary:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2), 0 0 16px rgba(255, 255, 255, 0.15);
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.22));
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: none;
 }
 
 .settings-telegram-summary-open {
@@ -154,15 +156,16 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  color: rgba(178, 191, 202, 0.7);
+  color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 14px;
+  font-weight: 550;
   transition: color 150ms ease, transform 150ms ease;
 }
 
 .settings-telegram-summary:hover .settings-telegram-summary-open,
 .settings-telegram-summary:focus-visible .settings-telegram-summary-open {
-  color: rgba(226, 234, 240, 0.95);
+  color: var(--accent);
   transform: translateX(2px);
 }
 
@@ -174,21 +177,22 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
 }
 
 .settings-telegram-summary-main > strong {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .settings-telegram-summary-state {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(203, 212, 220, 0.7);
+  color: var(--dim);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .settings-telegram-summary-state.is-connected {
-  color: #9fcba8;
+  color: var(--ok);
 }
 
 .settings-telegram-summary-state.is-connected .settings-telegram-status-dot {
@@ -200,19 +204,19 @@ html.electron-runtime .settings-view-content::-webkit-scrollbar {
   height: 8px;
   flex: 0 0 8px;
   border-radius: 50%;
-  border: 1px solid #a77b67;
+  border: 1px solid var(--dim);
   background: transparent;
 }
 
 .settings-telegram-status-dot.is-connected,
 .settings-telegram-summary-state.is-connected .settings-telegram-status-dot {
-  border-color: #77c68a;
-  background: #77c68a;
+  border-color: var(--ok);
+  background: var(--ok);
 }
 
 .settings-telegram-summary-account {
   overflow-wrap: anywhere;
-  color: rgba(230, 237, 242, 0.76);
+  color: var(--dim);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -261,10 +265,11 @@ html.electron-runtime .telegram-manager-backdrop::before {
 .telegram-manager-dialog.topbar-logout-modal {
   width: min(500px, 100%);
   padding: 24px;
-  border: 1px solid #e1e6e9;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(34, 47, 58, 0.18);
+  background: var(--surface-raised);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
 }
 
 .telegram-manager-header {
@@ -303,15 +308,15 @@ html.electron-runtime .telegram-manager-backdrop::before {
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: rgba(205, 214, 222, 0.7);
+  color: var(--dim);
   cursor: pointer;
   transition: color 140ms ease;
 }
 
 .telegram-manager-close:hover:not(:disabled),
 .telegram-manager-close:focus-visible {
-  color: rgba(239, 244, 248, 0.95);
-  outline: 2px solid rgba(169, 177, 186, 0.6);
+  color: var(--text);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -343,15 +348,15 @@ html.electron-runtime .telegram-manager-backdrop::before {
 }
 
 .telegram-manager-status strong {
-  color: rgba(232, 238, 243, 0.92);
-  font-size: 14px;
+  color: var(--text);
+  font-size: 16px;
   font-weight: 600;
 }
 
 .telegram-manager-status span:not(.settings-telegram-status-dot) {
-  color: rgba(177, 189, 201, 0.8);
+  color: var(--dim);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
   overflow-wrap: anywhere;
 }
 
@@ -359,9 +364,9 @@ html.electron-runtime .telegram-manager-backdrop::before {
   display: grid;
   gap: 8px;
   padding: 14px 0 4px;
-  color: rgba(177, 189, 201, 0.72);
+  color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .telegram-manager-details strong {
@@ -403,22 +408,23 @@ html.electron-runtime .telegram-manager-backdrop::before {
 }
 
 .telegram-manager-secondary {
-  border: 1px solid rgba(154, 168, 184, 0.16);
-  background: rgba(154, 168, 184, 0.05);
-  color: rgba(205, 214, 222, 0.82);
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
+  color: var(--text);
 }
 
 .telegram-manager-secondary:hover,
 .telegram-manager-secondary:focus-visible {
-  border-color: rgba(194, 207, 219, 0.3);
-  background: rgba(154, 168, 184, 0.1);
-  color: #f0f3f6;
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text);
 }
 
 .telegram-manager-secondary:focus-visible,
 .telegram-manager-primary:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 1px rgba(139, 205, 242, 0.2);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .telegram-manager-primary {
@@ -462,9 +468,9 @@ html.electron-runtime .telegram-manager-backdrop::before {
 }
 
 .telegram-manager-login label span {
-  color: rgba(177, 189, 201, 0.8);
+  color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .telegram-manager-login input,
@@ -472,34 +478,36 @@ html.electron-runtime .telegram-manager-backdrop::before {
   min-width: 0;
   height: 40px;
   padding: 8px 11px;
-  border: 1px solid rgba(154, 168, 184, 0.2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   outline: none;
-  background: rgba(17, 19, 22, 0.72);
+  background: var(--void);
   color: var(--text);
   font: inherit;
 }
 
 .telegram-manager-login input:focus,
 .telegram-credentials-form input:focus {
-  border-color: rgba(154, 168, 184, 0.55);
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 1px;
 }
 
 .telegram-manager-advanced {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid rgba(154, 168, 184, 0.12);
+  border-top: 1px solid var(--line);
 }
 
 .telegram-manager-advanced summary {
-  color: rgba(205, 214, 222, 0.72);
+  color: var(--signal);
   font-family: var(--mono);
   font-size: 12px;
   cursor: pointer;
 }
 
 .telegram-manager-advanced summary:hover {
-  color: rgba(239, 244, 248, 0.92);
+  color: var(--text);
 }
 
 .telegram-credentials-form {
@@ -511,17 +519,29 @@ html.electron-runtime .telegram-manager-backdrop::before {
 
 .telegram-credentials-form button {
   padding: 8px 12px;
-  border: 1px solid rgba(154, 168, 184, 0.24);
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: transparent;
+  background: var(--surface-muted);
   color: var(--text);
   font: inherit;
   cursor: pointer;
 }
 
+.telegram-credentials-form button:hover:not(:disabled),
+.telegram-credentials-form button:focus-visible {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.telegram-credentials-form button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .telegram-credentials-form button.topbar-logout-modal-action {
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .telegram-credentials-form button:disabled {
@@ -548,11 +568,17 @@ html.electron-runtime .telegram-manager-backdrop::before {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-right: 20px;
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
+}
+
+.settings-language-heading-row {
+  align-items: center;
 }
 
 .settings-language-switch button {
@@ -621,19 +647,19 @@ html.electron-runtime .telegram-manager-backdrop::before {
 
 .settings-view-description {
   margin: 10px 0 0;
-  color: rgba(177, 189, 201, 0.8);
+  color: var(--dim);
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .settings-about-section .settings-view-description {
   max-width: none;
-  color: rgba(222, 229, 235, 0.86);
+  color: var(--text);
   font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
-  font-size: 15px;
-  font-weight: 400;
-  line-height: 1.6;
+  font-size: 17px;
+  font-weight: 450;
+  line-height: 1.65;
   text-wrap: pretty;
 }
 
@@ -782,22 +808,22 @@ html.electron-runtime .telegram-manager-backdrop::before {
   min-width: 0;
   min-height: 40px;
   padding: 9px 11px;
-  border: 1px solid rgba(154, 168, 184, 0.35);
+  border: 1px solid var(--line);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--surface-muted);
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
 }
 
 .telegram-credentials-form input:focus-visible {
-  border-color: var(--signal);
-  outline: 2px solid rgba(238, 133, 55, 0.2);
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
   outline-offset: 1px;
 }
 
 .telegram-credentials-form input::placeholder {
-  color: #98a4af;
+  color: var(--dim);
   opacity: 1;
 }
 
@@ -815,8 +841,8 @@ html.electron-runtime .telegram-manager-backdrop::before {
 }
 
 .telegram-credentials-form button:disabled {
-  border-color: rgba(154, 168, 184, 0.35);
-  color: #a7b0b8;
+  border-color: var(--line);
+  color: var(--dim);
   cursor: default;
   opacity: 0.8;
 }
@@ -828,7 +854,7 @@ html.electron-runtime .telegram-manager-backdrop::before {
   margin-top: 14px;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -863,8 +889,30 @@ html.electron-runtime .telegram-manager-backdrop::before {
   margin-top: 24px;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
+}
+
+.telegram-manager-dialog .topbar-logout-modal-title {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.telegram-manager-dialog .topbar-logout-modal-description {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.telegram-manager-advanced summary {
+  font-size: 14px;
+}
+
+.telegram-credentials-form input {
+  font-size: 14px;
+}
+
+.telegram-credentials-form button {
+  font-size: 13px;
 }
 
 @keyframes statusPulse {
@@ -911,16 +959,16 @@ html.electron-runtime .telegram-manager-backdrop::before {
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: #7b858d;
+  color: var(--dim);
   font: inherit;
-  font-size: 13px;
-  font-weight: 450;
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
   transition: color 180ms ease, opacity 180ms ease;
 }
 
 .settings-theme-options button:hover {
-  color: #344d5c;
+  color: var(--text);
 }
 
 .settings-theme-options button:focus-visible {
@@ -930,18 +978,18 @@ html.electron-runtime .telegram-manager-backdrop::before {
 }
 
 .settings-theme-options button.is-selected {
-  color: #263d4b;
+  color: var(--text);
   font-weight: 650;
 }
 
 .settings-theme-options button svg {
   flex: 0 0 16px;
-  color: #9aa4ab;
+  color: var(--dim);
   transition: color 180ms ease, transform 220ms ease;
 }
 
 .settings-theme-options button.is-selected svg {
-  color: #3485a9;
+  color: var(--accent);
   transform: rotate(-8deg);
 }
 
@@ -956,15 +1004,16 @@ html.electron-runtime .telegram-manager-backdrop::before {
 .settings-editor-appearance > .settings-view-description {
   max-width: 520px;
   margin: 9px 0 0;
-  color: #68747e;
-  font-size: 12px;
-  line-height: 1.5;
+  color: var(--dim);
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .settings-editor-control-label {
-  color: #66727d;
+  color: var(--dim);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1215,9 +1264,9 @@ html.electron-runtime .telegram-manager-backdrop::before {
 .settings-editor-appearance > .settings-view-description {
   max-width: 520px;
   margin: 9px 0 0;
-  color: #68747e;
-  font-size: 12px;
-  line-height: 1.5;
+  color: var(--dim);
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .settings-editor-style-switch {
@@ -1276,7 +1325,7 @@ html.electron-runtime .telegram-manager-backdrop::before {
   justify-content: space-between;
   gap: 10px;
   min-height: 40px;
-  border-bottom: 1px solid #e7ebee;
+  border-bottom: 1px solid var(--line);
 }
 
 .settings-editor-mode-color-row:last-child {
@@ -1285,7 +1334,7 @@ html.electron-runtime .telegram-manager-backdrop::before {
 
 .settings-editor-mode-color-label {
   min-width: 0;
-  color: #3a4650;
+  color: var(--text);
   font-size: 12px;
 }
 
@@ -1295,7 +1344,7 @@ html.electron-runtime .telegram-manager-backdrop::before {
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
-  color: #66727d;
+  color: var(--dim);
   font-family: var(--mono);
   font-size: 10px;
 }
@@ -1356,4 +1405,67 @@ html.electron-runtime .telegram-manager-backdrop::before {
 .telegram-manager-dialog,
 .telegram-manager-dialog :where(*) {
   font-family: var(--settings-font, "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif);
+}
+
+html[data-theme='light'] .settings-view,
+html[data-theme='light'] .telegram-manager-dialog {
+  --dim: #59636d;
+  --faint: #78838d;
+  --line: #d5dce2;
+  --signal: #526879;
+}
+
+.telegram-manager-dialog .topbar-logout-modal-title {
+  color: var(--text);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-description,
+.telegram-manager-dialog .telegram-manager-login label span {
+  color: var(--dim);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-close {
+  color: var(--dim);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-close:hover,
+.telegram-manager-dialog .topbar-logout-modal-close:focus-visible {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-action {
+  border-color: var(--line);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.telegram-manager-dialog .topbar-logout-modal-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.telegram-manager-dialog .topbar-logout-modal-action--confirm,
+.telegram-manager-dialog .topbar-logout-modal-action--confirm:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.telegram-manager-dialog .telegram-credentials-form button.topbar-logout-modal-action,
+.telegram-manager-dialog .telegram-credentials-form button.topbar-logout-modal-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }

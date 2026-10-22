@@ -62,6 +62,15 @@ describe('SettingsView Telegram integration', () => {
     expect(screen.getByText('Version 1.2.2')).toBeInTheDocument();
   });
 
+  it('aligns the language selector to the right of its heading', () => {
+    const { container } = renderSettings();
+    const heading = within(container).getByRole('heading', { name: 'Language' });
+    const switchGroup = within(container).getByRole('group', { name: 'Language' });
+
+    expect(heading.parentElement).toHaveClass('settings-language-heading-row');
+    expect(heading.parentElement).toContainElement(switchGroup);
+  });
+
   it('shows the requested Russian Studio description in About', () => {
     const originalLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'ru');
@@ -96,7 +105,7 @@ describe('SettingsView Telegram integration', () => {
       const english = renderSettings();
       expect(within(english.container).getByText('App theme')).toBeInTheDocument();
       expect(within(english.container).getByText('Choose a light or dark theme for the entire app.')).toBeInTheDocument();
-      expect(within(english.container).getByRole('group', { name: 'Color theme' })).toBeInTheDocument();
+      expect(within(english.container).getByRole('group', { name: 'Color' })).toBeInTheDocument();
       expect(within(english.container).getByRole('button', { name: 'Light' })).toBeInTheDocument();
       expect(within(english.container).getByRole('button', { name: 'Dark' })).toBeInTheDocument();
 
@@ -104,7 +113,7 @@ describe('SettingsView Telegram integration', () => {
       const russian = renderSettings();
       expect(within(russian.container).getByText('Тема приложения')).toBeInTheDocument();
       expect(within(russian.container).getByText('Выберите светлую или тёмную тему для всего приложения.')).toBeInTheDocument();
-      expect(within(russian.container).getByRole('group', { name: 'Цветовая тема' })).toBeInTheDocument();
+      expect(within(russian.container).getByRole('group', { name: 'Цвет' })).toBeInTheDocument();
       expect(within(russian.container).getByRole('button', { name: 'Светлая' })).toBeInTheDocument();
       expect(within(russian.container).getByRole('button', { name: 'Тёмная' })).toBeInTheDocument();
     } finally {
@@ -126,7 +135,7 @@ describe('SettingsView Telegram integration', () => {
   it('switches and persists the app color theme', () => {
     renderSettings();
 
-    const themeGroup = screen.getByRole('group', { name: 'Color theme' });
+    const themeGroup = screen.getByRole('group', { name: 'Color' });
     const darkButton = within(themeGroup).getByRole('button', { name: 'Dark' });
     const lightButton = within(themeGroup).getByRole('button', { name: 'Light' });
 
@@ -143,6 +152,16 @@ describe('SettingsView Telegram integration', () => {
     expect(lightButton).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('supports an isolated theme storage key for the settings testbench', () => {
+    const testbenchThemeStorageKey = 'settings-testbench-theme';
+    renderSettings({ colorThemeStorageKey: testbenchThemeStorageKey });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dark' }));
+
+    expect(localStorage.getItem(testbenchThemeStorageKey)).toBe('dark');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBeNull();
+  });
+
   it('ignores previously saved custom colors and keeps theme choices unframed', () => {
     localStorage.setItem(EDITOR_APPEARANCE_STORAGE_KEY, JSON.stringify({
       style: 'outline',
@@ -153,7 +172,7 @@ describe('SettingsView Telegram integration', () => {
     const appearance = screen.getByRole('region', { name: 'App theme' });
 
     expect(within(appearance).queryByRole('region', { name: 'Editor preview' })).not.toBeInTheDocument();
-    expect(within(appearance).getByRole('group', { name: 'Color theme' })).toBeInTheDocument();
+    expect(within(appearance).getByRole('group', { name: 'Color' })).toBeInTheDocument();
     expect(within(appearance).queryByRole('group', { name: 'Editor appearance style' })).not.toBeInTheDocument();
     expect(appearance.querySelector('.settings-editor-mode-colors')).not.toBeInTheDocument();
     expect(appearance.querySelectorAll('input[type="color"]')).toHaveLength(0);

@@ -2,6 +2,7 @@ import { SettingsView } from '@/components/SettingsView';
 import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 
 type SettingsPageProps = {
+  colorThemeStorageKey?: string;
   onClose: () => void;
   accountName: string;
   telegramUsername: string;
@@ -31,6 +32,7 @@ type SettingsPageProps = {
 };
 
 export function SettingsPage({
+  colorThemeStorageKey,
   onClose,
   accountName,
   telegramUsername,
@@ -60,6 +62,7 @@ export function SettingsPage({
 }: SettingsPageProps) {
   return (
     <SettingsView
+      colorThemeStorageKey={colorThemeStorageKey}
       onClose={onClose}
       accountName={accountName}
       telegramUsername={telegramUsername}

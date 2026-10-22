@@ -7,6 +7,7 @@ import type { TelegramStatusSnapshot } from '@/hooks/useTelegramAuth';
 import { getTelegramStatusPresentation } from '@/workspace/AppShell';
 
 type SettingsViewProps = {
+  colorThemeStorageKey?: string;
   onClose: () => void;
   accountName: string;
   telegramUsername: string;
@@ -36,6 +37,7 @@ type SettingsViewProps = {
 };
 
 export function SettingsView({
+  colorThemeStorageKey,
   onClose,
   accountName,
   telegramUsername,
@@ -76,7 +78,7 @@ export function SettingsView({
   const isElectronRuntime = typeof document !== 'undefined'
     && document.documentElement.classList.contains('electron-runtime');
   const [isTelegramManagementOpen, setIsTelegramManagementOpen] = useState(false);
-  const [colorTheme, setColorTheme] = useState(readColorTheme);
+  const [colorTheme, setColorTheme] = useState(() => readColorTheme(colorThemeStorageKey));
   const settingsScrollRange = Math.max(0, settingsScrollMetrics.scrollHeight - settingsScrollMetrics.clientHeight);
   const settingsScrollbarThumbHeight = settingsScrollMetrics.scrollHeight > 0
     ? Math.min(
@@ -95,7 +97,7 @@ export function SettingsView({
       ? `${t(statusPresentation.messageKey)} ${telegramStatus.error}`
       : t(statusPresentation.messageKey);
   const selectColorTheme = (nextTheme: ColorTheme) => {
-    applyColorTheme(nextTheme, { animate: true });
+    applyColorTheme(nextTheme, { animate: true, storageKey: colorThemeStorageKey });
     setColorTheme(nextTheme);
   };
 
@@ -231,15 +233,17 @@ export function SettingsView({
 
         <div className="settings-sections">
           <section className="settings-view-section">
-            <h2>{t('settings.language')}</h2>
-            <div className="settings-language-switch" role="group" aria-label={t('settings.language')}>
-              <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
-                EN
-              </button>
-              <span aria-hidden="true">|</span>
-              <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
-                RU
-              </button>
+            <div className="settings-section-heading-row settings-language-heading-row">
+              <h2>{t('settings.language')}</h2>
+              <div className="settings-language-switch" role="group" aria-label={t('settings.language')}>
+                <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
+                  EN
+                </button>
+                <span aria-hidden="true">|</span>
+                <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
+                  RU
+                </button>
+              </div>
             </div>
           </section>
           <section className="settings-view-section settings-editor-appearance" aria-labelledby="settings-editor-appearance-title">

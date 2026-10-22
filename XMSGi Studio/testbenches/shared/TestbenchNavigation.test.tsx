@@ -25,6 +25,7 @@ describe('TestbenchNavigation', () => {
     expect(within(pages).getByRole('link', { name: 'Login' })).toHaveAttribute('href', '../login/');
     expect(within(pages).getByRole('link', { name: 'Studio' })).toHaveAttribute('aria-current', 'page');
     expect(within(pages).getByRole('link', { name: 'Planner' })).not.toHaveAttribute('aria-current');
+    expect(within(pages).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '../settings/');
     expect(within(pages).getByRole('link', { name: 'All pages' })).toHaveAttribute('href', '../');
   });
 

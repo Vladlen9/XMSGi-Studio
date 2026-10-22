@@ -1233,31 +1233,12 @@ html[data-theme='light'] .workspace-page .workspace-page-attachment-chip {
   color: #536a78;
 }
 
-html[data-theme='light'] .settings-language-switch,
-html[data-theme='light'] .settings-theme-options {
-  gap: 3px;
-  margin-right: 0;
-  padding: 3px;
-  border: 1px solid #e1e6ea;
-  border-radius: 8px;
-  background: #f1f4f6;
-}
-
-html[data-theme='light'] .settings-language-switch {
-  margin-top: 14px;
-}
-
 html[data-theme='light'] .settings-language-switch > span {
   color: #a7b0b7;
 }
 
 html[data-theme='light'] .settings-language-switch button,
 html[data-theme='light'] .settings-theme-options button {
-  min-width: 42px;
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 6px;
   background: transparent;
   color: #63727c;
 }
@@ -1266,17 +1247,12 @@ html[data-theme='light'] .settings-language-switch button:hover,
 html[data-theme='light'] .settings-language-switch button:focus-visible,
 html[data-theme='light'] .settings-theme-options button:hover,
 html[data-theme='light'] .settings-theme-options button:focus-visible {
-  border-color: #d7e0e5;
-  background: #f8fafb;
   color: #315f79;
 }
 
 html[data-theme='light'] .settings-language-switch button.is-selected,
 html[data-theme='light'] .settings-theme-options button.is-selected {
-  border-color: #d6e0e5;
-  background: #ffffff;
   color: #2e5268;
-  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.08);
 }
 
 html[data-theme='light'] .settings-theme-options button.is-selected svg {

@@ -17,3 +17,4 @@ Open the testbench hub at `http://127.0.0.1:5174/testbenches/`, or open a page d
 - Login: `/testbenches/login/`
 - Studio editor: `/testbenches/studio-editor/`
 - Planner: `/testbenches/planner/`
+- Settings: `/testbenches/settings/`
