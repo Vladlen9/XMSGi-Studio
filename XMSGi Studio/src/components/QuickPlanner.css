@@ -2148,8 +2148,8 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
 }
 
 .quick-planner-schedule-row .quick-planner-timezone {
-  width: 42px;
-  flex-basis: 42px;
+  width: 68px;
+  flex: 0 0 68px;
 }
 
 .quick-planner-schedule-row .quick-planner-presets button {

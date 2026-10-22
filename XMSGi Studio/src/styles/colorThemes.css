@@ -1040,12 +1040,20 @@ html[data-theme='light'] .workspace-page .workspace-page-rich-text-clear:focus-v
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-mobile-system-bar,
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-header,
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-composer,
-html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-mobile-home-indicator,
+html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-mobile-home-indicator {
+  background: rgba(241, 247, 251, 0.62);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  color: #334b5d;
+}
+
 html[data-theme='dark'] .chat-preview-stand.is-mobile .chat-preview-mobile-system-bar,
 html[data-theme='dark'] .chat-preview-stand.is-mobile .chat-preview-header,
 html[data-theme='dark'] .chat-preview-stand.is-mobile .chat-preview-composer,
 html[data-theme='dark'] .chat-preview-stand.is-mobile .chat-preview-mobile-home-indicator {
-  background: rgba(23, 33, 43, 0.94);
+  background: rgba(18, 28, 40, 0.58);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
   color: #f2f5f8;
 }
 
@@ -1399,25 +1407,31 @@ html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-pre
   box-shadow: 0 20px 34px rgba(34, 47, 58, 0.20);
 }
 
-html[data-theme='light'] .workspace-page .chat-preview-window.theme-graphite,
-html[data-theme='light'] .workspace-page .chat-preview-wallpaper.theme-graphite {
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-graphite {
   background-color: #edf2f5;
-  background-image: radial-gradient(rgba(118, 139, 151, 0.22) 1px, transparent 1px);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-wallpaper.theme-telegram,
+html[data-theme='light'] .workspace-page .chat-preview-wallpaper.theme-graphite {
+  background-color: transparent;
+  background-image: none;
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-mobile-system-bar {
-  background: #f3f6f8;
+  background: rgba(241, 247, 251, 0.4);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
   color: #4a5b66;
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-header,
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-web .chat-preview-header {
-  border-bottom: 1px solid #e3e9ed;
-  background: #f3f6f8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(241, 247, 251, 0.42);
   color: #36444d;
   box-shadow: 0 1px 0 rgba(43, 66, 82, 0.1), 0 4px 12px rgba(35, 55, 70, 0.06);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-header::after,
@@ -1648,32 +1662,91 @@ html[data-theme='light'] .workspace-page .chat-preview-inline-keyboard-button.is
 
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-composer,
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-web .chat-preview-composer {
-  border-color: #e0e6ea;
-  background: #f3f6f8;
+  border-color: rgba(115, 150, 171, 0.28);
+  background: rgba(241, 247, 251, 0.38);
   color: #64737c;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-composer-input,
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-web .chat-preview-composer-input {
-  border: 1px solid #dce4e8;
-  background: #f3f6f8;
+  border: 1px solid rgba(115, 150, 171, 0.3);
+  background: rgba(255, 255, 255, 0.24);
   color: #75828b;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(12px) saturate(135%);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-composer-input,
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-composer-input:hover {
-  background: #f3f6f8;
+  background: rgba(255, 255, 255, 0.28);
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-composer-emoji,
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-web .chat-preview-composer-action {
   color: #657680;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-mobile-system-bar,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-mobile-home-indicator {
+  background-color: rgba(12, 20, 29, 0.72);
+  color: #f2f6fa;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header {
+  border-bottom-color: rgba(220, 235, 247, 0.18);
+  box-shadow: 0 1px 0 rgba(220, 235, 247, 0.12), 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header::before {
+  background: rgba(220, 235, 247, 0.04);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header::after {
+  background: linear-gradient(90deg, transparent, rgba(220, 235, 247, 0.2) 12%, rgba(220, 235, 247, 0.2) 88%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header-copy strong {
+  color: #f4f7fa;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header-copy span,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer-action,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer-emoji {
+  color: #d5e1ea;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-mobile-back,
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-expand {
+  color: #e5eef5;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-service-date {
+  border-color: rgba(220, 235, 247, 0.22);
+  background: rgba(12, 20, 29, 0.76);
+  color: #f0f5f8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer {
+  border-color: rgba(220, 235, 247, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer-input {
+  border-color: rgba(220, 235, 247, 0.28);
+  background: rgba(12, 20, 29, 0.44);
+  color: #eef4f8;
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-composer-input::placeholder {
+  color: #c2cfda;
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-mobile-home-indicator {
@@ -1842,4 +1915,81 @@ html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stag
 html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-weekday-list button:focus-visible {
   outline: 2px solid rgba(71, 124, 158, 0.58) !important;
   outline-offset: 2px !important;
+}
+
+.workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:not(:disabled) {
+  border-color: #239dfb !important;
+  background: #239dfb !important;
+  color: #ffffff !important;
+}
+
+.workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:hover:not(:disabled),
+.workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:focus-visible:not(:disabled) {
+  border-color: #239dfb !important;
+  background: #239dfb !important;
+  box-shadow: 0 3px 8px rgba(35, 157, 251, 0.24) !important;
+  filter: brightness(1.04);
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:focus-visible:not(:disabled) {
+  box-shadow: 0 3px 8px rgba(35, 157, 251, 0.24) !important;
+}
+
+.workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:focus-visible:not(:disabled) {
+  outline: 2px solid rgba(35, 157, 251, 0.58) !important;
+  outline-offset: 2px !important;
+}
+
+.workspace-page .workspace-page-submit-actions .workspace-page-publish-main.is-scheduled:active:not(:disabled) {
+  border-color: #239dfb !important;
+  background: #239dfb !important;
+  box-shadow: inset 0 1px 2px rgba(34, 47, 58, 0.16) !important;
+  filter: brightness(0.98);
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-header-copy strong {
+  color: #f4f7fa;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-header-copy span {
+  color: #c2cfda;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-stand .chat-preview-window .chat-preview-service-date {
+  border: 1px solid rgba(220, 235, 247, 0.2);
+  background: rgba(12, 20, 29, 0.78);
+  color: #eef4f8;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-empty,
+html[data-theme='dark'] .workspace-page .chat-preview-state {
+  color: #d3dee7;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-history-entry,
+html[data-theme='dark'] .workspace-page .chat-preview-bubble {
+  color: #f0f5f8;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-history-entry .chat-preview-message,
+html[data-theme='dark'] .workspace-page .chat-preview-bubble .chat-preview-message {
+  color: #f0f5f8;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-history-entry-head time,
+html[data-theme='dark'] .workspace-page .chat-preview-meta,
+html[data-theme='dark'] .workspace-page .chat-preview-history-entry .chat-preview-meta {
+  color: rgba(231, 237, 243, 0.82);
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-composer,
+html[data-theme='dark'] .workspace-page .chat-preview-composer-input,
+html[data-theme='dark'] .workspace-page .chat-preview-window .chat-preview-composer-action {
+  color: #d5e1ea;
+}
+
+html[data-theme='dark'] .workspace-page .chat-preview-composer-input {
+  border-color: rgba(220, 235, 247, 0.2);
+  background: rgba(12, 20, 29, 0.52);
 }
