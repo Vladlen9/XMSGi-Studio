@@ -169,12 +169,12 @@
 
 .quick-planner-chat:hover > svg,
 .quick-planner-chat:focus-visible > svg {
-  transform: scale(1.2);
+  transform: translateX(1px);
 }
 
 .quick-planner-chat.is-open:hover > svg,
 .quick-planner-chat.is-open:focus-visible > svg {
-  transform: rotate(180deg) scale(1.2);
+  transform: rotate(180deg) translateX(1px);
 }
 
 .quick-planner-chat-menu {
@@ -397,7 +397,7 @@
   padding: 3px;
   border: 1px solid var(--planner-line);
   border-radius: 7px;
-  background: #f0f2f4;
+  background: #f1f3f5;
 }
 
 .quick-planner-mode-switch button {
@@ -415,13 +415,20 @@
   background: transparent;
   font-family: "Orbitron", Arial, sans-serif;
   font-size: 12px;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
   white-space: nowrap;
+}
+
+.quick-planner-mode-switch button:hover:not(.is-active) {
+  color: var(--planner-ink);
+  background: rgba(var(--planner-accent-rgb), 0.045);
 }
 
 .quick-planner-mode-switch button.is-active {
   color: var(--planner-accent);
-  background: #dceefa;
-  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.42);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.1), inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.28);
   font-weight: 600;
 }
 
@@ -706,7 +713,7 @@
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
 .quick-planner-tools button:hover,
@@ -714,6 +721,7 @@
 .quick-planner-tools button.is-active {
   color: var(--planner-accent);
   background: rgba(var(--planner-accent-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--planner-accent-rgb), 0.14);
   outline: none;
 }
 
@@ -1133,14 +1141,22 @@
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 12px;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .quick-planner-schedule-row button:hover,
 .quick-planner-schedule-row button:focus-visible {
   border-color: rgba(var(--planner-accent-rgb), 0.36);
   background: rgba(var(--planner-accent-rgb), 0.04);
-  outline: none;
+}
+
+.quick-planner-schedule-row button:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 2px;
+}
+
+.quick-planner-schedule-row button:active:not(:disabled):not(.is-readonly) {
+  transform: translateY(1px);
 }
 
 .quick-planner-schedule-row button.is-readonly,
@@ -1254,6 +1270,8 @@
   border-color: transparent;
   border-radius: 6px;
   background: transparent;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .quick-planner-date-picker-header button:hover:not(:disabled),
@@ -1261,6 +1279,11 @@
   color: var(--planner-accent);
   border-color: rgba(var(--planner-accent-rgb), 0.5);
   background: rgba(var(--planner-accent-rgb), 0.08);
+}
+
+.quick-planner-date-picker-header button:focus-visible:not(:disabled) {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 1px;
 }
 
 .quick-planner-date-picker-header button:disabled {
@@ -1297,6 +1320,8 @@
   font: inherit;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
 }
 
 .quick-planner-date-picker-grid button:hover:not(:disabled),
@@ -1305,6 +1330,11 @@
   border-color: rgba(var(--planner-accent-rgb), 0.5);
   background: rgba(var(--planner-accent-rgb), 0.1);
   outline: none;
+}
+
+.quick-planner-date-picker-grid button:focus-visible:not(:disabled) {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 1px;
 }
 
 .quick-planner-date-picker-grid button.is-today {
@@ -1363,6 +1393,8 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: left;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .quick-planner-time-list button:hover:not(:disabled),
@@ -1370,6 +1402,11 @@
   color: #26333d;
   background: rgba(var(--planner-accent-rgb), 0.12);
   outline: none;
+}
+
+.quick-planner-time-list button:focus-visible:not(:disabled) {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 1px;
 }
 
 .quick-planner-time-list button[aria-selected="true"] {
@@ -1716,7 +1753,27 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
 .quick-planner-presets button:focus-visible {
   color: var(--planner-accent);
   background: rgba(var(--planner-accent-rgb), 0.07);
-  outline: none;
+}
+
+.quick-planner-presets button:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 2px;
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-mode-switch button.is-active {
+  color: #315f79;
+}
+
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button {
+  border-color: rgba(var(--planner-accent-rgb), 0.34);
+  background: rgba(var(--planner-accent-rgb), 0.065);
+  color: #cfe9f9;
+}
+
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button:hover,
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button:focus-visible {
+  border-color: rgba(var(--planner-accent-rgb), 0.58);
+  background: rgba(var(--planner-accent-rgb), 0.13);
 }
 
 .quick-planner-submit {
@@ -1736,6 +1793,26 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 12px;
   font-weight: 700;
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.14);
+  cursor: pointer;
+  transition: box-shadow 150ms ease, filter 150ms ease, transform 150ms ease;
+}
+
+.quick-planner-submit:hover:not(:disabled),
+.quick-planner-submit:focus-visible:not(:disabled) {
+  box-shadow: 0 3px 8px rgba(var(--planner-accent-rgb), 0.24);
+  filter: brightness(1.04);
+}
+
+.quick-planner-submit:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.62);
+  outline-offset: 2px;
+}
+
+.quick-planner-submit:active:not(:disabled) {
+  box-shadow: 0 0 0 rgba(34, 47, 58, 0.08);
+  filter: brightness(0.98);
+  transform: translateY(1px);
 }
 
 .quick-planner-schedule-row .quick-planner-submit:hover,
@@ -2133,13 +2210,23 @@ html[data-theme='dark'] .quick-planner .quick-planner-message {
   background-color: #151b20;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"],
-.quick-planner-schedule-field > button[aria-label="Choose time"] {
-  border-color: rgba(40, 184, 244, 0.62);
-  background: rgba(40, 184, 244, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(40, 184, 244, 0.12);
+.quick-planner .quick-planner-schedule-field > button {
+  border-color: rgba(var(--planner-accent-rgb), 0.3);
+  background: rgba(var(--planner-accent-rgb), 0.045);
+  box-shadow: none;
   color: var(--planner-ink);
-  font-weight: 600;
+}
+
+.quick-planner .quick-planner-schedule-field > button:hover:not(:disabled),
+.quick-planner .quick-planner-schedule-field > button:focus-visible {
+  border-color: rgba(var(--planner-accent-rgb), 0.58);
+  background: rgba(var(--planner-accent-rgb), 0.1);
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.08);
+}
+
+.quick-planner .quick-planner-schedule-field > button:focus-visible {
+  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline-offset: 2px;
 }
 
 .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
@@ -2147,21 +2234,24 @@ html[data-theme='dark'] .quick-planner .quick-planner-message {
   flex-basis: 120px;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"] svg,
-.quick-planner-schedule-field > button[aria-label="Choose time"] svg {
-  color: #159ce0;
-  stroke-width: 2.2;
+.quick-planner .quick-planner-schedule-field > button svg {
+  color: var(--planner-accent);
+  stroke-width: 2;
 }
 
-html[data-theme='dark'] .quick-planner-schedule-field > button[aria-label="Choose date"],
-html[data-theme='dark'] .quick-planner-schedule-field > button[aria-label="Choose time"] {
-  border-color: #28b8f4;
-  background: rgba(40, 184, 244, 0.14);
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button {
+  border-color: rgba(var(--planner-accent-rgb), 0.44);
+  background: rgba(var(--planner-accent-rgb), 0.1);
   color: #e0f5ff;
 }
 
-html[data-theme='light'] .quick-planner-schedule-field > button[aria-label="Choose date"],
-html[data-theme='light'] .quick-planner-schedule-field > button[aria-label="Choose time"] {
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button:hover:not(:disabled),
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button:focus-visible {
+  border-color: rgba(var(--planner-accent-rgb), 0.68);
+  background: rgba(var(--planner-accent-rgb), 0.17);
+}
+
+html[data-theme='light'] .quick-planner .quick-planner-schedule-field > button {
   color: #173b52;
 }
 
@@ -2176,27 +2266,29 @@ html[data-theme='light'] .quick-planner-schedule-field > button[aria-label="Choo
 .quick-planner-presets button + button {
   min-height: 34px;
   padding: 0 10px;
-  border: 1px solid rgba(40, 184, 244, 0.62);
+  border: 1px solid rgba(var(--planner-accent-rgb), 0.3);
   border-radius: 6px;
-  background: rgba(40, 184, 244, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(40, 184, 244, 0.12);
-  color: #173b52;
-  font-size: 12px;
-  font-weight: 600;
+  background: rgba(var(--planner-accent-rgb), 0.045);
+  color: var(--planner-accent);
 }
 
 .quick-planner-presets button:hover,
 .quick-planner-presets button:focus-visible {
-  border-color: #28b8f4;
-  background: rgba(40, 184, 244, 0.18);
-  outline: none;
+  border-color: rgba(var(--planner-accent-rgb), 0.58);
+  background: rgba(var(--planner-accent-rgb), 0.1);
 }
 
 html[data-theme='dark'] .quick-planner-presets button,
 html[data-theme='dark'] .quick-planner-presets button + button {
-  border-color: #28b8f4;
-  background: rgba(40, 184, 244, 0.14);
+  border-color: rgba(var(--planner-accent-rgb), 0.44);
+  background: rgba(var(--planner-accent-rgb), 0.1);
   color: #e0f5ff;
+}
+
+html[data-theme='dark'] .quick-planner-presets button:hover,
+html[data-theme='dark'] .quick-planner-presets button:focus-visible {
+  border-color: rgba(var(--planner-accent-rgb), 0.68);
+  background: rgba(var(--planner-accent-rgb), 0.17);
 }
 
 html[data-theme='light'] .quick-planner-presets button,

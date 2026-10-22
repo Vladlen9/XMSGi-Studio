@@ -1745,3 +1745,101 @@ html[data-theme='light'] .workspace-page .chat-preview-wallpaper-remove:focus-vi
   background: #f8e6e3;
   color: #8f1c13;
 }
+
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template,
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button {
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.06), inset 0 0 0 1px rgba(71, 124, 158, 0.05) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button:focus-visible {
+  border-color: #b9ced9 !important;
+  background: #edf4f7 !important;
+  box-shadow: 0 2px 5px rgba(34, 47, 58, 0.09), inset 0 0 0 1px rgba(71, 124, 158, 0.1) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template.is-active,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template[aria-pressed='true'],
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button.is-active,
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button[aria-pressed='true'] {
+  box-shadow: 0 1px 3px rgba(34, 47, 58, 0.1), inset 0 0 0 1px rgba(71, 124, 158, 0.12) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-schedule-compact-button:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-attachment-toggle:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:focus-visible {
+  outline: 2px solid rgba(71, 124, 158, 0.58) !important;
+  outline-offset: 2px !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-attachment-toggle,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle {
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.06), inset 0 0 0 1px rgba(71, 124, 158, 0.05) !important;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-attachment-toggle:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle[aria-expanded='true'] {
+  border-color: #b9ced9 !important;
+  background: #edf4f7 !important;
+  box-shadow: 0 2px 5px rgba(34, 47, 58, 0.09), inset 0 0 0 1px rgba(71, 124, 158, 0.1) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-row .workspace-page-attachment-toggle:active:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:active:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:active:not(:disabled) {
+  background: #e4eef3 !important;
+  box-shadow: inset 0 1px 2px rgba(34, 47, 58, 0.1) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:not(:disabled) {
+  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.14) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:focus-visible:not(:disabled) {
+  box-shadow: 0 3px 8px rgba(71, 124, 158, 0.24) !important;
+  filter: brightness(1.04);
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:focus-visible:not(:disabled) {
+  outline: 2px solid rgba(71, 124, 158, 0.58) !important;
+  outline-offset: 2px !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:active:not(:disabled) {
+  box-shadow: inset 0 1px 2px rgba(34, 47, 58, 0.16) !important;
+  filter: brightness(0.98);
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-picker button,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-list button,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-quick-row button,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-repeat-menu button,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-weekday-list button {
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-picker button:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-list button:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-quick-row button:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-repeat-menu button:hover:not(:disabled),
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-weekday-list button:hover:not(:disabled) {
+  box-shadow: 0 1px 3px rgba(34, 47, 58, 0.08) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-picker button:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-time-list button:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-quick-row button:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-repeat-menu button:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-weekday-list button:focus-visible {
+  outline: 2px solid rgba(71, 124, 158, 0.58) !important;
+  outline-offset: 2px !important;
+}
