@@ -121,7 +121,13 @@ function formatDateLabel(value: string, locale: 'en' | 'ru') {
   if (!year || !month || !day) return value;
   const date = new Date(year, month - 1, day);
   const label = new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', { month: 'short', day: 'numeric' }).format(date);
-  return year === new Date().getFullYear() ? label : `${label} '${String(year).slice(-2)}`;
+  return year === new Date().getFullYear()
+    ? label
+    : new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    }).format(date);
 }
 
 function formatTimeValue(date: Date) {

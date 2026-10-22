@@ -1173,41 +1173,41 @@
   flex: 0 0 auto;
 }
 
-.quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
-  width: 120px;
-  flex: 0 0 120px;
+.quick-planner-schedule-row > .quick-planner-schedule-field {
+  width: 116px;
+  flex: 0 0 116px;
 }
 
-.quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
+.quick-planner-time-value > .quick-planner-schedule-field {
   width: 96px;
   flex: 0 0 96px;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"],
-.quick-planner-schedule-field > button[aria-label="Choose time"] {
+.quick-planner-schedule-row > .quick-planner-schedule-field > button,
+.quick-planner-time-value > .quick-planner-schedule-field > button {
   width: 100%;
   min-width: 0;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"] {
+.quick-planner-schedule-row > .quick-planner-schedule-field > button {
   box-sizing: border-box;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"] > span,
-.quick-planner-schedule-field > button[aria-label="Choose time"] > span {
+.quick-planner-schedule-row > .quick-planner-schedule-field > button > span,
+.quick-planner-time-value > .quick-planner-schedule-field > button > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"] > span {
+.quick-planner-schedule-row > .quick-planner-schedule-field > button > span {
   flex: 1 1 auto;
   text-align: left;
 }
 
-.quick-planner-schedule-field > button[aria-label="Choose date"] > svg:last-child,
-.quick-planner-schedule-field > button[aria-label="Choose time"] > svg:last-child {
+.quick-planner-schedule-row > .quick-planner-schedule-field > button > svg:last-child,
+.quick-planner-time-value > .quick-planner-schedule-field > button > svg:last-child {
   margin-left: auto;
 }
 
@@ -1451,6 +1451,11 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-planner-schedule-row > .quick-planner-schedule-field > button {
+  font-variant-numeric: tabular-nums;
 }
 
 .quick-planner :is(.quick-planner-schedule-popover, .quick-planner-date-picker, .quick-planner-time-picker, .quick-planner-emoji-picker) {
@@ -2132,14 +2137,14 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   display: none;
 }
 
-.quick-planner-schedule-row .quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
-  width: 100px;
-  flex: 0 0 100px;
+.quick-planner-schedule-row > .quick-planner-schedule-field {
+  width: 116px;
+  flex: 0 0 116px;
 }
 
-.quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
-  width: 88px;
-  flex: 0 0 88px;
+.quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field {
+  width: 96px;
+  flex: 0 0 96px;
 }
 
 .quick-planner-schedule-row .quick-planner-timezone {
@@ -2164,14 +2169,14 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
 }
 
 @media (max-width: 560px) {
-  .quick-planner-schedule-row .quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
-    width: 90px;
-    flex-basis: 90px;
+  .quick-planner-schedule-row > .quick-planner-schedule-field {
+    width: 116px;
+    flex-basis: 116px;
   }
 
-  .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
-    width: 78px;
-    flex-basis: 78px;
+  .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field {
+    width: 96px;
+    flex-basis: 96px;
   }
 
   .quick-planner-schedule-row .quick-planner-timezone {
@@ -2227,11 +2232,6 @@ html[data-theme='dark'] .quick-planner .quick-planner-message {
 .quick-planner .quick-planner-schedule-field > button:focus-visible {
   outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
   outline-offset: 2px;
-}
-
-.quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field:has(> button[aria-label="Choose time"]) {
-  width: 120px;
-  flex-basis: 120px;
 }
 
 .quick-planner .quick-planner-schedule-field > button svg {

@@ -134,8 +134,8 @@ body {
   }
 
   .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-schedule-field {
-    width: 100px;
-    flex-basis: 100px;
+    width: 116px;
+    flex-basis: 116px;
   }
 
   .planner-testbench .planner-shell .quick-planner-timezone {
@@ -154,8 +154,8 @@ body {
 
 @media (max-width: 520px) {
   .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-schedule-field {
-    width: 90px;
-    flex-basis: 90px;
+    width: 116px;
+    flex-basis: 116px;
   }
 
   .planner-testbench .planner-shell .quick-planner-presets button {
