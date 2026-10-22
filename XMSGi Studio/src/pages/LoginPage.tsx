@@ -1,5 +1,6 @@
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Moon, Sun } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { applyColorTheme, readColorTheme, type ColorTheme } from '@/lib/colorTheme';
 import { useLocale } from '@/lib/i18n';
 import './LoginPage.css';
 
@@ -51,6 +52,7 @@ export function LoginPage({
   handleWelcomeBack,
 }: LoginPageProps) {
   const { locale, setLocale, t } = useLocale();
+  const [colorTheme, setColorTheme] = useState(readColorTheme);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const returningUserLabel = returningUserName || (returningUserUsername ? `@${returningUserUsername}` : t('auth.returningUser'));
   const returningUserActionLabel = t('auth.returnToApp', { name: returningUserLabel });
@@ -155,14 +157,29 @@ export function LoginPage({
       <div className="app">
         <section className={`auth-panel auth-screen ${showAuthForm ? 'is-auth-open' : ''}`} lang={locale}>
           <div className="auth-language-switch" role="group" aria-label={t('language.title')}>
-            <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
-              EN
-            </button>
-            <span aria-hidden="true">|</span>
             <button type="button" className={locale === 'ru' ? 'is-selected' : ''} onClick={() => setLocale('ru')} aria-pressed={locale === 'ru'}>
               RU
             </button>
+            <span aria-hidden="true">|</span>
+            <button type="button" className={locale === 'en' ? 'is-selected' : ''} onClick={() => setLocale('en')} aria-pressed={locale === 'en'}>
+              EN
+            </button>
           </div>
+          <button
+            type="button"
+            className="auth-theme-button"
+            aria-label={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
+            title={t(colorTheme === 'light' ? 'auth.switchToDarkTheme' : 'auth.switchToLightTheme')}
+            onClick={() => {
+              const nextTheme: ColorTheme = colorTheme === 'light' ? 'dark' : 'light';
+              applyColorTheme(nextTheme, { animate: true });
+              setColorTheme(nextTheme);
+            }}
+          >
+            {colorTheme === 'light'
+              ? <Moon size={19} strokeWidth={1.8} aria-hidden="true" />
+              : <Sun size={19} strokeWidth={1.8} aria-hidden="true" />}
+          </button>
           <main className="login-layout" ref={loginLayoutRef}>
             <section className="login-brand" aria-label="MSGi Studio">
               <h1 className="login-wordmark">

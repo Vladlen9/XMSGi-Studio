@@ -1524,6 +1524,8 @@ img.chat-preview-avatar,
   border-radius: 30px;
   background-color: #0e1621;
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.34);
+  contain: paint;
+  isolation: isolate;
 }
 
 .chat-preview-stand.is-mobile .chat-preview-mobile-system-bar {
@@ -1686,6 +1688,17 @@ img.chat-preview-avatar,
   display: none;
 }
 
+.chat-preview-stand.is-mobile .chat-preview-header::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  content: '';
+  background: rgba(123, 143, 165, 0.32);
+  pointer-events: none;
+}
+
 .chat-preview-stand.is-mobile .chat-preview-composer {
   position: relative;
   z-index: 2;
@@ -1828,6 +1841,10 @@ html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-mobile-home
 
 html[data-theme='light'] .chat-preview-mobile-home-indicator span {
   background: rgba(62, 82, 96, 0.48);
+}
+
+html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-header::before {
+  background: #dce5ea;
 }
 
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-window.is-chat-list-open .chat-preview-chat-list {
@@ -1991,7 +2008,7 @@ html[data-theme='light'] .chat-preview-stand.is-web .chat-preview-composer {
 }
 
 html[data-theme='light'] .chat-preview-composer-input {
-  border: 1px solid #dfe7eb;
+  border: 1px solid #c1ced6;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: none;
   color: #778a98;
@@ -1999,7 +2016,7 @@ html[data-theme='light'] .chat-preview-composer-input {
 
 html[data-theme='light'] .chat-preview-stand.is-web .chat-preview-composer-input {
   background: transparent;
-  border-color: transparent;
+  border-color: #c1ced6;
   box-shadow: none;
   color: #607985;
 }
@@ -2011,7 +2028,7 @@ html[data-theme='light'] .chat-preview-stand.is-web .chat-preview-composer-actio
 }
 
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-composer-input {
-  border-color: #dfe7eb;
+  border-color: #c1ced6;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: none;
   color: #718391;
@@ -2020,7 +2037,7 @@ html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-composer-in
 }
 
 html[data-theme='light'] .chat-preview-stand.is-mobile .chat-preview-composer-input:hover {
-  border-color: #c9d9e2;
+  border-color: #aebfc9;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: none;
 }

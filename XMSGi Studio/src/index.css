@@ -2824,7 +2824,7 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
 .auth-language-switch {
   position: fixed;
   top: 24px;
-  right: 30px;
+  left: 30px;
   z-index: 6;
   display: inline-flex;
   align-items: center;
@@ -2833,6 +2833,35 @@ html.electron-runtime .topbar-logout-modal-backdrop::before {
   font-family: var(--mono);
   font-size: 13px;
   letter-spacing: 0.08em;
+}
+
+.auth-theme-button {
+  position: fixed;
+  top: 19px;
+  right: 30px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.auth-theme-button:hover,
+.auth-theme-button:focus-visible {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.auth-theme-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .auth-language-switch button {

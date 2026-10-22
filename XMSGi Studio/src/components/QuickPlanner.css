@@ -1482,8 +1482,9 @@
 
 }
 
-.quick-planner-schedule-row .quick-planner-submit svg {
-  color: inherit;
+.quick-planner-schedule-row .quick-planner-submit svg:first-child {
+  flex: 0 0 16px;
+  color: #ffffff;
 }
 
 .quick-planner-schedule-row .quick-planner-open-studio {
@@ -2006,5 +2007,32 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
   .quick-planner-notes {
     grid-template-columns: minmax(0, 1fr);
     gap: 16px;
+  }
+}
+
+.quick-planner-schedule-row {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 104px;
+  align-content: flex-start;
+  padding-bottom: 52px;
+}
+
+.quick-planner-schedule-row > .quick-planner-submit,
+.quick-planner-schedule-row > .quick-planner-draft-actions {
+  position: absolute;
+  right: 26px;
+  bottom: 7px;
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .quick-planner-schedule-row {
+    padding-bottom: 56px;
+  }
+
+  .quick-planner-schedule-row > .quick-planner-submit,
+  .quick-planner-schedule-row > .quick-planner-draft-actions {
+    right: 15px;
   }
 }

@@ -31,6 +31,7 @@ const baseNotification: NotificationState = {
 
 let inMemoryDraftStore: PersistedDraftStore;
 const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
+const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/colorThemes.css'), 'utf8');
 
 function getInMemoryWorkspaceDraft(): WorkspaceDraft {
   const workspaceDraft = inMemoryDraftStore.workspaceDraft;
@@ -517,12 +518,16 @@ describe('WorkspacePage main-screen flows', () => {
     expect(toolbarRule).toMatch(/opacity:\s*1/);
     expect(toolbarRule).toMatch(/visibility:\s*visible/);
     expect(toolbarRule).toMatch(/transform:\s*none/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*transform:\s*translateY\(11px\);/);
     expect(lightEditorInputRule).toMatch(/background:\s*#f7f8fa !important/);
     expect(lightEditorInputRule).toMatch(/border:\s*1px solid #e5e9ec/);
     expect(workspacePageStyles).toMatch(/workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-input\s*\{[^}]*margin-bottom:\s*8px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor,\s*html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active\s*\{\s*padding-bottom:\s*12px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-input\s*\{\s*flex:\s*1 1 auto;\s*margin-bottom:\s*8px;/);
-    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor \.workspace-page-rich-text-toolbar\.is-airy,\s*html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*min-height:\s*34px;\s*margin:\s*12px 0 0 auto;\s*transform:\s*translateY\(8px\);/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-editor \.workspace-page-rich-text-toolbar\.is-airy,\s*html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*min-height:\s*34px;\s*margin:\s*12px 0 0 auto;\s*transform:\s*translateY\(11px\);/);
+    expect(workspacePageStyles).toMatch(/@media \(max-height: 720px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*transform:\s*translateY\(11px\);/);
+    expect(workspacePageStyles).toMatch(/@media \(max-width: 840px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-editor\.is-toolbar-active \.workspace-page-rich-text-toolbar\.is-airy\s*\{\s*transform:\s*translateY\(15px\);/);
+    expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\)\s*\{\s*\.workspace-page-rich-text-editor\s*\{\s*height:\s*100%;\s*padding-bottom:\s*6px;\s*\}\s*\.workspace-page-rich-text-editor \.workspace-page-rich-text-input\s*\{\s*flex:\s*1 1 0;\s*min-height:\s*0;\s*margin-bottom:\s*8px;\s*\}/);
     expect(workspacePageStyles).not.toMatch(/\.workspace-page-attachment-tray\.is-empty\s*\{[^}]*display:\s*none/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-preview-panel\s*\{[^}]*width:\s*278px;[^}]*min-width:\s*278px;[^}]*max-width:\s*278px;[^}]*flex:\s*0 0 278px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page \.workspace-page-editor-shell\s*\{\s*max-height:\s*none;\s*margin-bottom:\s*0;/);
@@ -544,7 +549,7 @@ describe('WorkspacePage main-screen flows', () => {
 
   it('keeps the Time picker and quick actions usable at the minimum Electron height', () => {
     expect(workspacePageStyles).toMatch(/@media \(max-width: 1100px\) and \(max-height: 540px\)[\s\S]*?html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-time-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
-    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{[^}]*grid-template-rows:\s*36px minmax\(0, 1fr\);[^}]*grid-template-areas:[\s\S]*?'date-time date-time'[\s\S]*?'quick-time quick-date';[^}]*overflow-y:\s*auto;/);
+    expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{[^}]*grid-template-rows:\s*36px minmax\(0, 1fr\);[^}]*grid-template-areas:[\s\S]*?'date-time date-time'[\s\S]*?'quick-date quick-time';[^}]*overflow-y:\s*auto;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-quick-date-panel,[\s\S]*?\.workspace-page-schedule-quick-time-panel\s*\{[^}]*display:\s*grid;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-repeat-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-repeat-focus \.workspace-page-schedule-main\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
@@ -601,6 +606,13 @@ describe('WorkspacePage main-screen flows', () => {
     expect(shellRule).toMatch(/0 0 0 1px rgba\(var\(--editor-outline\), 0\.04\)/);
     expect(stageRule).toMatch(/rgba\(var\(--editor-outline-bright\), 0\.48\)/);
     expect(dividerRule).toMatch(/filter:\s*none/);
+  });
+
+  it('strengthens the toolbar divider and editor outline in the light theme', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-stage\s*\{[^}]*editor-outline-bright\), 0\.72/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-stage::after\s*\{\s*height:\s*3px;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-editor-shell\s*\{[^}]*border-color:\s*rgba\(var\(--editor-outline\), 0\.48\) !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-editor-shell::after\s*\{[^}]*opacity:\s*1 !important;[^}]*border-color:\s*rgba\(var\(--editor-outline\), 0\.64\) !important;/);
   });
 
   it('updates publish actions without changing the blue editor outline', async () => {
@@ -1918,6 +1930,48 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('keeps the selected publish mode planner-blue and unchanged on hover', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:hover:not\(:disabled\),\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:focus-visible\s*\{[^}]*background:\s*var\(--accent\) !important;[^}]*color:\s*#ffffff !important;[^}]*transform:\s*none;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected\s*\{[^}]*background:\s*var\(--accent\) !important;[^}]*color:\s*#ffffff !important;/);
+    expect(workspacePageStyles).toMatch(/workspace-page-publish-option\.is-selected:hover::before,[\s\S]*?workspace-page-publish-option\.is-selected:focus-visible::after\s*\{\s*opacity:\s*0;/);
+  });
+
+  it('keeps the light-theme Send button Planner blue, including on hover', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main\.is-send:not\(:disabled\),[\s\S]*?\.workspace-page-publish-main\.is-send:active:not\(:disabled\)\s*\{[^}]*border-color:\s*#477c9e !important;[^}]*background:\s*#477c9e !important;[^}]*color:\s*#ffffff !important;/);
+  });
+
+  it('lightens selection and editing highlights in the light theme', () => {
+    expect(colorThemeStyles).toMatch(/workspace-page-chat-stage-item\.is-selected,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\.is-selected:hover,[\s\S]*?background:\s*#edf6fa;/);
+    expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor input,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea\s*\{[^}]*background:\s*#f8fbfd !important;/);
+    expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor textarea:focus\s*\{[^}]*background:\s*#ffffff !important;[^}]*box-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-occurrences select\s*\{[^}]*background:\s*#ffffff;[^}]*color:\s*#29343d;[^}]*color-scheme:\s*light;/);
+    expect(colorThemeStyles).toMatch(/workspace-page-schedule-occurrences select option\s*\{[^}]*background:\s*#ffffff;[^}]*color:\s*#29343d;/);
+  });
+
+  it('uses dark surfaces for Studio selection and editing windows', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea,[\s\S]*?background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\s*\{[^}]*background:\s*#151b20;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-emoji-picker\s*\{[\s\S]*?background:\s*#171e23;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.inline-keyboard-builder\.is-embedded\s*\{[^}]*background:\s*#11171b !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-input,[\s\S]*?\.workspace-page-rich-text-input:focus-visible\s*\{[^}]*background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb !important;[^}]*color-scheme:\s*dark;/);
+  });
+
+  it('keeps each saved-draft color visible in its picker and list in light theme', () => {
+    const colorValues = {
+      gray: '#8b929a',
+      coral: '#e56f68',
+      amber: '#d9a13c',
+      green: '#55a87c',
+      teal: '#269ca3',
+      blue: '#548ed3',
+    };
+
+    for (const [color, value] of Object.entries(colorValues)) {
+      expect(workspacePageStyles).toContain(`.workspace-page-draft-color-dot[data-color='${color}'] { background-color: ${value} !important; }`);
+      expect(workspacePageStyles).toContain(`.draft-color-picker .draft-color-swatch[data-color='${color}']`);
+    }
+  });
+
   it('closes the schedule stage after a successful schedule result', async () => {
     const handleSchedule = vi.fn();
     const setTime = vi.fn();
@@ -2022,7 +2076,7 @@ describe('WorkspacePage main-screen flows', () => {
       (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
     });
 
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Enter a message.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Add a message.');
     expect(document.querySelector('.workspace-page-publish-transient-feedback')?.parentElement?.classList.contains('workspace-page-draft-footer')).toBe(true);
     expect(document.querySelector('.workspace-page-publish-footer-content')?.classList.contains('is-feedback-hidden')).toBe(true);
     expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
@@ -2032,7 +2086,7 @@ describe('WorkspacePage main-screen flows', () => {
       (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
     });
     const repeatedFeedback = document.querySelector('.workspace-page-publish-transient-feedback');
-    expect(repeatedFeedback?.textContent).toBe('Enter a message.');
+    expect(repeatedFeedback?.textContent).toBe('Add a message.');
     expect(repeatedFeedback).not.toBe(firstFeedback);
 
     await act(async () => {
@@ -2194,7 +2248,7 @@ describe('WorkspacePage main-screen flows', () => {
       resolveFirstSend?.(false);
       await Promise.resolve();
     });
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Could not send the message.');
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Message not sent.');
     expect(document.querySelector('[role="textbox"]')?.textContent).toContain('Hello world');
     const retryButton = document.querySelector('.workspace-page-publish-transient-feedback .workspace-page-send-retry') as HTMLButtonElement;
     expect(retryButton).toBeTruthy();
@@ -2301,7 +2355,7 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => {
       (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
     });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent).toBe('Enter a message.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent).toBe('Add a message.');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4999);
     });
@@ -2323,6 +2377,21 @@ describe('WorkspacePage main-screen flows', () => {
     expect(attachmentButton).toBeTruthy();
     expect(attachmentButton?.getAttribute('aria-label')).toBe('Add file');
     expect(attachmentButton?.querySelector('svg')).not.toBeNull();
+
+    unmount();
+  });
+
+  it('renders enlarged attachment and preview icons with a visible pupil and metallic chat chevron', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const previewIcon = document.querySelector('.workspace-page-action-left-group .workspace-page-preview-toggle svg');
+    const chatChevron = document.querySelector('.workspace-page-chat-trigger-chevron');
+
+    expect(previewIcon?.querySelector('.workspace-page-preview-pupil')).not.toBeNull();
+    expect(chatChevron?.querySelectorAll('path')).toHaveLength(3);
+    expect(chatChevron?.querySelector('#workspace-chat-chevron-metal')).not.toBeNull();
+    expect(workspacePageStyles).toMatch(/\.workspace-page-attachment-icon\s*\{\s*width:\s*20px;\s*height:\s*20px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-preview-toggle svg\s*\{\s*width:\s*20px;\s*height:\s*20px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-chat-trigger-chevron\s*\{[^}]*filter:\s*drop-shadow/);
 
     unmount();
   });
@@ -2436,7 +2505,7 @@ describe('WorkspacePage main-screen flows', () => {
       time: '09:00',
       repeatMode: 'none',
     });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toBeNull();
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Draft saved.');
     expect(document.querySelector('.workspace-page-draft-meta')).toBeNull();
     expect(document.body.textContent).not.toContain('Draft not saved');
 
@@ -2543,6 +2612,76 @@ describe('WorkspacePage main-screen flows', () => {
     expect(window.draftStorage.importBackup).toHaveBeenCalledTimes(1);
     expect(getInMemoryWorkspaceDraft().body).toBe('Latest unsaved text');
     expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Drafts imported.');
+    unmount();
+  });
+
+  it('shows a success status after saving a draft', async () => {
+    inMemoryDraftStore.savedDrafts = [{
+      id: 'older-draft',
+      name: 'Older draft',
+      body: 'Older body',
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+    }];
+    inMemoryDraftStore.migrationVersion = 1;
+    const { unmount } = await renderWorkspacePage();
+    await openDraftsStage();
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-draft-stage-add') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Draft name' }), { target: { value: 'Saved post' } });
+      fireEvent.change(screen.getByRole('textbox', { name: 'Draft text' }), { target: { value: 'Draft body' } });
+    });
+    await act(async () => {
+      fireEvent.submit(document.querySelector('#workspace-draft-editor-form') as HTMLFormElement);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(window.draftStorage.save).toHaveBeenCalled());
+    expect(inMemoryDraftStore.savedDrafts.map((draft) => draft.name)).toEqual(['Saved post', 'Older draft']);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Draft saved.');
+    unmount();
+  });
+
+  it('shows a success status after saving the current post as a draft', async () => {
+    inMemoryDraftStore.savedDrafts = [{
+      id: 'older-draft',
+      name: 'Older draft',
+      body: 'Older body',
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+    }];
+    inMemoryDraftStore.migrationVersion = 1;
+    inMemoryDraftStore.workspaceDraft = {
+      body: 'Hello world',
+      entities: [],
+      attachments: [],
+      savedAt: '12:00',
+      date: '2026-01-10',
+      time: '09:00',
+      repeatMode: 'none',
+      repeatDays: [],
+      repeatOccurrences: 5,
+    };
+    const { unmount } = await renderWorkspacePage();
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
+    });
+    const saveDraftOption = Array.from(document.querySelectorAll('.workspace-page-publish-option'))
+      .find((button) => button.textContent?.trim() === 'Save draft') as HTMLButtonElement;
+    await act(async () => {
+      saveDraftOption.click();
+    });
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(inMemoryDraftStore.savedDrafts.map((draft) => draft.body)).toEqual(['Hello world', 'Older body']);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Draft saved.');
     unmount();
   });
 
@@ -2877,7 +3016,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(1);
     expect(document.querySelector('.workspace-page-photo-album-card')).toHaveTextContent('10 attachments');
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
-      .toContain('up to 10 photos');
+      .toContain('Album photo limit: 10.');
     unmount();
   });
 
@@ -2901,7 +3040,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(1);
     expect(document.querySelector('.workspace-page-photo-album-card')).toHaveTextContent('10 attachments');
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
-      .toContain('up to 10 photos');
+      .toContain('Album photo limit: 10.');
 
     await selectAlbum('second', 10);
     await selectAlbum('third', 10);
@@ -2914,7 +3053,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(3);
     expect(window.draftStorage.copyAttachment).toHaveBeenCalledTimes(30);
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
-      .toContain('up to 3 photo albums');
+      .toContain('Photo album limit: 3.');
 
     await act(async () => {
       (document.querySelector('.workspace-page-photo-album-card .workspace-page-attachment-remove') as HTMLButtonElement).click();
@@ -2938,7 +3077,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(window.draftStorage.copyAttachment).not.toHaveBeenCalled();
     expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(0);
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error'))
-      .toHaveTextContent('Use JPG or PNG images, or WebP');
+      .toHaveTextContent('Use JPG, PNG, or WebP.');
     unmount();
   });
 
@@ -3067,7 +3206,7 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     expect(window.draftStorage.exportText).not.toHaveBeenCalled();
-    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent).toBe('There is no text to export.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent).toBe('No text to export.');
     unmount();
   });
 
@@ -3151,7 +3290,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(window.telegram.getChatHistory).toHaveBeenCalledWith({ chatId: chatA.id, limit: 50 });
     expect(document.querySelector('.chat-preview-state.is-error')).toBeNull();
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
-      .toContain("The chat preview couldn't load history.");
+      .toContain('Chat history unavailable.');
     expect(document.querySelector('.workspace-page-publish-transient-feedback .workspace-page-send-retry')?.textContent).toBe('Retry');
     unmount();
   });
@@ -3211,7 +3350,7 @@ describe('WorkspacePage main-screen flows', () => {
     const { unmount } = await renderWorkspacePage({ connected: true });
 
     const feedback = document.querySelector('.workspace-page-publish-transient-feedback.is-error');
-    expect(feedback?.textContent).toContain("You don't have access to this chat.");
+    expect(feedback?.textContent).toContain('No access to this chat.');
     expect(feedback?.querySelector('.workspace-page-send-retry')).toBeNull();
     unmount();
   });
@@ -3221,7 +3360,7 @@ describe('WorkspacePage main-screen flows', () => {
     const { unmount } = await renderWorkspacePage({ connected: true });
 
     const feedback = document.querySelector('.workspace-page-publish-transient-feedback.is-error');
-    expect(feedback?.textContent).toContain("The chat preview couldn't load history.");
+    expect(feedback?.textContent).toContain('Chat history unavailable.');
     expect(feedback?.textContent).not.toContain('instanceof');
     expect(feedback?.querySelector('.workspace-page-send-retry')?.textContent).toBe('Retry');
     unmount();

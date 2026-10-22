@@ -1,5 +1,5 @@
 import { memo, startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { AlertTriangle, ChevronDown, ImagePlus } from 'lucide-react';
+import { AlertTriangle, ImagePlus } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { ChatAvatar } from '../components/ChatAvatar';
 import { useConfirm } from '@/components/useConfirm';
@@ -55,6 +55,24 @@ import type { StudioPlannerTextPayload } from '@shared/bridge';
 import './WorkspacePage.css';
 
 const MemoizedChatPreviewStand = memo(ChatPreviewStand);
+
+function ChatPickerChevron() {
+  return (
+    <svg className="workspace-page-chat-trigger-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="workspace-chat-chevron-metal" x1="6" y1="8" x2="18" y2="16" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#f5fbff" />
+          <stop offset="0.4" stopColor="#c2d8e5" />
+          <stop offset="0.72" stopColor="#819aaa" />
+          <stop offset="1" stopColor="#e0edf4" />
+        </linearGradient>
+      </defs>
+      <path d="M6 8.8 12 15l6-6.2" fill="none" stroke="rgba(5, 11, 17, 0.86)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 8.8 12 15l6-6.2" fill="none" stroke="url(#workspace-chat-chevron-metal)" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.4 8.4 12 14.2l5.6-5.8" fill="none" stroke="rgba(250, 253, 255, 0.5)" strokeWidth="0.65" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export { normalizeAttachments } from '../lib/draftAttachments';
 export { hasDraftContent, readWorkspaceDraftStoreFallback, writeWorkspaceDraftStoreFallback } from '../lib/draftStore';
@@ -339,7 +357,10 @@ const FOOTER_STATUS_DURATION_MS = {
   previewHistoryError: 10000,
 } as const;
 
-function getPreviewHistoryErrorPresentation(error: unknown) {
+function getPreviewHistoryErrorPresentation(
+  error: unknown,
+  messages: { noAccess: string; unavailable: string },
+) {
   const errorRecord = error !== null && typeof error === 'object'
     ? error as Record<string, unknown>
     : null;
@@ -351,13 +372,13 @@ function getPreviewHistoryErrorPresentation(error: unknown) {
 
   if (/CHAT_(?:WRITE_)?FORBIDDEN|CHAT_ADMIN_REQUIRED|CHAT_RESTRICTED|CHANNEL_(?:PRIVATE|FORBIDDEN)|USER_(?:IS_)?BLOCKED|USER_BANNED|RIGHTS_FORBIDDEN|PERMISSION/i.test(errorText)) {
     return {
-      message: "You don't have access to this chat. Check your Telegram permissions or choose another chat.",
+      message: messages.noAccess,
       retryable: false,
     };
   }
 
   return {
-    message: "The chat preview couldn't load history. Check your connection and try again.",
+    message: messages.unavailable,
     retryable: true,
   };
 }
@@ -1308,7 +1329,10 @@ export function WorkspacePage({
           setPreviewHistoryError('');
           setPreviewHistoryErrorRetryable(false);
         } else {
-          const errorPresentation = getPreviewHistoryErrorPresentation(result.error);
+          const errorPresentation = getPreviewHistoryErrorPresentation(result.error, {
+            noAccess: t('studio.previewHistoryNoAccess'),
+            unavailable: t('studio.previewHistoryFailed'),
+          });
           setPreviewHistory(null);
           setPreviewHistoryError(errorPresentation.message);
           setPreviewHistoryErrorRetryable(errorPresentation.retryable);
@@ -1318,7 +1342,10 @@ export function WorkspacePage({
       .catch((error) => {
         if (cancelled) return;
 
-        const errorPresentation = getPreviewHistoryErrorPresentation(error);
+        const errorPresentation = getPreviewHistoryErrorPresentation(error, {
+          noAccess: t('studio.previewHistoryNoAccess'),
+          unavailable: t('studio.previewHistoryFailed'),
+        });
         setPreviewHistory(null);
         setPreviewHistoryError(errorPresentation.message);
         setPreviewHistoryErrorRetryable(errorPresentation.retryable);
@@ -1328,7 +1355,7 @@ export function WorkspacePage({
     return () => {
       cancelled = true;
     };
-  }, [connected, selectedChatId, previewHistoryRetry]);
+  }, [connected, selectedChatId, previewHistoryRetry, t]);
 
   const previewText = stageMode === 'template' && templateEditingId
     ? templateDraftBody
@@ -1641,11 +1668,12 @@ export function WorkspacePage({
       documentId: workspaceDocumentId,
       color: draftColor,
     });
-    const nextSavedDrafts = [...savedDraftsRef.current, savedDraft];
+    const nextSavedDrafts = [savedDraft, ...savedDraftsRef.current];
     if (!await persistDraftStore(nextSavedDrafts, nextDraft, () => {
       replaceSavedDrafts(nextSavedDrafts);
       setSavedAt(nextDraft.savedAt);
     })) return;
+    showPublishFeedback(t('studio.draftSavedNotice'), 'success');
     setScheduleSelectionConfirmed(false);
     setPublishAction('draft');
     setPublishMenuOpen(false);
@@ -2020,7 +2048,7 @@ export function WorkspacePage({
     };
     let nextSavedDrafts: SavedDraft[];
     if (draftEditingId === 'new') {
-      nextSavedDrafts = [...savedDraftsRef.current, createSavedDraft(input)];
+      nextSavedDrafts = [createSavedDraft(input), ...savedDraftsRef.current];
     } else if (draftEditingId) {
       if (existingDraft) {
         const previousDraftSnapshot: WorkspaceDraft = {
@@ -2053,6 +2081,7 @@ export function WorkspacePage({
     if (!await persistDraftStore(nextSavedDrafts, createWorkspaceDraftSnapshot(), () => {
       replaceSavedDrafts(nextSavedDrafts);
     })) return;
+    showPublishFeedback(t('studio.draftSavedNotice'), 'success');
     closeDraftEditor();
   };
 
@@ -2829,12 +2858,12 @@ export function WorkspacePage({
                             <strong>{localizeChatName(selectedChat.name)}</strong>
                             <span>{selectedChat.name === 'Saved Messages' ? t('studio.savedMessagesType') : selectedChat.type || t('studio.chatType')}</span>
                           </span>
-                          <ChevronDown className="workspace-page-chat-trigger-chevron" size={16} strokeWidth={1.8} aria-hidden="true" />
+                          <ChatPickerChevron />
                         </>
                       ) : (
                         <>
                           <span>{t('studio.chooseChat')}</span>
-                          <ChevronDown className="workspace-page-chat-trigger-chevron" size={16} strokeWidth={1.8} aria-hidden="true" />
+                          <ChatPickerChevron />
                         </>
                       )}
                     </button>
@@ -3169,6 +3198,7 @@ export function WorkspacePage({
                         <path d="M2.2 12c2.6-3.5 6.2-5.8 9.8-5.8s7.2 2.3 9.8 5.8c-2.6 3.5-6.2 5.8-9.8 5.8S4.8 15.5 2.2 12Z" fill="none" stroke="rgba(5, 11, 17, 0.86)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M2.2 12c2.6-3.5 6.2-5.8 9.8-5.8s7.2 2.3 9.8 5.8c-2.6 3.5-6.2 5.8-9.8 5.8S4.8 15.5 2.2 12Z" fill="none" stroke="url(#workspace-preview-metal)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         <circle cx="12" cy="12" r="2.65" fill="none" stroke="url(#workspace-preview-metal)" strokeWidth="1.22" />
+                        <path className="workspace-page-preview-pupil" d="M12 10.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4Z" fill="#275d78" />
                       </svg>
                     ) : (
                       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -3183,6 +3213,7 @@ export function WorkspacePage({
                         <path d="M2.2 12c2.6-3.5 6.2-5.8 9.8-5.8s7.2 2.3 9.8 5.8c-2.6 3.5-6.2 5.8-9.8 5.8S4.8 15.5 2.2 12Z" fill="none" stroke="rgba(5, 11, 17, 0.86)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M2.2 12c2.6-3.5 6.2-5.8 9.8-5.8s7.2 2.3 9.8 5.8c-2.6 3.5-6.2 5.8-9.8 5.8S4.8 15.5 2.2 12Z" fill="none" stroke="url(#workspace-preview-metal)" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
                         <circle cx="12" cy="12" r="2.8" fill="none" stroke="url(#workspace-preview-metal)" strokeWidth="1.2" />
+                        <path className="workspace-page-preview-pupil" d="M12 10.8a1.2 1.2 0 1 0 0 2.4a1.2 1.2 0 1 0 0-2.4Z" fill="#275d78" />
                       </svg>
                     )}
                   </button>
@@ -3358,7 +3389,13 @@ export function WorkspacePage({
                     role={publishFooterStatus.kind === 'error' ? 'alert' : 'status'}
                     aria-live={publishFooterStatus.kind === 'error' ? 'assertive' : 'polite'}
                   >
-                    <span className="workspace-page-publish-transient-feedback-status">{publishFooterStatus.message}</span>
+                    <span
+                      className="workspace-page-publish-transient-feedback-status"
+                      title={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
+                      aria-label={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
+                    >
+                      {publishFooterStatus.message}
+                    </span>
                     {publishFooterStatus.detail && (
                       <span className="workspace-page-publish-transient-feedback-detail">{publishFooterStatus.detail}</span>
                     )}

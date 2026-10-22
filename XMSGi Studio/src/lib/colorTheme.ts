@@ -3,15 +3,15 @@ export type ColorTheme = 'light' | 'dark';
 export const COLOR_THEME_STORAGE_KEY = 'xmsgi-color-theme-v1';
 let themeTransitionTimeout: number | undefined;
 
-export function readColorTheme(): ColorTheme {
+export function readColorTheme(storageKey = COLOR_THEME_STORAGE_KEY): ColorTheme {
   try {
-    return window.localStorage.getItem(COLOR_THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light';
+    return window.localStorage.getItem(storageKey) === 'dark' ? 'dark' : 'light';
   } catch {
     return 'light';
   }
 }
 
-export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean } = {}) {
+export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean; storageKey?: string } = {}) {
   if (typeof document !== 'undefined') {
     const root = document.documentElement;
     const themeChanged = root.dataset.theme !== theme;
@@ -38,7 +38,7 @@ export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean 
   }
 
   try {
-    window.localStorage.setItem(COLOR_THEME_STORAGE_KEY, theme);
+    window.localStorage.setItem(options.storageKey ?? COLOR_THEME_STORAGE_KEY, theme);
   } catch {
     // Keep the current theme when browser storage is unavailable.
   }

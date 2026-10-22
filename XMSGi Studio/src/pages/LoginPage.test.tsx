@@ -1,7 +1,8 @@
 import type { ComponentProps } from 'react';
 import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { applyColorTheme, COLOR_THEME_STORAGE_KEY } from '@/lib/colorTheme';
 import { LocaleProvider } from '@/lib/i18n';
 import { LoginPage } from './LoginPage';
 
@@ -51,6 +52,43 @@ function renderToggleLogin() {
 }
 
 describe('LoginPage', () => {
+  afterEach(() => {
+    applyColorTheme('light');
+    localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
+  });
+
+  it('places Russian and English language choices on the left', () => {
+    const { container } = renderLogin();
+    const languageGroup = within(screen.getByRole('group', { name: 'Language' }));
+    const languageButtons = languageGroup.getAllByRole('button');
+
+    expect(languageButtons.map((button) => button.textContent)).toEqual(['RU', 'EN']);
+
+    fireEvent.click(languageButtons[0]);
+    expect(container.querySelector('.auth-screen')).toHaveAttribute('lang', 'ru');
+    fireEvent.click(languageButtons[1]);
+    expect(container.querySelector('.auth-screen')).toHaveAttribute('lang', 'en');
+  });
+
+  it('toggles the saved color theme from one icon button', () => {
+    applyColorTheme('light');
+    localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
+    const { container } = renderLogin();
+    const themeButton = screen.getByRole('button', { name: 'Switch to dark theme' });
+
+    expect(container.querySelectorAll('.auth-theme-button')).toHaveLength(1);
+    fireEvent.click(themeButton);
+
+    expect(document.documentElement).toHaveAttribute('data-theme', 'dark');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('dark');
+    expect(screen.getByRole('button', { name: 'Switch to light theme' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to light theme' }));
+
+    expect(document.documentElement).toHaveAttribute('data-theme', 'light');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('light');
+  });
+
   it('opens Telegram sign-in and resets the form to the phone step', () => {
     const { props } = renderLogin();
 

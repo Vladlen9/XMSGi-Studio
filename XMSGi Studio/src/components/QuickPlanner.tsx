@@ -51,7 +51,7 @@ const actionModes = [
   { mode: 'Draft', labelKey: 'quickplanner.mode.draft', icon: FileText },
 ] as const;
 
-type ActionFeedback = {
+export type QuickPlannerActionFeedback = {
   message: string;
   tone: 'error' | 'warning' | 'success' | 'info';
 };
@@ -78,6 +78,7 @@ type QuickPlannerProps = {
   onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string) => Promise<boolean>;
   onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean>;
   onSaveDraft?: (draft: { message: string; attachments: string[] }) => boolean;
+  feedbackPreview?: QuickPlannerActionFeedback | null;
 };
 
 function getChatInitial(name: string) {
@@ -159,6 +160,7 @@ export function QuickPlanner({
   onSendNow,
   onSchedule,
   onSaveDraft,
+  feedbackPreview,
 }: QuickPlannerProps) {
   const { locale, t } = useLocale();
   const [selectedMode, setSelectedMode] = useState('Schedule');
@@ -187,7 +189,7 @@ export function QuickPlanner({
   ));
   const [attachmentScroll, setAttachmentScroll] = useState({ max: 0, position: 0, contentWidth: 0 });
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
-  const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<QuickPlannerActionFeedback | null>(null);
   const [actionFeedbackInstance, setActionFeedbackInstance] = useState(0);
   const [chatPickerOpen, setChatPickerOpen] = useState(false);
   const [chatQuery, setChatQuery] = useState('');
@@ -384,7 +386,7 @@ export function QuickPlanner({
     };
   }, []);
 
-  const showActionFeedback = (message: string, tone: ActionFeedback['tone']) => {
+  const showActionFeedback = (message: string, tone: QuickPlannerActionFeedback['tone']) => {
     if (actionFeedbackTimeoutRef.current !== null) {
       window.clearTimeout(actionFeedbackTimeoutRef.current);
     }
@@ -883,6 +885,8 @@ export function QuickPlanner({
     }
     event.currentTarget.value = '';
   };
+
+  const visibleActionFeedback = feedbackPreview ?? actionFeedback;
 
   return (
     <main
@@ -1434,6 +1438,12 @@ export function QuickPlanner({
                   <button type="button" onClick={() => applyQuickTime('tomorrow')}>{t('quickPlanner.tomorrow')}</button>
                 </div>
               )}
+              {!isDraftMode && (
+                <button className="quick-planner-submit" type="button" onClick={handleSubmit}>
+                  <SubmitIcon size={16} aria-hidden="true" />
+                  <span>{submitLabel}</span>
+                </button>
+              )}
               {isDraftMode && (
                 <div className="quick-planner-draft-actions">
                   <button className="quick-planner-open-studio" type="button" onClick={handleOpenInStudio}>
@@ -1446,24 +1456,19 @@ export function QuickPlanner({
                   </button>
                 </div>
               )}
-              {!isDraftMode && (
-                <button className="quick-planner-submit" type="button" onClick={handleSubmit}>
-                  <SubmitIcon size={16} aria-hidden="true" />
-                  <span>{submitLabel}</span>
-                </button>
-              )}
             </div>
 
             <div className="quick-planner-compose-footer">
-              {actionFeedback && (
+              {visibleActionFeedback && (
                 <div
-                  key={actionFeedbackInstance}
-                  className={`planner-inline-notification quick-planner-action-feedback is-${actionFeedback.tone}`}
-                  role={actionFeedback.tone === 'error' ? 'alert' : 'status'}
-                  aria-live={actionFeedback.tone === 'error' ? 'assertive' : 'polite'}
+                  key={feedbackPreview ? `${feedbackPreview.tone}:${feedbackPreview.message}` : actionFeedbackInstance}
+                  className={`planner-inline-notification quick-planner-action-feedback is-${visibleActionFeedback.tone}`}
+                  role={visibleActionFeedback.tone === 'error' ? 'alert' : 'status'}
+                  aria-live={visibleActionFeedback.tone === 'error' ? 'assertive' : 'polite'}
                   aria-atomic="true"
+                  title={visibleActionFeedback.message}
                 >
-                  <span>{actionFeedback.message}</span>
+                  <span>{visibleActionFeedback.message}</span>
                 </div>
               )}
             </div>

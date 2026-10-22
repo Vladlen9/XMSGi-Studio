@@ -240,6 +240,16 @@ html[data-theme='dark'] .workspace-page-rich-text-input {
   caret-color: #239dfb;
 }
 
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-input,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-input:focus,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-input:focus-visible {
+  border-color: #303b44 !important;
+  background: #151b20 !important;
+  color: #e2e7eb !important;
+  caret-color: #239dfb;
+  color-scheme: dark;
+}
+
 html[data-theme='dark'] .workspace-page-rich-text-input::placeholder,
 html[data-theme='dark'] .workspace-page-rich-text-input.is-empty::before {
   color: #929ea8;
@@ -269,6 +279,10 @@ html[data-theme='dark'] .workspace-page-action-left-group .workspace-page-mode-b
 html[data-theme='dark'] .workspace-page-action-left-group .workspace-page-preview-toggle:hover {
   background: #17364d !important;
   color: #53b3ff !important;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-preview-pupil {
+  fill: #53b3ff;
 }
 
 html[data-theme='dark'] .workspace-page-submit-actions .workspace-page-publish-main:not(:disabled) {
@@ -309,6 +323,7 @@ html[data-theme='dark'] .workspace-page-rich-text-schedule-stage .workspace-page
   border-color: #3a454e !important;
   background: #151b20 !important;
   color: #e2e7eb !important;
+  color-scheme: dark;
 }
 
 html[data-theme='dark'] .workspace-page-rich-text-schedule-stage .workspace-page-schedule-segment:focus,
@@ -317,6 +332,28 @@ html[data-theme='dark'] .workspace-page-rich-text-schedule-stage .workspace-page
   border-color: rgba(35, 157, 251, 0.48) !important;
   background: #17364d !important;
   color: #73c3ff !important;
+}
+
+html[data-theme='dark'] .workspace-page-rich-text-schedule-stage input,
+html[data-theme='dark'] .workspace-page-rich-text-schedule-stage select {
+  color-scheme: dark !important;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-link-popover input,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-link-controls.is-open .workspace-page-rich-text-link-popover input {
+  border-color: #36414a !important;
+  background: #10161a !important;
+  color: #e2e7eb !important;
+  color-scheme: dark;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-link-popover input:focus {
+  border-color: #239dfb !important;
+  box-shadow: 0 0 0 2px rgba(35, 157, 251, 0.18);
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-link-popover input::placeholder {
+  color: #87939d;
 }
 
 html[data-theme='dark'] .workspace-page-version-history-dialog,
@@ -380,7 +417,8 @@ html[data-theme='dark'] .inline-keyboard-modal,
 html[data-theme='dark'] .inline-keyboard-preset-grid .inline-keyboard-preset,
 html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-builder-toolbar input,
 html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-button-fields input,
-html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-button-fields select {
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-button-fields select,
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-save-group input {
   border-color: #37414a;
   background: #171e23;
   color: #e2e7eb;
@@ -390,14 +428,152 @@ html[data-theme='dark'] .inline-keyboard-modal :is(.inline-keyboard-modal-eyebro
   color: #a5afb8;
 }
 
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-list-area,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-search input,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-add-form input {
+  border-color: #36414a;
+  background: #151b20 !important;
+  color: #e2e7eb;
+  color-scheme: dark;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input:focus,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea:focus,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-search input:focus,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-add-form input:focus {
+  border-color: #239dfb;
+  background: #151b20 !important;
+  box-shadow: 0 0 0 2px rgba(35, 157, 251, 0.18);
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input::placeholder,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea::placeholder,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-search input::placeholder,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-add-form input::placeholder {
+  color: #87939d;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-list-area,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item {
+  border-color: #2d3840;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item:hover,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item:focus-within {
+  background: #171e23;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item > div button:hover,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item > div button:focus-visible {
+  color: #e2e7eb;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item {
+  border-color: #303b44;
+  background: #151b20;
+  color: #e2e7eb;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item:hover,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item:focus-visible {
+  border-color: #3d596b;
+  background: #202a31;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected:hover,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected:focus-visible {
+  border-color: rgba(35, 157, 251, 0.52);
+  background: #17364d;
+  color: #d9efff;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-add-form button {
+  border-color: rgba(35, 157, 251, 0.42);
+  background: #17364d;
+  color: #73c3ff;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-stage-primary,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-stage-primary {
+  border-color: rgba(35, 157, 251, 0.4);
+  background: #17364d;
+  color: #73c3ff;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-stage-primary:hover:not(:disabled),
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-stage-primary:hover:not(:disabled) {
+  border-color: rgba(35, 157, 251, 0.62);
+  background: #1c4260;
+  color: #9ad5ff;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker {
+  --planner-accent: #239dfb;
+  --planner-accent-rgb: 35, 157, 251;
+  --planner-ink: #e2e7eb;
+  --planner-dim: #a5afb8;
+  --planner-line: #303b44;
+  border-color: #36414a;
+  background: #171e23;
+  color: #e2e7eb;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-search,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button {
+  border-color: #35414a;
+  background: #10161a;
+  color: #c5cfd6;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button[aria-selected='true'],
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button:hover,
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-categories button:focus-visible {
+  border-color: rgba(35, 157, 251, 0.48);
+  background: #17364d;
+  color: #73c3ff;
+}
+
+html[data-theme='dark'] .workspace-page .workspace-page-rich-text-emoji-picker .quick-planner-emoji-recent {
+  border-top-color: #303b44;
+}
+
+html[data-theme='dark'] .inline-keyboard-builder.is-embedded {
+  border-color: #303b44;
+  background: #11171b !important;
+  color: #e2e7eb;
+}
+
+html[data-theme='dark'] .inline-keyboard-modal-backdrop {
+  background: rgba(2, 6, 9, 0.68);
+}
+
+html[data-theme='dark'] .inline-keyboard-modal-header,
+html[data-theme='dark'] .inline-keyboard-modal-footer,
+html[data-theme='dark'] .inline-keyboard-presets,
+html[data-theme='dark'] .inline-keyboard-constructor {
+  border-color: #303b44;
+}
+
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-builder-toolbar input:focus,
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-button-fields input:focus,
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-button-fields select:focus,
+html[data-theme='dark'] .inline-keyboard-modal .inline-keyboard-save-group input:focus {
+  border-color: #239dfb;
+  outline-color: #239dfb;
+  box-shadow: 0 0 0 2px rgba(35, 157, 251, 0.18);
+}
+
 html[data-theme='dark'] .auth-panel.auth-screen {
   --login-bg: #0d1115;
   --login-gold: #239dfb;
   --login-gold-dim: rgba(110, 169, 233, 0.32);
   --login-ink: #e2e7eb;
   --login-muted: #a5afb8;
-  --login-studio: #9ec8ff;
-  background: radial-gradient(circle at 50% 18%, rgba(35, 157, 251, 0.18), transparent 28%), #0d1115;
+  --login-studio: #a5afb8;
+  background: #0d1115;
 }
 
 html[data-theme='dark'] .auth-screen .login-divider::before {
@@ -884,6 +1060,14 @@ html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspa
   transform: none !important;
 }
 
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle {
+  border-color: #c3d5df !important;
+  background: #e4eef3 !important;
+  color: #275d78 !important;
+}
+
 html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-mode-button-template {
   border: 1px solid #dbe3e8 !important;
   border-radius: 7px !important;
@@ -939,14 +1123,21 @@ html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspa
   outline-offset: 2px !important;
 }
 
-html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle[aria-pressed='true'],
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle:hover,
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:hover,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:focus-visible,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:hover,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:focus-visible,
 html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle[aria-expanded='true'] {
   border-color: #c3d5df !important;
   background: #e4eef3 !important;
   color: #275d78 !important;
 }
 
-html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle[aria-pressed='true']:hover,
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle:hover,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle:hover,
+html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle:hover,
 html[data-theme='light'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-toggle[aria-expanded='true']:hover {
   border-color: #b9d0dc !important;
   background: #dceaf0 !important;
@@ -958,9 +1149,22 @@ html[data-theme='light'] .workspace-page .workspace-page-action-left-group .work
   filter: none !important;
 }
 
-html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle .workspace-page-attachment-icon :is(path, circle),
-html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle svg :is(path, circle) {
-  stroke: currentColor !important;
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle .workspace-page-attachment-icon > path:first-of-type,
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle svg > path:first-of-type {
+  stroke: rgba(5, 11, 17, 0.86) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle .workspace-page-attachment-icon > path:nth-of-type(2) {
+  stroke: url(#workspace-attachment-metal) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-attachment-toggle .workspace-page-attachment-icon > path:nth-of-type(3) {
+  stroke: rgba(250, 253, 255, 0.48) !important;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle svg > path:nth-of-type(2),
+html[data-theme='light'] .workspace-page .workspace-page-action-left-group .workspace-page-preview-toggle svg > circle {
+  stroke: url(#workspace-preview-metal) !important;
 }
 
 html[data-theme='light'] .workspace-page .workspace-page-attachment-tray {
@@ -1125,6 +1329,56 @@ html[data-theme='light'] .workspace-page .workspace-page-rich-text-link-controls
   background: #e9edf0;
   color: #737d86;
   opacity: 1;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item:hover,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item:focus-visible {
+  border-color: #c7deea;
+  background: #f5fafc;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected:hover,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-chat-stage .workspace-page-chat-stage-item.is-selected:focus-visible {
+  border-color: #b8d5e3;
+  background: #edf6fa;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item:hover,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-item:focus-within {
+  background: #f5fafc;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea {
+  border-color: #cfdee6;
+  background: #f8fbfd !important;
+  color: #26343d;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input:focus,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea:focus {
+  border-color: #8ab8cf;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(71, 124, 158, 0.14);
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor input::selection,
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage .workspace-page-template-stage-editor textarea::selection {
+  background: rgba(71, 124, 158, 0.24);
+  color: #26343d;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-occurrences select {
+  border-color: #cbd6dc;
+  background: #ffffff;
+  color: #29343d;
+  color-scheme: light;
+}
+
+html[data-theme='light'] .workspace-page .workspace-page-rich-text-schedule-stage .workspace-page-schedule-occurrences select option {
+  background: #ffffff;
+  color: #29343d;
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-stand {

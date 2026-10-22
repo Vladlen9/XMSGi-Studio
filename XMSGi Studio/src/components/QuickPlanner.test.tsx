@@ -53,6 +53,15 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByText('No chats found')).toBeInTheDocument();
   });
 
+  it('renders a feedback preview in the same accessible Planner status slot', () => {
+    render(<QuickPlanner feedbackPreview={{ tone: 'error', message: 'Could not send the message.' }} />);
+
+    const feedback = screen.getByRole('alert');
+    expect(feedback).toHaveTextContent('Could not send the message.');
+    expect(feedback).toHaveAttribute('title', 'Could not send the message.');
+    expect(feedback).toHaveClass('quick-planner-action-feedback', 'is-error');
+  });
+
   it('restores the Planner text and attachment chips after remounting', () => {
     writePlannerDraft('Survives reload', [], ['C:\\files\\report.pdf']);
     expect(flushPlannerDraftWrite()).toBe(true);
@@ -78,6 +87,7 @@ describe('QuickPlanner feedback', () => {
 
     expect(screen.getByRole('heading', { name: 'Новое сообщение' })).toBeInTheDocument();
     expect(screen.getByRole('main', { name: 'Новое сообщение' })).toHaveAttribute('lang', 'ru');
+    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ЗАПЛАНИРОВАТЬ');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
     expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Заметки Планера' })).toHaveTextContent('Быстрая запись');
@@ -111,6 +121,7 @@ describe('QuickPlanner feedback', () => {
     expect(guide).toHaveTextContent('Set reminders and bring your ideas to life.');
     expect(guide).toHaveTextContent('Continue in Studio');
     expect(guide).toHaveTextContent('Edit and refine your writing in Studio.');
+    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('SCHEDULE');
   });
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {

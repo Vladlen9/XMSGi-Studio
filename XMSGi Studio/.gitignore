@@ -18,7 +18,6 @@ topics-out.json
 *.dmg
 *.deb
 personal-website/
-testbenches/
 .playwright-mcp/
 app-current-view.png
 browser-*.txt
