@@ -6,6 +6,7 @@ import { QuickPlanner } from '@/components/QuickPlanner';
 import type { QuickPlannerActionFeedback } from '@/components/QuickPlanner';
 import { QuickPlannerNavigationContext } from '@/workspace/QuickPlannerNavigationContext';
 import { flushPlannerDraftWrite, writePlannerDraft } from '@/lib/plannerDraft';
+import { PlannerInsightsPreview } from './PlannerInsightsPreview';
 import { navigateTestbenchPage, TestbenchNavigation } from '../shared/TestbenchNavigation';
 import { applyTestbenchColorTheme, readTestbenchColorTheme } from '../shared/testbenchTheme';
 import './main.css';
@@ -269,6 +270,7 @@ export function PlannerTestbench() {
             onSaveDraft={() => false}
             feedbackPreview={feedbackPreview}
           />
+          <PlannerInsightsPreview key={plannerRevision} />
         </QuickPlannerNavigationContext.Provider>
       </div>
     </div>

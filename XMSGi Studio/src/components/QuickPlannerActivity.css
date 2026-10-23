@@ -26,7 +26,7 @@ html[data-theme='dark'] .quick-planner-activity-section {
 
 .quick-planner-activity-header h2 {
   position: absolute;
-  top: -32px;
+  top: -47px;
   left: 0;
   margin: 0;
   color: var(--signal);
@@ -517,14 +517,12 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   opacity: 1;
 }
 
-.quick-planner-activity-day.is-month.is-near-hovered.has-month-tick:not(.is-hovered):not(.is-today)
+.quick-planner-activity-day.is-month.is-near-hovered.has-month-tick:not(.is-hovered)
+  .quick-planner-activity-day-label,
+.quick-planner-activity-day.is-month.is-near-hovered.is-today:not(.is-hovered)
   .quick-planner-activity-day-label {
   visibility: hidden;
   opacity: 0;
-}
-
-.quick-planner-activity-day.is-month.is-before-today.is-hovered .quick-planner-activity-day-label {
-  transform: translate(-4px, -2px);
 }
 
 .quick-planner-activity-day.is-today .quick-planner-activity-day-label {
@@ -533,14 +531,6 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   font-weight: 900;
   text-shadow: 0 0 7px rgba(35, 157, 251, 0.28);
   transform: translateY(-2px);
-}
-
-.quick-planner-activity-days.is-month .quick-planner-activity-day:first-child .quick-planner-activity-day-label {
-  transform: translate(4px, -2px);
-}
-
-.quick-planner-activity-days.is-month .quick-planner-activity-day:last-child .quick-planner-activity-day-label {
-  transform: translate(-4px, -2px);
 }
 
 .quick-planner-activity-day {

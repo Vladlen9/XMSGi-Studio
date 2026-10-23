@@ -72,7 +72,7 @@ describe('QuickPlannerActivity', () => {
     expect(chart.querySelectorAll('.quick-planner-activity-point')).toHaveLength(7);
     expect(chart.querySelectorAll('.quick-planner-activity-point-dot')).toHaveLength(1);
     expect(linePath).toMatch(/^M -24 82/);
-    expect(linePath).toMatch(/384 4$/);
+    expect(linePath).toMatch(/384 53\.2$/);
     const weeklyPointXs = Array.from(
       chart.querySelectorAll('.quick-planner-activity-point'),
       (point) => Number(point.querySelector('.quick-planner-activity-point-dot')?.getAttribute('cx')
@@ -97,6 +97,205 @@ describe('QuickPlannerActivity', () => {
     expect(screen.getByTitle(`${dateLabel}: 2 messages sent`)).toBeInTheDocument();
   });
 
+  it('shortens the weekly line by twelve screen pixels on both sides and keeps the fade mask', () => {
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getBounds(this: HTMLElement) {
+      if (this.classList.contains('quick-planner-activity-chart')) {
+        return {
+          left: 0,
+          right: 360,
+          width: 360,
+          height: 168,
+          top: 0,
+          bottom: 168,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      }
+      return originalGetBoundingClientRect.call(this);
+    });
+
+    try {
+      renderActivity(<QuickPlannerActivity sent={[createSentMessage({ sentAt: new Date().toISOString() })]} />);
+
+      const chart = screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 1' });
+      const line = chart.querySelector('.quick-planner-activity-line');
+      const linePath = line?.getAttribute('d') ?? '';
+      expect(linePath).toMatch(/^M -5 82/);
+      expect(linePath).toMatch(/365 67\.6$/);
+      expect(line?.parentElement?.getAttribute('mask')).toBe(`url(#${chart.querySelector('mask')?.id})`);
+      expect(chart.querySelector('.quick-planner-activity-point-dot')).toHaveAttribute('cx', '324');
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('scales the weekly chart in five steps so five sends reach the peak', () => {
+    const now = new Date();
+    const sendsForDay = (dayOffset: number, count: number) => {
+      const sentAt = new Date(now);
+      sentAt.setDate(sentAt.getDate() - dayOffset);
+      return Array.from({ length: count }, (_, index) => createSentMessage({
+        id: `weekly-step-${dayOffset}-${index}`,
+        sentAt: sentAt.toISOString(),
+      }));
+    };
+    renderActivity(
+      <QuickPlannerActivity sent={[
+        ...sendsForDay(2, 1),
+        ...sendsForDay(1, 3),
+        ...sendsForDay(0, 5),
+      ]} />,
+    );
+
+    const chart = screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 9' });
+    const pointYValues = Array.from(chart.querySelectorAll('.quick-planner-activity-point-dot'), (point) => (
+      Number(point.getAttribute('cy'))
+    ));
+
+    expect(pointYValues[0]).toBeCloseTo(67.6);
+    expect(pointYValues[1]).toBeCloseTo(38.8);
+    expect(pointYValues[2]).toBe(10);
+    expect(Array.from(chart.querySelectorAll('.quick-planner-activity-grid-line:not(.is-baseline)'), (line) => (
+      line.getAttribute('d')
+    ))).toEqual([
+      'M 0 10 H 360',
+      'M 0 24.4 H 360',
+      'M 0 38.8 H 360',
+      'M 0 53.2 H 360',
+      'M 0 67.6 H 360',
+    ]);
+  });
+
+  it('scales the monthly chart in five steps and keeps the peak pinned after five sends', () => {
+    const now = new Date();
+    const createSendsForToday = (count: number) => Array.from({ length: count }, (_, index) => (
+      createSentMessage({
+        id: `monthly-step-${count}-${index}`,
+        sentAt: now.toISOString(),
+      })
+    ));
+    const { rerender } = renderActivity(
+      <QuickPlannerActivity sent={createSendsForToday(1)} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '30 days' }));
+
+    for (const count of [1, 2, 3, 4, 5, 6] as const) {
+      if (count > 1) {
+        rerender(
+          <LocaleProvider>
+            <QuickPlannerActivity sent={createSendsForToday(count)} />
+          </LocaleProvider>,
+        );
+      }
+
+      const chart = screen.getByRole('img', {
+        name: `Confirmed messages sent in the last 30 days: ${count}`,
+      });
+      const bar = chart.querySelector('.quick-planner-activity-month-bar');
+      expect(bar).toBeInTheDocument();
+      expect(Number(bar?.getAttribute('y'))).toBeCloseTo(82 - ((82 - 12) * Math.min(count, 5)) / 5);
+      expect(chart.querySelector('.quick-planner-activity-peak-guide'))
+        .toHaveAttribute('d', `M 0 ${82 - ((82 - 12) * Math.min(count, 5)) / 5} H 360`);
+    }
+  });
+
+  it('keeps a single active day pinned to the top as its count passes five', () => {
+    const now = new Date();
+    const createSendsForToday = (count: number) => Array.from({ length: count }, (_, index) => (
+      createSentMessage({
+        id: `single-day-peak-${count}-${index}`,
+        sentAt: now.toISOString(),
+      })
+    ));
+    const { rerender } = renderActivity(
+      <QuickPlannerActivity sent={createSendsForToday(5)} />,
+    );
+
+    for (const count of [5, 6, 7, 10] as const) {
+      if (count > 5) {
+        rerender(
+          <LocaleProvider>
+            <QuickPlannerActivity sent={createSendsForToday(count)} />
+          </LocaleProvider>,
+        );
+      }
+
+      const chart = screen.getByRole('img', {
+        name: `Confirmed messages sent in the last 7 days: ${count}`,
+      });
+      const peak = chart.querySelector('.quick-planner-activity-point-dot');
+      expect(peak).toHaveAttribute('cy', '10');
+    }
+  });
+
+  it('keeps all seven days evenly aligned as the weekly window advances', () => {
+    const initialNow = new Date(2035, 4, 12, 12);
+    const createWeek = (today: Date, dailyCounts: number[]) => dailyCounts.flatMap((count, index) => {
+      const sentAt = new Date(today);
+      sentAt.setDate(today.getDate() - (6 - index));
+      return Array.from({ length: count }, (_, messageIndex) => createSentMessage({
+        id: `rolling-week-${today.toISOString()}-${index}-${messageIndex}`,
+        sentAt: sentAt.toISOString(),
+      }));
+    });
+    const getPoints = (chart: HTMLElement) => Array.from(
+      chart.querySelectorAll('.quick-planner-activity-point-dot'),
+      (point) => ({
+        x: Number(point.getAttribute('cx')),
+        y: Number(point.getAttribute('cy')),
+      }),
+    );
+
+    vi.useFakeTimers();
+    vi.setSystemTime(initialNow);
+    try {
+      const view = renderActivity(
+        <QuickPlannerActivity sent={createWeek(initialNow, [1, 2, 3, 4, 5, 6, 7])} />,
+      );
+      const chartLabel = 'Confirmed messages sent in the last 7 days: 28';
+      const initialChart = screen.getByRole('img', { name: chartLabel });
+      const initialPoints = getPoints(initialChart);
+
+      expect(initialPoints.map(({ x }) => x)).toEqual([36, 84, 132, 180, 228, 276, 324]);
+      [71.7143, 61.4286, 51.1429, 40.8571, 30.5714, 20.2857, 10].forEach((expectedY, index) => (
+        expect(initialPoints[index].y).toBeCloseTo(expectedY)
+      ));
+      expect(Array.from(initialChart.querySelectorAll('.quick-planner-activity-count'), (label) => label.textContent))
+        .toEqual(['1', '2', '3', '4', '5', '6', '7']);
+
+      const nextDay = new Date(initialNow);
+      nextDay.setDate(nextDay.getDate() + 1);
+      vi.setSystemTime(nextDay);
+      view.rerender(createElement(LocaleProvider, null, createElement(QuickPlannerActivity, {
+        sent: createWeek(nextDay, [2, 3, 4, 5, 6, 7, 1]),
+      })));
+
+      const nextChart = screen.getByRole('img', { name: chartLabel });
+      const nextPoints = getPoints(nextChart);
+      expect(nextPoints.map(({ x }) => x)).toEqual([36, 84, 132, 180, 228, 276, 324]);
+      [61.4286, 51.1429, 40.8571, 30.5714, 20.2857, 10, 71.7143].forEach((expectedY, index) => (
+        expect(nextPoints[index].y).toBeCloseTo(expectedY)
+      ));
+      expect(Array.from(nextChart.querySelectorAll('.quick-planner-activity-count'), (label) => label.textContent))
+        .toEqual(['2', '3', '4', '5', '6', '7', '1']);
+
+      const displayedWeekdays = Array.from(
+        nextChart.parentElement?.querySelectorAll('.quick-planner-activity-day-label') ?? [],
+        (label) => label.textContent,
+      );
+      const expectedWeekdays = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(nextDay);
+        day.setDate(nextDay.getDate() - (6 - index));
+        return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day);
+      });
+      expect(displayedWeekdays).toEqual(expectedWeekdays);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows zero counts for each day when there are no confirmed sends', () => {
     renderActivity(<QuickPlannerActivity />);
 
@@ -116,6 +315,62 @@ describe('QuickPlannerActivity', () => {
     expect(monthChart.querySelector('.quick-planner-activity-grid-line.is-y-axis')).toBeInTheDocument();
     expect(monthChart.querySelector('.quick-planner-activity-grid-line.is-baseline'))
       .toHaveAttribute('d', 'M 0 82 H 360');
+  });
+
+  it('clips monthly grid lines and the peak guide to the activity card width', () => {
+    const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getBounds(this: HTMLElement) {
+      if (this.classList.contains('quick-planner-activity-chart')) {
+        return {
+          left: 0,
+          right: 400,
+          width: 400,
+          height: 183,
+          top: 0,
+          bottom: 183,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      }
+      if (this.classList.contains('quick-planner-activity-section')) {
+        return {
+          left: 20,
+          right: 380,
+          width: 360,
+          height: 183,
+          top: 0,
+          bottom: 183,
+          x: 20,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      }
+      return originalGetBoundingClientRect.call(this);
+    });
+
+    try {
+      const sentAt = new Date().toISOString();
+      renderActivity(
+        <QuickPlannerActivity sent={Array.from({ length: 3 }, (_, index) => createSentMessage({
+          id: `clipped-month-${index}`,
+          sentAt,
+        }))} />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: '30 days' }));
+
+      const chart = screen.getByRole('img', { name: 'Confirmed messages sent in the last 30 days: 3' });
+      const gridPaths = Array.from(
+        chart.querySelectorAll('.quick-planner-activity-month-grid .quick-planner-activity-grid-line'),
+        (line) => line.getAttribute('d'),
+      );
+      expect(gridPaths.length).toBeGreaterThan(0);
+      expect(gridPaths.every((path) => path?.startsWith('M 18 ' ) && path.endsWith(' H 342'))).toBe(true);
+      expect(chart.querySelector('.quick-planner-activity-peak-guide'))
+        .toHaveAttribute('d', expect.stringMatching(/^M 18 .+ H 342$/));
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it('enlarges single-digit weekly labels without changing larger labels', () => {
@@ -242,8 +497,16 @@ describe('QuickPlannerActivity', () => {
     if (hoveredDay === undefined) throw new Error('Expected a day with 1000 messages sent');
     expect(hoveredDay).not.toHaveClass('is-hovered');
     vi.useFakeTimers();
-    fireEvent.mouseEnter(chart);
+    const interactionArea = chart.querySelector('.quick-planner-activity-month-interaction-area');
+    expect(interactionArea).toBeInTheDocument();
+    if (interactionArea === null) throw new Error('Expected the monthly chart interaction area');
     fireEvent.mouseEnter(hoveredDay);
+    expect(hoveredDay).not.toHaveClass('is-hovered');
+    expect(chart.querySelector('.quick-planner-activity-tooltip')).not.toBeInTheDocument();
+    const hoveredHitArea = hitAreas[monthDays.indexOf(hoveredDay)];
+    if (hoveredHitArea === undefined) throw new Error('Expected the hovered day hit area');
+    fireEvent.mouseEnter(interactionArea);
+    fireEvent.mouseEnter(hoveredHitArea);
     expect(hoveredDay).toHaveClass('is-hovered');
     expect(hoveredDay.querySelector('.quick-planner-activity-day-label')).toHaveTextContent(/\d+/);
     expect(chart.querySelector('.quick-planner-activity-tooltip')).not.toBeInTheDocument();
@@ -262,8 +525,10 @@ describe('QuickPlannerActivity', () => {
     expect(chart.querySelector('.quick-planner-activity-tooltip')).not.toBeInTheDocument();
     expect(hoveredDay).not.toHaveClass('is-hovered');
 
-    fireEvent.mouseEnter(chart);
-    fireEvent.mouseEnter(chart.querySelectorAll('.quick-planner-activity-month-hit-area')[zeroCountDayIndex]);
+    const zeroCountHitArea = hitAreas[zeroCountDayIndex];
+    if (zeroCountHitArea === undefined) throw new Error('Expected the zero-count day hit area');
+    fireEvent.mouseEnter(interactionArea);
+    fireEvent.mouseEnter(zeroCountHitArea);
     expect(chart.querySelector('.quick-planner-activity-tooltip')).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1000));
     expect(chart.querySelector('.quick-planner-activity-tooltip')).toHaveTextContent(/0 messages sent/);

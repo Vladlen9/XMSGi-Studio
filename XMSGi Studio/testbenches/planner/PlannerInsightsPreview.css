@@ -1,0 +1,49 @@
+.planner-insights-preview {
+  position: relative;
+  box-sizing: border-box;
+  height: 282px;
+  overflow: hidden;
+  margin: 14px -10px 0;
+  padding: 0;
+  border: 1px solid rgba(91, 145, 177, 0.24);
+  border-radius: 11px;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.88), transparent 56%),
+    linear-gradient(145deg, rgba(250, 253, 255, 0.94), rgba(225, 241, 250, 0.82));
+  box-shadow:
+    0 8px 18px rgba(35, 70, 91, 0.1),
+    0 2px 4px rgba(35, 70, 91, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(116, 162, 188, 0.1);
+  transform: translateY(-20px);
+}
+
+.quick-planner-activity-chart[data-period='7'] ~ .planner-insights-preview {
+  margin-top: 29px;
+}
+
+.planner-insights-preview::before {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.96), transparent);
+  content: "";
+  pointer-events: none;
+}
+
+html[data-theme='dark'] .planner-insights-preview {
+  border-color: rgba(110, 166, 202, 0.18);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(111, 174, 209, 0.1), transparent 58%),
+    linear-gradient(145deg, rgba(36, 57, 69, 0.98), rgba(24, 39, 48, 0.96));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+html[data-theme='dark'] .planner-insights-preview::before {
+  background: linear-gradient(90deg, transparent, rgba(207, 235, 250, 0.22), transparent);
+}

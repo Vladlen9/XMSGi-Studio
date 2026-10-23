@@ -10,6 +10,9 @@ type QuickPlannerActivityProps = {
 };
 
 type ActivityPeriod = 7 | 30;
+const WEEKLY_PLOT_TOP = 10;
+const ACTIVITY_SCALE_STEPS = 5;
+const WEEKLY_LINE_EDGE_INSET_PX = 12;
 
 function getLocalDateKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -129,7 +132,7 @@ export function QuickPlannerActivity({
   const [monthTooltipLeft, setMonthTooltipLeft] = useState<number | null>(null);
   const [monthlyChartWidth, setMonthlyChartWidth] = useState(0);
   const [monthlyChartHeight, setMonthlyChartHeight] = useState(0);
-  const [weeklyBaselineBounds, setWeeklyBaselineBounds] = useState({ left: -24, right: 384 });
+  const [weeklyBaselineBounds, setWeeklyBaselineBounds] = useState({ left: 0, right: 360 });
   const monthTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activitySectionRef = useRef<HTMLElement>(null);
   const activityChartRef = useRef<HTMLDivElement>(null);
@@ -144,7 +147,11 @@ export function QuickPlannerActivity({
   const monthBarGradientId = `${gradientId}-month-bar`;
   const edgeFadeId = `${gradientId}-edge-fade`;
   const activityMax = Math.max(...activityDays.map(({ count }) => count));
-  const monthlyScaleMax = Math.max(activityMax, 1);
+  const monthlyScaleMax = Math.max(activityMax, ACTIVITY_SCALE_STEPS);
+  const weeklyScaleMax = Math.max(ACTIVITY_SCALE_STEPS, activityMax);
+  const weeklyGridLines = Array.from({ length: ACTIVITY_SCALE_STEPS }, (_, index) => (
+    Number((WEEKLY_PLOT_TOP + ((82 - WEEKLY_PLOT_TOP) * index) / ACTIVITY_SCALE_STEPS).toFixed(1))
+  ));
   const monthlyPlotTop = monthlyChartHeight > 26
     ? 12 - (10 * 108) / (monthlyChartHeight - 26)
     : 12;
@@ -156,8 +163,8 @@ export function QuickPlannerActivity({
   const monthlyScaleLabelX = monthlyPlotLeft - 12;
   const chartPoints = getChartPoints(
     chartDays.map(({ count }) => count),
-    period === 30 ? monthlyPlotTop : 4,
-    period === 30 ? monthlyScaleMax : activityMax,
+    period === 30 ? monthlyPlotTop : WEEKLY_PLOT_TOP,
+    period === 30 ? monthlyScaleMax : weeklyScaleMax,
     period === 30 ? monthlyPlotLeft : weeklyPlotLeft,
     period === 30 ? monthlyPlotRight : 360 - weeklyPlotLeft,
   );
@@ -170,8 +177,11 @@ export function QuickPlannerActivity({
     }).filter((tick, index, ticks) => index === 0 || tick.value !== ticks[index - 1].value);
   const monthlyPeakY = 82 - (activityMax / monthlyScaleMax) * (82 - monthlyPlotTop);
   const weeklyEdgeInset = monthlyChartWidth > 0 ? (7 * 360) / monthlyChartWidth : 0;
-  const lineStartX = period === 7 ? -24 + weeklyEdgeInset : -24;
-  const lineEndX = period === 7 ? 384 - weeklyEdgeInset : 384;
+  const weeklyLineEdgeInset = monthlyChartWidth > 0
+    ? (WEEKLY_LINE_EDGE_INSET_PX * 360) / monthlyChartWidth
+    : 0;
+  const lineStartX = period === 7 ? -24 + weeklyEdgeInset + weeklyLineEdgeInset : -24;
+  const lineEndX = period === 7 ? 384 - weeklyEdgeInset - weeklyLineEdgeInset : 384;
   const hoveredMonthDayIndex = chartDays.findIndex(
     ({ date }) => getLocalDateKey(date) === hoveredMonthDay,
   );
@@ -351,7 +361,6 @@ export function QuickPlannerActivity({
             aria-label={t('quickPlanner.activityChartLabel', { count: total, days: period })}
             data-period={period}
             ref={activityChartRef}
-            onMouseEnter={() => period === 30 && handleMonthChartEnter()}
             onMouseLeave={() => period === 30 && handleMonthDayLeave()}
           >
             {period === 30 && <div className="quick-planner-activity-plot-depth" aria-hidden="true" />}
@@ -399,7 +408,7 @@ export function QuickPlannerActivity({
                     <g className="quick-planner-activity-month-grid" key={`${value}-${index}`}>
                       <path
                         className={`quick-planner-activity-grid-line${index === 0 ? ' is-baseline' : ''}`}
-                        d={`M ${monthlyPlotLeft} ${y} H ${monthlyPlotRight}`}
+                        d={`M ${weeklyBaselineBounds.left} ${y} H ${weeklyBaselineBounds.right}`}
                       />
                       {value === activityMax && activityMax > 0 && (
                         <text
@@ -420,8 +429,13 @@ export function QuickPlannerActivity({
                 </>
               ) : (
                 <>
-                  <path className="quick-planner-activity-grid-line" d="M -24 10 H 384" />
-                  <path className="quick-planner-activity-grid-line" d="M -24 46 H 384" />
+                  {weeklyGridLines.map((y) => (
+                    <path
+                      className="quick-planner-activity-grid-line"
+                      key={y}
+                      d={`M ${weeklyBaselineBounds.left} ${y} H ${weeklyBaselineBounds.right}`}
+                    />
+                  ))}
                   <path
                     className="quick-planner-activity-grid-line is-baseline"
                     d={`M ${weeklyBaselineBounds.left} 82 H ${weeklyBaselineBounds.right}`}
@@ -431,63 +445,67 @@ export function QuickPlannerActivity({
               {period === 30 && activityMax > 0 && (
                 <path
                   className="quick-planner-activity-peak-guide"
-                  d={`M ${monthlyPlotLeft} ${monthlyPeakY} H ${monthlyPlotRight}`}
+                  d={`M ${weeklyBaselineBounds.left} ${monthlyPeakY} H ${weeklyBaselineBounds.right}`}
                 />
               )}
               {period === 30 && (
-                <g className="quick-planner-activity-month-hit-areas">
-                  {chartPoints.map((point, index) => {
-                    const { date } = chartDays[index];
-                    const dayKey = getLocalDateKey(date);
+                <g
+                  className="quick-planner-activity-month-interaction-area"
+                  onMouseEnter={handleMonthChartEnter}
+                  onMouseLeave={handleMonthDayLeave}
+                >
+                  <g className="quick-planner-activity-month-hit-areas">
+                    {chartPoints.map((point, index) => {
+                      const { date } = chartDays[index];
+                      const dayKey = getLocalDateKey(date);
 
-                    return (
-                      <rect
-                        className="quick-planner-activity-month-hit-area"
-                        key={dayKey}
-                        x={point.x - 360 / (period * 2)}
-                        y={monthlyPlotTop}
-                        width={360 / period}
-                        height={82 - monthlyPlotTop}
-                        onMouseEnter={() => handleMonthDayEnter(dayKey)}
-                      />
-                    );
-                  })}
-                </g>
-              )}
-              {period === 30 && (
-                <g className="quick-planner-activity-month-bars">
-                  {chartPoints.map((point, index) => {
-                    const { date, count } = chartDays[index];
-                    if (count === 0) return null;
+                      return (
+                        <rect
+                          className="quick-planner-activity-month-hit-area"
+                          key={dayKey}
+                          x={point.x - 360 / (period * 2)}
+                          y={monthlyPlotTop}
+                          width={360 / period}
+                          height={82 - monthlyPlotTop}
+                          onMouseEnter={() => handleMonthDayEnter(dayKey)}
+                        />
+                      );
+                    })}
+                  </g>
+                  <g className="quick-planner-activity-month-bars">
+                    {chartPoints.map((point, index) => {
+                      const { date, count } = chartDays[index];
+                      if (count === 0) return null;
 
-                    const dateLabel = new Intl.DateTimeFormat(dateLocale, {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    }).format(date);
-                    const dayDescription = t('quickPlanner.activityDayCount', { date: dateLabel, count });
+                      const dateLabel = new Intl.DateTimeFormat(dateLocale, {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                      }).format(date);
+                      const dayDescription = t('quickPlanner.activityDayCount', { date: dateLabel, count });
 
-                    return (
-                      <rect
-                        className={`quick-planner-activity-month-bar${count === activityMax ? ' is-peak' : ''}${getLocalDateKey(date) === getLocalDateKey(new Date()) ? ' is-today' : ''}`}
-                        key={getLocalDateKey(date)}
-                        x={point.x - 4.3}
-                        y={point.y}
-                        width="8.6"
-                        height={82 - point.y}
-                        rx="0"
-                        fill={`url(#${monthBarGradientId})`}
-                        tabIndex={0}
-                        aria-label={dayDescription}
-                        onMouseEnter={() => handleMonthDayEnter(getLocalDateKey(date))}
-                        onFocus={() => {
-                          handleMonthDayEnter(getLocalDateKey(date));
-                          setMonthTooltipVisible(true);
-                        }}
-                        onBlur={handleMonthDayLeave}
-                      />
-                    );
-                  })}
+                      return (
+                        <rect
+                          className={`quick-planner-activity-month-bar${count === activityMax ? ' is-peak' : ''}${getLocalDateKey(date) === getLocalDateKey(new Date()) ? ' is-today' : ''}`}
+                          key={getLocalDateKey(date)}
+                          x={point.x - 4.3}
+                          y={point.y}
+                          width="8.6"
+                          height={82 - point.y}
+                          rx="0"
+                          fill={`url(#${monthBarGradientId})`}
+                          tabIndex={0}
+                          aria-label={dayDescription}
+                          onMouseEnter={() => handleMonthDayEnter(getLocalDateKey(date))}
+                          onFocus={() => {
+                            handleMonthDayEnter(getLocalDateKey(date));
+                            setMonthTooltipVisible(true);
+                          }}
+                          onBlur={handleMonthDayLeave}
+                        />
+                      );
+                    })}
+                  </g>
                 </g>
               )}
               {period === 7 && chartPoints.length > 0 && (
@@ -573,7 +591,7 @@ export function QuickPlannerActivity({
                 const dayKey = getLocalDateKey(date);
                 const isNearHoveredMonthDay = period === 30
                   && hoveredMonthDayIndex >= 0
-                  && Math.abs(index - hoveredMonthDayIndex) <= 1;
+                  && Math.abs(index - hoveredMonthDayIndex) <= 2;
                 const fullDate = new Intl.DateTimeFormat(dateLocale, {
                   weekday: 'long',
                   month: 'long',
@@ -585,7 +603,6 @@ export function QuickPlannerActivity({
                     key={dayKey}
                     title={t('quickPlanner.activityDayCount', { date: fullDate, count })}
                     aria-label={t('quickPlanner.activityDayCount', { date: fullDate, count })}
-                    onMouseEnter={() => period === 30 && handleMonthDayEnter(dayKey)}
                   >
                     <span className="quick-planner-activity-day-label">{dayLabel}</span>
                   </div>
