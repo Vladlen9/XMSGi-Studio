@@ -11,9 +11,9 @@
 }
 
 html[data-theme='dark'] .quick-planner-activity-section {
-  border-color: rgba(110, 166, 202, 0.22);
-  background: linear-gradient(145deg, rgba(38, 57, 69, 0.82), rgba(27, 40, 49, 0.92));
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  border-color: rgba(110, 166, 202, 0.18);
+  background: linear-gradient(145deg, rgba(33, 49, 59, 0.84), rgba(24, 36, 44, 0.92));
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.025);
 }
 
 .quick-planner-activity-header {
@@ -536,7 +536,10 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
 .quick-planner-activity-day {
   display: flex;
   min-width: 0;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 0;
   overflow: hidden;
 }
 
@@ -555,6 +558,22 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
     0 4px 5px rgba(35, 52, 66, 0.2);
   text-transform: capitalize;
   transform: translateY(-2px);
+}
+
+.quick-planner-activity-date-label {
+  color: #758592;
+  font-family: "Exo 2", Arial, sans-serif;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 11px;
+  text-align: center;
+  transform: translateY(-2px);
+}
+
+.quick-planner-activity-day.is-today:not(.is-month) .quick-planner-activity-date-label {
+  color: #1676bb;
+  font-weight: 800;
 }
 
 html[data-theme='dark'] .quick-planner-activity-point-ring {
@@ -602,6 +621,15 @@ html[data-theme='dark'] .quick-planner-activity-days.is-month .quick-planner-act
 html[data-theme='dark'] .quick-planner-activity-day.is-today .quick-planner-activity-day-label {
   color: #a6dcff;
   text-shadow: 0 0 7px rgba(73, 180, 255, 0.42);
+}
+
+html[data-theme='dark'] .quick-planner-activity-date-label {
+  color: #91a3b0;
+}
+
+html[data-theme='dark'] .quick-planner-activity-day.is-today:not(.is-month) .quick-planner-activity-date-label {
+  color: #a6dcff;
+  text-shadow: 0 0 5px rgba(73, 180, 255, 0.3);
 }
 
 html[data-theme='dark'] .quick-planner-activity-grid-line {

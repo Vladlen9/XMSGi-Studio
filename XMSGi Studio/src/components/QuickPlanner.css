@@ -75,17 +75,29 @@
   min-height: 500px;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(var(--planner-accent-rgb), 0.34);
+  border: 1px solid rgba(var(--planner-accent-rgb), 0.22);
   border-radius: 11px;
   background:
-    radial-gradient(ellipse 88% 48% at 50% 0%, rgba(var(--planner-accent-rgb), 0.035), transparent 74%),
-    linear-gradient(155deg, #ffffff, #f7f8fa);
-  box-shadow: 0 14px 36px rgba(34, 47, 58, 0.08), inset 0 1px 0 #ffffff;
+    radial-gradient(ellipse 88% 48% at 50% 0%, rgba(var(--planner-accent-rgb), 0.028), transparent 74%),
+    linear-gradient(155deg, rgba(250, 253, 255, 0.88), rgba(237, 245, 249, 0.84));
+  box-shadow: 0 14px 36px rgba(34, 47, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .quick-planner-workbench:has(.quick-planner-emoji-picker--floating) {
   z-index: 10;
   overflow: visible;
+}
+
+.quick-planner-workbench:has(.quick-planner-chat-menu) {
+  z-index: 10;
+  overflow: visible;
+}
+
+.quick-planner-workbench:has(.quick-planner-chat-menu) .quick-planner-toolbar {
+  position: relative;
+  z-index: 1;
 }
 
 .quick-planner-workbench::before {
@@ -94,7 +106,7 @@
   left: 0;
   width: var(--planner-heading-width, 188px);
   height: 2px;
-  background: linear-gradient(90deg, transparent 0%, var(--planner-accent) 12%, var(--planner-accent) 88%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(var(--planner-accent-rgb), 0.4) 12%, rgba(var(--planner-accent-rgb), 0.4) 88%, transparent 100%);
   clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   content: "";
 }
@@ -106,6 +118,9 @@
   gap: 20px;
   padding: 24px 26px 18px;
   border-bottom: 1px solid var(--planner-line);
+  background: linear-gradient(180deg, rgba(211, 229, 239, 0.32), rgba(225, 239, 246, 0.16));
+  backdrop-filter: blur(8px) saturate(115%);
+  -webkit-backdrop-filter: blur(8px) saturate(115%);
 }
 
 @media (min-width: 1200px) {
@@ -398,7 +413,7 @@
   padding: 3px;
   border: 1px solid var(--planner-line);
   border-radius: 7px;
-  background: #f1f3f5;
+  background: linear-gradient(180deg, rgba(247, 250, 252, 0.7), rgba(238, 244, 247, 0.72));
 }
 
 .quick-planner-mode-switch button {
@@ -521,6 +536,7 @@
   font-family: "Exo 2", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.8;
+  transition: background-color 180ms ease, transform 180ms ease;
   resize: none;
   overflow-x: hidden;
   overflow-y: auto;
@@ -1113,8 +1129,11 @@
   gap: 9px;
   flex-wrap: wrap;
   padding: 0 26px;
-  border-top: 1px solid var(--planner-line);
+  border-top: 1px solid rgba(48, 64, 75, 0.14);
   border-bottom: 1px solid var(--planner-line);
+  background: linear-gradient(180deg, rgba(247, 250, 252, 0.7), rgba(238, 244, 247, 0.72));
+  backdrop-filter: blur(8px) saturate(115%);
+  -webkit-backdrop-filter: blur(8px) saturate(115%);
 }
 
 .quick-planner-schedule-row > .quick-planner-label {
@@ -1175,19 +1194,26 @@
 }
 
 .quick-planner-schedule-row > .quick-planner-schedule-field {
-  width: 116px;
-  flex: 0 0 116px;
+  width: 144px;
+  flex: 0 0 144px;
 }
 
 .quick-planner-time-value > .quick-planner-schedule-field {
-  width: 96px;
-  flex: 0 0 96px;
+  width: 124px;
+  flex: 0 0 124px;
 }
 
 .quick-planner-schedule-row > .quick-planner-schedule-field > button,
 .quick-planner-time-value > .quick-planner-schedule-field > button {
+  box-sizing: border-box;
+  height: 44px;
   width: 100%;
   min-width: 0;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .quick-planner-schedule-row > .quick-planner-schedule-field > button {
@@ -1243,7 +1269,10 @@
 .quick-planner-time-picker {
   width: 172px;
   max-height: min(276px, calc(100vh - 32px));
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "times"
+    "entry";
   overflow: hidden;
 }
 
@@ -1355,6 +1384,7 @@
 }
 
 .quick-planner-time-field {
+  grid-area: entry;
   width: 100%;
   height: 28px;
   padding: 0 8px;
@@ -1375,6 +1405,7 @@
 }
 
 .quick-planner-time-list {
+  grid-area: times;
   display: grid;
   min-height: 0;
   gap: 1px;
@@ -1400,13 +1431,13 @@
 
 .quick-planner-time-list button:hover:not(:disabled),
 .quick-planner-time-list button:focus-visible:not(:disabled) {
-  color: #26333d;
-  background: rgba(var(--planner-accent-rgb), 0.12);
+  color: #ffffff;
+  background: #239dfb;
   outline: none;
 }
 
 .quick-planner-time-list button:focus-visible:not(:disabled) {
-  outline: 2px solid rgba(var(--planner-accent-rgb), 0.58);
+  outline: 2px solid rgba(35, 157, 251, 0.58);
   outline-offset: 1px;
 }
 
@@ -1451,8 +1482,26 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 3px;
   font-variant-numeric: tabular-nums;
+}
+
+.quick-planner-submit-group {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.quick-planner-submit-group > .quick-planner-timezone {
+  width: auto;
+  flex: 0 0 auto;
+  border-left: 0;
+  border-right: 1px solid var(--planner-line);
+}
+
+.quick-planner-submit-group > .quick-planner-submit {
+  margin-left: 0;
 }
 
 .quick-planner-schedule-row > .quick-planner-schedule-field > button {
@@ -1495,8 +1544,7 @@
 }
 
 .quick-planner-timezone.is-no-presets {
-  padding-right: 0;
-  border-right: 0;
+  border-right: 1px solid var(--planner-line);
 }
 
 .quick-planner-schedule-row .quick-planner-submit {
@@ -1778,18 +1826,6 @@ html[data-theme='light'] .quick-planner .quick-planner-mode-switch button.is-act
   color: #315f79;
 }
 
-html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button {
-  border-color: rgba(var(--planner-accent-rgb), 0.34);
-  background: rgba(var(--planner-accent-rgb), 0.065);
-  color: #cfe9f9;
-}
-
-html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button:hover,
-html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets > button:focus-visible {
-  border-color: rgba(var(--planner-accent-rgb), 0.58);
-  background: rgba(var(--planner-accent-rgb), 0.13);
-}
-
 .quick-planner-submit {
   display: inline-flex;
   width: 160px;
@@ -1981,9 +2017,7 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   }
 
   .quick-planner-activity {
-    width: min(100%, 760px);
-    justify-self: center;
-    padding: 12px 4px 0;
+    display: none;
   }
 
 }
@@ -2095,7 +2129,7 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   flex: 0 0 84px;
 }
 
-.quick-planner-schedule-row > .quick-planner-submit,
+.quick-planner-schedule-row > .quick-planner-submit-group,
 .quick-planner-schedule-row > .quick-planner-draft-actions {
   position: static;
   right: auto;
@@ -2119,13 +2153,13 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
 }
 
 .quick-planner-schedule-row > .quick-planner-schedule-field {
-  width: 116px;
-  flex: 0 0 116px;
+  width: 144px;
+  flex: 0 0 144px;
 }
 
 .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field {
-  width: 96px;
-  flex: 0 0 96px;
+  width: 124px;
+  flex: 0 0 124px;
 }
 
 .quick-planner-schedule-row .quick-planner-timezone {
@@ -2151,13 +2185,13 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
 
 @media (max-width: 560px) {
   .quick-planner-schedule-row > .quick-planner-schedule-field {
-    width: 116px;
-    flex-basis: 116px;
+    width: 144px;
+    flex-basis: 144px;
   }
 
   .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field {
-    width: 96px;
-    flex-basis: 96px;
+    width: 124px;
+    flex-basis: 124px;
   }
 
   .quick-planner-schedule-row .quick-planner-timezone {
@@ -2170,15 +2204,102 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   }
 }
 
+@container quick-planner-workbench (max-width: 680px) {
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    overflow: visible;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row > .quick-planner-schedule-field:has(> button[aria-label="Choose date"]) {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row > .quick-planner-time-value {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row .quick-planner-time-value > .quick-planner-schedule-field {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row .quick-planner-presets {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    width: 100%;
+    margin: 0;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row > .quick-planner-submit-group {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    justify-self: stretch;
+    margin: 0;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-submit-group > .quick-planner-timezone {
+    width: auto;
+    flex: 0 0 auto;
+    padding-right: 6px;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-submit-group > .quick-planner-submit {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .quick-planner .quick-planner-workbench:has(.quick-planner-schedule-row) .quick-planner-schedule-row > .quick-planner-draft-actions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    margin: 0;
+  }
+}
+
 .quick-planner-workbench {
-  border-color: #28b8f4;
-  box-shadow: 0 0 0 1px rgba(40, 184, 244, 0.42), 0 0 8px rgba(40, 184, 244, 0.24);
+  container-name: quick-planner-workbench;
+  container-type: inline-size;
+  border-color: rgba(91, 145, 177, 0.3);
+  box-shadow:
+    0 0 0 1px rgba(91, 145, 177, 0.12),
+    0 12px 32px rgba(35, 70, 91, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74);
 }
 
 .quick-planner-message {
   border-color: #28b8f4;
   background: #ffffff;
   box-shadow: 0 0 0 1px rgba(40, 184, 244, 0.42), 0 0 8px rgba(40, 184, 244, 0.24);
+}
+
+.quick-planner .quick-planner-message:not(:focus),
+.quick-planner .quick-planner-message:not(:focus):hover {
+  border-color: #28b8f4;
+  box-shadow: 0 0 0 1px rgba(40, 184, 244, 0.42), 0 0 8px rgba(40, 184, 244, 0.24);
+}
+
+.quick-planner .quick-planner-message:focus {
+  border-color: var(--planner-line);
+  box-shadow: none;
 }
 
 html[data-theme='light'] .quick-planner .quick-planner-message {
@@ -2193,21 +2314,33 @@ html[data-theme='light'] .quick-planner .quick-planner-message.is-file-drag-over
 
 html[data-theme='dark'] .quick-planner .quick-planner-message {
   color-scheme: dark;
+  border-color: #28b8f4;
   background-color: #151b20;
 }
 
-.quick-planner .quick-planner-schedule-field > button {
-  border-color: rgba(var(--planner-accent-rgb), 0.3);
-  background: rgba(var(--planner-accent-rgb), 0.045);
+html[data-theme='dark'] .quick-planner .quick-planner-message:focus {
+  border-color: #46545e;
   box-shadow: none;
-  color: var(--planner-ink);
 }
 
-.quick-planner .quick-planner-schedule-field > button:hover:not(:disabled),
-.quick-planner .quick-planner-schedule-field > button:focus-visible {
-  border-color: rgba(var(--planner-accent-rgb), 0.58);
-  background: rgba(var(--planner-accent-rgb), 0.1);
-  box-shadow: 0 1px 2px rgba(34, 47, 58, 0.08);
+.quick-planner .quick-planner-schedule-field > button {
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--planner-ink);
+  gap: 7px;
+  padding-right: 8px;
+  padding-left: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.quick-planner .quick-planner-schedule-field > button:not(.is-readonly):hover:not(:disabled),
+.quick-planner .quick-planner-schedule-field > button:not(.is-readonly):focus-visible {
+  border-color: transparent;
+  background: rgba(var(--planner-accent-rgb), 0.08);
+  box-shadow: none;
 }
 
 .quick-planner .quick-planner-schedule-field > button:focus-visible {
@@ -2220,20 +2353,46 @@ html[data-theme='dark'] .quick-planner .quick-planner-message {
   stroke-width: 2;
 }
 
+.quick-planner .quick-planner-schedule-field > button svg:first-child {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
 html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button {
-  border-color: rgba(var(--planner-accent-rgb), 0.44);
-  background: rgba(var(--planner-accent-rgb), 0.1);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
   color: #e0f5ff;
 }
 
 html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button:hover:not(:disabled),
 html[data-theme='dark'] .quick-planner .quick-planner-schedule-field > button:focus-visible {
-  border-color: rgba(var(--planner-accent-rgb), 0.68);
-  background: rgba(var(--planner-accent-rgb), 0.17);
+  border-color: transparent;
+  background: rgba(var(--planner-accent-rgb), 0.14);
+  box-shadow: none;
 }
 
 html[data-theme='light'] .quick-planner .quick-planner-schedule-field > button {
   color: #173b52;
+}
+
+html[data-theme] .quick-planner .quick-planner-schedule-field > button.is-readonly {
+  color: var(--planner-muted);
+}
+
+html[data-theme] .quick-planner .quick-planner-schedule-field > button.is-readonly svg {
+  color: currentColor;
+}
+
+html[data-theme] .quick-planner .quick-planner-schedule-field > button.is-readonly:hover,
+html[data-theme] .quick-planner .quick-planner-schedule-field > button.is-readonly:focus-visible,
+html[data-theme] .quick-planner .quick-planner-schedule-field > button.is-readonly:active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  transform: none;
 }
 
 .quick-planner-presets {
@@ -2245,36 +2404,34 @@ html[data-theme='light'] .quick-planner .quick-planner-schedule-field > button {
 
 .quick-planner-presets button,
 .quick-planner-presets button + button {
-  min-height: 34px;
+  height: 44px;
+  min-height: 44px;
+  justify-content: center;
   padding: 0 10px;
-  border: 1px solid rgba(var(--planner-accent-rgb), 0.3);
+  border: 1px solid var(--planner-line);
   border-radius: 6px;
-  background: rgba(var(--planner-accent-rgb), 0.045);
-  color: var(--planner-accent);
+  background: #ffffff;
+  color: var(--planner-ink);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.quick-planner-presets button:hover,
-.quick-planner-presets button:focus-visible {
-  border-color: rgba(var(--planner-accent-rgb), 0.58);
-  background: rgba(var(--planner-accent-rgb), 0.1);
-}
-
-html[data-theme='dark'] .quick-planner-presets button,
-html[data-theme='dark'] .quick-planner-presets button + button {
-  border-color: rgba(var(--planner-accent-rgb), 0.44);
-  background: rgba(var(--planner-accent-rgb), 0.1);
-  color: #e0f5ff;
-}
-
-html[data-theme='dark'] .quick-planner-presets button:hover,
-html[data-theme='dark'] .quick-planner-presets button:focus-visible {
-  border-color: rgba(var(--planner-accent-rgb), 0.68);
-  background: rgba(var(--planner-accent-rgb), 0.17);
+.quick-planner-schedule-row .quick-planner-presets button:hover,
+.quick-planner-schedule-row .quick-planner-presets button:focus-visible {
+  border-color: rgba(var(--planner-accent-rgb), 0.42);
+  background: rgba(var(--planner-accent-rgb), 0.05);
+  outline: none;
 }
 
 html[data-theme='light'] .quick-planner-presets button,
 html[data-theme='light'] .quick-planner-presets button + button {
   color: #173b52;
+}
+
+html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planner-presets {
+  border: 0;
+  background: transparent;
 }
 
 .quick-planner-compose-footer .quick-planner-action-feedback {
@@ -2466,7 +2623,7 @@ html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-error 
 
 html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-warning,
 html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-info {
-  color: #694900;
+  color: #805500;
 }
 
 html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-success {
@@ -2487,4 +2644,65 @@ html[data-theme='light'] .quick-planner .quick-planner-action-feedback.is-succes
     right: 15px;
     margin-left: auto;
   }
+}
+
+html[data-theme] .quick-planner .quick-planner-mode-switch button.is-active {
+  color: #ffffff;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.24), transparent 52%),
+    linear-gradient(135deg, color-mix(in srgb, var(--planner-accent) 78%, #ffffff), var(--planner-accent) 58%, color-mix(in srgb, var(--planner-accent) 82%, #07131d));
+  box-shadow:
+    0 3px 7px rgba(var(--planner-accent-rgb), 0.34),
+    0 1px 1px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  transition: color 180ms ease, background 220ms ease, box-shadow 180ms ease, transform 180ms ease, filter 180ms ease;
+}
+
+html[data-theme] .quick-planner .quick-planner-mode-switch button.is-active:hover {
+  box-shadow:
+    0 4px 10px rgba(var(--planner-accent-rgb), 0.4),
+    0 1px 1px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+html[data-theme] .quick-planner .quick-planner-mode-switch button.is-active:active {
+  box-shadow:
+    0 1px 3px rgba(var(--planner-accent-rgb), 0.3),
+    inset 0 1px 2px rgba(0, 0, 0, 0.16);
+  filter: brightness(0.98);
+  transform: translateY(1px);
+}
+
+html[data-theme] .quick-planner .quick-planner-schedule-row .quick-planner-submit,
+html[data-theme] .quick-planner .quick-planner-schedule-row .quick-planner-submit:hover,
+html[data-theme] .quick-planner .quick-planner-schedule-row .quick-planner-submit:focus-visible {
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--planner-accent) 82%, #ffffff);
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.24), transparent 54%),
+    linear-gradient(135deg, color-mix(in srgb, var(--planner-accent) 78%, #ffffff), var(--planner-accent) 58%, color-mix(in srgb, var(--planner-accent) 82%, #07131d));
+  box-shadow:
+    0 4px 10px rgba(var(--planner-accent-rgb), 0.3),
+    0 1px 1px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+html[data-theme] .quick-planner .quick-planner-submit:hover:not(:disabled),
+html[data-theme] .quick-planner .quick-planner-submit:focus-visible:not(:disabled) {
+  box-shadow:
+    0 6px 14px rgba(var(--planner-accent-rgb), 0.4),
+    0 1px 1px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+html[data-theme] .quick-planner .quick-planner-submit:active:not(:disabled) {
+  box-shadow:
+    0 1px 3px rgba(var(--planner-accent-rgb), 0.28),
+    inset 0 1px 2px rgba(0, 0, 0, 0.16);
+  filter: brightness(0.98);
+  transform: translateY(1px);
 }

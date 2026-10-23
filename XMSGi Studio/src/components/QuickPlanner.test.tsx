@@ -1,6 +1,9 @@
 import { createElement, type ReactNode } from 'react';
 import { act, fireEvent, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
@@ -8,8 +11,16 @@ import { flushPlannerDraftWrite, readPlannerDraftAttachments, writePlannerDraft 
 import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
-function render(ui: ReactNode) {
-  return renderTestingLibrary(createElement(LocaleProvider, null, ui));
+const quickPlannerStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlanner.css'), 'utf8');
+const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../styles/colorThemes.css'), 'utf8');
+
+function render(ui: ReactNode, initialMode: 'Send now' | 'Schedule' = 'Schedule') {
+  const view = renderTestingLibrary(createElement(LocaleProvider, null, ui));
+  if (initialMode === 'Schedule') {
+    const scheduleMode = view.container.querySelectorAll<HTMLButtonElement>('.quick-planner-mode-switch button')[1];
+    fireEvent.click(scheduleMode);
+  }
+  return view;
 }
 
 function createScheduledMessage(overrides: Partial<ScheduledMessage> = {}): ScheduledMessage {
@@ -57,6 +68,113 @@ describe('QuickPlanner feedback', () => {
     ]) localStorage.removeItem(key);
   });
 
+  it('hides the Activity panel at the narrow Planner breakpoint', () => {
+    expect(quickPlannerStyles).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.quick-planner-activity\s*\{\s*display:\s*none;\s*\}/,
+    );
+  });
+
+  it('uses the Studio blue hover and focus highlight for Planner time options in both themes', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-time-list button:hover:not\(:disabled\),\s*\.quick-planner-time-list button:focus-visible:not\(:disabled\)\s*\{\s*color:\s*#ffffff;\s*background:\s*#239dfb;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-time-list button:hover:not\(:disabled\),\s*html\[data-theme='dark'\] \.quick-planner-time-list button:focus-visible:not\(:disabled\),[\s\S]*?\{\s*background:\s*#239dfb !important;\s*color:\s*#ffffff !important;/,
+    );
+  });
+
+  it('matches the date and time controls to the send button height in both themes', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-schedule-row > \.quick-planner-schedule-field > button,\s*\.quick-planner-time-value > \.quick-planner-schedule-field > button\s*\{[^}]*height:\s*44px;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner \.quick-planner-schedule-field > button\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*font-size:\s*16px;[^}]*font-weight:\s*700;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row > \.quick-planner-schedule-field > button,\s*html\[data-theme='dark'\] \.quick-planner \.quick-planner-time-value > \.quick-planner-schedule-field > button\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;/,
+    );
+  });
+
+  it('styles quick time presets like separate Studio actions without a dark container backdrop', () => {
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-presets\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/);
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-presets button,\s*\.quick-planner-presets button \+ button\s*\{[^}]*height:\s*44px;[^}]*border:\s*1px solid var\(--planner-line\);[^}]*border-radius:\s*6px;[^}]*background:\s*#ffffff;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-schedule-row \.quick-planner-presets button:hover,\s*\.quick-planner-schedule-row \.quick-planner-presets button:focus-visible\s*\{[^}]*border-color:\s*rgba\(var\(--planner-accent-rgb\),\s*0\.42\);[^}]*background:\s*rgba\(var\(--planner-accent-rgb\),\s*0\.05\);[^}]*outline:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-mode-switch,\s*html\[data-theme='dark'\] \.quick-planner-presets,\s*html\[data-theme='dark'\] \.quick-planner-schedule-row button,[\s\S]*?\{\s*border-color:\s*#35414a;\s*background:\s*#10161a;\s*color:\s*#c5cfd6;/,
+    );
+    expect(quickPlannerStyles).not.toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row \.quick-planner-presets > button/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row \.quick-planner-presets\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/,
+    );
+  });
+
+  it('keeps the message field blue on hover and removes the accent only while focused', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-message\s*\{[^}]*transition:\s*background-color 180ms ease,\s*transform 180ms ease;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner \.quick-planner-message:not\(:focus\),\s*\.quick-planner \.quick-planner-message:not\(:focus\):hover\s*\{[^}]*border-color:\s*#28b8f4;[^}]*box-shadow:\s*0 0 0 1px rgba\(40, 184, 244, 0\.42\), 0 0 8px rgba\(40, 184, 244, 0\.24\);/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*var\(--planner-line\);[^}]*box-shadow:\s*none;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*#46545e;[^}]*box-shadow:\s*none;/,
+    );
+  });
+
+  it('reserves enough width for the enlarged date and time labels with their icons', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-schedule-row > \.quick-planner-schedule-field\s*\{\s*width:\s*144px;\s*flex:\s*0 0 144px;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-time-value > \.quick-planner-schedule-field\s*\{\s*width:\s*124px;\s*flex:\s*0 0 124px;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /@media \(max-width:\s*560px\)\s*\{[\s\S]*?\.quick-planner-schedule-row \.quick-planner-time-value > \.quick-planner-schedule-field\s*\{\s*width:\s*124px;\s*flex-basis:\s*124px;/,
+    );
+  });
+
+  it('reflows schedule controls inside a narrow Planner card instead of clipping them', () => {
+    expect(quickPlannerStyles).toMatch(
+      /@container quick-planner-workbench \(max-width:\s*680px\)\s*\{[\s\S]*?\.quick-planner-schedule-row\s*\{[^}]*display:\s*grid;[^}]*overflow:\s*visible;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-schedule-row > \.quick-planner-submit-group,\s*\.quick-planner-schedule-row > \.quick-planner-draft-actions\s*\{[^}]*flex:\s*0 0 auto;[^}]*margin:\s*0 0 0 auto;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-schedule-row > \.quick-planner-submit-group\s*\{[^}]*grid-column:\s*2;[^}]*width:\s*100%;[^}]*min-width:\s*0;/,
+    );
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-workbench\s*\{[^}]*container-name:\s*quick-planner-workbench;[^}]*container-type:\s*inline-size;/);
+  });
+
+  it('places the timezone immediately to the left of the send button', () => {
+    const { container } = render(<QuickPlanner />);
+    const submitGroup = container.querySelector('.quick-planner-submit-group')!;
+    const timezone = submitGroup.querySelector('.quick-planner-timezone');
+    const submit = submitGroup.querySelector('.quick-planner-submit');
+
+    expect(timezone).toHaveTextContent(/^GMT/);
+    expect(submitGroup.firstElementChild).toBe(timezone);
+    expect(submitGroup.lastElementChild).toBe(submit);
+    expect(container.querySelector('.quick-planner-time-value .quick-planner-timezone')).not.toBeInTheDocument();
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-timezone\.is-no-presets\s*\{[^}]*border-right:\s*1px solid var\(--planner-line\);/);
+  });
+
+  it('places the available time list above the editable time field', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-time-picker\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto;[^}]*grid-template-areas:\s*"times"\s*"entry";/,
+    );
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-time-field\s*\{[^}]*grid-area:\s*entry;/);
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-time-list\s*\{[^}]*grid-area:\s*times;/);
+  });
+
   it('does not populate the chat picker with sample chats', () => {
     render(<QuickPlanner />);
 
@@ -64,6 +182,15 @@ describe('QuickPlanner feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Choose a chat' }));
     expect(document.querySelector('.quick-planner-chat-options [role="option"]')).not.toBeInTheDocument();
     expect(screen.getByText('No chats found')).toBeInTheDocument();
+  });
+
+  it('keeps the open chat picker above the message editor and outside the workbench clipping area', () => {
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-workbench:has\(\.quick-planner-chat-menu\)\s*\{[^}]*z-index:\s*10;[^}]*overflow:\s*visible;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-workbench:has\(\.quick-planner-chat-menu\) \.quick-planner-toolbar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*1;/,
+    );
   });
 
   it('renders a feedback preview in the same accessible Planner status slot', () => {
@@ -117,16 +244,20 @@ describe('QuickPlanner feedback', () => {
   it('translates the Planner page and its accessible controls into Russian', () => {
     localStorage.setItem('awaitmsg_locale', 'ru');
 
-    render(<QuickPlanner />);
+    render(<QuickPlanner />, 'Send now');
 
     expect(screen.getByRole('heading', { name: 'Новое сообщение' })).toBeInTheDocument();
     expect(screen.getByRole('main', { name: 'Новое сообщение' })).toHaveAttribute('lang', 'ru');
-    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ЗАПЛАНИРОВАТЬ');
+    const modeGroup = screen.getByRole('group', { name: 'Режимы действия' });
+    expect(within(modeGroup).getByRole('button', { name: 'Отправить сейчас' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ОТПРАВИТЬ СЕЙЧАС');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
-    expect(screen.getAllByRole('button', { name: 'Запланировать' })).not.toHaveLength(0);
+    expect(screen.getAllByRole('button', { name: 'Отправить сейчас' })).not.toHaveLength(0);
     expect(screen.getByRole('heading', { name: 'Активность' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Предстоящие' })).not.toBeInTheDocument();
 
+    fireEvent.click(within(modeGroup).getByRole('button', { name: 'Запланировать' }));
+    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ЗАПЛАНИРОВАТЬ');
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать дату' }));
     const datePicker = screen.getByRole('dialog', { name: 'Выбор даты отправки' });
     expect(datePicker).toHaveTextContent(new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date()));
@@ -140,13 +271,15 @@ describe('QuickPlanner feedback', () => {
   });
 
   it('shows Activity while hiding the Upcoming section', () => {
-    const { container } = render(<QuickPlanner />);
+    const { container } = render(<QuickPlanner />, 'Send now');
 
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Upcoming' })).not.toBeInTheDocument();
     expect(container.querySelector('.quick-planner-upcoming-section')).toHaveAttribute('hidden');
     expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
-    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('SCHEDULE');
+    expect(within(screen.getByRole('group', { name: 'Planner actions' })).getByRole('button', { name: 'Send now' }))
+      .toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('SEND NOW');
   });
 
   it('charts only distinct confirmed sends with valid sentAt timestamps over local days', () => {
@@ -307,8 +440,7 @@ describe('QuickPlanner feedback', () => {
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {
     render(<QuickPlanner />);
-    const submitButton = document.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit');
-    expect(submitButton).not.toBeNull();
+    const submitButton = document.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
 
     fireEvent.click(submitButton!);
     const firstStatus = screen.getByRole('status');
@@ -432,6 +564,9 @@ describe('QuickPlanner feedback', () => {
     const clearButton = screen.getByRole('button', { name: 'Clear reminder text' });
     expect(clearButton.parentElement).toHaveClass('quick-planner-counter-controls');
     expect(clearButton.previousElementSibling).toHaveClass('quick-planner-character-count');
+    editor.focus();
+    fireEvent.mouseDown(clearButton);
+    expect(editor).toHaveFocus();
     fireEvent.click(clearButton);
 
     expect(editor).toHaveValue('');
@@ -1172,6 +1307,15 @@ describe('QuickPlanner feedback', () => {
     expect(timeTrigger).toHaveAttribute('aria-disabled', 'true');
     expect(dateTrigger.querySelector('svg:last-child')).toHaveStyle({ visibility: 'hidden' });
     expect(timeTrigger.querySelector('svg:last-child')).toHaveStyle({ visibility: 'hidden' });
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-schedule-field > button\.is-readonly\s*\{\s*color:\s*var\(--planner-muted\);\s*\}/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-schedule-field > button\.is-readonly svg\s*\{\s*color:\s*currentColor;\s*\}/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-schedule-field > button\.is-readonly:hover,\s*html\[data-theme\] \.quick-planner \.quick-planner-schedule-field > button\.is-readonly:focus-visible,\s*html\[data-theme\] \.quick-planner \.quick-planner-schedule-field > button\.is-readonly:active\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;[^}]*outline:\s*none;[^}]*transform:\s*none;/,
+    );
 
     fireEvent.click(dateTrigger);
     fireEvent.click(timeTrigger);

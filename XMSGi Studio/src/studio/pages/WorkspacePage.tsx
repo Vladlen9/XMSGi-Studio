@@ -12,6 +12,7 @@ import { WorkspaceTextStage } from '../components/WorkspaceTextStage';
 import { NOTIFICATION_DURATION_MS } from '../hooks/useNotifications';
 import { useStudioDrafts } from '../hooks/useStudioDrafts';
 import { createTemplate, deleteTemplate, insertTextAtSelection, updateTemplate } from '../lib/templates';
+import { BUILT_IN_TEMPLATES } from '../lib/builtInTemplates';
 import { createSavedDraft, deleteSavedDraft, updateSavedDraft } from '../lib/drafts';
 import { convertWebpToTelegramPhoto, inferAttachmentMimeType, isSupportedPhotoAlbumSource, isTelegramPhotoAlbumImage, normalizeAttachments } from '../lib/draftAttachments';
 import {
@@ -124,6 +125,7 @@ type WorkspacePageProps = {
 };
 
 type PublishAction = 'send' | 'schedule' | 'draft';
+type TelegramConnectionState = 'connected' | 'connecting' | 'reconnecting' | 'disconnected';
 type PublishFooterStatus = {
   message: string;
   detail?: string;
@@ -450,6 +452,7 @@ const LEGACY_PREVIEW_LAYOUT_KEY = 'awaitmsg-preview-layout';
 const CHAT_WALLPAPER_STORAGE_KEY = 'xmsgi-chat-preview-wallpaper';
 const LEGACY_CHAT_WALLPAPER_STORAGE_KEY = 'awaitmsg-chat-preview-wallpaper';
 const DEFAULT_TEMPLATE_SEEDED_KEY = 'xmsgi-default-template-seeded-v1';
+const BUILT_IN_TEMPLATES_SEEDED_KEY = 'xmsgi-built-in-templates-seeded-v1';
 const MAX_ALBUMS = 3;
 const MAX_PHOTOS_PER_ALBUM = 10;
 const MAX_ATTACHMENTS = MAX_ALBUMS * MAX_PHOTOS_PER_ALBUM;
@@ -476,17 +479,28 @@ function loadTemplatesWithDefault(): { templates: Template[]; storageError: bool
   }
 
   try {
-    if (window.localStorage.getItem(DEFAULT_TEMPLATE_SEEDED_KEY) === '1') {
-      return { templates, storageError: false };
+    let templatesChanged = false;
+    if (window.localStorage.getItem(DEFAULT_TEMPLATE_SEEDED_KEY) !== '1') {
+      if (!templates.some((template) => template.name === DEFAULT_DRAFT_NAME && template.body === DEFAULT_DRAFT_BODY)) {
+        templates.push(createTemplate({ name: DEFAULT_DRAFT_NAME, body: DEFAULT_DRAFT_BODY }));
+        templatesChanged = true;
+      }
+      window.localStorage.setItem(DEFAULT_TEMPLATE_SEEDED_KEY, '1');
     }
 
-    if (!templates.some((template) => template.name === DEFAULT_DRAFT_NAME && template.body === DEFAULT_DRAFT_BODY)) {
-      const defaultTemplate = createTemplate({ name: DEFAULT_DRAFT_NAME, body: DEFAULT_DRAFT_BODY });
-      templates.push(defaultTemplate);
+    if (window.localStorage.getItem(BUILT_IN_TEMPLATES_SEEDED_KEY) !== '1') {
+      const missingTemplates = BUILT_IN_TEMPLATES
+        .filter((builtIn) => !templates.some((template) => template.name === builtIn.name && template.body === builtIn.body))
+        .map((template) => createTemplate(template));
+      if (missingTemplates.length > 0) {
+        templates = [...missingTemplates, ...templates];
+        templatesChanged = true;
+      }
+      if (templatesChanged) saveTemplates(templates);
+      window.localStorage.setItem(BUILT_IN_TEMPLATES_SEEDED_KEY, '1');
+    } else if (templatesChanged) {
       saveTemplates(templates);
     }
-
-    window.localStorage.setItem(DEFAULT_TEMPLATE_SEEDED_KEY, '1');
   } catch {
     return { templates, storageError: true };
   }
@@ -674,9 +688,11 @@ export function WorkspacePage({
   const albumAttachmentPositionRef = useRef(0);
   const albumAttachmentTargetIdRef = useRef<string | null>(null);
   const attachmentPreviewUrlsRef = useRef(new Set<string>());
+  const attachmentItemsRef = useRef<HTMLDivElement | null>(null);
   const bodyInputRef = useRef<HTMLDivElement | null>(null);
   const focusRescheduledEditorAtEndRef = useRef(false);
   const focusPlannerEditorAtEndRef = useRef(false);
+  const focusEditorAfterStageEscapeRef = useRef(false);
   const restorePlannerDocumentRef = useRef<() => Promise<boolean>>(async () => false);
   const historyDraftOpenerRef = useRef<(draft: SavedDraft) => void>(() => undefined);
   const historyDraftUseRef = useRef<(draft: SavedDraft) => void>(() => undefined);
@@ -801,6 +817,9 @@ export function WorkspacePage({
   const [publishFeedbackDetail, setPublishFeedbackDetail] = useState('');
   const [publishFeedbackKind, setPublishFeedbackKind] = useState<'warning' | 'success'>('warning');
   const [publishFeedbackInstance, setPublishFeedbackInstance] = useState(0);
+  const [telegramConnectionState, setTelegramConnectionState] = useState<TelegramConnectionState>(
+    connected ? 'connected' : 'disconnected',
+  );
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [selectedHistoryDocumentId, setSelectedHistoryDocumentId] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
@@ -866,6 +885,26 @@ export function WorkspacePage({
   });
   const previewCollapsed = previewLayout.collapsed === true;
   const maxDraftLength = getMessageMaxLength(attachments.length > 0);
+
+  useLayoutEffect(() => {
+    const attachmentItems = attachmentItemsRef.current;
+    if (!attachmentItems) return undefined;
+
+    const updateOverflow = () => {
+      attachmentItems.classList.toggle(
+        'has-overflow',
+        attachmentItems.scrollWidth > attachmentItems.clientWidth + 1,
+      );
+    };
+
+    updateOverflow();
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateOverflow);
+    resizeObserver?.observe(attachmentItems);
+
+    return () => resizeObserver?.disconnect();
+  }, [attachments]);
 
   useLayoutEffect(() => {
     const workspace = workspaceRef.current;
@@ -1013,7 +1052,7 @@ export function WorkspacePage({
   recordWorkspaceVersionRef.current = recordWorkspaceVersion;
 
   useLayoutEffect(() => {
-    if (stageMode !== 'editor' || (!focusRescheduledEditorAtEndRef.current && !focusPlannerEditorAtEndRef.current)) return;
+    if (stageMode !== 'editor' || (!focusRescheduledEditorAtEndRef.current && !focusPlannerEditorAtEndRef.current && !focusEditorAfterStageEscapeRef.current)) return;
 
     const frameId = window.requestAnimationFrame(() => {
       const editor = bodyInputRef.current;
@@ -1040,6 +1079,7 @@ export function WorkspacePage({
       editor.scrollTop = Math.max(0, editor.scrollHeight - editor.clientHeight);
       focusRescheduledEditorAtEndRef.current = false;
       focusPlannerEditorAtEndRef.current = false;
+      focusEditorAfterStageEscapeRef.current = false;
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -1099,6 +1139,29 @@ export function WorkspacePage({
     const timer = window.setTimeout(closeNotification, NOTIFICATION_DURATION_MS[notification.type]);
     return () => window.clearTimeout(timer);
   }, [closeNotification, notification.message, notification.revision, notification.type, notification.visible]);
+
+  useEffect(() => {
+    setTelegramConnectionState(connected ? 'connected' : 'disconnected');
+  }, [connected]);
+
+  useEffect(() => {
+    const unsubscribe = window.telegram?.onStatus((status) => {
+      const nextStatus = typeof status === 'string'
+        ? status
+        : status && typeof status === 'object' && 'status' in status
+          ? status.status
+          : undefined;
+      if (
+        nextStatus === 'connected'
+        || nextStatus === 'connecting'
+        || nextStatus === 'reconnecting'
+        || nextStatus === 'disconnected'
+      ) {
+        setTelegramConnectionState(nextStatus);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const showPublishFeedback = useCallback((message: string, kind: 'warning' | 'success' = 'warning', detail = '') => {
     if (publishFeedbackTimerRef.current !== null) {
@@ -1190,6 +1253,7 @@ export function WorkspacePage({
           workspaceChatOriginRef.current = null;
           setWorkspaceSelectedChats([]);
         }
+        focusEditorAfterStageEscapeRef.current = true;
         setStageMode('editor');
         setStageTab('editor');
         setTemplateEditingId(null);
@@ -1199,7 +1263,6 @@ export function WorkspacePage({
         setDraftName('');
         setDraftBodyText('');
         setDraftBodyEntities([]);
-        (document.activeElement as HTMLElement | null)?.blur();
       }
     };
 
@@ -1482,6 +1545,8 @@ export function WorkspacePage({
     days: repeatDays,
     occurrences: repeatOccurrences,
   }, locale);
+  const reconnectingForSend = publishingDraft
+    && (telegramConnectionState === 'connecting' || telegramConnectionState === 'reconnecting');
   const localizeChatName = (name: string) => name === 'Saved Messages' ? t('studio.savedMessagesType') : name;
   const currentModeSummary = rescheduleSource
     ? t('studio.replaceScheduled', { chat: localizeChatName(rescheduleSource.chatName) })
@@ -1506,7 +1571,7 @@ export function WorkspacePage({
     : sendError
     ? { message: sendError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
     : sendInFlight || publishingDraft
-      ? { message: t('studio.sentProgress'), kind: 'progress', transient: false, dismissible: false, duration: null }
+      ? { message: t(reconnectingForSend ? 'studio.reconnectingProgress' : 'studio.sentProgress'), kind: 'progress', transient: false, dismissible: false, duration: null }
       : publishFeedback
         ? {
           message: publishFeedback,
@@ -1840,8 +1905,8 @@ export function WorkspacePage({
 
   const handleCreateTemplate = (input: Pick<Template, 'name' | 'body'>) => {
     setTemplates((current) => [
-      ...current,
       createTemplate(input),
+      ...current,
     ]);
   };
 
@@ -3039,7 +3104,7 @@ export function WorkspacePage({
                   aria-label={t('studio.attachedFiles')}
                   aria-hidden={attachments.length === 0}
                 >
-                  <div className="workspace-page-media-items">
+                  <div className="workspace-page-media-items" ref={attachmentItemsRef}>
                     {getAttachmentDisplayItems(attachments).map((item) => {
                       if (item.kind === 'album') {
                         return (
@@ -3317,7 +3382,7 @@ export function WorkspacePage({
                         ? (scheduling ? t('studio.scheduling') : successPulse && lastAction === 'scheduled' ? t('studio.scheduled') : t('studio.schedule'))
                         : publishAction === 'draft'
                           ? t('studio.saveAction')
-                          : (publishingDraft ? t('studio.sending') : successPulse && lastAction === 'sent' ? t('studio.sent') : t('studio.sendAction'))}
+                          : (publishingDraft ? t(reconnectingForSend ? 'studio.reconnecting' : 'studio.sending') : successPulse && lastAction === 'sent' ? t('studio.sent') : t('studio.sendAction'))}
                     </span>
                   </button>
                   <button

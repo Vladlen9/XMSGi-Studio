@@ -291,6 +291,18 @@ describe('QuickPlannerActivity', () => {
         return new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day);
       });
       expect(displayedWeekdays).toEqual(expectedWeekdays);
+      const expectedDates = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(nextDay);
+        day.setDate(nextDay.getDate() - (6 - index));
+        return String(day.getDate());
+      });
+      expect(Array.from(
+        nextChart.parentElement?.querySelectorAll('.quick-planner-activity-date-label') ?? [],
+        (label) => label.textContent,
+      )).toEqual(expectedDates);
+      const weeklyDays = Array.from(nextChart.parentElement?.querySelectorAll('.quick-planner-activity-day') ?? []);
+      expect(weeklyDays.filter((day) => day.classList.contains('is-today'))).toHaveLength(1);
+      expect(weeklyDays[weeklyDays.length - 1]).toHaveClass('is-today');
     } finally {
       vi.useRealTimers();
     }
@@ -427,6 +439,7 @@ describe('QuickPlannerActivity', () => {
     expect(monthDays[monthDays.length - 2]).toHaveClass('is-before-today');
     expect(monthDays[monthDays.length - 1].querySelector('.quick-planner-activity-day-label'))
       .toHaveTextContent(String(new Date().getDate()));
+    expect(chart.querySelectorAll('.quick-planner-activity-date-label')).toHaveLength(0);
     expect(monthDays[0]).not.toHaveClass('is-today');
     expect(monthButton).toHaveAttribute('aria-pressed', 'true');
     expect(periodGroup).toContainElement(monthButton);

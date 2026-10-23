@@ -62,7 +62,7 @@ body {
 .planner-testbench .quick-planner-activity-chart::before {
   position: absolute;
   z-index: -1;
-  inset: -82px 22px 49px;
+  inset: -82px 22px -22px;
   border: 1px solid rgba(91, 145, 177, 0.24);
   border-radius: 11px;
   background:
@@ -78,7 +78,7 @@ body {
 }
 
 .planner-testbench .quick-planner-activity-chart[data-period='30']::before {
-  inset: -82px 1px 65px;
+  inset: -82px 1px -7px;
 }
 
 .planner-testbench .quick-planner-activity-header,
@@ -88,39 +88,6 @@ body {
 }
 
 html[data-theme='dark'] .planner-testbench .quick-planner-activity-chart::before {
-  border-color: rgba(110, 166, 202, 0.18);
-  background:
-    radial-gradient(ellipse at 12% 0%, rgba(111, 174, 209, 0.1), transparent 58%),
-    linear-gradient(145deg, rgba(36, 57, 69, 0.98), rgba(24, 39, 48, 0.96));
-  box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.22),
-    0 2px 4px rgba(0, 0, 0, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.055);
-}
-
-.planner-testbench .quick-planner-activity-days::before {
-  position: absolute;
-  z-index: -1;
-  inset: -25px 11px -24px;
-  border: 1px solid rgba(91, 145, 177, 0.24);
-  border-radius: 11px;
-  background:
-    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.88), transparent 56%),
-    linear-gradient(145deg, rgba(250, 253, 255, 0.94), rgba(225, 241, 250, 0.82));
-  box-shadow:
-    0 8px 18px rgba(35, 70, 91, 0.1),
-    0 2px 4px rgba(35, 70, 91, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96),
-    inset 0 -1px 0 rgba(116, 162, 188, 0.1);
-  content: "";
-  pointer-events: none;
-}
-
-.planner-testbench .quick-planner-activity-days.is-month::before {
-  inset: -24px 2px -25px;
-}
-
-html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before {
   border-color: rgba(110, 166, 202, 0.18);
   background:
     radial-gradient(ellipse at 12% 0%, rgba(111, 174, 209, 0.1), transparent 58%),
@@ -159,7 +126,7 @@ html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before 
     gap: 2px;
   }
 
-  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit {
+  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit-group {
     order: 5;
     margin-left: auto;
   }
@@ -183,11 +150,9 @@ html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before 
     padding: 0 16px 0 12px;
   }
 
-  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit {
+  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit-group {
     position: static;
-    width: 160px;
-    min-width: 160px;
-    flex: 0 0 160px;
+    flex: 0 0 auto;
     align-self: center;
     order: 5;
     margin-left: auto;
@@ -217,8 +182,8 @@ html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before 
   }
 
   .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-schedule-field {
-    width: 116px;
-    flex-basis: 116px;
+    width: 144px;
+    flex-basis: 144px;
   }
 
   .planner-testbench .planner-shell .quick-planner-timezone {
@@ -237,8 +202,8 @@ html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before 
 
 @media (max-width: 520px) {
   .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-schedule-field {
-    width: 116px;
-    flex-basis: 116px;
+    width: 144px;
+    flex-basis: 144px;
   }
 
   .planner-testbench .planner-shell .quick-planner-presets button {
@@ -255,16 +220,13 @@ html[data-theme='dark'] .planner-testbench .quick-planner-activity-days::before 
   .planner-testbench .planner-shell .quick-planner-presets button {
     min-width: 0;
     flex: 1 1 0;
-    padding-right: 3px;
-    padding-left: 3px;
-    font-size: 9px;
+    padding-right: 5px;
+    padding-left: 5px;
+    font-size: 10px;
   }
 
-  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit {
+  .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-submit-group {
     right: 5px;
-    width: 160px;
-    min-width: 160px;
-    flex: 0 0 160px;
   }
 
   .planner-testbench .planner-shell .quick-planner-schedule-row > .quick-planner-draft-actions {

@@ -27,7 +27,8 @@ function createTelegramSender({
     entities = normalized.entities;
     trackSendAttempt?.(idempotencyKey, attachments.length);
 
-    if (!getClient()) {
+    const currentClient = getClient();
+    if (!currentClient || !currentClient.connected) {
       await connectTelegram();
     }
 

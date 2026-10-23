@@ -441,7 +441,7 @@ describe('WorkspaceTextStage editor flows', () => {
       calendarButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(document.querySelector('.quick-planner-date-picker')).toBeTruthy();
+    expect(document.querySelector('.quick-planner-date-picker')).toHaveClass('quick-planner-schedule-popover');
     unmount();
   });
 

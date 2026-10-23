@@ -1662,7 +1662,7 @@ export function useScheduler({
       }
       return false;
     } finally {
-      if (!isNestedBatchGroup && !attachmentGroups) {
+      if (!isNestedBatchGroup) {
         publishingDraftLockRef.current = false;
         setPublishingDraft(false);
       }

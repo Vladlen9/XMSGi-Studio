@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@studio/types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { readInitialWorkspaceDraft, type WorkspaceDraft } from '../lib/draftStore';
+import { BUILT_IN_TEMPLATES } from '../lib/builtInTemplates';
 import { EDITOR_APPEARANCE_STORAGE_KEY, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import { LocaleProvider } from '@studio/lib/i18n';
 import { ConfirmDialogProvider } from '@/components/ConfirmDialog';
@@ -30,6 +31,7 @@ const baseNotification: NotificationState = {
 };
 
 let inMemoryDraftStore: PersistedDraftStore;
+let telegramStatusListener: ((status: unknown) => void) | null = null;
 const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/colorThemes.css'), 'utf8');
 
@@ -252,6 +254,13 @@ describe('WorkspacePage main-screen flows', () => {
     await act(async () => toggle.click());
     expect(actionRow.classList.contains('is-publish-menu-open')).toBe(false);
     unmount();
+  });
+
+  it('keeps publish mode labels readable in the dark theme and widens the menu leftward', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-menu-compact\s*\{[^}]*right:\s*0 !important;[^}]*left:\s*auto !important;[^}]*width:\s*158px !important;[^}]*min-width:\s*158px !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-menu-compact \.workspace-page-publish-option:not\(\.is-selected\),\s*html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-menu-compact \.workspace-page-publish-option:not\(\.is-selected\) > span\s*\{\s*color:\s*#d4dde3 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-menu-compact \.workspace-page-publish-option:not\(\.is-selected\):is\(:hover, :focus-visible\),\s*html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-menu-compact \.workspace-page-publish-option:not\(\.is-selected\):is\(:hover, :focus-visible\) > span\s*\{\s*color:\s*#f2f7fa !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-menu-compact\s*\{[^}]*width:\s*158px/);
   });
 
   it('keeps the live current action inside the editor and updates it with the selected chat', async () => {
@@ -1264,8 +1273,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(dialog.querySelector('.workspace-page-version-history-icon svg')).not.toBeNull();
     expect(headerRule).toMatch(/justify-content:\s*center/);
     expect(dialogRule).toMatch(/border:\s*1px solid rgba\(154, 168, 184, 0\.16\)/);
-    expect(dialogRule).toMatch(/height:\s*min\(700px, calc\(100dvh - 32px\)\)/);
-    expect(documentMenuRule).toMatch(/max-height:\s*min\(420px, calc\(100dvh - 340px\)\)/);
+    expect(dialogRule).toMatch(/height:\s*min\(660px, calc\(100dvh - 72px\)\)/);
+    expect(documentMenuRule).toMatch(/max-height:\s*min\(346px, calc\(100dvh - 414px\)\)/);
     expect(documentMenuOpenRule).toMatch(/overflow:\s*hidden/);
     expect(dialogFocusRule).toMatch(/outline:\s*none/);
     expect(dividerRule).toMatch(/border-right:\s*1px solid rgba\(154, 168, 184, 0\.12\)/);
@@ -1970,20 +1979,67 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):active:not\(:disabled\)\s*\{[^}]*background:\s*#239dfb !important;[^}]*filter:\s*brightness\(0\.98\);/);
   });
 
+  it('removes publish button hover glow in the dark theme for every mode', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{\s*box-shadow:\s*none !important;/);
+  });
+
+  it('dims past calendar dates and schedule times in the dark theme', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.quick-planner-date-picker-grid button:disabled\s*\{[^}]*color:\s*#697780 !important;[^}]*opacity:\s*0\.62;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.quick-planner-time-list button:disabled\s*\{[^}]*color:\s*#697780 !important;[^}]*opacity:\s*0\.62;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-schedule-time-picker button:disabled\s*\{[^}]*color:\s*#697780 !important;[^}]*opacity:\s*0\.62;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-schedule-time-picker\s*\{[^}]*background:\s*#151b20 !important;[^}]*color-scheme:\s*dark;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.quick-planner-date-picker-grid button:hover:not\(:disabled\):not\(\.is-selected\),\s*html\[data-theme='dark'\] \.quick-planner-date-picker-grid button:focus-visible:not\(:disabled\):not\(\.is-selected\)\s*\{\s*color:\s*#e2f3ff !important;/);
+  });
+
   it('lightens selection and editing highlights in the light theme', () => {
     expect(colorThemeStyles).toMatch(/workspace-page-chat-stage-item\.is-selected,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\.is-selected:hover,[\s\S]*?background:\s*#edf6fa;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item\s*\{[^}]*margin-block:\s*-3px;[^}]*padding-block:\s*8px;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item:hover,[\s\S]*?background:\s*#f5fafc !important;/);
     expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor input,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea\s*\{[^}]*background:\s*#f8fbfd !important;/);
     expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor textarea:focus\s*\{[^}]*background:\s*#ffffff !important;[^}]*box-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\);/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-occurrences select\s*\{[^}]*background:\s*#ffffff;[^}]*color:\s*#29343d;[^}]*color-scheme:\s*light;/);
     expect(colorThemeStyles).toMatch(/workspace-page-schedule-occurrences select option\s*\{[^}]*background:\s*#ffffff;[^}]*color:\s*#29343d;/);
   });
 
+  it('keeps the version history document selector list 40px shorter', () => {
+    const dialogRule = workspacePageStyles.match(/\.workspace-page-version-history-dialog\s*\{([^}]*)\}/)?.[1] ?? '';
+    const documentMenuRule = workspacePageStyles.match(/\.workspace-page-version-history-document-menu\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    expect(dialogRule).toMatch(/height:\s*min\(660px, calc\(100dvh - 72px\)\)/);
+    expect(documentMenuRule).toMatch(/max-height:\s*min\(346px, calc\(100dvh - 414px\)\)/);
+  });
+
   it('uses dark surfaces for Studio selection and editing windows', () => {
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea,[\s\S]*?background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\s*\{[^}]*background:\s*#151b20;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-emoji-picker\s*\{[\s\S]*?background:\s*#171e23;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker\s*\{[\s\S]*?--planner-ink:\s*#e2e7eb;[\s\S]*?background:\s*#171e23;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker \.quick-planner-emoji-categories button\s*\{[^}]*background:\s*#10161a;[^}]*color:\s*#c5cfd6;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker \.quick-planner-emoji-categories button\[aria-selected='true'\],[\s\S]*?background:\s*#17364d;[^}]*color:\s*#73c3ff;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.inline-keyboard-builder\.is-embedded\s*\{[^}]*background:\s*#11171b !important;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-input,[\s\S]*?\.workspace-page-rich-text-input:focus-visible\s*\{[^}]*background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb !important;[^}]*color-scheme:\s*dark;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-version-history-close,[\s\S]*?\.workspace-page-version-history-copy\s*\{[^}]*background:\s*#1a2228 !important;[^}]*color:\s*#d4dde3 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-version-history-document-menu\s*\{[^}]*background:\s*#10161a !important;/);
+  });
+
+  it('aligns the empty editor prompt with the first typed line', () => {
+    const editorRule = workspacePageStyles.match(/\.workspace-page-rich-text-input\s*\{[^}]*--workspace-page-editor-padding-block:\s*12px;[^}]*--workspace-page-editor-padding-inline:\s*14px;[^}]*\}/)?.[0] ?? '';
+    const emptyPromptRule = workspacePageStyles.match(/\.workspace-page-rich-text-input\.is-empty::before\s*\{([^}]*)\}/)?.[1] ?? '';
+    const finalEditorRule = workspacePageStyles.match(/\.workspace-page \.workspace-page-rich-text-input\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    expect(editorRule).not.toBe('');
+    expect(emptyPromptRule).toMatch(/top:\s*var\(--workspace-page-editor-padding-block\)/);
+    expect(emptyPromptRule).toMatch(/left:\s*var\(--workspace-page-editor-padding-inline\)/);
+    expect(finalEditorRule).toMatch(/padding:\s*var\(--workspace-page-editor-padding-block\)\s+var\(--workspace-page-editor-padding-inline\)/);
+  });
+
+  it('keeps Studio date, time, and repeat controls readable in dark mode and on hover', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-inline-field\s*\{[^}]*background:\s*#151b20 !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-inline-field:hover\s*\{[^}]*opacity:\s*1 !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment:hover,[\s\S]*?\.workspace-page-schedule-segment:focus\s*\{[^}]*background:\s*#1d2d38 !important;[^}]*color:\s*#e2f3ff !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-weekday-list button\s*\{[^}]*background:\s*#151b20 !important;[^}]*color:\s*#c5cfd6 !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-occurrences select,[\s\S]*?\.workspace-page-schedule-occurrences select option\s*\{[^}]*background:\s*#10161a !important;[^}]*color-scheme:\s*dark;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment\s*\{/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage input,[\s\S]*?\.workspace-page-rich-text-schedule-stage select\s*\{/);
   });
 
   it('keeps each saved-draft color visible in its picker and list in light theme', () => {
@@ -2517,6 +2573,27 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('shows a reconnecting indicator while Studio send waits for Telegram reconnection', async () => {
+    telegramStatusListener = null;
+    const { unmount } = await renderWorkspacePage({ publishingDraft: true });
+
+    expect(document.querySelector('.workspace-page-publish-main')).toHaveTextContent('Sending…');
+
+    await act(async () => {
+      telegramStatusListener?.('reconnecting');
+    });
+
+    expect(document.querySelector('.workspace-page-publish-main')).toHaveTextContent('Reconnecting…');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveTextContent('Reconnecting to Telegram…');
+
+    await act(async () => {
+      telegramStatusListener?.('connected');
+    });
+
+    expect(document.querySelector('.workspace-page-publish-main')).toHaveTextContent('Sending…');
+    unmount();
+  });
+
   it('keeps the Draft button after Templates and opens its stage', async () => {
     const { unmount } = await renderWorkspacePage();
 
@@ -2787,6 +2864,31 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('keeps the drafts stage open on the first Escape and returns to the focused editor on the second', async () => {
+    const { unmount } = await renderWorkspacePage();
+    await saveEditorAsDraft();
+    const draftModeButton = Array.from(document.querySelectorAll('.workspace-page-action-left-group > button'))
+      .find((button) => button.textContent?.trim() === 'Draft') as HTMLButtonElement;
+    await act(async () => draftModeButton.click());
+
+    const deleteButton = document.querySelector('.workspace-page-rich-text-draft-stage .workspace-page-template-stage-item > div button:last-child') as HTMLButtonElement;
+    await act(async () => deleteButton.click());
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+    });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(document.querySelector('.workspace-page-rich-text-draft-stage.is-active')).not.toBeNull();
+
+    await act(async () => {
+      fireEvent.keyDown(document, { key: 'Escape', bubbles: true });
+    });
+    expect(document.querySelector('.workspace-page-rich-text-draft-stage.is-active')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Post content' })).toHaveFocus());
+    unmount();
+  });
+
   it('shows a success status after a template is deleted', async () => {
     localStorage.setItem('awaitmsg_domain_templates', JSON.stringify([{
       id: 'template-1',
@@ -2859,6 +2961,27 @@ describe('WorkspacePage main-screen flows', () => {
     }
   });
 
+  it('seeds the built-in templates for existing users without replacing their templates', async () => {
+    localStorage.removeItem('xmsgi-built-in-templates-seeded-v1');
+    const existingTemplate = {
+      id: 'user-template',
+      accountId: 'default-account',
+      name: 'My template',
+      body: 'User-owned template',
+      createdAt: '2026-09-26T10:00:00.000Z',
+      updatedAt: '2026-09-26T10:00:00.000Z',
+    };
+    localStorage.setItem('xmsgi_domain_templates', JSON.stringify([existingTemplate]));
+
+    const { unmount } = await renderWorkspacePage();
+    const templates = JSON.parse(localStorage.getItem('xmsgi_domain_templates') ?? '[]') as Array<{ id: string; name: string; body: string }>;
+
+    expect(templates.slice(0, BUILT_IN_TEMPLATES.length).map(({ name, body }) => ({ name, body }))).toEqual(BUILT_IN_TEMPLATES);
+    expect(templates.some(({ id, name, body }) => id === existingTemplate.id && name === existingTemplate.name && body === existingTemplate.body)).toBe(true);
+    expect(localStorage.getItem('xmsgi-built-in-templates-seeded-v1')).toBe('1');
+    unmount();
+  });
+
   it('shows success statuses after creating and updating a template', async () => {
     const { unmount } = await renderWorkspacePage();
     const templatesButton = Array.from(document.querySelectorAll('.workspace-page-action-left-group > button'))
@@ -2885,6 +3008,7 @@ describe('WorkspacePage main-screen flows', () => {
     });
 
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Template created.');
+    expect(document.querySelector('.workspace-page-rich-text-template-stage .workspace-page-template-stage-item strong')?.textContent).toContain('Greeting');
     const editButton = Array.from(document.querySelectorAll('.workspace-page-rich-text-template-stage .workspace-page-template-stage-item > div button'))
       .find((button) => button.textContent?.trim() === 'Edit') as HTMLButtonElement;
     await act(async () => {
@@ -4002,6 +4126,7 @@ describe('WorkspacePage main-screen flows', () => {
     localStorage.setItem('awaitmsg_locale', 'en');
     localStorage.setItem('xmsgi-default-draft-seeded-v1', '1');
     localStorage.setItem('xmsgi-default-template-seeded-v1', '1');
+    localStorage.setItem('xmsgi-built-in-templates-seeded-v1', '1');
     localStorage.setItem('awaitmsg-workspace-draft', JSON.stringify({
       body: 'Hello world',
       entities: [],
@@ -4015,6 +4140,12 @@ describe('WorkspacePage main-screen flows', () => {
     }));
     Object.defineProperty(window, 'telegram', {
       value: {
+        onStatus: vi.fn((callback: (status: unknown) => void) => {
+          telegramStatusListener = callback;
+          return () => {
+            if (telegramStatusListener === callback) telegramStatusListener = null;
+          };
+        }),
         findChat: vi.fn().mockResolvedValue({ success: false, error: 'Chat not found.' }),
         getChatHistory: vi.fn().mockResolvedValue({
           success: true,

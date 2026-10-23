@@ -200,7 +200,7 @@ export function QuickPlanner({
   feedbackPreview,
 }: QuickPlannerProps) {
   const { locale, t } = useLocale();
-  const [selectedMode, setSelectedMode] = useState('Schedule');
+  const [selectedMode, setSelectedMode] = useState('Send now');
   const [message, setMessage] = useState(readPlannerDraft);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const activityNow = new Date();
@@ -1090,6 +1090,7 @@ export function QuickPlanner({
                       title={t('quickPlanner.clearText')}
                       disabled={!message}
                       tabIndex={message ? 0 : -1}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setMessage('');
                         clearActionFeedback();
@@ -1504,7 +1505,6 @@ export function QuickPlanner({
                         )
                     )}
                   </div>
-                  <span className={`quick-planner-timezone${isScheduleMode ? '' : ' is-no-presets'}`}>{timeZoneLabel}</span>
                 </div>
               )}
               {isScheduleMode && (
@@ -1515,10 +1515,13 @@ export function QuickPlanner({
                 </div>
               )}
               {!isDraftMode && (
-                <button className="quick-planner-submit" type="button" onClick={handleSubmit}>
-                  <SubmitIcon size={16} aria-hidden="true" />
-                  <span>{submitLabel}</span>
-                </button>
+                <div className="quick-planner-submit-group">
+                  <span className={`quick-planner-timezone${isScheduleMode ? '' : ' is-no-presets'}`}>{timeZoneLabel}</span>
+                  <button className="quick-planner-submit" type="button" onClick={handleSubmit}>
+                    <SubmitIcon size={16} aria-hidden="true" />
+                    <span>{submitLabel}</span>
+                  </button>
+                </div>
               )}
               {isDraftMode && (
                 <div className="quick-planner-draft-actions">

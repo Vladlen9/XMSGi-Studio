@@ -45,6 +45,7 @@ describe('ConfirmDialogProvider', () => {
     const { onResult } = renderConfirm();
     fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Delete draft?' });
+    expect(within(dialog).getAllByRole('button').map((button) => button.textContent)).toEqual(['Delete', 'Cancel']);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText('true')).toBeInTheDocument();
     expect(onResult).toHaveBeenCalledWith(true);
@@ -66,9 +67,9 @@ describe('ConfirmDialogProvider', () => {
     const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
 
-    confirm.focus();
+    cancel.focus();
     fireEvent.keyDown(window, { key: 'Tab' });
 
-    expect(cancel).toHaveFocus();
+    expect(confirm).toHaveFocus();
   });
 });

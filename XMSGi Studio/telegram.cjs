@@ -881,7 +881,31 @@ async function connectTelegramInternal({ allowSignedOut = false } = {}) {
 
   notifyTelegramStatus('connecting');
 
-  await telegramRequest(() => clientToConnect.connect());
+  try {
+    await telegramRequest(() => withTimeout(
+      clientToConnect.connect(),
+      REQUEST_TIMEOUT,
+      'Telegram connect'
+    ));
+  } catch (error) {
+    if (client === clientToConnect) {
+      client = null;
+      if (lifecycleState.status !== 'shutting-down' && lifecycleState.status !== 'stopped') {
+        lifecycleState.status = 'disconnected';
+        if (error?.code !== 'TELEGRAM_SESSION_INVALID') {
+          notifyTelegramStatus('disconnected');
+        }
+      }
+    }
+
+    void Promise.resolve()
+      .then(() => clientToConnect.disconnect())
+      .catch((disconnectError) => {
+        console.error('Telegram disconnect after connect failure failed:', disconnectError?.code || disconnectError?.name || 'unknown');
+      });
+
+    throw error;
+  }
 
   if (
     connectGeneration !== lifecycleState.reconnectGeneration ||

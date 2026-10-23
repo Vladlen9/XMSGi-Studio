@@ -73,6 +73,7 @@ export function ConfirmDialogSurface({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
+        event.stopPropagation();
         onCancel();
         return;
       }
@@ -97,8 +98,8 @@ export function ConfirmDialogSurface({
         first.focus();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onCancel]);
 
   return (
@@ -119,15 +120,15 @@ export function ConfirmDialogSurface({
         <h2 id={titleId}>{title || message}</h2>
         {title && <p>{message}</p>}
         <div className="confirm-dialog-actions">
-          <button type="button" className="confirm-dialog-cancel" onClick={onCancel} autoFocus>
-            {cancelLabel}
-          </button>
           <button
             type="button"
             className={`confirm-dialog-confirm${destructive ? ' is-destructive' : ''}`}
             onClick={onConfirm}
           >
             {confirmLabel}
+          </button>
+          <button type="button" className="confirm-dialog-cancel" onClick={onCancel} autoFocus>
+            {cancelLabel}
           </button>
         </div>
       </section>

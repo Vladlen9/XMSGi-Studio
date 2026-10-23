@@ -173,19 +173,8 @@ export function loadTemplates(): Template[] {
 }
 
 export function saveTemplates(templates: Template[]): void {
-  const current = templateRepository.list();
-  const ids = new Set(templates.map((template) => template.id));
-
-  for (const template of templates) {
-    const domainTemplate = convertLegacyTemplateToDomain(template);
-    templateRepository.save(domainTemplate as never);
-  }
-
-  for (const item of current) {
-    if (!ids.has(item.id)) {
-      templateRepository.remove(item.id);
-    }
-  }
+  const domainTemplates = templates.map((template) => convertLegacyTemplateToDomain(template));
+  templateRepository.replaceAll(domainTemplates as never[]);
 }
 
 export function loadSavedDrafts(): SavedDraft[] {

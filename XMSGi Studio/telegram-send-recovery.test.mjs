@@ -209,6 +209,35 @@ describe('immediate Telegram send recovery', () => {
     expect(client.sendMessage).not.toHaveBeenCalled();
   });
 
+  it('reconnects a disconnected client before sending', async () => {
+    const client = {
+      connected: false,
+      sendMessage: vi.fn().mockResolvedValue({ id: 42 }),
+    };
+    const connectTelegram = vi.fn(async () => {
+      client.connected = true;
+      return client;
+    });
+    const sender = createTelegramSender({
+      connectTelegram,
+      getClient: () => client,
+      getTelegramRequestTimeout: () => 1000,
+      logTelegramOperation: vi.fn(),
+      normalizeTelegramMessage: (message, entities) => ({ message, entities }),
+      prepareInlineKeyboard: vi.fn(),
+      telegramRequest: (operation) => operation(),
+      toTelegramFormattingEntities: vi.fn(),
+      withTelegramInvokeDiagnostics: (_client, _label, operation) => operation(),
+      withTimeout: (operation) => operation,
+    });
+
+    const result = await sender('chat-1', 'Reconnect then send');
+
+    expect(connectTelegram).toHaveBeenCalledOnce();
+    expect(client.sendMessage).toHaveBeenCalledWith('chat-1', { message: 'Reconnect then send' });
+    expect(result).toMatchObject({ success: true, telegramMessageId: 42 });
+  });
+
   it('uses the Telegram message date paired with the ID correlation update', () => {
     const key = '1736962920000:dated-attempt';
     const recovery = createTelegramSendRecovery({ createRandomId: createTelegramRandomId });

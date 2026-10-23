@@ -1429,6 +1429,30 @@ describe('useScheduler native history', () => {
     );
   });
 
+  it('clears the sending state for text sends with an empty attachment-groups array', async () => {
+    const chat = { id: 'chat-empty-attachment-groups', name: 'Text chat' };
+    const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 502 });
+    const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(
+        chat,
+        'Send text',
+        [],
+        [],
+        undefined,
+        false,
+        undefined,
+        {},
+        [],
+      )).resolves.toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(result.current.publishingDraft).toBe(false);
+  });
+
   it('does not report success or clear a confirmed send when its history write fails', async () => {
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'en');

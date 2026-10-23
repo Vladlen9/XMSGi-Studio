@@ -155,5 +155,6 @@ export interface Repository<T> {
   list(): T[];
   getById(id: string): T | null;
   save(entity: T): T;
+  replaceAll(items: T[]): void;
   remove(id: string): void;
 }

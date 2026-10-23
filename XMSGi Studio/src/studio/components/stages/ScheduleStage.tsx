@@ -337,7 +337,7 @@ export function ScheduleStage({
                 {datePickerOpen && createPortal(
                   <div
                     ref={datePickerRef}
-                    className="quick-planner-date-picker"
+                    className="quick-planner-schedule-popover quick-planner-date-picker"
                     role="dialog"
                     aria-label="Schedule date picker"
                     style={{

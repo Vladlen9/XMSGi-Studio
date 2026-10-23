@@ -588,6 +588,7 @@ export function QuickPlannerActivity({
                 const dayLabel = period === 7
                   ? new Intl.DateTimeFormat(dateLocale, { weekday: 'short' }).format(date)
                   : new Intl.DateTimeFormat(dateLocale, { day: 'numeric' }).format(date);
+                const dateLabel = new Intl.DateTimeFormat(dateLocale, { day: 'numeric' }).format(date);
                 const dayKey = getLocalDateKey(date);
                 const isNearHoveredMonthDay = period === 30
                   && hoveredMonthDayIndex >= 0
@@ -605,6 +606,9 @@ export function QuickPlannerActivity({
                     aria-label={t('quickPlanner.activityDayCount', { date: fullDate, count })}
                   >
                     <span className="quick-planner-activity-day-label">{dayLabel}</span>
+                    {period === 7 && (
+                      <span className="quick-planner-activity-date-label">{dateLabel}</span>
+                    )}
                   </div>
                 );
               })}

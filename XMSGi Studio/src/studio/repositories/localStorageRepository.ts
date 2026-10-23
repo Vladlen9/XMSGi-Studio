@@ -76,6 +76,10 @@ export function createLocalStorageRepository<T extends { id: string }>(
       return entity;
     },
 
+    replaceAll(items: T[]) {
+      writeAll(items);
+    },
+
     remove(id: string) {
       const items = readAll().filter((item) => item.id !== id);
       writeAll(items);

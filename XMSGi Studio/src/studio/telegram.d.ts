@@ -158,7 +158,7 @@ declare global {
         waitSeconds?: number;
         cancelled?: boolean;
       }>;
-      onStatus: (callback: (status: unknown) => void) => void;
+      onStatus: (callback: (status: unknown) => void) => () => void;
       onSendHistoryWarning: (callback: () => void) => () => void;
     };
   }

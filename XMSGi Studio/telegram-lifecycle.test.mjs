@@ -273,6 +273,66 @@ describe('single-account Telegram lifecycle', () => {
     }
   });
 
+  it('times out a new Telegram connection and resets its lifecycle state', async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+    const connectStarted = createDeferred();
+    const originalLoad = nodeModule._load;
+    nodeModule._load = function load(request, parent, isMain) {
+      if (request === 'teleproto') {
+        return {
+          TelegramClient: class FakeTelegramClient {
+            constructor() {
+              this.connected = false;
+              this.disconnect = vi.fn().mockResolvedValue(undefined);
+              globalThis.__telegramTimeoutClient = this;
+            }
+
+            connect() {
+              connectStarted.resolve();
+              return new Promise(() => {});
+            }
+          },
+          Api: {}
+        };
+      }
+
+      if (request === 'teleproto/sessions') {
+        return { StringSession: class FakeStringSession {} };
+      }
+
+      if (request === './telegram-account-storage.cjs') {
+        return {
+          loadAccountSecrets: () => ({ API_ID: '1', API_HASH: 'hash', SESSION_STRING: 'session' }),
+          saveAccountSecrets: () => true,
+          clearAccountSecrets: () => true
+        };
+      }
+
+      return originalLoad(request, parent, isMain);
+    };
+
+    try {
+      const { createTelegramCore } = await import('./telegram.cjs');
+      const core = createTelegramCore({ apiId: 1, apiHash: 'hash', sessionString: 'session' });
+      const connecting = core.connectTelegram();
+      const connectionFailure = expect(connecting).rejects.toMatchObject({ code: 'OPERATION_TIMEOUT' });
+      await connectStarted.promise;
+
+      await vi.advanceTimersByTimeAsync(15000);
+
+      await connectionFailure;
+      expect(core.lifecycleState.status).toBe('disconnected');
+      expect(core.lifecycleState.connectPromise).toBeNull();
+      expect(globalThis.__telegramTimeoutClient.disconnect).toHaveBeenCalledOnce();
+    } finally {
+      nodeModule._load = originalLoad;
+      delete globalThis.__telegramTimeoutClient;
+      vi.useRealTimers();
+      vi.resetModules();
+    }
+  });
+
   it('does not resurrect a pending connect after shutdown', async () => {
     vi.resetModules();
     const connectGate = createDeferred();
