@@ -123,7 +123,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('main', { name: 'Новое сообщение' })).toHaveAttribute('lang', 'ru');
     expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('ЗАПЛАНИРОВАТЬ');
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
-    expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Запланировать' })).not.toHaveLength(0);
     expect(screen.getByRole('heading', { name: 'Активность' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Предстоящие' })).not.toBeInTheDocument();
 
@@ -307,12 +307,13 @@ describe('QuickPlanner feedback', () => {
 
   it('restarts repeated validation warnings and dismisses them after the Studio timeout', () => {
     render(<QuickPlanner />);
-    const submitButton = screen.getByRole('button', { name: 'Schedule post' });
+    const submitButton = document.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit');
+    expect(submitButton).not.toBeNull();
 
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
     const firstStatus = screen.getByRole('status');
     expect(firstStatus).not.toHaveClass('is-retriggered');
-    fireEvent.click(submitButton);
+    fireEvent.click(submitButton!);
     const repeatedStatus = screen.getByRole('status');
 
     expect(repeatedStatus).not.toBe(firstStatus);
@@ -758,7 +759,7 @@ describe('QuickPlanner feedback', () => {
 
     fireEvent.change(editor, { target: { value: 'Schedule from Planner' } });
     addPhoto('schedule.png');
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Planner actions' })).getByRole('button', { name: 'Schedule' }));
     selectEffect('effect 🎉');
     await act(async () => {
       fireEvent.click(submit());
@@ -832,7 +833,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Message was not sent.');
     expect(screen.getByRole('alert')).not.toHaveTextContent('Posts');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Planner actions' })).getByRole('button', { name: 'Schedule' }));
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
     expect(onSchedule).not.toHaveBeenCalled();
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
@@ -1182,7 +1183,7 @@ describe('QuickPlanner feedback', () => {
     vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
     const onSchedule = vi.fn().mockResolvedValue(true);
-    render(<QuickPlanner chats={[chat]} onSchedule={onSchedule} />);
+    const { container } = render(<QuickPlanner chats={[chat]} onSchedule={onSchedule} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'NOW' }));
 
@@ -1190,7 +1191,7 @@ describe('QuickPlanner feedback', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
       target: { value: 'Schedule one minute from now' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule post' }));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!);
 
     expect(onSchedule).toHaveBeenCalledWith({
       chatId: 'chat-1',
