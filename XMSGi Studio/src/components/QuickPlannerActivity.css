@@ -1,5 +1,19 @@
 .quick-planner-activity-section {
+  position: relative;
+  box-sizing: border-box;
   min-width: 0;
+  margin-inline: -35px;
+  padding: 14px 12px 8px;
+  border: 1px solid rgba(105, 147, 171, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(224, 239, 248, 0.82), rgba(240, 247, 251, 0.92));
+  box-shadow: 0 5px 16px rgba(35, 70, 91, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+html[data-theme='dark'] .quick-planner-activity-section {
+  border-color: rgba(110, 166, 202, 0.22);
+  background: linear-gradient(145deg, rgba(38, 57, 69, 0.82), rgba(27, 40, 49, 0.92));
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .quick-planner-activity-header {
@@ -11,15 +25,19 @@
 }
 
 .quick-planner-activity-header h2 {
+  position: absolute;
+  top: -32px;
+  left: 0;
   margin: 0;
-  color: var(--text, #29343d);
-  font-family: "Orbitron", Arial, sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
+  color: var(--signal);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .quick-planner-activity-period {
+  margin-left: auto;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -159,11 +177,28 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   isolation: isolate;
 }
 
+.quick-planner-activity-chart[data-period='7'] {
+  height: 168px;
+  margin-right: -33px;
+  margin-left: -33px;
+}
+
 .quick-planner-activity-chart[data-period='30'] {
-  height: 178px;
-  margin-right: -20px;
-  margin-left: -78px;
+  height: 183px;
+  margin-right: -12px;
+  margin-left: -12px;
   overflow: visible;
+}
+
+.quick-planner-activity-chart[data-period='30'] .quick-planner-activity-plot-depth {
+  top: 2px;
+  right: 0;
+  left: 0;
+}
+
+.quick-planner-activity-chart[data-period='30'] .quick-planner-activity-chart-svg {
+  right: 0;
+  width: 100%;
 }
 
 .quick-planner-activity-plot-depth {
@@ -172,7 +207,7 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   top: 12px;
   right: 0;
   bottom: 63px;
-  left: 10%;
+  left: 54.5px;
   border-bottom: 1px solid rgba(108, 174, 213, 0.18);
   background:
     linear-gradient(180deg, rgba(50, 117, 157, 0.055), rgba(41, 119, 172, 0.018) 62%, rgba(20, 114, 187, 0.075)),
@@ -289,8 +324,12 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
   stroke: rgba(193, 232, 255, 0.38);
   stroke-width: 0.6px;
   opacity: 0.9;
-  filter: drop-shadow(0 1px 2px rgba(11, 104, 184, 0.32));
+  filter: drop-shadow(0 1px 1.5px rgba(11, 104, 184, 0.26));
   transition: opacity 150ms ease, filter 150ms ease;
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-month-bar {
+  filter: drop-shadow(0 0.5px 1px rgba(11, 104, 184, 0.2));
 }
 
 .quick-planner-activity-month-hit-area {
@@ -300,7 +339,11 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
 
 .quick-planner-activity-month-bar:hover {
   opacity: 1;
-  filter: drop-shadow(0 1px 3px rgba(35, 157, 251, 0.42));
+  filter: drop-shadow(0 1px 2.5px rgba(35, 157, 251, 0.36));
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-month-bar:hover {
+  filter: drop-shadow(0 0.5px 1.5px rgba(35, 157, 251, 0.26));
 }
 
 .quick-planner-activity-month-bar.is-today {
@@ -308,10 +351,18 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
   filter: drop-shadow(0 0 2px rgba(35, 157, 251, 0.48));
 }
 
+html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-today {
+  filter: drop-shadow(0 0 1.5px rgba(35, 157, 251, 0.34));
+}
+
 .quick-planner-activity-month-bar.is-peak {
   opacity: 1;
   stroke-width: 0.9px;
   filter: drop-shadow(0 0 3px rgba(35, 157, 251, 0.55));
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
+  filter: drop-shadow(0 0 2px rgba(35, 157, 251, 0.4));
 }
 
 .quick-planner-activity-area {
@@ -349,14 +400,10 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
 .quick-planner-activity-line {
   fill: none;
   stroke: var(--activity-chart-color);
-  stroke-width: 3.5px;
+  stroke-width: 8px;
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 1px 2px rgba(13, 94, 159, 0.4));
-}
-
-.quick-planner-activity-chart[data-period='7'] .quick-planner-activity-line {
-  stroke-width: 5px;
 }
 
 .quick-planner-activity-line-highlight {
@@ -424,15 +471,15 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
 }
 
 .quick-planner-activity-days:not(.is-month) {
-  right: -6.4%;
-  left: -6.4%;
+  right: 12px;
+  left: 12px;
 }
 
 .quick-planner-activity-days.is-month {
   right: 0;
-  bottom: 22px;
-  left: 10%;
-  width: 90%;
+  bottom: 18px;
+  left: 0;
+  width: 100%;
 }
 
 .quick-planner-activity-day.is-month {
@@ -485,7 +532,15 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
   color: #1676bb;
   font-weight: 900;
   text-shadow: 0 0 7px rgba(35, 157, 251, 0.28);
-  transform: translateY(-3px);
+  transform: translateY(-2px);
+}
+
+.quick-planner-activity-days.is-month .quick-planner-activity-day:first-child .quick-planner-activity-day-label {
+  transform: translate(4px, -2px);
+}
+
+.quick-planner-activity-days.is-month .quick-planner-activity-day:last-child .quick-planner-activity-day-label {
+  transform: translate(-4px, -2px);
 }
 
 .quick-planner-activity-day {
@@ -576,8 +631,12 @@ html[data-theme='dark'] .quick-planner-activity-grid-line.is-y-axis {
     height: 146px;
   }
 
+  .quick-planner-activity-chart[data-period='7'] {
+    height: 156px;
+  }
+
   .quick-planner-activity-chart[data-period='30'] {
-    height: 164px;
+    height: 169px;
   }
 
   .quick-planner-activity-day-label {

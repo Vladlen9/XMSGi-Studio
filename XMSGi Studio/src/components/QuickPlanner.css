@@ -1637,6 +1637,11 @@ html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner
     transform: translateY(-60px);
   }
 
+  html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-activity-section {
+    flex: 0 0 auto;
+    margin-top: 12px;
+  }
+
   html.electron-runtime:has(.product-view.is-active .quick-planner) .quick-planner-composer {
     min-height: 240px;
   }

@@ -46,6 +46,12 @@ describe('QuickPlannerActivity', () => {
     expect(chart).toBeInTheDocument();
     const linePath = chart.querySelector('.quick-planner-activity-line')?.getAttribute('d') ?? '';
     expect(linePath).toContain(' C ');
+    for (const lineLayer of chart.querySelectorAll(
+      '.quick-planner-activity-line-depth, .quick-planner-activity-line-glow, .quick-planner-activity-line, .quick-planner-activity-line-highlight',
+    )) {
+      expect(lineLayer).toHaveAttribute('vector-effect', 'non-scaling-stroke');
+    }
+    expect(chart.querySelector('.quick-planner-activity-line-rising')).not.toBeInTheDocument();
     const startY = Number(linePath.match(/^M -24 ([\d.]+)/)?.[1]);
     const segments = Array.from(linePath.matchAll(/C [\d.]+ ([\d.]+), [\d.]+ ([\d.]+), [\d.]+ ([\d.]+)/g));
     const firstSegment = segments[0];
@@ -72,7 +78,7 @@ describe('QuickPlannerActivity', () => {
       (point) => Number(point.querySelector('.quick-planner-activity-point-dot')?.getAttribute('cx')
         ?? point.querySelector('.quick-planner-activity-count')?.getAttribute('x')),
     ).filter(Number.isFinite);
-    expect(weeklyPointXs).toEqual([354]);
+    expect(weeklyPointXs).toEqual([324]);
     const edgeFadeMask = chart.querySelector('mask');
     const edgeFadeGradient = chart.querySelector('defs linearGradient[id$="-edge-fade-gradient"]');
     expect(edgeFadeMask).toBeInTheDocument();
@@ -107,8 +113,9 @@ describe('QuickPlannerActivity', () => {
     expect(monthChart.querySelectorAll('.quick-planner-activity-scale-label')).toHaveLength(0);
     expect(monthChart.querySelector('.quick-planner-activity-scale-label.is-peak')).not.toBeInTheDocument();
     expect(monthChart.querySelector('.quick-planner-activity-peak-guide')).not.toBeInTheDocument();
+    expect(monthChart.querySelector('.quick-planner-activity-grid-line.is-y-axis')).toBeInTheDocument();
     expect(monthChart.querySelector('.quick-planner-activity-grid-line.is-baseline'))
-      .toHaveAttribute('d', 'M 36 82 H 360');
+      .toHaveAttribute('d', 'M 0 82 H 360');
   });
 
   it('enlarges single-digit weekly labels without changing larger labels', () => {
@@ -200,7 +207,9 @@ describe('QuickPlannerActivity', () => {
     const bars = Array.from(chart.querySelectorAll('.quick-planner-activity-month-bar'));
     expect(bars).toHaveLength(3);
     expect(bars.map((bar) => Math.round(Number(bar.getAttribute('x')) + Number(bar.getAttribute('width')) / 2)))
-      .toEqual([139, 247, 355]);
+      .toEqual([114, 234, 354]);
+    expect(bars.every((bar) => Number(bar.getAttribute('x')) >= 0
+      && Number(bar.getAttribute('x')) + Number(bar.getAttribute('width')) <= 360)).toBe(true);
     expect(bars.map((bar) => bar.getAttribute('aria-label')))
       .toEqual(expect.arrayContaining([
         expect.stringContaining('100 messages sent'),
@@ -212,12 +221,17 @@ describe('QuickPlannerActivity', () => {
     expect(Array.from(chart.querySelectorAll('.quick-planner-activity-scale-label'), (label) => label.textContent))
         .toEqual(['1k']);
     expect(chart.querySelector('.quick-planner-activity-scale-label.is-peak'))
-        .toHaveAttribute('x', '24');
+        .toHaveAttribute('x', '-12');
     expect(chart.querySelector('.quick-planner-activity-scale-label.is-peak')).toHaveTextContent('1k');
     expect(chart.querySelector('.quick-planner-activity-peak-guide'))
-      .toHaveAttribute('d', 'M 36 12 H 360');
+      .toHaveAttribute('d', 'M 0 12 H 360');
     expect(chart.querySelectorAll('.quick-planner-activity-day')).toHaveLength(30);
-    expect(chart.querySelectorAll('.quick-planner-activity-month-hit-area')).toHaveLength(30);
+    const hitAreas = Array.from(chart.querySelectorAll('.quick-planner-activity-month-hit-area'));
+    expect(hitAreas).toHaveLength(30);
+    expect(hitAreas[0]).toHaveAttribute('x', '0');
+    expect(hitAreas[0]).toHaveAttribute('width', '12');
+    expect(hitAreas[29]).toHaveAttribute('x', '348');
+    expect(hitAreas[29]).toHaveAttribute('width', '12');
     expect(chart.querySelector('.quick-planner-activity-days')).toHaveClass('is-month');
     expect(chart.querySelectorAll('.quick-planner-activity-day.has-month-tick')).toHaveLength(5);
     expect(chart.querySelectorAll('.quick-planner-activity-day-label')).toHaveLength(30);
@@ -304,7 +318,7 @@ describe('QuickPlannerActivity', () => {
       const scaleLabels = Array.from(chart.querySelectorAll('.quick-planner-activity-scale-label'), (label) => label.textContent);
       expect(scaleLabels).toEqual([String(peak)]);
       expect(chart.querySelector('.quick-planner-activity-scale-label.is-peak')).toHaveTextContent(String(peak));
-      expect(chart.querySelector('.quick-planner-activity-peak-guide')).toHaveAttribute('d', 'M 36 12 H 360');
+      expect(chart.querySelector('.quick-planner-activity-peak-guide')).toHaveAttribute('d', 'M 0 12 H 360');
     }
   });
 

@@ -58,7 +58,7 @@ function getChartPoints(
 
   return counts.map((count, index) => ({
     x: counts.length === 7
-      ? 6 + (index / (counts.length - 1)) * 348
+      ? left + (index / (counts.length - 1)) * (right - left)
       : left + ((index + 0.5) / counts.length) * (right - left),
     y: max === 0 || scaleMax <= 0
       ? bottom
@@ -105,11 +105,14 @@ function getSmoothPath(points: Array<{ x: number; y: number }>) {
     }
 
     const segmentWidth = next.x - point.x;
-    const control1X = point.x + segmentWidth / 3;
+    const startsAfterFlat = index > 0 && slopes[index - 1] === 0;
+    const endsBeforeFlat = index < slopes.length - 1 && slopes[index + 1] === 0;
+    const startHandle = startsAfterFlat ? 0.38 : 1 / 3;
+    const endHandle = endsBeforeFlat ? 0.38 : 1 / 3;
+    const control1X = point.x + segmentWidth * startHandle;
     const control1Y = Math.min(Math.max(point.y + startTangent / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
-    const control2X = next.x - segmentWidth / 3;
+    const control2X = next.x - segmentWidth * endHandle;
     const control2Y = Math.min(Math.max(next.y - endTangent / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
-
     return `${path} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
   }, `M ${points[0].x} ${points[0].y}`);
 }
@@ -124,6 +127,9 @@ export function QuickPlannerActivity({
   const [hoveredMonthDay, setHoveredMonthDay] = useState<string | null>(null);
   const [monthTooltipVisible, setMonthTooltipVisible] = useState(false);
   const [monthTooltipLeft, setMonthTooltipLeft] = useState<number | null>(null);
+  const [monthlyChartWidth, setMonthlyChartWidth] = useState(0);
+  const [monthlyChartHeight, setMonthlyChartHeight] = useState(0);
+  const [weeklyBaselineBounds, setWeeklyBaselineBounds] = useState({ left: -24, right: 384 });
   const monthTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activitySectionRef = useRef<HTMLElement>(null);
   const activityChartRef = useRef<HTMLDivElement>(null);
@@ -139,16 +145,21 @@ export function QuickPlannerActivity({
   const edgeFadeId = `${gradientId}-edge-fade`;
   const activityMax = Math.max(...activityDays.map(({ count }) => count));
   const monthlyScaleMax = Math.max(activityMax, 1);
-  const monthlyPlotTop = 12;
-  const monthlyPlotLeft = 36;
+  const monthlyPlotTop = monthlyChartHeight > 26
+    ? 12 - (10 * 108) / (monthlyChartHeight - 26)
+    : 12;
+  const monthlyPlotLeft = 0;
   const monthlyPlotRight = 360;
+  const weeklyPlotLeft = monthlyChartWidth > 24
+    ? ((12 + (monthlyChartWidth - 24) / 14) * 360) / monthlyChartWidth
+    : 36;
   const monthlyScaleLabelX = monthlyPlotLeft - 12;
   const chartPoints = getChartPoints(
     chartDays.map(({ count }) => count),
     period === 30 ? monthlyPlotTop : 4,
     period === 30 ? monthlyScaleMax : activityMax,
-    period === 30 ? monthlyPlotLeft : 0,
-    period === 30 ? monthlyPlotRight : 360,
+    period === 30 ? monthlyPlotLeft : weeklyPlotLeft,
+    period === 30 ? monthlyPlotRight : 360 - weeklyPlotLeft,
   );
   const monthlyScaleTicks = activityMax === 0
     ? [{ value: 0, y: 82 }]
@@ -158,6 +169,9 @@ export function QuickPlannerActivity({
       return { value, y };
     }).filter((tick, index, ticks) => index === 0 || tick.value !== ticks[index - 1].value);
   const monthlyPeakY = 82 - (activityMax / monthlyScaleMax) * (82 - monthlyPlotTop);
+  const weeklyEdgeInset = monthlyChartWidth > 0 ? (7 * 360) / monthlyChartWidth : 0;
+  const lineStartX = period === 7 ? -24 + weeklyEdgeInset : -24;
+  const lineEndX = period === 7 ? 384 - weeklyEdgeInset : 384;
   const hoveredMonthDayIndex = chartDays.findIndex(
     ({ date }) => getLocalDateKey(date) === hoveredMonthDay,
   );
@@ -171,6 +185,80 @@ export function QuickPlannerActivity({
       day: 'numeric',
     }).format(hoveredMonthDayData.date)
     : '';
+  useLayoutEffect(() => {
+    const chart = activityChartRef.current;
+    const section = activitySectionRef.current;
+    if (!chart || !section) return;
+
+    const updateChartBounds = () => {
+      const chartBounds = chart.getBoundingClientRect();
+      const sectionBounds = section.getBoundingClientRect();
+      setMonthlyChartWidth(chartBounds.width);
+      setMonthlyChartHeight(chartBounds.height);
+      if (chartBounds.width === 0) return;
+
+      const scale = 360 / chartBounds.width;
+      const left = Math.max(-24, (sectionBounds.left - chartBounds.left) * scale);
+      const right = Math.min(384, (sectionBounds.right - chartBounds.left) * scale);
+      setWeeklyBaselineBounds((current) => (
+        Math.abs(current.left - left) < 0.01 && Math.abs(current.right - right) < 0.01
+          ? current
+          : { left, right }
+      ));
+    };
+    updateChartBounds();
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(updateChartBounds);
+    observer.observe(chart);
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [historyReady, historyError]);
+
+  useLayoutEffect(() => {
+    const section = activitySectionRef.current;
+    const chart = activityChartRef.current;
+    const workbench = document.querySelector<HTMLElement>('.quick-planner-workbench');
+    if (!section || !chart || !workbench) return;
+
+    const updateCardHeight = () => {
+      if (window.innerWidth <= 1040) {
+        section.style.removeProperty('height');
+        return;
+      }
+
+      const sectionBounds = section.getBoundingClientRect();
+      const chartBounds = chart.getBoundingClientRect();
+      const workbenchBounds = workbench.getBoundingClientRect();
+      const sectionStyle = getComputedStyle(section);
+      const naturalHeight = chartBounds.bottom - sectionBounds.top
+        + Number.parseFloat(sectionStyle.paddingBottom)
+        + Number.parseFloat(sectionStyle.borderBottomWidth);
+      const workbenchAlignedHeight = workbenchBounds.bottom - sectionBounds.top;
+      const targetHeight = Math.max(naturalHeight, workbenchAlignedHeight);
+
+      if (Math.abs(sectionBounds.height - targetHeight) > 0.5) {
+        section.style.height = `${targetHeight}px`;
+      }
+    };
+
+    updateCardHeight();
+    window.addEventListener('resize', updateCardHeight);
+    if (typeof ResizeObserver === 'undefined') {
+      return () => window.removeEventListener('resize', updateCardHeight);
+    }
+
+    const observer = new ResizeObserver(updateCardHeight);
+    observer.observe(section);
+    observer.observe(chart);
+    observer.observe(workbench);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateCardHeight);
+      section.style.removeProperty('height');
+    };
+  }, [historyReady, historyError]);
+
   const handleMonthChartEnter = () => {
     if (monthTooltipVisible || monthTooltipTimerRef.current) return;
     setMonthTooltipVisible(false);
@@ -212,12 +300,12 @@ export function QuickPlannerActivity({
     return () => window.removeEventListener('resize', updateTooltipPosition);
   }, [hoveredMonthDayDateLabel, hoveredMonthDayIndex, monthTooltipVisible, period]);
   const linePoints = [
-    { x: -24, y: chartPoints[0].y },
+    { x: lineStartX, y: chartPoints[0].y },
     ...chartPoints,
-    { x: 384, y: chartPoints[chartPoints.length - 1].y },
+    { x: lineEndX, y: chartPoints[chartPoints.length - 1].y },
   ];
   const linePath = getSmoothPath(linePoints);
-  const areaPath = `${linePath} L 384 92 L -24 92 Z`;
+  const areaPath = `${linePath} L ${lineEndX} 92 L ${lineStartX} 92 Z`;
 
   return (
     <section
@@ -334,7 +422,10 @@ export function QuickPlannerActivity({
                 <>
                   <path className="quick-planner-activity-grid-line" d="M -24 10 H 384" />
                   <path className="quick-planner-activity-grid-line" d="M -24 46 H 384" />
-                  <path className="quick-planner-activity-grid-line is-baseline" d="M -24 82 H 384" />
+                  <path
+                    className="quick-planner-activity-grid-line is-baseline"
+                    d={`M ${weeklyBaselineBounds.left} 82 H ${weeklyBaselineBounds.right}`}
+                  />
                 </>
               )}
               {period === 30 && activityMax > 0 && (
@@ -353,9 +444,9 @@ export function QuickPlannerActivity({
                       <rect
                         className="quick-planner-activity-month-hit-area"
                         key={dayKey}
-                        x={point.x - (monthlyPlotRight - monthlyPlotLeft) / period / 2}
+                        x={point.x - 360 / (period * 2)}
                         y={monthlyPlotTop}
-                        width={(monthlyPlotRight - monthlyPlotLeft) / period}
+                        width={360 / period}
                         height={82 - monthlyPlotTop}
                         onMouseEnter={() => handleMonthDayEnter(dayKey)}
                       />
@@ -402,10 +493,15 @@ export function QuickPlannerActivity({
               {period === 7 && chartPoints.length > 0 && (
                 <g mask={`url(#${edgeFadeId})`}>
                   <path className="quick-planner-activity-area" d={areaPath} fill={`url(#${gradientId})`} />
-                  <path className="quick-planner-activity-line-depth" d={linePath} />
-                  <path className="quick-planner-activity-line-glow" d={linePath} />
-                  <path className="quick-planner-activity-line" d={linePath} stroke={`url(#${lineGradientId})`} />
-                  <path className="quick-planner-activity-line-highlight" d={linePath} />
+                  <path className="quick-planner-activity-line-depth" d={linePath} vectorEffect="non-scaling-stroke" />
+                  <path className="quick-planner-activity-line-glow" d={linePath} vectorEffect="non-scaling-stroke" />
+                  <path
+                    className="quick-planner-activity-line"
+                    d={linePath}
+                    stroke={`url(#${lineGradientId})`}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <path className="quick-planner-activity-line-highlight" d={linePath} vectorEffect="non-scaling-stroke" />
                 </g>
               )}
               {chartPoints.map((point, index) => {
