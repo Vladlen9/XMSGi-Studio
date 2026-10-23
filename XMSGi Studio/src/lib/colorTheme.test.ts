@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { applyColorTheme, COLOR_THEME_STORAGE_KEY } from './colorTheme';
+
+const themeBootstrap = readFileSync(path.resolve(process.cwd(), 'public', 'theme-init.js'), 'utf8');
 
 describe('applyColorTheme', () => {
   beforeEach(() => {
@@ -86,5 +90,17 @@ describe('applyColorTheme', () => {
 
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement).not.toHaveClass('is-theme-transitioning');
+  });
+
+  it('restores the saved theme synchronously before the app renders', () => {
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, 'dark');
+    document.documentElement.dataset.theme = 'light';
+    document.documentElement.style.colorScheme = 'light';
+
+    new Function(themeBootstrap)();
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(13, 17, 21)');
   });
 });

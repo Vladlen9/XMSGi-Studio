@@ -1,9 +1,14 @@
 import { createElement, type ReactNode } from 'react';
 import { act, fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { QuickPlannerActivity } from './QuickPlannerActivity';
+
+const activityStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlannerActivity.css'), 'utf8');
 
 function renderActivity(ui: ReactNode) {
   return renderTestingLibrary(createElement(LocaleProvider, null, ui));
@@ -24,6 +29,18 @@ function createSentMessage(overrides: Partial<ScheduledMessage> = {}): Scheduled
 }
 
 describe('QuickPlannerActivity', () => {
+  it('uses one continuous glass surface for the complete activity card in both themes', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-section\s*\{[^}]*background:\s*radial-gradient\([^;]+,\s*linear-gradient\([^;]+;/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-section\s*\{[^}]*background:\s*radial-gradient\([^;]+,\s*linear-gradient\([^;]+;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-header h2\s*\{[^}]*top:\s*-33px;[^}]*left:\s*0;/,
+    );
+  });
+
   it('renders independently and charts distinct confirmed sends', () => {
     const now = new Date();
     const sentAt = now.toISOString();
@@ -451,6 +468,9 @@ describe('QuickPlannerActivity', () => {
 
   it('scales monthly bars and aligns them with the full-width date grid', () => {
     const now = new Date();
+    const monthlyPeakDate = new Date(now);
+    monthlyPeakDate.setDate(monthlyPeakDate.getDate() - 20);
+    monthlyPeakDate.setHours(12, 0, 0, 0);
     const makeSendsForDay = (dayOffset: number, count: number) => {
       const sentAt = new Date(now);
       sentAt.setDate(sentAt.getDate() - dayOffset);
@@ -527,7 +547,9 @@ describe('QuickPlannerActivity', () => {
     expect(chart.querySelector('.quick-planner-activity-tooltip')).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1));
     expect(chart.querySelector('.quick-planner-activity-tooltip')).toHaveTextContent(/1000 messages sent/);
-    expect(chart.querySelector('.quick-planner-activity-tooltip')).toHaveTextContent(/October 3/);
+    expect(chart.querySelector('.quick-planner-activity-tooltip')).toHaveTextContent(
+      new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(monthlyPeakDate),
+    );
     expect(chart.querySelector('.quick-planner-activity-day.is-near-hovered')).toBeInTheDocument();
 
     const zeroCountDayIndex = monthDays.findIndex((day) => day.getAttribute('aria-label')?.includes('0 messages sent'));

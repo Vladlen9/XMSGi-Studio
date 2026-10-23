@@ -4,16 +4,27 @@
   min-width: 0;
   margin-inline: -35px;
   padding: 14px 12px 8px;
-  border: 1px solid rgba(105, 147, 171, 0.22);
+  border: 1px solid rgba(91, 145, 177, 0.24);
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(224, 239, 248, 0.82), rgba(240, 247, 251, 0.92));
-  box-shadow: 0 5px 16px rgba(35, 70, 91, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.88), transparent 56%),
+    linear-gradient(145deg, rgba(250, 253, 255, 0.96), rgba(225, 241, 250, 0.92));
+  box-shadow:
+    0 8px 18px rgba(35, 70, 91, 0.1),
+    0 2px 4px rgba(35, 70, 91, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 -1px 0 rgba(116, 162, 188, 0.1);
 }
 
 html[data-theme='dark'] .quick-planner-activity-section {
   border-color: rgba(110, 166, 202, 0.18);
-  background: linear-gradient(145deg, rgba(33, 49, 59, 0.84), rgba(24, 36, 44, 0.92));
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(111, 174, 209, 0.1), transparent 58%),
+    linear-gradient(145deg, rgba(36, 57, 69, 0.98), rgba(24, 39, 48, 0.96));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.22),
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
 .quick-planner-activity-header {
@@ -26,7 +37,7 @@ html[data-theme='dark'] .quick-planner-activity-section {
 
 .quick-planner-activity-header h2 {
   position: absolute;
-  top: -47px;
+  top: -33px;
   left: 0;
   margin: 0;
   color: var(--signal);

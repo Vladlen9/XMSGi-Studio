@@ -149,6 +149,25 @@ describe('ChatPreviewStand wallpaper picker', () => {
     }
   });
 
+  it('places mobile background choices above the live preview label', () => {
+    const { container, unmount } = renderChatPreviewStand();
+
+    try {
+      openWallpaperPicker(container);
+
+      const toolbar = container.querySelector('.chat-preview-toolbar');
+      const picker = toolbar?.querySelector('.chat-preview-wallpaper-quick-picker');
+      const label = toolbar?.querySelector('.chat-preview-toolbar-label');
+
+      expect(toolbar?.classList.contains('is-wallpaper-picker-open')).toBe(true);
+      expect(picker).not.toBeNull();
+      expect(label).not.toBeNull();
+      expect(picker!.compareDocumentPosition(label!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    } finally {
+      unmount();
+    }
+  });
+
   it('opens history photos at original size and closes with the button or Escape', () => {
     const original = 'data:image/jpeg;base64,original';
     const thumbnail = 'data:image/jpeg;base64,thumbnail';

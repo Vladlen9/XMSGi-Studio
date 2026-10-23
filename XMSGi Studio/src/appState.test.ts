@@ -3,6 +3,7 @@ import {
   appStateReducer,
   applyMessageDraftSnapshot,
   createInitialAppState,
+  createMessageSession,
   transitionMessageState,
 } from './appState';
 
@@ -47,6 +48,45 @@ describe('appStateReducer', () => {
     expect(sending.messageSession.action).toBe('schedule');
     expect(sending.messageSession.status).toBe('scheduled');
     expect(sending.messageSession.chatId).toBe('chat-42');
+  });
+
+  it('clears a stale chat id when the selected chat is cleared', () => {
+    const initial = createInitialAppState({
+      route: '/',
+      productView: 'planner',
+      messageSession: createMessageSession({ chatId: 'chat-42' }),
+    });
+
+    const cleared = appStateReducer(initial, {
+      type: 'SET_MESSAGE_DRAFT',
+      text: initial.messageSession.text,
+      attachments: initial.messageSession.attachments,
+      entities: initial.messageSession.entities,
+      chatId: null,
+    });
+
+    expect(cleared.messageSession.chatId).toBeNull();
+    expect(appStateReducer(cleared, {
+      type: 'SET_MESSAGE_DRAFT',
+      text: cleared.messageSession.text,
+      attachments: cleared.messageSession.attachments,
+      entities: cleared.messageSession.entities,
+      chatId: null,
+    }).messageSession.chatId).toBeNull();
+  });
+
+  it('clears the message session chat id when the selected chat is cleared', () => {
+    const initial = createInitialAppState({
+      route: '/',
+      productView: 'planner',
+      selectedChatId: 'chat-42',
+      messageSession: createMessageSession({ chatId: 'chat-42' }),
+    });
+
+    const cleared = appStateReducer(initial, { type: 'SET_SELECTED_CHAT', chatId: null });
+
+    expect(cleared.selectedChatId).toBeNull();
+    expect(cleared.messageSession.chatId).toBeNull();
   });
 
   it('stores a single unified operation contract for schedule and cancel flows', () => {

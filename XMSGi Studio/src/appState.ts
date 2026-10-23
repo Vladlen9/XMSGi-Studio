@@ -150,7 +150,7 @@ export function appStateReducer(state: AppState, action: AppAction): AppState {
         selectedChatId: action.chatId,
         messageSession: {
           ...state.messageSession,
-          chatId: action.chatId ?? state.messageSession.chatId,
+          chatId: action.chatId,
         },
       };
     case 'SET_CURRENT_ACTION':
@@ -187,7 +187,7 @@ export function appStateReducer(state: AppState, action: AppAction): AppState {
           text: action.text,
           attachments: action.attachments ?? state.messageSession.attachments,
           entities: action.entities ?? state.messageSession.entities,
-          chatId: action.chatId ?? state.messageSession.chatId,
+          chatId: action.chatId === undefined ? state.messageSession.chatId : action.chatId,
         },
       };
     case 'SET_CURRENT_OPERATION':

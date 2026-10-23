@@ -672,10 +672,7 @@ export function ChatPreviewStand({
 
   return (
     <div className={`chat-preview-stand is-${previewDevice} ${collapsed ? 'is-collapsed' : ''} ${chatListOpen ? 'is-chat-list-open' : ''}`}>
-      <div className="chat-preview-toolbar">
-        <span className="chat-preview-toolbar-label">
-          {previewDevice === 'mobile' ? t('studio.livePreview') : t('studio.liveChatPreview')}
-        </span>
+      <div className={`chat-preview-toolbar${wallpaperPickerOpen ? ' is-wallpaper-picker-open' : ''}`}>
         {wallpaperPickerOpen && (
           <div className={`chat-preview-wallpaper-quick-picker ${previewDevice === 'web' ? 'is-inline' : ''}`} aria-label="Choose chat background">
             <button
@@ -727,6 +724,9 @@ export function ChatPreviewStand({
             </button>
           </div>
         )}
+        <span className="chat-preview-toolbar-label">
+          {previewDevice === 'mobile' ? t('studio.livePreview') : t('studio.liveChatPreview')}
+        </span>
         <input
           ref={wallpaperFileInputRef}
           className="sr-only"
