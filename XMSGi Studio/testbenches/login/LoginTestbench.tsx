@@ -1,6 +1,7 @@
 import { LayoutGrid, List, Moon, RotateCcw, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ColorTheme } from '@/lib/colorTheme';
+import { TestbenchPageSelector } from '../shared/TestbenchNavigation';
 import { applyTestbenchColorTheme, readTestbenchColorTheme } from '../shared/testbenchTheme';
 import { useLocale } from '@/lib/i18n';
 import { LoginPage } from '../../src/pages/LoginPage';
@@ -123,7 +124,7 @@ function ScenarioPreview({
 }
 
 export function LoginTestbench() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [view, setView] = useState<'all' | 'single'>('single');
   const [scenario, setScenario] = useState<Scenario>('initial');
   const [theme, setTheme] = useState<ColorTheme>(readTestbenchColorTheme);
@@ -194,8 +195,7 @@ export function LoginTestbench() {
           <RotateCcw size={15} aria-hidden="true" />
           <span>Reset sign-in</span>
         </button>
-        <a className="login-testbench-pages" href="../settings/">Settings</a>
-        <a className="login-testbench-pages" href="../">All pages</a>
+        <TestbenchPageSelector locale={locale} currentPage="login" />
         <a className="login-testbench-exit" href="/">Exit</a>
       </nav>
       {view === 'all' ? (

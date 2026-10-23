@@ -49,7 +49,8 @@
 }
 
 .testbench-navigation button,
-.testbench-navigation-pages a {
+.testbench-navigation-pages select,
+.testbench-navigation > a {
   display: inline-flex;
   flex: 0 0 auto;
   min-width: 32px;
@@ -63,16 +64,41 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  text-decoration: none;
   cursor: pointer;
 }
 
 .testbench-navigation-themes,
-.testbench-navigation-languages,
-.testbench-navigation-pages {
+.testbench-navigation-languages {
   display: flex;
   flex: 0 0 auto;
   gap: 2px;
+}
+
+.testbench-navigation-pages {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line, #e2e6ea);
+  color: var(--dim, #66727d);
+}
+
+.testbench-navigation-pages span {
+  font-size: 10px;
+}
+
+.testbench-navigation-pages select {
+  min-width: 112px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text, #242a31);
+  font: 600 13px/1.3 "Segoe UI", sans-serif;
+}
+
+.testbench-navigation-pages option {
+  background: var(--surface-raised, #fff);
+  color: var(--text, #242a31);
 }
 
 .testbench-navigation-themes {
@@ -81,26 +107,21 @@
   border-radius: 4px;
 }
 
-.testbench-navigation button[aria-pressed="true"],
-.testbench-navigation-pages a[aria-current="page"] {
+.testbench-navigation button[aria-pressed="true"] {
   background: var(--surface-muted, #f0f2f4);
   color: var(--signal, #536f80);
 }
 
 .testbench-navigation button:focus-visible,
 .testbench-navigation select:focus-visible,
-.testbench-navigation-pages a:focus-visible {
+.testbench-navigation-pages select:focus-visible,
+.testbench-navigation > a:focus-visible {
   outline: 2px solid var(--signal, #536f80);
   outline-offset: 2px;
 }
 
 .testbench-navigation-reset {
   white-space: nowrap;
-}
-
-.testbench-navigation-pages {
-  padding-left: 6px;
-  border-left: 1px solid var(--line, #e2e6ea);
 }
 
 html[data-theme='dark'] .testbench-navigation {
@@ -110,6 +131,10 @@ html[data-theme='dark'] .testbench-navigation {
 }
 
 html[data-theme='dark'] .testbench-navigation-scenario select {
+  color: #e2e7eb;
+}
+
+html[data-theme='dark'] .testbench-navigation-pages select {
   color: #e2e7eb;
 }
 

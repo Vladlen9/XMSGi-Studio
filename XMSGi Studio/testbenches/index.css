@@ -21,6 +21,20 @@ body {
   padding: clamp(48px, 12vh, 110px) 0;
 }
 
+.testbench-hub-navigation {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 28px;
+}
+
+.testbench-hub-navigation .testbench-navigation-pages {
+  min-width: 152px;
+  padding: 8px 12px;
+  border: 1px solid #dce2e7;
+  border-radius: 6px;
+  background: #fff;
+}
+
 .testbench-hub header p {
   margin: 0 0 12px;
   color: #66727d;
@@ -34,12 +48,12 @@ body {
   font-weight: 500;
 }
 
-.testbench-hub nav {
+.testbench-hub-pages {
   display: grid;
   gap: 10px;
 }
 
-.testbench-hub nav a {
+.testbench-hub-pages a {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
@@ -53,25 +67,25 @@ body {
   transition: border-color 0.18s ease, transform 0.18s ease;
 }
 
-.testbench-hub nav a:hover,
-.testbench-hub nav a:focus-visible {
+.testbench-hub-pages a:hover,
+.testbench-hub-pages a:focus-visible {
   border-color: #7894a5;
   outline: none;
   transform: translateY(-1px);
 }
 
-.testbench-hub nav a > span {
+.testbench-hub-pages a > span {
   grid-row: span 2;
   color: #6d8797;
   font: 600 12px/1 "Cascadia Code", Consolas, monospace;
 }
 
-.testbench-hub nav strong {
+.testbench-hub-pages strong {
   font-size: 16px;
   font-weight: 600;
 }
 
-.testbench-hub nav small {
+.testbench-hub-pages small {
   color: #66727d;
   font-size: 12px;
 }
@@ -82,16 +96,21 @@ body {
   color: #e2e7eb;
 }
 
-:root[data-theme='dark'] .testbench-hub nav a {
+:root[data-theme='dark'] .testbench-hub-pages a {
   border-color: #303a42;
   background: #171d22;
 }
 
-:root[data-theme='dark'] .testbench-hub nav a:hover,
-:root[data-theme='dark'] .testbench-hub nav a:focus-visible {
+:root[data-theme='dark'] .testbench-hub-pages a:hover,
+:root[data-theme='dark'] .testbench-hub-pages a:focus-visible {
   border-color: #718b9b;
 }
 
-:root[data-theme='dark'] .testbench-hub nav small {
+:root[data-theme='dark'] .testbench-hub-pages small {
   color: #a5afb8;
+}
+
+:root[data-theme='dark'] .testbench-hub-navigation .testbench-navigation-pages {
+  border-color: #303a42;
+  background: #171d22;
 }

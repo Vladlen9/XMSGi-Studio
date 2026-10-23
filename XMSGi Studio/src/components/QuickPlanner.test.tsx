@@ -62,7 +62,7 @@ describe('QuickPlanner feedback', () => {
 
     expect(screen.getByRole('button', { name: 'Choose a chat' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Choose a chat' }));
-    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    expect(document.querySelector('.quick-planner-chat-options [role="option"]')).not.toBeInTheDocument();
     expect(screen.getByText('No chats found')).toBeInTheDocument();
   });
 
@@ -125,7 +125,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('textbox', { name: 'Текст напоминания' })).toHaveAttribute('placeholder', 'Запишите то, что важно…');
     expect(screen.getByRole('button', { name: 'Создать' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Активность' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Предстоящие' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Предстоящие' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать дату' }));
     const datePicker = screen.getByRole('dialog', { name: 'Выбор даты отправки' });
@@ -139,13 +139,13 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('button', { name: 'Сохранить' })).toBeInTheDocument();
   });
 
-  it('shows translated Activity and Upcoming empty states', () => {
-    render(<QuickPlanner />);
+  it('shows Activity while hiding the Upcoming section', () => {
+    const { container } = render(<QuickPlanner />);
 
     expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Upcoming' })).toBeInTheDocument();
-    expect(screen.getByText('No confirmed sends in the last 7 days.')).toBeInTheDocument();
-    expect(screen.getByText('No upcoming messages.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Upcoming' })).not.toBeInTheDocument();
+    expect(container.querySelector('.quick-planner-upcoming-section')).toHaveAttribute('hidden');
+    expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
     expect(document.querySelector('.quick-planner-schedule-label')).toHaveTextContent('SCHEDULE');
   });
 
@@ -173,7 +173,8 @@ describe('QuickPlanner feedback', () => {
     }).format(now);
     expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 2' })).toBeInTheDocument();
     expect(screen.getByTitle(`${dateLabel}: 2 messages sent`)).toBeInTheDocument();
-    expect(screen.getByText('Confirmed sends: 2')).toBeInTheDocument();
+    expect(screen.getByText('2', { selector: '.quick-planner-activity-total-count' })).toBeInTheDocument();
+    expect(screen.getByText('confirmed sends')).toBeInTheDocument();
   });
 
   it('includes a newly received confirmed send even when the scheduling clock state is stale', () => {
@@ -188,25 +189,26 @@ describe('QuickPlanner feedback', () => {
     })));
 
     expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 1' })).toBeInTheDocument();
-    expect(screen.queryByText('No confirmed sends in the last 7 days.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
   });
 
   it('does not present history load errors as an empty activity state', () => {
     render(<QuickPlanner historyReady={false} historyError />);
 
     expect(screen.getAllByText('Message history could not be loaded.')).toHaveLength(2);
-    expect(screen.queryByText('No confirmed sends in the last 7 days.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
     expect(screen.queryByText('No upcoming messages.')).not.toBeInTheDocument();
   });
 
-  it('shows no chart when saved sent records have no valid sentAt value', () => {
+  it('shows a zero-count chart when saved sent records have no valid sentAt value', () => {
     render(<QuickPlanner sent={[
       createScheduledMessage({ id: 'missing-time', status: 'sent' }),
       createScheduledMessage({ id: 'invalid-time', status: 'sent', sentAt: 'invalid' }),
     ]} />);
 
-    expect(screen.getByText('No confirmed sends in the last 7 days.')).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 0' })).toBeInTheDocument();
+    expect(screen.getByText('0', { selector: '.quick-planner-activity-total-count' })).toBeInTheDocument();
   });
 
   it('shows loading rather than empty states until history is restored', () => {
@@ -871,7 +873,8 @@ describe('QuickPlanner feedback', () => {
 
     expect(container.querySelector('.quick-planner-chat > .quick-planner-chat-avatar')).toHaveTextContent('D');
     fireEvent.click(container.querySelector('.quick-planner-chat')!);
-    const chatOption = screen.getByRole('option', { name: /Design group/ });
+    const chatOptionList = container.querySelector<HTMLElement>('.quick-planner-chat-options')!;
+    const chatOption = within(chatOptionList).getByRole('option', { name: /Design group/ });
     expect(chatOption.querySelector('.quick-planner-chat-avatar')).toHaveTextContent('D');
   });
 

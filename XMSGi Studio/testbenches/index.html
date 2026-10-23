@@ -4,36 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XMSGi Testbenches</title>
-    <link rel="stylesheet" href="./index.css" />
   </head>
   <body>
-    <main class="testbench-hub">
-      <header>
-        <p>XMSGi STUDIO / TESTBENCHES</p>
-        <h1>Choose a page to preview</h1>
-      </header>
-      <nav aria-label="Available testbenches">
-        <a href="./login/">
-          <span>01</span>
-          <strong>Login screen</strong>
-          <small>Authentication states, language, and theme</small>
-        </a>
-        <a href="./studio-editor/">
-          <span>02</span>
-          <strong>Studio editor</strong>
-          <small>Workspace editor and save-error states</small>
-        </a>
-        <a href="./planner/">
-          <span>03</span>
-          <strong>Planner</strong>
-          <small>Compose, schedule, and draft page</small>
-        </a>
-        <a href="./settings/">
-          <span>04</span>
-          <strong>Settings</strong>
-          <small>Application preferences and Telegram account settings</small>
-        </a>
-      </nav>
-    </main>
+    <div id="root"></div>
+    <script type="module" src="./spa.tsx"></script>
   </body>
 </html>

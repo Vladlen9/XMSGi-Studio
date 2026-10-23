@@ -8,6 +8,49 @@ export type TestbenchScenarioOption = {
   label: string;
 };
 
+export type TestbenchPageId = 'login' | 'studio' | 'planner' | 'activity' | 'settings';
+
+const testbenchPages = [
+  { id: 'login', path: '/testbenches/login/', labelEn: 'Login', labelRu: 'Вход' },
+  { id: 'studio', path: '/testbenches/studio-editor/', labelEn: 'Studio', labelRu: 'Studio' },
+  { id: 'planner', path: '/testbenches/planner/', labelEn: 'Planner', labelRu: 'Planner' },
+  { id: 'activity', path: '/testbenches/activity/', labelEn: 'Activity', labelRu: 'Activity' },
+  { id: 'settings', path: '/testbenches/settings/', labelEn: 'Settings', labelRu: 'Настройки' },
+  { id: 'all', path: '/testbenches/', labelEn: 'All pages', labelRu: 'Все стенды' },
+] as const;
+
+export function TestbenchPageSelector({
+  locale,
+  currentPage,
+}: {
+  locale: Locale;
+  currentPage: TestbenchPageId | 'all';
+}) {
+  const isRussian = locale === 'ru';
+  const selectedPage = testbenchPages.find(({ id }) => id === currentPage);
+
+  return (
+    <label className="testbench-navigation-pages">
+      <span>{isRussian ? 'Раздел' : 'Page'}</span>
+      <select
+        aria-label={isRussian ? 'Разделы стенда' : 'Testbench pages'}
+        value={selectedPage?.path ?? testbenchPages[testbenchPages.length - 1].path}
+        onChange={(event) => navigateTestbenchPage(event.currentTarget.value)}
+      >
+        {testbenchPages.map(({ id, path, labelEn, labelRu }) => (
+          <option key={id} value={path}>{isRussian ? labelRu : labelEn}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function navigateTestbenchPage(path: string) {
+  const targetUrl = new URL(path, window.location.href);
+  window.history.pushState({}, '', targetUrl);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 type TestbenchNavigationProps = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -23,7 +66,9 @@ type TestbenchNavigationProps = {
   onConfirmationScenarioChange?: (scenario: string) => void;
   onReset: () => void;
   resetLabel: string;
-  currentPage: 'studio' | 'planner';
+  currentPage: 'studio' | 'planner' | 'activity';
+  connectionSpinnerVisible?: boolean;
+  onConnectionSpinnerToggle?: () => void;
 };
 
 export function TestbenchNavigation({
@@ -42,6 +87,8 @@ export function TestbenchNavigation({
   onReset,
   resetLabel,
   currentPage,
+  connectionSpinnerVisible,
+  onConnectionSpinnerToggle,
 }: TestbenchNavigationProps) {
   const isRussian = locale === 'ru';
 
@@ -105,13 +152,19 @@ export function TestbenchNavigation({
         <RotateCcw size={15} aria-hidden="true" />
         <span>{resetLabel}</span>
       </button>
-      <div className="testbench-navigation-pages" aria-label={isRussian ? 'Страницы стендов' : 'Testbench pages'}>
-        <a href="../login/">{isRussian ? 'Вход' : 'Login'}</a>
-        <a href="../studio-editor/" aria-current={currentPage === 'studio' ? 'page' : undefined}>Studio</a>
-        <a href="../planner/" aria-current={currentPage === 'planner' ? 'page' : undefined}>Planner</a>
-        <a href="../settings/">{isRussian ? 'Настройки' : 'Settings'}</a>
-        <a href="../">{isRussian ? 'Все стенды' : 'All pages'}</a>
-      </div>
+      {onConnectionSpinnerToggle && (
+        <button
+          type="button"
+          className="testbench-navigation-connection"
+          aria-pressed={connectionSpinnerVisible}
+          onClick={onConnectionSpinnerToggle}
+        >
+          {isRussian
+            ? (connectionSpinnerVisible ? 'Скрыть подключение' : 'Проверить связь')
+            : (connectionSpinnerVisible ? 'Hide connection' : 'Check connection')}
+        </button>
+      )}
+      <TestbenchPageSelector locale={locale} currentPage={currentPage} />
     </nav>
   );
 }

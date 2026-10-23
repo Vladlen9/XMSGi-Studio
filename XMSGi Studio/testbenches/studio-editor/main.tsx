@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import { createStudioSchedulerRuntime } from '@shared/bridge';
 import type { StudioSchedulerActions } from '@shared/bridge';
-import { ConfirmDialogProvider, ConfirmDialogSurface } from '../../src/components/ConfirmDialog';
-import { LocaleProvider, useLocale } from '../../src/lib/i18n';
+import { ConfirmDialogSurface } from '../../src/components/ConfirmDialog';
+import { useLocale } from '../../src/lib/i18n';
 import type { ColorTheme } from '../../src/lib/colorTheme';
 import { TestbenchNavigation } from '../shared/TestbenchNavigation';
 import { applyTestbenchColorTheme, readTestbenchColorTheme } from '../shared/testbenchTheme';
@@ -20,9 +19,6 @@ const botFatherChat: Chat = {
   username: 'BotFather',
   type: 'private',
 };
-
-document.documentElement.lang = 'ru';
-applyTestbenchColorTheme(readTestbenchColorTheme());
 
 type ErrorVariant =
   | 'none'
@@ -43,7 +39,7 @@ type ErrorVariant =
   | 'action-dismiss-warning';
 type ConfirmationVariant = 'none' | 'delete-draft' | 'discard-changes';
 
-function Demo() {
+export function StudioEditorTestbench() {
   const { locale, setLocale, t } = useLocale();
   const [theme, setTheme] = useState<ColorTheme>(readTestbenchColorTheme);
   const [errorVariant, setErrorVariant] = useState<ErrorVariant>('none');
@@ -236,11 +232,3 @@ function Demo() {
     </div>
   );
 }
-
-createRoot(document.getElementById('root')!).render(
-  <LocaleProvider>
-    <ConfirmDialogProvider>
-      <Demo />
-    </ConfirmDialogProvider>
-  </LocaleProvider>,
-);

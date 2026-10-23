@@ -37,6 +37,7 @@ import { telegramGetFilePath } from '@/services/telegramAppService';
 import { loadFreeTelegramMessageEffects, type TelegramMessageEffect } from '@/lib/telegramMessageEffects';
 import { ChatAvatar } from '../studio/components/ChatAvatar';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
+import { QuickPlannerActivity } from './QuickPlannerActivity';
 import {
   flushPlannerDraftWrite,
   readPlannerDraft,
@@ -172,41 +173,6 @@ function getNextScheduleDateTime(now: Date) {
   };
 }
 
-function getLocalDateKey(date: Date) {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-function getActivityDays(messages: ScheduledMessage[], now: Date) {
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const firstDay = new Date(today);
-  firstDay.setDate(firstDay.getDate() - 6);
-  const dates = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(firstDay);
-    date.setDate(firstDay.getDate() + index);
-    return date;
-  });
-  const counts = new Map(dates.map((date) => [getLocalDateKey(date), 0]));
-  const seen = new Set<string>();
-
-  for (const message of messages) {
-    if (message.status !== 'sent' || !message.sentAt) continue;
-    const timestamp = Date.parse(message.sentAt);
-    if (!Number.isFinite(timestamp) || timestamp > now.getTime() || timestamp < firstDay.getTime()) continue;
-
-    const identity = message.sendAttemptId
-      ? `attempt:${message.sendAttemptId}`
-      : `message:${message.id}`;
-    if (seen.has(identity)) continue;
-    seen.add(identity);
-
-    const key = getLocalDateKey(new Date(timestamp));
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  return dates.map((date) => ({ date, count: counts.get(getLocalDateKey(date)) ?? 0 }));
-}
-
 function getUpcomingMessages(messages: ScheduledMessage[], now: Date) {
   return messages
     .filter((message) => {
@@ -238,7 +204,6 @@ export function QuickPlanner({
   const [message, setMessage] = useState(readPlannerDraft);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const activityNow = new Date();
-  const activityDays = getActivityDays(sent, activityNow);
   const upcomingMessages = getUpcomingMessages(upcoming, activityNow);
   const [initialScheduleDateTime] = useState(() => getNextScheduleDateTime(currentTime));
   const [selectedDate, setSelectedDate] = useState(initialScheduleDateTime.date);
@@ -1604,63 +1569,8 @@ export function QuickPlanner({
           </section>
 
           <aside className="quick-planner-activity" aria-label={t('quickPlanner.activityUpcoming')}>
-            <section className="quick-planner-activity-section" aria-labelledby="quick-planner-activity-heading">
-              <div className="quick-planner-activity-header">
-                <h2 id="quick-planner-activity-heading">{t('quickPlanner.activity')}</h2>
-                <span>{t('quickPlanner.activityPeriod')}</span>
-              </div>
-              {historyError ? (
-                <p className="quick-planner-activity-state is-error">{t('quickPlanner.historyError')}</p>
-              ) : !historyReady ? (
-                <p className="quick-planner-activity-state">{t('quickPlanner.loadingActivity')}</p>
-              ) : activityDays.every(({ count }) => count === 0) ? (
-                <p className="quick-planner-activity-state">{t('quickPlanner.emptyActivity')}</p>
-              ) : (
-                <>
-                  <p className="quick-planner-activity-total">
-                    {t('quickPlanner.activityTotal', {
-                      count: activityDays.reduce((total, day) => total + day.count, 0),
-                    })}
-                  </p>
-                  <div
-                    className="quick-planner-activity-chart"
-                    role="img"
-                    aria-label={t('quickPlanner.activityChartLabel', {
-                      count: activityDays.reduce((total, day) => total + day.count, 0),
-                    })}
-                  >
-                    {activityDays.map(({ date, count }) => {
-                      const barHeight = count === 0
-                        ? 3
-                        : Math.max(12, (count / Math.max(...activityDays.map((day) => day.count))) * 100);
-                      const dayLabel = new Intl.DateTimeFormat(dateLocale, { weekday: 'short' }).format(date);
-                      const fullDate = new Intl.DateTimeFormat(dateLocale, {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric',
-                      }).format(date);
-                      return (
-                        <div
-                          className="quick-planner-activity-day"
-                          key={getLocalDateKey(date)}
-                          title={t('quickPlanner.activityDayCount', { date: fullDate, count })}
-                        >
-                          <span className="quick-planner-activity-value">{count || ''}</span>
-                          <span className="quick-planner-activity-bar-track">
-                            <span
-                              className="quick-planner-activity-bar"
-                              style={{ height: `${barHeight}%` }}
-                            />
-                          </span>
-                          <span className="quick-planner-activity-day-label">{dayLabel}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </section>
-            <section className="quick-planner-upcoming-section" aria-labelledby="quick-planner-upcoming-heading">
+            <QuickPlannerActivity sent={sent} historyReady={historyReady} historyError={historyError} />
+            <section className="quick-planner-upcoming-section" aria-labelledby="quick-planner-upcoming-heading" hidden>
               <div className="quick-planner-activity-header">
                 <h2 id="quick-planner-upcoming-heading">{t('quickPlanner.upcoming')}</h2>
               </div>

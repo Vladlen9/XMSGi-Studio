@@ -1,19 +1,16 @@
 import { useEffect, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import type { Chat } from '@/types';
-import { LocaleProvider, useLocale } from '@/lib/i18n';
+import { useLocale } from '@/lib/i18n';
 import type { ColorTheme } from '@/lib/colorTheme';
 import { QuickPlanner } from '@/components/QuickPlanner';
 import type { QuickPlannerActionFeedback } from '@/components/QuickPlanner';
 import { QuickPlannerNavigationContext } from '@/workspace/QuickPlannerNavigationContext';
 import { flushPlannerDraftWrite, writePlannerDraft } from '@/lib/plannerDraft';
-import { TestbenchNavigation } from '../shared/TestbenchNavigation';
+import { navigateTestbenchPage, TestbenchNavigation } from '../shared/TestbenchNavigation';
 import { applyTestbenchColorTheme, readTestbenchColorTheme } from '../shared/testbenchTheme';
 import './main.css';
 import '../../src/index.css';
 import '../../src/styles/colorThemes.css';
-
-applyTestbenchColorTheme(readTestbenchColorTheme());
 
 const demoChats: Chat[] = [
   { id: 'planner-demo-channel', name: 'XMSGi Updates', username: 'xmsgi_updates', type: 'channel' },
@@ -164,7 +161,7 @@ const feedbackExamples: Record<FeedbackCategory, FeedbackExample[]> = {
   ],
 };
 
-function PlannerTestbench() {
+export function PlannerTestbench() {
   const { locale, setLocale } = useLocale();
   const [theme, setTheme] = useState<ColorTheme>(readTestbenchColorTheme);
   const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>('warning');
@@ -258,7 +255,7 @@ function PlannerTestbench() {
         <QuickPlannerNavigationContext.Provider value={{
           currentSection: 'quick-plan',
           openQuickPlan: () => undefined,
-          openStudio: () => { window.location.href = '../studio-editor/'; },
+          openStudio: () => navigateTestbenchPage('../studio-editor/'),
           openPosts: () => undefined,
           openSettings: () => undefined,
         }}>
@@ -277,9 +274,3 @@ function PlannerTestbench() {
     </div>
   );
 }
-
-createRoot(document.getElementById('root')!).render(
-  <LocaleProvider>
-    <PlannerTestbench />
-  </LocaleProvider>,
-);

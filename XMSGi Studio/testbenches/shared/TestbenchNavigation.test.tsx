@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TestbenchNavigation } from './TestbenchNavigation';
 
 describe('TestbenchNavigation', () => {
-  it('shares the same page links and active-page state across page testbenches', () => {
+  it('shares the same page selector and active-page state across page testbenches', () => {
     render(
       <TestbenchNavigation
         locale="en"
@@ -21,12 +21,13 @@ describe('TestbenchNavigation', () => {
     );
 
     const navigation = screen.getByRole('navigation', { name: 'Stand controls' });
-    const pages = within(navigation).getByLabelText('Testbench pages');
-    expect(within(pages).getByRole('link', { name: 'Login' })).toHaveAttribute('href', '../login/');
-    expect(within(pages).getByRole('link', { name: 'Studio' })).toHaveAttribute('aria-current', 'page');
-    expect(within(pages).getByRole('link', { name: 'Planner' })).not.toHaveAttribute('aria-current');
-    expect(within(pages).getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '../settings/');
-    expect(within(pages).getByRole('link', { name: 'All pages' })).toHaveAttribute('href', '../');
+    const pages = within(navigation).getByRole('combobox', { name: 'Testbench pages' });
+    expect(pages).toHaveValue('/testbenches/studio-editor/');
+    expect(within(pages).getByRole('option', { name: 'Login' })).toHaveValue('/testbenches/login/');
+    expect(within(pages).getByRole('option', { name: 'Planner' })).toHaveValue('/testbenches/planner/');
+    expect(within(pages).getByRole('option', { name: 'Activity' })).toHaveValue('/testbenches/activity/');
+    expect(within(pages).getByRole('option', { name: 'Settings' })).toHaveValue('/testbenches/settings/');
+    expect(within(pages).getByRole('option', { name: 'All pages' })).toHaveValue('/testbenches/');
   });
 
   it('exposes the shared scenario, language, theme, and reset actions', () => {
@@ -96,5 +97,81 @@ describe('TestbenchNavigation', () => {
     });
 
     expect(onConfirmationScenarioChange).toHaveBeenCalledWith('delete-draft');
+  });
+
+  it('selects the standalone Activity testbench as the active page', () => {
+    render(
+      <TestbenchNavigation
+        locale="en"
+        setLocale={vi.fn()}
+        theme="light"
+        onThemeChange={vi.fn()}
+        scenarioLabel="Activity scenario"
+        scenario="empty"
+        scenarioOptions={[{ value: 'empty', label: 'No sends' }]}
+        onScenarioChange={vi.fn()}
+        onReset={vi.fn()}
+        resetLabel="Reset"
+        currentPage="activity"
+      />,
+    );
+
+    const navigation = screen.getByRole('navigation', { name: 'Stand controls' });
+    expect(within(navigation).getByRole('combobox', { name: 'Testbench pages' })).toHaveValue('/testbenches/activity/');
+  });
+
+  it('changes sections through browser history without navigating the document', () => {
+    const pushState = vi.spyOn(window.history, 'pushState');
+    const popState = vi.fn();
+    window.addEventListener('popstate', popState);
+    render(
+      <TestbenchNavigation
+        locale="en"
+        setLocale={vi.fn()}
+        theme="light"
+        onThemeChange={vi.fn()}
+        scenarioLabel="Activity scenario"
+        scenario="empty"
+        scenarioOptions={[{ value: 'empty', label: 'No sends' }]}
+        onScenarioChange={vi.fn()}
+        onReset={vi.fn()}
+        resetLabel="Reset"
+        currentPage="activity"
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Testbench pages' }), {
+      target: { value: '/testbenches/planner/' },
+    });
+
+    expect(pushState).toHaveBeenCalledWith({}, '', expect.any(URL));
+    expect(popState).toHaveBeenCalledOnce();
+    expect(window.location.pathname).toBe('/testbenches/planner/');
+    window.removeEventListener('popstate', popState);
+    pushState.mockRestore();
+  });
+
+  it('shows the optional connection control in the top navigation', () => {
+    const onConnectionSpinnerToggle = vi.fn();
+    render(
+      <TestbenchNavigation
+        locale="en"
+        setLocale={vi.fn()}
+        theme="light"
+        onThemeChange={vi.fn()}
+        scenarioLabel="Activity scenario"
+        scenario="error"
+        scenarioOptions={[{ value: 'error', label: 'History error' }]}
+        onScenarioChange={vi.fn()}
+        onReset={vi.fn()}
+        resetLabel="Reset"
+        currentPage="activity"
+        connectionSpinnerVisible={false}
+        onConnectionSpinnerToggle={onConnectionSpinnerToggle}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check connection' }));
+    expect(onConnectionSpinnerToggle).toHaveBeenCalledOnce();
   });
 });
