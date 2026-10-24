@@ -7,13 +7,15 @@ Product screenshots of the **XMSGi Studio** desktop application.
 | `01.png` | Studio editor and message preview. |
 | `02.png` | Selecting Telegram chats and channels. |
 | `03.png` | Current Quick Planner composer — secondary product view. |
-| `04.png` | XMSGi Studio logo splash. |
+| `04.png` | XMSGi Studio logo artwork. |
+| `04-zoom.png` | Cropped XMSGi Studio logo artwork; not the sign-in screen. |
 | `05.png` | XMSGi Studio brand artwork for secondary placement. |
 | `06.png` | Quick Planner composer for sending now, scheduling, or saving drafts. |
 
 These images back the project README. Use `01.png` for the Studio hero and
-`03.png` for the secondary Quick Planner view. `04.png` and `05.png` are brand
-assets, not application screenshots.
+`03.png` for the secondary Quick Planner view. The website gallery's final
+sign-in image is `XMSGi Studio/website/screenshots/04.png`, with an optimized
+WebP copy at `XMSGi Studio/website/screenshots/04.webp`.
 
 ---
 
