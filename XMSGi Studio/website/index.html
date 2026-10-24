@@ -171,6 +171,12 @@
       background: linear-gradient(105deg, #fff 20%, var(--neon) 100%);
       -webkit-background-clip: text; background-clip: text; color: transparent;
     }
+    .section-head--management h2 {
+      max-width: 900px;
+      font-size: clamp(34px, 7vw, 64px);
+      line-height: 1;
+      letter-spacing: -0.055em;
+    }
     .section-head p {
       margin: 12px auto 0; max-width: 460px;
       font-size: 14px; color: var(--dim); line-height: 1.6;
@@ -325,6 +331,7 @@
       .points {
         grid-template-columns: 1fr 1fr;
       }
+      .points--management .point:last-child { grid-column: 1 / -1; }
       .points-wrap { padding-top: 48px; }
       .gallery { padding-top: 48px; }
       .ending { padding: 48px 0 56px; }
@@ -334,6 +341,7 @@
 
     @media (max-width: 400px) {
       .points { grid-template-columns: 1fr; }
+      .points--management .point:last-child { grid-column: auto; }
       .hero h1 { font-size: 26px; }
     }
   </style>
@@ -407,12 +415,12 @@
 </div>
 
 <div class="wrap points-wrap">
-  <div class="section-head">
-    <span class="kicker" data-i18n="mgmtKicker">Контроль</span>
-    <h2 data-i18n="mgmtTitle">Запланировали — <em>а что дальше?</em></h2>
-    <p data-i18n="mgmtSub">Полный контроль над каждой публикацией в очереди — прямо до момента отправки.</p>
+  <div class="section-head section-head--management">
+    <span class="kicker" data-i18n="mgmtKicker">Запланировали — а что дальше?</span>
+    <h2 data-i18n="mgmtTitle">Контроль<br><em>остаётся у вас.</em></h2>
+    <p data-i18n="mgmtSub">Правьте, переносите и отслеживайте публикации — вплоть до самой отправки.</p>
   </div>
-  <div class="points">
+  <div class="points points--management">
     <div class="point">
       <strong data-i18n="c1t">Обновите пост без пересоздания</strong>
       <span data-i18n="c1d">Измените текст или медиа запланированной публикации — она уйдёт в обновлённом виде.</span>
@@ -422,8 +430,8 @@
       <span data-i18n="c2d">Измените дату и время публикации или уберите отправку из очереди.</span>
     </div>
     <div class="point">
-      <strong data-i18n="c3t">Activity: отправлено и в очереди</strong>
-      <span data-i18n="c3d">Смотрите число отправленных сообщений и динамику за 7 или 30 дней, а в очереди — какие публикации ещё ждут отправки.</span>
+      <strong data-i18n="c3t">Activity — ваш ритм публикаций</strong>
+      <span data-i18n="c3d">Смотрите, сколько сообщений отправили за неделю или месяц, и планируйте следующие публикации с учётом своей активности.</span>
     </div>
   </div>
 </div>
@@ -525,12 +533,12 @@
       altPlanner: "Быстрый планировщик XMSGi Studio",
       altChats: "Выбор чатов и каналов Telegram",
       altSign: "Вход в XMSGi Studio",
-      mgmtKicker: "Контроль",
-      mgmtTitle: "Запланировали — <em>а что дальше?</em>",
-      mgmtSub: "Полный контроль над каждой публикацией в очереди — прямо до момента отправки.",
+      mgmtKicker: "Запланировали — а что дальше?",
+      mgmtTitle: "Контроль<br><em>остаётся у вас.</em>",
+      mgmtSub: "Правьте, переносите и отслеживайте публикации — вплоть до самой отправки.",
       c1t: "Обновите пост без пересоздания", c1d: "Измените текст или медиа запланированной публикации — она уйдёт в обновлённом виде.",
       c2t: "Перенесите или отмените", c2d: "Измените дату и время публикации или уберите отправку из очереди.",
-      c3t: "Activity: отправлено и в очереди", c3d: "Смотрите число отправленных сообщений и динамику за 7 или 30 дней, а в очереди — какие публикации ещё ждут отправки."
+      c3t: "Activity — ваш ритм публикаций", c3d: "Смотрите, сколько сообщений отправили за неделю или месяц, и планируйте следующие публикации с учётом своей активности."
     },
     en: {
       title: "XMSGi Studio — your Telegram publishing workspace",
@@ -555,12 +563,12 @@
       altPlanner: "XMSGi Studio Quick Planner",
       altChats: "Telegram chat and channel selection",
       altSign: "XMSGi Studio sign-in screen",
-      mgmtKicker: "Control",
-      mgmtTitle: "Scheduled — <em>now what?</em>",
-      mgmtSub: "Full control over every post in the queue — right up to the moment it's sent.",
+      mgmtKicker: "Scheduled — what now?",
+      mgmtTitle: "Control<br><em>stays in your hands.</em>",
+      mgmtSub: "Edit, reschedule and track your posts — right up to the moment they're sent.",
       c1t: "Update without recreating", c1d: "Change the text or media of a scheduled post and it will go out with your updates.",
       c2t: "Reschedule or cancel", c2d: "Change the send date and time, or remove a post from the queue.",
-      c3t: "Activity: sent and upcoming", c3d: "Track sent-message totals and trends over 7 or 30 days, then check the queue for posts still waiting to go out."
+      c3t: "Activity — your publishing rhythm", c3d: "See how many messages you sent this week or month, then plan your next posts based on your activity."
     }
   };
 
