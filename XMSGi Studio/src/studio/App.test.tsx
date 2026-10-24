@@ -90,6 +90,8 @@ describe('App media publishing', () => {
         cancel: vi.fn().mockResolvedValue({ success: true }),
         findChat: vi.fn().mockResolvedValue({ success: false, error: 'Chat not found.' }),
         getFilePath: vi.fn(() => '/tmp/photo.png'),
+        onStatus: vi.fn(() => () => undefined),
+        onSendHistoryWarning: vi.fn(() => () => undefined),
       },
     });
     Object.defineProperty(window, 'draftStorage', {

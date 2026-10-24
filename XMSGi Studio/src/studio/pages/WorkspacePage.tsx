@@ -1054,14 +1054,15 @@ export function WorkspacePage({
   useLayoutEffect(() => {
     if (stageMode !== 'editor' || (!focusRescheduledEditorAtEndRef.current && !focusPlannerEditorAtEndRef.current && !focusEditorAfterStageEscapeRef.current)) return;
 
+    const editor = bodyInputRef.current;
+    if (editor && focusPlannerEditorAtEndRef.current) {
+      const nextHtml = richTextToHtml(draftBody, draftEntities);
+      if (editor.innerHTML !== nextHtml) editor.innerHTML = nextHtml;
+    }
+
     const frameId = window.requestAnimationFrame(() => {
       const editor = bodyInputRef.current;
       if (!editor) return;
-
-      if (focusPlannerEditorAtEndRef.current) {
-        const nextHtml = richTextToHtml(draftBody, draftEntities);
-        if (editor.innerHTML !== nextHtml) editor.innerHTML = nextHtml;
-      }
 
       editor.focus({ preventScroll: true });
       const selection = window.getSelection();

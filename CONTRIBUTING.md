@@ -13,7 +13,7 @@ Thanks for helping improve XMSGi Studio.
 
 ```bash
 npm install
-npm test -- --run
+npm test
 npm run build
 ```
 

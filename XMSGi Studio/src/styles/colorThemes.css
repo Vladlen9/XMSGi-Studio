@@ -114,7 +114,8 @@ html[data-theme='dark'] .topbar-logout-modal-action--cancel {
   color: #d7dfe5;
 }
 
-html[data-theme='dark'] .topbar-logout-modal-action--cancel:hover {
+html[data-theme='dark'] .topbar-logout-modal .topbar-logout-modal-actions .topbar-logout-modal-action--cancel:hover,
+html[data-theme='dark'] .topbar-logout-modal .topbar-logout-modal-actions .topbar-logout-modal-action--cancel:focus-visible {
   border-color: #4a5964;
   background: #252f36;
   color: #ffffff;

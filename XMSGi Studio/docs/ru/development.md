@@ -1,7 +1,7 @@
 # Разработка и сборка XMSGi Studio
 
 Инструкции для контрибьюторов и разработчиков.
-Соответствует версии **1.2.2**.
+Соответствует версии **1.3.0**.
 
 ---
 
@@ -59,10 +59,11 @@ XMSGi Studio/
 | `npm run dev` | Vite dev-сервер (рендерер) |
 | `npm run build` | production-сборка рендерера в `dist/` |
 | `npm run electron` | запуск Electron-оболочки (нужен `npm run build`) |
-| `npm run start` | `build` + `electron` одной командой |
+| `npm run start` | запуск Electron-оболочки (предварительно соберите renderer через `npm run build`) |
 | `npm test` | прогон всех тестов (Vitest, `vitest run`) |
 | `npm run lint` | ESLint по всему проекту |
 | `npm run typecheck` | TypeScript-проверка (`tsconfig.app.json`) |
+| `npm run dev:electron` | Vite + Electron в режиме разработки |
 | `npm run dist` | `build` + `electron-builder --win` (портативный `.exe`) |
 | `npm run preview` | предпросмотр production-сборки Vite |
 
@@ -87,6 +88,9 @@ npm run build
     миграции истории, packaging;
   - рендерер (`*.test.tsx` в `src/`): хуки, страницы, компоненты;
   - Studio renderer (`src/studio/`).
+- Результат полного пререлизного прогона v1.3.0: **1065 из 1065 тестов пройдены,
+  0 ошибок и 0 пропусков**. Также успешно выполнены `npm run typecheck` и
+  `git diff --check`.
 - Отчёты прогона в репозиторий не коммитятся (см. `.gitignore`).
   При необходимости сохраните JSON-отчёт вручную:
   `npx vitest run --reporter=json --outputFile=vitest-report.json`.
@@ -94,7 +98,7 @@ npm run build
 Рекомендуемый порядок перед PR:
 
 ```bash
-npm test -- --run
+npm test
 npm run lint
 npm run typecheck
 npm run build
@@ -168,7 +172,7 @@ CI описан в `.github/workflows/` (дерево репозитория —
   нет (`softprops/action-gh-release`). Перед matrix-сборками этот workflow
   выполняет `npm ci`, lint, typecheck и полный test suite; при ошибке проверок
   сборка и публикация не запускаются. Сам тег создаётся и пушится локально:
-  `git tag v1.2.2 && git push origin v1.2.2`.
+  `git tag v1.3.0 && git push origin v1.3.0`.
 - `.github/workflows/static.yml` — деплой статического сайта на GitHub Pages
   (ветка `main`, каталог `XMSGi Studio/website`).
 
@@ -196,4 +200,3 @@ macOS-релизы выпускаются без подписи и notarization;
 - [Архитектура](architecture.md)
 - [Справочник IPC](ipc-reference.md)
 - [Безопасность](security.md)
-

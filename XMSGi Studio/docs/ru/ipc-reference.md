@@ -2,10 +2,10 @@
 
 Все каналы связи renderer ⇄ main-процесс.
 Источник истины: `main.cjs` (хендлеры), `preload.cjs` (API рендера),
-`ipc-security.cjs` (валидация). Соответствует версии **1.2.2**.
+`ipc-security.cjs` (валидация). Соответствует версии **1.3.0**.
 
-**Всего: 38 `ipcMain.handle` + 1 `ipcRenderer.sendSync`
-+ 1 push-событие.**
+**Всего: 41 `ipcMain.handle` + 1 `ipcRenderer.sendSync`
++ 2 push-события.**
 
 ---
 
@@ -32,10 +32,13 @@ main-процесс не завершается.
 Push-статус Telegram: main шлёт рендереру событие
 **`telegram-status`** со снапшотом
 `{ accountId, status, category?, error?, waitSecondsText? }`,
-`status ∈ normal | rate-limited | slowmode | auth required |
-network/retrying | error`.
+Поле `status` может быть `connecting`, `connected`, `reconnecting`,
+`disconnected`, `normal`, `rate-limited`, `slowmode`, `auth required`,
+`network/retrying` или `error`.
 Подписка в рендере — `window.telegram.onStatus(cb)`
 (ref-counted, `preload.cjs`).
+Уведомление о неудачной записи истории отправок передаётся событием
+`telegram-send-history-warning` через `window.telegram.onSendHistoryWarning(cb)`.
 
 ---
 
@@ -59,6 +62,7 @@ network/retrying | error`.
 |---|---|---|
 | `telegram-chats` | — | список чатов `{ id, name, username?, type?, avatarDataUrl? }` |
 | `telegram-chat-avatar` | `chatId` | аватар (data URL) |
+| `telegram-account-avatar` | — | аватар текущего аккаунта (data URL) |
 | `telegram-chat-permissions` | `chatId` | права: view/send/schedule |
 | `telegram-chat-history` | `{ chatId, limit? }` | история сообщений чата |
 | `telegram-saved-message:delete` | `{ chatId, messageId }` | удаление из «Избранного» |
@@ -71,8 +75,10 @@ network/retrying | error`.
 | Канал | Payload | Ответ / заметки |
 |---|---|---|
 | `telegram-send` | `{ accountId?, chatId, message, attachments?, entities?, replyMarkup?, silent?, effect?, idempotencyKey? }` | мгновенная отправка |
+| `telegram-send-reconcile` | `{ idempotencyKey, attachmentCount? }` | сверка результата отправки с неопределённым ответом |
 | `telegram-schedule` | `{ chatId, message, date?, time?, targetTimestamp?, attachments?, entities?, replyMarkup?, silent?, effect?, ... }` | отложенная отправка на сервере Telegram; идемпотентна |
 | `telegram-schedule-identities` | `{ operations }` | сверка idempotency-ключей с уже запланированным |
+| `telegram-schedule-reconcile` | данные операции планирования | сверка незавершённой операции с очередью Telegram |
 | `telegram-cancel` | `{ chatId?, id/ids, ... }` | отмена запланированного |
 | `telegram-status` (handle) | — | текущий снапшот статуса |
 | `telegram-rate-limit-state` | — | `{ current: { status, paused, pausedUntil, remainingMs, ... } }` |
@@ -89,6 +95,7 @@ network/retrying | error`.
 | `draft-store:migrate` | draft | миграция legacy-данных рендера |
 | `draft-store:restore-backup` | draft | восстановление по индексу бэкапа |
 | `draft-store:copy-attachment` | draft | копирование или проверка persistent файла в каталоге черновиков; вызывается как `copyAttachment(file)`/`copyAttachmentPath(path)` |
+| `draft-store:write-attachment` | draft | запись байтов вложения в каталог черновиков |
 | `draft-store:export` | draft | экспорт бэкапа (системный диалог) |
 | `draft-store:import` | draft | импорт бэкапа (системный диалог) |
 | `draft-store:flush` | sendSync | **синхронная** запись при закрытии окна |
@@ -101,8 +108,8 @@ network/retrying | error`.
 
 | Канал | Guard | Payload / заметки |
 |---|---|---|
-| `schedule-history:load` | draft | `scope ∈ upcoming \| sent \| snapshot`; ответ `{ history: { upcoming, sent }, needsMigration? }`; прерванные статусы восстанавливаются в `failed` |
-| `schedule-history:save` | draft | `{ scope, field, messages }`; белые списки scope/field; лимит 8 МБ; полная валидация записей (до 2000) |
+| `schedule-history:load` | draft | `scope ∈ personal \| workspace`; ответ `{ history: { upcoming, sent }, needsMigration? }`; прерванные статусы восстанавливаются в `failed` |
+| `schedule-history:save` | draft | `{ scope, field, messages }`; `scope ∈ personal \| workspace`, `field ∈ upcoming \| sent \| snapshot`; лимит 8 МБ; валидация записей |
 
 ## 7. Список чатов
 
@@ -115,11 +122,11 @@ network/retrying | error`.
 
 ## 8. Соответствие API рендера
 
-`preload.cjs` разворачивает каналы в три объекта:
+`preload.cjs` разворачивает каналы в два объекта:
 
 ```ts
 window.telegram       // getConfig, login, connect, getChats, send,
-                      // schedule, cancel, onStatus, …
+                      // schedule, cancel, onStatus, onSendHistoryWarning, …
 window.draftStorage   // load, save, flush, migrate, restoreBackup,
                       // exportBackup, importBackup, exportText,
                       // importText, copyAttachment, copyAttachmentPath, getFilePath
@@ -140,4 +147,3 @@ window.draftStorage   // load, save, flush, migrate, restoreBackup,
 4. Добавьте проверки в `ipc-security.test.mjs`
    (канал, guard, валидация payload).
 5. Ответ — только `{ success, error?, ... }`.
-

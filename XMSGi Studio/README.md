@@ -13,7 +13,7 @@
 
 <img src="website/screenshots/01.png" alt="XMSGi Studio workspace" width="880" />
 
-A desktop workspace for **writing, scheduling, and reviewing Telegram messages** — straight from your own account, **no bot required**. Built for Windows, kept local, and portable.
+A desktop workspace for **writing, scheduling, and reviewing Telegram messages** — straight from your own account, **no bot required**. Available for Windows, Linux, and macOS; the Windows build is portable.
 
 <br>
 
@@ -35,11 +35,15 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 
 ### ⏰ Scheduling & Repeats
 - **One-time or future sends**: Schedule messages for any date/time.
-- **Repeat options**: Daily, weekly, or monthly repeats (up to 15 times).
+- **Repeat options**: Daily, weekly (including selected weekdays), every two weeks, or monthly — up to 15 scheduled occurrences.
 - **Reschedule/cancel**: Easily adjust or cancel messages in the queue.
 
 ### ⚡ Studio first, Quick Planner for speed
 Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; Planner drafts can be continued in Studio and revisited in Posts/History.
+
+### 🌗 Themes & activity
+- Choose a light or dark theme for the entire app in Settings.
+- Track confirmed sends in the Quick Planner activity chart, with 7-day and 30-day views.
 
 ### 🖋️ Message Composition
 - **Rich formatting**: Use bold, italic, links, and more.
@@ -74,7 +78,7 @@ Full control over every post in the queue — right up to the moment it's sent.
   <tr>
     <td valign="top">
       <b>🔁 Repeats</b><br>
-      Daily, by weekdays or monthly — up to 15 repeats.
+      Daily, weekly (including selected weekdays), every two weeks, or monthly — up to 15 scheduled occurrences.
     </td>
     <td valign="top">
       <b>📝 Templates</b><br>
@@ -96,7 +100,7 @@ Full control over every post in the queue — right up to the moment it's sent.
 ## 🖼️ Screenshots
 
 <p align="center">
-  <img src="../screenshots/03.png" alt="XMSGi Studio sign-in screen" width="32%" />
+  <img src="../screenshots/03.png" alt="Quick Planner composer" width="32%" />
   <img src="../screenshots/02.png" alt="Telegram chat selection" width="32%" />
   <img src="../screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
 </p>
@@ -107,13 +111,13 @@ Full control over every post in the queue — right up to the moment it's sent.
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.2.2.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio.1.2.2.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.2.2.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.2.2_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/xmsgi-studio_1.2.2_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.2.2.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.2.2-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.3.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio.1.3.0.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.3.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.3.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/xmsgi-studio_1.3.0_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0-arm64.dmg) |
 
-All builds for v1.2.2 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.2) page.
+The v1.3.0 download links will work after the release and its platform packages are published.
 
 ### First launch on macOS
 
@@ -156,7 +160,7 @@ Studio's internal feature structure lives under `src/studio/`:
 - `src/studio/components/stages/` contains the chat, schedule, draft, template and inline-button stages.
 - `src/studio/services/` adapts publishing operations to the Telegram bridge.
 - `packages/shared/` provides types, translations and utilities shared across the application.
-- `XMSGi/telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
+- `telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
 
 Studio's locale context is provided by the host. Keep `StudioMount` under the host's `LocaleProvider`, and pass the existing connection, chats, account ID and scheduler runtime:
 
@@ -188,6 +192,12 @@ Full documentation lives in the [`docs/`](docs/README.md) directory:
 - [Development](docs/ru/development.md) — setup, commands, tests, conventions (RU)
 - [Security and privacy](docs/ru/security.md) — storage, encryption, trust boundaries (RU)
 - [IPC reference](docs/ru/ipc-reference.md) — renderer ⇄ main channels (RU)
+
+## 🧪 Automated tests
+
+The v1.3.0 pre-release test run found **1,065 automated test cases**: **1,065 passed**, **0 failed**, and **0 skipped**. The suite covers UI components, application logic, React hooks, storage, scheduling, Telegram/Electron integration, and packaging metadata.
+
+Validated with `npm test`, `npm run typecheck`, and `git diff --check`.
 
 ## 🔒 Security &amp; privacy
 

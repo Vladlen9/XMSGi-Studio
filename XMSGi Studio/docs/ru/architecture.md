@@ -1,7 +1,7 @@
 # Архитектура XMSGi Studio
 
 Техническое описание приложения для разработчиков.
-Соответствует версии **1.2.2**.
+Соответствует версии **1.3.0**.
 
 ---
 
@@ -20,7 +20,7 @@ XMSGi Studio — настольное приложение на **Electron**.
 │  ipc-security.cjs — валидация всех входящих payload         │
 └───────────────▲──────────────────────────────▲──────────────┘
                 │ IPC (invoke/handle)          │ IPC event
-                │ 38 каналов                   │ 'telegram-status'
+                │ 41 invoke-канал              │ push-события
 ┌───────────────┴──────────────────────────────┴──────────────┐
 │  PRELOAD (preload.cjs)                                      │
 │  contextBridge: window.telegram / window.draftStorage /     │
@@ -41,13 +41,17 @@ XMSGi Studio — настольное приложение на **Electron**.
 ### 2.1 Точка входа — `main.cjs`
 
 - Перенаправляет каталоги `userData`, `sessionData`, `cache`, `temp`
-  в единый корень приложения (`app-data-path.cjs`):
-  `%LOCALAPPDATA%\XMSGi` (packaged) или `XMSGi-Workspace` (dev).
+  в единый корень приложения (`app-data-path.cjs`): `<appData>/XMSGi`
+  (packaged) или `<appData>/XMSGi-Workspace` (dev). На Windows `<appData>`
+  берётся из `LOCALAPPDATA`, на остальных системах — из `app.getPath('appData')`.
+  При запуске `npm run dev:electron` используется изолированный
+  `XMSGi-Workspace-Agent`, если не задан `XMSGI_STUDIO_USER_DATA_DIR`.
   Это делает приложение переносимым и независимым от системы.
 - В dev-режиме читает `.env` (`API_ID`, `API_HASH`).
   `.env` никогда не попадает в сборку и в Git.
 - Создаёт `BrowserWindow`, Tray, обрабатывает `second-instance`.
-- Регистрирует **38 IPC-хендлеров** — см. [Справочник IPC](ipc-reference.md).
+- Регистрирует **41 IPC handler**, один синхронный IPC-канал и два push-события
+  — см. [Справочник IPC](ipc-reference.md).
 
 ### 2.2 Граница доверия
 
@@ -98,7 +102,7 @@ XMSGi Studio — настольное приложение на **Electron**.
 | `telegram-account-storage.cjs` | `xmsgi-studio-secure-config.json` (legacy: `awaitmsg-secure-config.json`) | `API_ID`, `API_HASH`, `SESSION_STRING` — **зашифрованы** `safeStorage` |
 | `chat-storage.cjs` | `xmsgi-studio-chats.json` | список чатов, избранное, скрытые чаты |
 | `schedule-history.cjs` | `xmsgi-studio-schedule-history.json` | `upcoming` / `sent` / `snapshot`, лимит 8 МБ |
-| `draft-store.cjs` | `drafts/drafts.json` + backups | черновики, вложения (`copy-attachment`), schemaVersion = 2 |
+| `draft-store.cjs` | `drafts/drafts.json` + backups | черновики, вложения (`copy-attachment`), schemaVersion = 3 |
 
 Все JSON-записи **атомарны** (tmp-файл → `fsync` → `rename`),
 файлы черновиков создаются с правами `0600`.
@@ -171,8 +175,8 @@ Planner-черновиками и сохранёнными Studio-докумен
   и адаптация publishing-операций к Telegram-мосту.
 - `src/studio/hooks/useStudioDrafts.ts` сохраняет коллекцию Studio drafts,
   `workspaceDraft` и до 30 предыдущих `documentHistories` на каждый
-  `documentId` в одном атомарном `drafts.json` (`%LOCALAPPDATA%/XMSGi/drafts/` или
-  `XMSGi-Workspace/drafts/` в dev). Версии не имеют суммарного лимита.
+  `documentId` в одном атомарном `drafts.json` в подкаталоге `drafts/`
+  корня данных приложения. Версии не имеют суммарного лимита.
 - Вложения истории ссылаются на постоянные копии в каталоге черновиков;
   очистка истории удаляет только JSON-метаданные и не удаляет файлы.
 
@@ -240,8 +244,8 @@ React-props контракт:
 
 ## 7. Сборка и упаковка
 
-- **Рендерер**: Vite → `dist/` (manualChunks: react-vendor,
-  ui-vendor, telegram-vendor, telemetry-vendor).
+- **Рендерер**: Vite → `dist/` (manualChunks: `react-vendor`,
+  `ui-vendor`, `telegram-vendor`).
 - **Пакет**: `electron-builder` (`package.json` → `build.files`
   включает все `.cjs`-модули и `packages/shared/telegramText.cjs`,
   `asar: true`).

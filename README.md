@@ -35,7 +35,7 @@
 Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts that can be continued in Studio or revisited in Posts/History.
 
 - **Publish:** send from your own Telegram account to chats, groups, and channels. No bot required.
-- **Compose and schedule:** rich text, attachments, inline buttons, one-time posts, and recurring messages.
+- **Compose and schedule:** rich text, attachments, inline buttons, one-time posts, and daily, weekly, biweekly, or monthly repeats (up to 15 occurrences).
 - **Stay organized:** color-coded drafts, reusable templates, and document history.
 - **Keep control:** edit, reschedule, or cancel queued posts; FloodWait limits retry automatically.
 - **Keep data local:** sessions stay on the device and use Electron <code>safeStorage</code> where supported. Portable Windows build available.
@@ -56,19 +56,18 @@ For setup and workflow details, see the [user guide](XMSGi%20Studio/docs/ru/user
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.2.2.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio.1.2.2.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.2.2.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.2.2_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/xmsgi-studio_1.2.2_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.2.2.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.2.2-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.2.2/XMSGi.Studio-1.2.2-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.3.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio.1.3.0.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.3.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.3.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/xmsgi-studio_1.3.0_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0-arm64.dmg) |
 
-All builds for v1.2.2 are also listed on the [GitHub Releases](https://github.com/molodoy01/XMSGi-Studio/releases/tag/v1.2.2) page.
+The v1.3.0 download links will work after the release and its platform packages are published.
 
 ### First launch on macOS
 
-macOS builds are unsigned and not notarized unless Apple Developer signing and
-notarization credentials are configured for the release workflow. For an unsigned
-build, Control-click XMSGi Studio in Finder, choose **Open**, then confirm **Open**.
+macOS builds are unsigned and not notarized. Control-click XMSGi Studio in Finder,
+choose **Open**, then confirm **Open**.
 If macOS still blocks it, go to **System Settings → Privacy & Security → Open Anyway**.
 Only bypass this warning for a copy downloaded from the official releases page.
 
@@ -78,7 +77,7 @@ Requirements:
 
 - Node.js 20+
 - npm
-- Windows for the packaged desktop experience
+- Windows, Linux (x64), or macOS (x64 / Apple Silicon) for the packaged desktop app
 
 Run locally:
 
@@ -106,7 +105,7 @@ Studio's internal feature structure lives under `XMSGi Studio/src/studio/`:
 - `XMSGi Studio/src/studio/components/stages/` contains the chat, schedule, draft, template and inline-button stages.
 - `XMSGi Studio/src/studio/services/` adapts publishing operations to the Telegram runtime.
 - `XMSGi Studio/packages/shared/` provides types, translations and utilities shared across the application.
-- `XMSGi/telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
+- `XMSGi Studio/telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
 
 Studio's locale context is provided by the host. Keep `StudioMount` under the host's `LocaleProvider`, and pass the existing connection, chats, account ID and scheduler runtime:
 
