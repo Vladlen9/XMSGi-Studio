@@ -74,6 +74,21 @@ describe('QuickPlanner feedback', () => {
     );
   });
 
+  it('uses a white selected Planner action in light theme and a muted dark fill in dark theme', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active\s*\{\s*color:\s*var\(--planner-accent\);\s*border:\s*1px solid #239dfb;\s*background:\s*#ffffff;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:hover\s*\{\s*background:\s*#ffffff;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:active\s*\{\s*background:\s*#ffffff;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-mode-switch button\.is-active,[\s\S]*?button\.is-active:active\s*\{\s*color:\s*#d7e3ea;\s*border-color:\s*#587181;\s*background:\s*#304652;/,
+    );
+  });
+
   it('uses the Studio blue hover and focus highlight for Planner time options in both themes', () => {
     expect(quickPlannerStyles).toMatch(
       /\.quick-planner-time-list button:hover:not\(:disabled\),\s*\.quick-planner-time-list button:focus-visible:not\(:disabled\)\s*\{\s*color:\s*#ffffff;\s*background:\s*#239dfb;/,
@@ -307,7 +322,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 2' })).toBeInTheDocument();
     expect(screen.getByTitle(`${dateLabel}: 2 messages sent`)).toBeInTheDocument();
     expect(screen.getByText('2', { selector: '.quick-planner-activity-total-count' })).toBeInTheDocument();
-    expect(screen.getByText('confirmed sends')).toBeInTheDocument();
+    expect(screen.getByText('confirmed sends', { selector: '.quick-planner-activity-total-label' })).toBeInTheDocument();
   });
 
   it('includes a newly received confirmed send even when the scheduling clock state is stale', () => {

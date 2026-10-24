@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from 'react';
-import { act, fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
+import { act, fireEvent, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -39,6 +39,77 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-header h2\s*\{[^}]*top:\s*-33px;[^}]*left:\s*0;/,
     );
+  });
+
+  it('keeps the activity switcher at the same vertical position for both chart periods', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='7'\]\s*\{\s*height:\s*168px;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='30'\]\s*\{\s*height:\s*168px;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='7'\]\s*\{\s*height:\s*156px;/,
+    );
+    expect(activityStyles).toMatch(
+      /@media \(max-width:\s*420px\)[\s\S]*?\.quick-planner-activity-chart\[data-period='30'\]\s*\{\s*height:\s*156px;/,
+    );
+  });
+
+  it('extends the monthly plot background to the chart baseline at desktop and mobile sizes', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='30'\] \.quick-planner-activity-plot-depth\s*\{[^}]*bottom:\s*60px;/,
+    );
+    expect(activityStyles).toMatch(
+      /@media \(max-width:\s*420px\)[\s\S]*?\.quick-planner-activity-chart\[data-period='30'\] \.quick-planner-activity-plot-depth\s*\{[^}]*bottom:\s*57px;/,
+    );
+  });
+
+  it('insets the first and last monthly date labels by two pixels without shifting the day grid', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-days\.is-month \.quick-planner-activity-day:first-child \.quick-planner-activity-day-label\s*\{[^}]*transform:\s*translate\(2px,\s*-2px\);/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-days\.is-month \.quick-planner-activity-day:last-child \.quick-planner-activity-day-label\s*\{[^}]*transform:\s*translate\(-2px,\s*-2px\);/,
+    );
+  });
+
+  it('keeps dark-theme highlights unboxed and easy to read', () => {
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-highlight\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-highlight strong\s*\{[^}]*font-size:\s*20px;/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-highlight span\s*\{[^}]*font-size:\s*12px;/,
+    );
+  });
+
+  it('uses a consistent muted dark fill for selected Activity options and outlines the light selected options', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*rgba\(35, 157, 251, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*#587181;[^}]*background:\s*#304652;[^}]*color:\s*#d7e3ea;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline:\s*1px solid rgba\(22, 118, 187, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline-color:\s*#587181;[^}]*background:\s*#304652;[^}]*color:\s*#d7e3ea;/,
+    );
+  });
+
+  it('uses the Planner editor track fill for inactive Activity switcher options', () => {
+    const darkTrackFill = /linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\)/;
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-period\s*\{[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\);/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-views\s*\{[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\);/,
+    );
+    expect(activityStyles).toMatch(darkTrackFill);
   });
 
   it('renders independently and charts distinct confirmed sends', () => {
@@ -89,7 +160,8 @@ describe('QuickPlannerActivity', () => {
     expect(chart.querySelectorAll('.quick-planner-activity-point')).toHaveLength(7);
     expect(chart.querySelectorAll('.quick-planner-activity-point-dot')).toHaveLength(1);
     expect(linePath).toMatch(/^M -24 82/);
-    expect(linePath).toMatch(/384 53\.2$/);
+    const weeklyLineEndY = Number(linePath.match(/(?:^| )384 ([\d.]+)$/)?.[1]);
+    expect(weeklyLineEndY).toBeCloseTo(40.6, 4);
     const weeklyPointXs = Array.from(
       chart.querySelectorAll('.quick-planner-activity-point'),
       (point) => Number(point.querySelector('.quick-planner-activity-point-dot')?.getAttribute('cx')
@@ -110,11 +182,112 @@ describe('QuickPlannerActivity', () => {
     expect(chart.querySelector('.quick-planner-activity-count')).toHaveClass('is-single-digit');
     expect(chart.querySelector('.quick-planner-activity-count-shadow')).toHaveClass('is-single-digit');
     expect(screen.getByText('2', { selector: '.quick-planner-activity-total-count' })).toBeInTheDocument();
-    expect(screen.getByText('confirmed sends')).toBeInTheDocument();
+    expect(screen.getByText('confirmed sends', { selector: '.quick-planner-activity-total-label' })).toBeInTheDocument();
     expect(screen.getByTitle(`${dateLabel}: 2 messages sent`)).toBeInTheDocument();
   });
 
-  it('shortens the weekly line by twelve screen pixels on both sides and keeps the fade mask', () => {
+  it('switches between sent, scheduled, and all activity using the matching message statuses', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2035-05-12T12:00:00.000Z'));
+      const sentAt = new Date('2035-05-12T09:30:00.000Z').toISOString();
+      const scheduled = createSentMessage({
+        id: 'scheduled',
+        status: 'scheduled',
+        when: '2035-05-13T15:00:00.000Z',
+        sentAt: undefined,
+      });
+      const failed = createSentMessage({
+        id: 'failed',
+        status: 'failed',
+        sendAttemptId: 'failed-attempt',
+        sentAt: undefined,
+      });
+      const duplicateFailure = { ...failed, id: 'failed-duplicate' };
+      const unknown = createSentMessage({
+        id: 'unknown',
+        status: 'unknown',
+        sentAt: undefined,
+      });
+      const sending = createSentMessage({ id: 'sending', status: 'sending', sentAt: undefined });
+
+      renderActivity(
+        <QuickPlannerActivity
+          sent={[createSentMessage({ id: 'confirmed', sentAt })]}
+          upcoming={[scheduled, failed, duplicateFailure, unknown, sending]}
+        />,
+      );
+
+      const views = screen.getByRole('group', { name: 'Activity view' });
+      expect(within(views).getByRole('button', { name: /Sent\s*1/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(within(views).getByRole('button', { name: /Scheduled\s*1/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(within(views).getByRole('button', { name: /All\s*2/ })).toHaveAttribute('aria-pressed', 'false');
+      expect(
+        screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 1' }).compareDocumentPosition(views)
+          & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: /Scheduled\s*1/ }));
+      const scheduledChart = screen.getByRole('img', { name: 'Scheduled messages in the next 7 days: 1' });
+      expect(scheduledChart).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Activity period' })).toBeInTheDocument();
+      expect(screen.getByText('scheduled in period', { selector: '.quick-planner-activity-total-label' }))
+        .toBeInTheDocument();
+      expect(scheduledChart.querySelectorAll('.quick-planner-activity-point-dot')).toHaveLength(1);
+      expect(scheduledChart.querySelector('.quick-planner-activity-line')).toBeInTheDocument();
+      const scheduledHighlights = screen.getByLabelText('Activity summary');
+      expect(scheduledHighlights.parentElement).toHaveClass('quick-planner-activity-lower');
+      const lowerActivity = scheduledHighlights.parentElement;
+      const activityViews = lowerActivity?.querySelector('.quick-planner-activity-views');
+      expect(activityViews).toBeInTheDocument();
+      expect(lowerActivity?.firstElementChild).toBe(scheduledHighlights);
+      expect(lowerActivity?.lastElementChild).toBe(activityViews);
+      expect(scheduledHighlights.querySelectorAll('.quick-planner-activity-highlight')).toHaveLength(3);
+      expect(within(scheduledHighlights).getByText('in schedule')).toBeInTheDocument();
+      expect(within(scheduledHighlights).getByText('next send')).toBeInTheDocument();
+      expect(within(scheduledHighlights).getByText('next 7 days')).toBeInTheDocument();
+      const nextSendLabel = scheduledHighlights.querySelector('.quick-planner-activity-highlight.is-compact strong');
+      const expectedNextSend = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(new Date(scheduled.when));
+      expect(nextSendLabel).toHaveTextContent(expectedNextSend);
+      expect(nextSendLabel?.textContent).not.toMatch(/\b(?:AM|PM)\b/i);
+      expect(Array.from(scheduledHighlights.querySelectorAll('.quick-planner-activity-highlight:not(.is-compact) strong'), (value) => value.textContent))
+        .toEqual(['1', '1']);
+
+      fireEvent.click(screen.getByRole('button', { name: '30 days' }));
+      expect(screen.getByRole('img', { name: 'Scheduled messages in the next 30 days: 1' }))
+        .toHaveAttribute('data-period', '30');
+      expect(within(screen.getByLabelText('Activity summary')).getByText('next 30 days')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /All\s*2/ }));
+      expect(screen.getByRole('button', { name: /All\s*2/ })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('img', { name: 'All messages in the selected 30 days: 2' })).toBeInTheDocument();
+      expect(screen.getByText('messages in period', { selector: '.quick-planner-activity-total-label' }))
+        .toBeInTheDocument();
+      const allHighlights = screen.getByLabelText('Activity summary');
+      expect(allHighlights.querySelectorAll('.quick-planner-activity-highlight')).toHaveLength(3);
+      expect(within(allHighlights).getByText('all messages')).toBeInTheDocument();
+      expect(within(allHighlights).getByText('sent', { selector: 'span' })).toBeInTheDocument();
+      expect(within(allHighlights).getByText('scheduled', { selector: 'span' })).toBeInTheDocument();
+      expect(Array.from(allHighlights.querySelectorAll('strong'), (value) => value.textContent))
+        .toEqual(['2', '1', '1']);
+      expect(within(allHighlights).queryByText('failed')).not.toBeInTheDocument();
+      expect(within(allHighlights).queryByText('unknown result')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Sent\s*1/ }));
+      expect(screen.getByRole('group', { name: 'Activity period' })).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'Confirmed messages sent in the last 30 days: 1' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fades the weekly line smoothly across twenty-four screen pixels at both edges', () => {
     const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getBounds(this: HTMLElement) {
       if (this.classList.contains('quick-planner-activity-chart')) {
@@ -140,8 +313,35 @@ describe('QuickPlannerActivity', () => {
       const line = chart.querySelector('.quick-planner-activity-line');
       const linePath = line?.getAttribute('d') ?? '';
       expect(linePath).toMatch(/^M -5 82/);
-      expect(linePath).toMatch(/365 67\.6$/);
+      const weeklyLineEndY = Number(linePath.match(/(?:^| )365 ([\d.]+)$/)?.[1]);
+      expect(weeklyLineEndY).toBeCloseTo(63.295, 3);
       expect(line?.parentElement?.getAttribute('mask')).toBe(`url(#${chart.querySelector('mask')?.id})`);
+      const maskStops = Array.from(chart.querySelectorAll('linearGradient[id$="-edge-fade-gradient"] stop'));
+      expect(maskStops.map((stop) => stop.getAttribute('stop-color')))
+        .toEqual([
+          'black',
+          'black',
+          'rgb(24, 24, 24)',
+          'rgb(112, 112, 112)',
+          'white',
+          'white',
+          'rgb(112, 112, 112)',
+          'rgb(24, 24, 24)',
+          'black',
+          'black',
+        ]);
+      const maskOffsets = maskStops.map((stop) => Number.parseFloat(stop.getAttribute('offset') ?? ''));
+      expect(maskOffsets).toHaveLength(10);
+      expect(maskOffsets[0]).toBe(0);
+      expect(maskOffsets[1]).toBeCloseTo(((-5 + 24) / 408) * 100);
+      expect(maskOffsets[2]).toBeCloseTo(((-5 + 6 + 24) / 408) * 100);
+      expect(maskOffsets[3]).toBeCloseTo(((-5 + 14.4 + 24) / 408) * 100);
+      expect(maskOffsets[4]).toBeCloseTo(((19 + 24) / 408) * 100);
+      expect(maskOffsets[5]).toBeCloseTo(((341 + 24) / 408) * 100);
+      expect(maskOffsets[6]).toBeCloseTo(((365 - 14.4 + 24) / 408) * 100);
+      expect(maskOffsets[7]).toBeCloseTo(((365 - 6 + 24) / 408) * 100);
+      expect(maskOffsets[8]).toBeCloseTo(((365 + 24) / 408) * 100);
+      expect(maskOffsets[9]).toBe(100);
       expect(chart.querySelector('.quick-planner-activity-point-dot')).toHaveAttribute('cx', '324');
     } finally {
       vi.restoreAllMocks();
@@ -211,10 +411,11 @@ describe('QuickPlannerActivity', () => {
         name: `Confirmed messages sent in the last 30 days: ${count}`,
       });
       const bar = chart.querySelector('.quick-planner-activity-month-bar');
+      const expectedPeakY = 82 - (Math.min(count, 5) / 5) * (82 - 10);
       expect(bar).toBeInTheDocument();
-      expect(Number(bar?.getAttribute('y'))).toBeCloseTo(82 - ((82 - 12) * Math.min(count, 5)) / 5);
+      expect(Number(bar?.getAttribute('y'))).toBeCloseTo(expectedPeakY);
       expect(chart.querySelector('.quick-planner-activity-peak-guide'))
-        .toHaveAttribute('d', `M 0 ${82 - ((82 - 12) * Math.min(count, 5)) / 5} H 360`);
+        .toHaveAttribute('d', `M 0 ${expectedPeakY} H 360`);
     }
   });
 
@@ -512,7 +713,7 @@ describe('QuickPlannerActivity', () => {
         .toHaveAttribute('x', '-12');
     expect(chart.querySelector('.quick-planner-activity-scale-label.is-peak')).toHaveTextContent('1k');
     expect(chart.querySelector('.quick-planner-activity-peak-guide'))
-      .toHaveAttribute('d', 'M 0 12 H 360');
+      .toHaveAttribute('d', 'M 0 10 H 360');
     expect(chart.querySelectorAll('.quick-planner-activity-day')).toHaveLength(30);
     const hitAreas = Array.from(chart.querySelectorAll('.quick-planner-activity-month-hit-area'));
     expect(hitAreas).toHaveLength(30);
@@ -587,11 +788,11 @@ describe('QuickPlannerActivity', () => {
       .toEqual(['100']);
     const peakLabel = chart.querySelector('.quick-planner-activity-scale-label.is-peak');
     expect(peakLabel).toHaveTextContent('100');
-    expect(peakLabel).toHaveAttribute('y', '14.5');
+    expect(peakLabel).toHaveAttribute('y', '12.5');
     expect(chart.querySelector('.quick-planner-activity-month-bar'))
-      .toHaveAttribute('y', '12');
+      .toHaveAttribute('y', '10');
     expect(chart.querySelector('.quick-planner-activity-month-bar'))
-      .toHaveAttribute('height', '70');
+      .toHaveAttribute('height', '72');
     expect(chart.querySelector('.quick-planner-activity-month-bar.is-peak')).toBeInTheDocument();
   });
 
@@ -618,7 +819,7 @@ describe('QuickPlannerActivity', () => {
       const scaleLabels = Array.from(chart.querySelectorAll('.quick-planner-activity-scale-label'), (label) => label.textContent);
       expect(scaleLabels).toEqual([String(peak)]);
       expect(chart.querySelector('.quick-planner-activity-scale-label.is-peak')).toHaveTextContent(String(peak));
-      expect(chart.querySelector('.quick-planner-activity-peak-guide')).toHaveAttribute('d', 'M 0 12 H 360');
+      expect(chart.querySelector('.quick-planner-activity-peak-guide')).toHaveAttribute('d', 'M 0 10 H 360');
     }
   });
 

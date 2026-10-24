@@ -5,17 +5,33 @@ import './QuickPlannerActivity.css';
 
 type QuickPlannerActivityProps = {
   sent?: ScheduledMessage[];
+  upcoming?: ScheduledMessage[];
   historyReady?: boolean;
   historyError?: boolean;
 };
 
 type ActivityPeriod = 7 | 30;
+type ActivityView = 'sent' | 'scheduled' | 'all';
 const WEEKLY_PLOT_TOP = 10;
 const ACTIVITY_SCALE_STEPS = 5;
 const WEEKLY_LINE_EDGE_INSET_PX = 12;
+const WEEKLY_LINE_FADE_PX = 24;
+const WEEKLY_EDGE_SLOPE_FACTOR = 0.35;
 
 function getLocalDateKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getUniqueMessages(messages: ScheduledMessage[]) {
+  const seen = new Set<string>();
+  return messages.filter((message) => {
+    const identity = message.sendAttemptId
+      ? `attempt:${message.sendAttemptId}`
+      : `message:${message.id}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
 }
 
 function getActivityDays(messages: ScheduledMessage[], now: Date, period: ActivityPeriod) {
@@ -49,6 +65,74 @@ function getActivityDays(messages: ScheduledMessage[], now: Date, period: Activi
   return dates.map((date) => ({ date, count: counts.get(getLocalDateKey(date)) ?? 0 }));
 }
 
+function getScheduledActivityDays(messages: ScheduledMessage[], now: Date, period: ActivityPeriod) {
+  const firstDay = new Date(now);
+  firstDay.setHours(0, 0, 0, 0);
+  const dates = Array.from({ length: period }, (_, index) => {
+    const date = new Date(firstDay);
+    date.setDate(firstDay.getDate() + index);
+    return date;
+  });
+  const counts = new Map(dates.map((date) => [getLocalDateKey(date), 0]));
+
+  for (const message of messages) {
+    const timestamp = Date.parse(message.when);
+    if (message.status !== 'scheduled' || !Number.isFinite(timestamp) || timestamp <= now.getTime()) continue;
+
+    const key = getLocalDateKey(new Date(timestamp));
+    if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return dates.map((date) => ({ date, count: counts.get(getLocalDateKey(date)) ?? 0 }));
+}
+
+function getAllActivityDays(
+  sent: ScheduledMessage[],
+  scheduled: ScheduledMessage[],
+  now: Date,
+  period: ActivityPeriod,
+) {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const firstDay = new Date(today);
+  firstDay.setDate(firstDay.getDate() - Math.floor((period - 1) / 2));
+  const dates = Array.from({ length: period }, (_, index) => {
+    const date = new Date(firstDay);
+    date.setDate(firstDay.getDate() + index);
+    return date;
+  });
+  const counts = new Map(dates.map((date) => [getLocalDateKey(date), { sent: 0, scheduled: 0 }]));
+
+  for (const message of getUniqueMessages(sent)) {
+    if (message.status !== 'sent' || !message.sentAt) continue;
+    const timestamp = Date.parse(message.sentAt);
+    if (!Number.isFinite(timestamp) || timestamp > now.getTime()) continue;
+
+    const key = getLocalDateKey(new Date(timestamp));
+    const day = counts.get(key);
+    if (day) day.sent += 1;
+  }
+
+  for (const message of scheduled) {
+    const timestamp = Date.parse(message.when);
+    if (message.status !== 'scheduled' || !Number.isFinite(timestamp) || timestamp <= now.getTime()) continue;
+
+    const key = getLocalDateKey(new Date(timestamp));
+    const day = counts.get(key);
+    if (day) day.scheduled += 1;
+  }
+
+  return dates.map((date) => {
+    const day = counts.get(getLocalDateKey(date)) ?? { sent: 0, scheduled: 0 };
+    return {
+      date,
+      count: day.sent + day.scheduled,
+      sentCount: day.sent,
+      scheduledCount: day.scheduled,
+    };
+  });
+}
+
 function getChartPoints(
   counts: number[],
   top: number,
@@ -78,7 +162,9 @@ function formatMonthlyCount(count: number) {
 function getSmoothPath(points: Array<{ x: number; y: number }>) {
   if (points.length < 2) return '';
 
-  const slopes = points.slice(0, -1).map((point, index) => points[index + 1].y - point.y);
+  const slopes = points.slice(0, -1).map((point, index) => (
+    (points[index + 1].y - point.y) / (points[index + 1].x - point.x)
+  ));
   const tangents = points.map((_, index) => {
     if (index === 0 || index === points.length - 1) return 0;
 
@@ -89,6 +175,7 @@ function getSmoothPath(points: Array<{ x: number; y: number }>) {
 
   return points.slice(0, -1).reduce((path, point, index) => {
     const next = points[index + 1];
+    const segmentWidth = next.x - point.x;
     const delta = next.y - point.y;
     let startTangent = tangents[index];
     let endTangent = tangents[index + 1];
@@ -97,8 +184,8 @@ function getSmoothPath(points: Array<{ x: number; y: number }>) {
       startTangent = 0;
       endTangent = 0;
     } else {
-      const startRatio = startTangent / delta;
-      const endRatio = endTangent / delta;
+      const startRatio = (startTangent * segmentWidth) / delta;
+      const endRatio = (endTangent * segmentWidth) / delta;
       const tangentMagnitude = Math.hypot(startRatio, endRatio);
       if (tangentMagnitude > 3) {
         const scale = 3 / tangentMagnitude;
@@ -107,54 +194,85 @@ function getSmoothPath(points: Array<{ x: number; y: number }>) {
       }
     }
 
-    const segmentWidth = next.x - point.x;
     const startsAfterFlat = index > 0 && slopes[index - 1] === 0;
     const endsBeforeFlat = index < slopes.length - 1 && slopes[index + 1] === 0;
     const startHandle = startsAfterFlat ? 0.38 : 1 / 3;
     const endHandle = endsBeforeFlat ? 0.38 : 1 / 3;
     const control1X = point.x + segmentWidth * startHandle;
-    const control1Y = Math.min(Math.max(point.y + startTangent / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
+    const control1Y = Math.min(Math.max(point.y + (startTangent * segmentWidth) / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
     const control2X = next.x - segmentWidth * endHandle;
-    const control2Y = Math.min(Math.max(next.y - endTangent / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
+    const control2Y = Math.min(Math.max(next.y - (endTangent * segmentWidth) / 3, Math.min(point.y, next.y)), Math.max(point.y, next.y));
     return `${path} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
   }, `M ${points[0].x} ${points[0].y}`);
 }
 
 export function QuickPlannerActivity({
   sent = [],
+  upcoming = [],
   historyReady = true,
   historyError = false,
 }: QuickPlannerActivityProps) {
   const { locale, t } = useLocale();
+  const [activityView, setActivityView] = useState<ActivityView>('sent');
   const [period, setPeriod] = useState<ActivityPeriod>(7);
   const [hoveredMonthDay, setHoveredMonthDay] = useState<string | null>(null);
   const [monthTooltipVisible, setMonthTooltipVisible] = useState(false);
   const [monthTooltipLeft, setMonthTooltipLeft] = useState<number | null>(null);
   const [monthlyChartWidth, setMonthlyChartWidth] = useState(0);
-  const [monthlyChartHeight, setMonthlyChartHeight] = useState(0);
   const [weeklyBaselineBounds, setWeeklyBaselineBounds] = useState({ left: 0, right: 360 });
   const monthTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activitySectionRef = useRef<HTMLElement>(null);
   const activityChartRef = useRef<HTMLDivElement>(null);
   const monthTooltipRef = useRef<HTMLDivElement>(null);
-  const activityDays = getActivityDays(sent, new Date(), period);
-  const chartDays = activityDays;
+  const now = new Date();
+  const allMessages = [...upcoming, ...sent];
+  const scheduledMessages = getUniqueMessages(allMessages
+    .filter((message) => {
+      const timestamp = Date.parse(message.when);
+      return message.status === 'scheduled' && Number.isFinite(timestamp) && timestamp > now.getTime();
+    })
+    .sort((left, right) => Date.parse(left.when) - Date.parse(right.when)));
+  const sentActivityDays = getActivityDays(sent, now, period);
+  const scheduledActivityDays = getScheduledActivityDays(scheduledMessages, now, period);
+  const allActivityDays = getAllActivityDays(sent, scheduledMessages, now, period);
+  const chartDays = activityView === 'scheduled'
+    ? scheduledActivityDays
+    : activityView === 'all'
+      ? allActivityDays
+      : sentActivityDays;
   const dateLocale = locale === 'ru' ? 'ru-RU' : 'en-US';
-  const total = activityDays.reduce((count, day) => count + day.count, 0);
-  const todayKey = getLocalDateKey(new Date());
+  const sentTotal = sentActivityDays.reduce((count, day) => count + day.count, 0);
+  const scheduledPeriodTotal = scheduledActivityDays.reduce((count, day) => count + day.count, 0);
+  const allSentTotal = allActivityDays.reduce((count, day) => count + day.sentCount, 0);
+  const allScheduledTotal = allActivityDays.reduce((count, day) => count + day.scheduledCount, 0);
+  const allTotal = allSentTotal + allScheduledTotal;
+  const total = activityView === 'scheduled'
+    ? scheduledPeriodTotal
+    : activityView === 'all'
+      ? allTotal
+      : sentTotal;
+  const activeDayCount = sentActivityDays.filter(({ count }) => count > 0).length;
+  const todayKey = getLocalDateKey(now);
+  const nextScheduledDateShort = scheduledMessages[0]
+    ? new Intl.DateTimeFormat(dateLocale, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(scheduledMessages[0].when))
+    : '—';
   const gradientId = `activity-area-${useId().replace(/:/g, '')}`;
   const lineGradientId = `${gradientId}-line`;
   const monthBarGradientId = `${gradientId}-month-bar`;
   const edgeFadeId = `${gradientId}-edge-fade`;
-  const activityMax = Math.max(...activityDays.map(({ count }) => count));
+  const activityMax = Math.max(...chartDays.map(({ count }) => count));
   const monthlyScaleMax = Math.max(activityMax, ACTIVITY_SCALE_STEPS);
   const weeklyScaleMax = Math.max(ACTIVITY_SCALE_STEPS, activityMax);
   const weeklyGridLines = Array.from({ length: ACTIVITY_SCALE_STEPS }, (_, index) => (
     Number((WEEKLY_PLOT_TOP + ((82 - WEEKLY_PLOT_TOP) * index) / ACTIVITY_SCALE_STEPS).toFixed(1))
   ));
-  const monthlyPlotTop = monthlyChartHeight > 26
-    ? 12 - (10 * 108) / (monthlyChartHeight - 26)
-    : 12;
+  const monthlyPlotTop = WEEKLY_PLOT_TOP;
   const monthlyPlotLeft = 0;
   const monthlyPlotRight = 360;
   const weeklyPlotLeft = monthlyChartWidth > 24
@@ -180,8 +298,13 @@ export function QuickPlannerActivity({
   const weeklyLineEdgeInset = monthlyChartWidth > 0
     ? (WEEKLY_LINE_EDGE_INSET_PX * 360) / monthlyChartWidth
     : 0;
+  const weeklyLineFadeWidth = monthlyChartWidth > 0
+    ? (WEEKLY_LINE_FADE_PX * 360) / monthlyChartWidth
+    : WEEKLY_LINE_FADE_PX;
   const lineStartX = period === 7 ? -24 + weeklyEdgeInset + weeklyLineEdgeInset : -24;
   const lineEndX = period === 7 ? 384 - weeklyEdgeInset - weeklyLineEdgeInset : 384;
+  const fadeStartEndX = lineStartX + weeklyLineFadeWidth;
+  const fadeEndStartX = lineEndX - weeklyLineFadeWidth;
   const hoveredMonthDayIndex = chartDays.findIndex(
     ({ date }) => getLocalDateKey(date) === hoveredMonthDay,
   );
@@ -204,7 +327,6 @@ export function QuickPlannerActivity({
       const chartBounds = chart.getBoundingClientRect();
       const sectionBounds = section.getBoundingClientRect();
       setMonthlyChartWidth(chartBounds.width);
-      setMonthlyChartHeight(chartBounds.height);
       if (chartBounds.width === 0) return;
 
       const scale = 360 / chartBounds.width;
@@ -223,7 +345,7 @@ export function QuickPlannerActivity({
     observer.observe(chart);
     observer.observe(section);
     return () => observer.disconnect();
-  }, [historyReady, historyError]);
+  }, [activityView, historyReady, historyError]);
 
   useLayoutEffect(() => {
     const section = activitySectionRef.current;
@@ -267,7 +389,7 @@ export function QuickPlannerActivity({
       window.removeEventListener('resize', updateCardHeight);
       section.style.removeProperty('height');
     };
-  }, [historyReady, historyError]);
+  }, [activityView, historyReady, historyError]);
 
   const handleMonthChartEnter = () => {
     if (monthTooltipVisible || monthTooltipTimerRef.current) return;
@@ -309,13 +431,72 @@ export function QuickPlannerActivity({
     window.addEventListener('resize', updateTooltipPosition);
     return () => window.removeEventListener('resize', updateTooltipPosition);
   }, [hoveredMonthDayDateLabel, hoveredMonthDayIndex, monthTooltipVisible, period]);
+  const firstChartPoint = chartPoints[0];
+  const secondChartPoint = chartPoints[1];
+  const lastChartPoint = chartPoints[chartPoints.length - 1];
+  const previousChartPoint = chartPoints[chartPoints.length - 2];
   const linePoints = [
-    { x: lineStartX, y: chartPoints[0].y },
+    {
+      x: lineStartX,
+      y: firstChartPoint.y
+        + (period === 7
+          ? ((secondChartPoint.y - firstChartPoint.y) * (lineStartX - firstChartPoint.x)
+            / (secondChartPoint.x - firstChartPoint.x)) * WEEKLY_EDGE_SLOPE_FACTOR
+          : 0),
+    },
     ...chartPoints,
-    { x: lineEndX, y: chartPoints[chartPoints.length - 1].y },
+    {
+      x: lineEndX,
+      y: lastChartPoint.y
+        + (period === 7
+          ? ((lastChartPoint.y - previousChartPoint.y) * (lineEndX - lastChartPoint.x)
+            / (lastChartPoint.x - previousChartPoint.x)) * WEEKLY_EDGE_SLOPE_FACTOR
+          : 0),
+    },
   ];
   const linePath = getSmoothPath(linePoints);
   const areaPath = `${linePath} L ${lineEndX} 92 L ${lineStartX} 92 Z`;
+  const activityChartLabel = activityView === 'scheduled'
+    ? t('quickPlanner.activityScheduledChartLabel', { count: total, days: period })
+    : activityView === 'all'
+      ? t('quickPlanner.activityAllChartLabel', { count: total, days: period })
+      : t('quickPlanner.activityChartLabel', { count: total, days: period });
+  const activityTotalLabel = activityView === 'scheduled'
+    ? t('quickPlanner.activityScheduledTotalLabel')
+    : activityView === 'all'
+      ? t('quickPlanner.activityAllTotalLabel')
+      : t('quickPlanner.activityTotalLabel');
+  const activityEmptyLabel = activityView === 'scheduled'
+    ? t('quickPlanner.activityEmptyScheduled')
+    : t('quickPlanner.emptyActivity');
+  const activityDayDescription = (date: string, count: number) => (
+    activityView === 'scheduled'
+      ? t('quickPlanner.activityScheduledDayCount', { date, count })
+      : activityView === 'all'
+        ? t('quickPlanner.activityAllDayCount', { date, count })
+        : t('quickPlanner.activityDayCount', { date, count })
+  );
+  const activityModes: Array<{ id: ActivityView; label: string; count: number }> = [
+    { id: 'sent', label: t('quickPlanner.activityViewSent'), count: sentTotal },
+    { id: 'scheduled', label: t('quickPlanner.activityViewScheduled'), count: scheduledMessages.length },
+    { id: 'all', label: t('quickPlanner.activityViewAll'), count: allTotal },
+  ];
+  const activityModeSwitch = (
+    <div className="quick-planner-activity-views" role="group" aria-label={t('quickPlanner.activityViewLabel')}>
+      {activityModes.map(({ id, label, count }) => (
+        <button
+          aria-pressed={activityView === id}
+          className={`quick-planner-activity-view${activityView === id ? ' is-active' : ''}`}
+          key={id}
+          onClick={() => setActivityView(id)}
+          type="button"
+        >
+          <span>{label}</span>
+          <strong>{new Intl.NumberFormat(dateLocale).format(count)}</strong>
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <section
@@ -349,16 +530,16 @@ export function QuickPlannerActivity({
             <strong className="quick-planner-activity-total-count">{new Intl.NumberFormat(dateLocale).format(total)}</strong>
             <span className="quick-planner-activity-total-copy">
               {total === 0 ? (
-                <span className="quick-planner-activity-empty-copy">{t('quickPlanner.emptyActivity')}</span>
+                <span className="quick-planner-activity-empty-copy">{activityEmptyLabel}</span>
               ) : (
-                <span className="quick-planner-activity-total-label">{t('quickPlanner.activityTotalLabel')}</span>
+                <span className="quick-planner-activity-total-label">{activityTotalLabel}</span>
               )}
             </span>
           </div>
           <div
             className="quick-planner-activity-chart"
             role="img"
-            aria-label={t('quickPlanner.activityChartLabel', { count: total, days: period })}
+            aria-label={activityChartLabel}
             data-period={period}
             ref={activityChartRef}
             onMouseLeave={() => period === 30 && handleMonthDayLeave()}
@@ -394,8 +575,14 @@ export function QuickPlannerActivity({
                   y2="0"
                 >
                   <stop offset="0%" stopColor="black" />
-                    <stop offset={`${((chartPoints[0].x + 24) / 408) * 100}%`} stopColor="white" />
-                    <stop offset={`${((chartPoints[chartPoints.length - 1].x + 24) / 408) * 100}%`} stopColor="white" />
+                  <stop offset={`${((lineStartX + 24) / 408) * 100}%`} stopColor="black" />
+                  <stop offset={`${((lineStartX + weeklyLineFadeWidth * 0.25 + 24) / 408) * 100}%`} stopColor="rgb(24, 24, 24)" />
+                  <stop offset={`${((lineStartX + weeklyLineFadeWidth * 0.6 + 24) / 408) * 100}%`} stopColor="rgb(112, 112, 112)" />
+                  <stop offset={`${((fadeStartEndX + 24) / 408) * 100}%`} stopColor="white" />
+                  <stop offset={`${((fadeEndStartX + 24) / 408) * 100}%`} stopColor="white" />
+                  <stop offset={`${((lineEndX - weeklyLineFadeWidth * 0.6 + 24) / 408) * 100}%`} stopColor="rgb(112, 112, 112)" />
+                  <stop offset={`${((lineEndX - weeklyLineFadeWidth * 0.25 + 24) / 408) * 100}%`} stopColor="rgb(24, 24, 24)" />
+                  <stop offset={`${((lineEndX + 24) / 408) * 100}%`} stopColor="black" />
                   <stop offset="100%" stopColor="black" />
                 </linearGradient>
               </defs>
@@ -482,7 +669,7 @@ export function QuickPlannerActivity({
                         month: 'long',
                         day: 'numeric',
                       }).format(date);
-                      const dayDescription = t('quickPlanner.activityDayCount', { date: dateLabel, count });
+                      const dayDescription = activityDayDescription(dateLabel, count);
 
                       return (
                         <rect
@@ -567,10 +754,7 @@ export function QuickPlannerActivity({
                 ref={monthTooltipRef}
                 style={{ left: monthTooltipLeft ?? 0 }}
               >
-                {t('quickPlanner.activityDayCount', {
-                  date: hoveredMonthDayDateLabel,
-                  count: hoveredMonthDayData.count,
-                })}
+                {activityDayDescription(hoveredMonthDayDateLabel, hoveredMonthDayData.count)}
               </div>
             )}
             <div
@@ -602,8 +786,8 @@ export function QuickPlannerActivity({
                   <div
                     className={`quick-planner-activity-day${period === 30 ? ' is-month' : ''}${isToday ? ' is-today' : ''}${period === 30 && nextDayIsToday ? ' is-before-today' : ''}${showMonthTick ? ' has-month-tick' : ''}${hoveredMonthDay === dayKey ? ' is-hovered' : ''}${isNearHoveredMonthDay ? ' is-near-hovered' : ''}`}
                     key={dayKey}
-                    title={t('quickPlanner.activityDayCount', { date: fullDate, count })}
-                    aria-label={t('quickPlanner.activityDayCount', { date: fullDate, count })}
+                    title={activityDayDescription(fullDate, count)}
+                    aria-label={activityDayDescription(fullDate, count)}
                   >
                     <span className="quick-planner-activity-day-label">{dayLabel}</span>
                     {period === 7 && (
@@ -613,6 +797,57 @@ export function QuickPlannerActivity({
                 );
               })}
             </div>
+          </div>
+          <div className="quick-planner-activity-lower">
+            <div className="quick-planner-activity-highlights" aria-label={t('quickPlanner.activityHighlights')} aria-live="polite">
+              {activityView === 'sent' ? (
+                <>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(total)}</strong>
+                    <span>{t('quickPlanner.activityHighlightSent')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{activeDayCount}</strong>
+                    <span>{t('quickPlanner.activityHighlightActiveDays')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{t('quickPlanner.activityPeriodValue', { days: period })}</strong>
+                    <span>{t('quickPlanner.activityHighlightPeriod')}</span>
+                  </div>
+                </>
+              ) : activityView === 'scheduled' ? (
+                <>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(scheduledMessages.length)}</strong>
+                    <span>{t('quickPlanner.activityHighlightScheduled')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight is-compact">
+                    <strong>{nextScheduledDateShort}</strong>
+                    <span>{t('quickPlanner.activityHighlightNext')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(scheduledPeriodTotal)}</strong>
+                    <span>{t('quickPlanner.activityHighlightNextPeriod', { days: period })}</span>
+                  </div>
+                </>
+              ) : activityView === 'all' ? (
+                <>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(allTotal)}</strong>
+                    <span>{t('quickPlanner.activityHighlightAll')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(allSentTotal)}</strong>
+                    <span>{t('quickPlanner.activityHighlightAllSent')}</span>
+                  </div>
+                  <div className="quick-planner-activity-highlight">
+                    <strong>{new Intl.NumberFormat(dateLocale).format(allScheduledTotal)}</strong>
+                    <span>{t('quickPlanner.activityHighlightAllScheduled')}</span>
+                  </div>
+                </>
+              ) : null}
+            </div>
+            {activityModeSwitch}
           </div>
         </>
       )}

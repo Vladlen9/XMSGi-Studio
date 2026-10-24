@@ -1572,7 +1572,12 @@ export function QuickPlanner({
           </section>
 
           <aside className="quick-planner-activity" aria-label={t('quickPlanner.activityUpcoming')}>
-            <QuickPlannerActivity sent={sent} historyReady={historyReady} historyError={historyError} />
+            <QuickPlannerActivity
+              sent={sent}
+              upcoming={upcoming}
+              historyReady={historyReady}
+              historyError={historyError}
+            />
             <section className="quick-planner-upcoming-section" aria-labelledby="quick-planner-upcoming-heading" hidden>
               <div className="quick-planner-activity-header">
                 <h2 id="quick-planner-upcoming-heading">{t('quickPlanner.upcoming')}</h2>
