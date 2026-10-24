@@ -17,7 +17,7 @@
   <a href="https://github.com/molodoy01/XMSGi-Studio/releases/latest"><img alt="Download latest release" src="https://img.shields.io/badge/⬇%20Download-latest-6c7cff?style=for-the-badge"></a>
 </p>
 
-<img src="screenshots/01.png" alt="XMSGi Studio workspace" width="760" />
+<img src="screenshots/04-zoom.png" alt="XMSGi Studio sign-in screen" width="760" />
 
 <p align="center">
   <a href="https://molodoy01.github.io/XMSGi-Studio/"><img alt="Website" src="https://img.shields.io/badge/Website-molodoy01.github.io-101218?style=for-the-badge"></a>
