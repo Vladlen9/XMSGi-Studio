@@ -46,8 +46,8 @@ For setup and workflow details, see the [user guide](XMSGi%20Studio/docs/ru/user
 
 <p align="center">
   <img src="screenshots/03.png" alt="Quick Planner composer" width="32%" />
-  <img src="screenshots/02.png" alt="Telegram chat selection" width="32%" />
   <img src="screenshots/04-zoom.png" alt="Zoomed XMSGi Studio sign-in screen" width="32%" />
+  <img src="screenshots/02.png" alt="Telegram chat selection" width="32%" />
 </p>
 
 ## 📥 Download
