@@ -5842,7 +5842,7 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 .workspace-page-publish-transient-feedback {
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -5889,6 +5889,12 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   overscroll-behavior: contain;
 }
 
+.workspace-page-connection-spinner {
+  display: inline-block;
+  margin-right: 7px;
+  vertical-align: -2px;
+}
+
 .workspace-page-publish-transient-feedback-detail {
   display: block;
   min-width: 0;
@@ -5906,6 +5912,10 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
 }
 
 .workspace-page-publish-transient-feedback.is-progress {
+  animation: workspace-publish-feedback-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.workspace-page-publish-transient-feedback.is-connection-offline {
   animation: workspace-publish-feedback-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -5973,7 +5983,7 @@ html[data-theme='light'] .workspace-page-publish-transient-feedback.is-success:n
 }
 
 .workspace-page-publish-transient-feedback.is-mass-warning {
-  left: 10px;
+  left: 40px;
   max-width: none;
   white-space: nowrap;
   overflow: hidden;

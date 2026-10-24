@@ -2463,6 +2463,37 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   translate: none;
 }
 
+.quick-planner-compose-footer .quick-planner-action-feedback.is-connection-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.quick-planner-connection-spinner,
+.workspace-page-connection-spinner {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: connection-status-spin 800ms linear infinite;
+}
+
+@keyframes connection-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-planner-connection-spinner,
+  .workspace-page-connection-spinner {
+    animation-duration: 2s;
+  }
+}
+
 .quick-planner-compose-footer .quick-planner-action-feedback > span {
   display: block;
   min-width: 0;

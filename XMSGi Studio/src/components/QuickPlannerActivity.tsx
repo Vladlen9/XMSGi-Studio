@@ -14,6 +14,7 @@ type ActivityPeriod = 7 | 30;
 type ActivityView = 'sent' | 'scheduled' | 'all';
 const WEEKLY_PLOT_TOP = 10;
 const ACTIVITY_SCALE_STEPS = 5;
+const WEEKLY_SCALE_LEVELS = 7;
 const WEEKLY_LINE_EDGE_INSET_PX = 12;
 const WEEKLY_LINE_FADE_PX = 24;
 const WEEKLY_EDGE_SLOPE_FACTOR = 0.35;
@@ -268,9 +269,12 @@ export function QuickPlannerActivity({
   const edgeFadeId = `${gradientId}-edge-fade`;
   const activityMax = Math.max(...chartDays.map(({ count }) => count));
   const monthlyScaleMax = Math.max(activityMax, ACTIVITY_SCALE_STEPS);
-  const weeklyScaleMax = Math.max(ACTIVITY_SCALE_STEPS, activityMax);
-  const weeklyGridLines = Array.from({ length: ACTIVITY_SCALE_STEPS }, (_, index) => (
-    Number((WEEKLY_PLOT_TOP + ((82 - WEEKLY_PLOT_TOP) * index) / ACTIVITY_SCALE_STEPS).toFixed(1))
+  const weeklyScaleMax = Math.max(
+    ACTIVITY_SCALE_STEPS,
+    activityMax * (WEEKLY_SCALE_LEVELS / (WEEKLY_SCALE_LEVELS - 1)),
+  );
+  const weeklyGridLines = Array.from({ length: WEEKLY_SCALE_LEVELS }, (_, index) => (
+    Number((WEEKLY_PLOT_TOP + ((82 - WEEKLY_PLOT_TOP) * index) / WEEKLY_SCALE_LEVELS).toFixed(1))
   ));
   const monthlyPlotTop = WEEKLY_PLOT_TOP;
   const monthlyPlotLeft = 0;
@@ -737,11 +741,7 @@ export function QuickPlannerActivity({
                       </>
                     )}
                     {period === 7 && count > 0 && (
-                      <>
-                        <circle className="quick-planner-activity-point-halo" cx={point.x} cy={point.y} r="9" />
-                        <circle className="quick-planner-activity-point-ring" cx={point.x} cy={point.y} r="5.5" />
-                        <circle className="quick-planner-activity-point-dot" cx={point.x} cy={point.y} r="3.5" />
-                      </>
+                      <circle className="quick-planner-activity-point-dot" cx={point.x} cy={point.y} r="4" />
                     )}
                   </g>
                 );

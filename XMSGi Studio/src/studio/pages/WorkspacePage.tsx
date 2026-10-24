@@ -80,6 +80,7 @@ export { hasDraftContent, readWorkspaceDraftStoreFallback, writeWorkspaceDraftSt
 
 type WorkspacePageProps = {
   connected: boolean;
+  connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
   chats: Chat[];
   selectedChat: Chat | null;
   setSelectedChat: React.Dispatch<React.SetStateAction<Chat | null>>;
@@ -651,6 +652,7 @@ function toFileUrl(filePath: string) {
 
 export function WorkspacePage({
   connected,
+  connectionRecoveryStatus = null,
   chats,
   selectedChat,
   setSelectedChat,
@@ -1571,6 +1573,10 @@ export function WorkspacePage({
     }
     : sendError
     ? { message: sendError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
+    : connectionRecoveryStatus === 'offline'
+      ? { message: t('telegramStatus.offlineMessage'), kind: 'error', transient: false, dismissible: false, duration: null }
+      : connectionRecoveryStatus === 'reconnecting'
+        ? { message: t('telegramStatus.networkMessage'), kind: 'progress', transient: false, dismissible: false, duration: null }
     : sendInFlight || publishingDraft
       ? { message: t(reconnectingForSend ? 'studio.reconnectingProgress' : 'studio.sentProgress'), kind: 'progress', transient: false, dismissible: false, duration: null }
       : publishFeedback
@@ -3482,7 +3488,7 @@ export function WorkspacePage({
                 {publishFooterStatus && (
                   <div
                     key={`${publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
-                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}`}
+                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
                     style={publishFooterStatus.duration === null
                       ? undefined
                       : { '--status-duration': `${publishFooterStatus.duration}ms` } as React.CSSProperties}
@@ -3494,6 +3500,9 @@ export function WorkspacePage({
                       title={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
                       aria-label={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
                     >
+                      {connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') && (
+                        <span className="workspace-page-connection-spinner" aria-hidden="true" />
+                      )}
                       {publishFooterStatus.message}
                     </span>
                     {publishFooterStatus.detail && (

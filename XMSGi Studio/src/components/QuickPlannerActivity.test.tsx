@@ -56,6 +56,16 @@ describe('QuickPlannerActivity', () => {
     );
   });
 
+  it('raises the weekly plot toward the activity counter without moving the date row', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='7'\] \.quick-planner-activity-plot-depth\s*\{\s*top:\s*2px;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='7'\] \.quick-planner-activity-chart-svg\s*\{\s*transform:\s*translateY\(-10px\);/,
+    );
+    expect(activityStyles).toMatch(/\.quick-planner-activity-days\s*\{[^}]*bottom:\s*15px;/);
+  });
+
   it('extends the monthly plot background to the chart baseline at desktop and mobile sizes', () => {
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-chart\[data-period='30'\] \.quick-planner-activity-plot-depth\s*\{[^}]*bottom:\s*60px;/,
@@ -99,6 +109,33 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline-color:\s*#587181;[^}]*background:\s*#304652;[^}]*color:\s*#d7e3ea;/,
     );
+  });
+
+  it('renders weekly data points as single crisp markers', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-point-dot\s*\{[^}]*fill:\s*var\(--activity-chart-color\);[^}]*stroke:\s*var\(--surface-raised,\s*#fff\);[^}]*stroke-width:\s*1\.5px;/,
+    );
+    expect(activityStyles).not.toMatch(/\.quick-planner-activity-point-(?:halo|ring)\s*\{/);
+  });
+
+  it('shows seven weekly scale levels and keeps one level of headroom above the peak', () => {
+    const sentAt = new Date(Date.now() - 60_000).toISOString();
+    renderActivity(
+      <QuickPlannerActivity sent={Array.from({ length: 100 }, (_, index) => createSentMessage({
+        id: `weekly-peak-${index}`,
+        sentAt,
+      }))} />,
+    );
+
+    const chart = screen.getByRole('img', { name: 'Confirmed messages sent in the last 7 days: 100' });
+    const gridLines = chart.querySelectorAll('.quick-planner-activity-grid-line:not(.is-baseline)');
+    expect(gridLines).toHaveLength(7);
+    expect(Array.from(gridLines, (line) => Number(line.getAttribute('d')?.match(/M [\d.]+ ([\d.]+)/)?.[1])))
+      .toEqual([10, 20.3, 30.6, 40.9, 51.1, 61.4, 71.7]);
+
+    const peakPointY = Number(chart.querySelector('.quick-planner-activity-point-dot')?.getAttribute('cy'));
+    expect(peakPointY).toBeCloseTo(20.3, 1);
+    expect(peakPointY).toBeGreaterThan(Number(gridLines[0]?.getAttribute('d')?.match(/M [\d.]+ ([\d.]+)/)?.[1]));
   });
 
   it('uses the Planner editor track fill for inactive Activity switcher options', () => {
@@ -159,6 +196,9 @@ describe('QuickPlannerActivity', () => {
     }
     expect(chart.querySelectorAll('.quick-planner-activity-point')).toHaveLength(7);
     expect(chart.querySelectorAll('.quick-planner-activity-point-dot')).toHaveLength(1);
+    expect(chart.querySelector('.quick-planner-activity-point-dot')).toHaveAttribute('r', '4');
+    expect(chart.querySelector('.quick-planner-activity-point-halo')).not.toBeInTheDocument();
+    expect(chart.querySelector('.quick-planner-activity-point-ring')).not.toBeInTheDocument();
     expect(linePath).toMatch(/^M -24 82/);
     const weeklyLineEndY = Number(linePath.match(/(?:^| )384 ([\d.]+)$/)?.[1]);
     expect(weeklyLineEndY).toBeCloseTo(40.6, 4);
@@ -348,7 +388,7 @@ describe('QuickPlannerActivity', () => {
     }
   });
 
-  it('scales the weekly chart in five steps so five sends reach the peak', () => {
+  it('scales the weekly chart with seven levels and keeps a level above its peak', () => {
     const now = new Date();
     const sendsForDay = (dayOffset: number, count: number) => {
       const sentAt = new Date(now);
@@ -371,17 +411,19 @@ describe('QuickPlannerActivity', () => {
       Number(point.getAttribute('cy'))
     ));
 
-    expect(pointYValues[0]).toBeCloseTo(67.6);
-    expect(pointYValues[1]).toBeCloseTo(38.8);
-    expect(pointYValues[2]).toBe(10);
+    expect(pointYValues[0]).toBeCloseTo(69.6571);
+    expect(pointYValues[1]).toBeCloseTo(44.9714);
+    expect(pointYValues[2]).toBeCloseTo(20.2857);
     expect(Array.from(chart.querySelectorAll('.quick-planner-activity-grid-line:not(.is-baseline)'), (line) => (
       line.getAttribute('d')
     ))).toEqual([
       'M 0 10 H 360',
-      'M 0 24.4 H 360',
-      'M 0 38.8 H 360',
-      'M 0 53.2 H 360',
-      'M 0 67.6 H 360',
+      'M 0 20.3 H 360',
+      'M 0 30.6 H 360',
+      'M 0 40.9 H 360',
+      'M 0 51.1 H 360',
+      'M 0 61.4 H 360',
+      'M 0 71.7 H 360',
     ]);
   });
 
@@ -419,7 +461,7 @@ describe('QuickPlannerActivity', () => {
     }
   });
 
-  it('keeps a single active day pinned to the top as its count passes five', () => {
+  it('keeps a single active day one level below the top as its count changes', () => {
     const now = new Date();
     const createSendsForToday = (count: number) => Array.from({ length: count }, (_, index) => (
       createSentMessage({
@@ -444,7 +486,7 @@ describe('QuickPlannerActivity', () => {
         name: `Confirmed messages sent in the last 7 days: ${count}`,
       });
       const peak = chart.querySelector('.quick-planner-activity-point-dot');
-      expect(peak).toHaveAttribute('cy', '10');
+      expect(Number(peak?.getAttribute('cy'))).toBeCloseTo(20.2857);
     }
   });
 
@@ -477,7 +519,7 @@ describe('QuickPlannerActivity', () => {
       const initialPoints = getPoints(initialChart);
 
       expect(initialPoints.map(({ x }) => x)).toEqual([36, 84, 132, 180, 228, 276, 324]);
-      [71.7143, 61.4286, 51.1429, 40.8571, 30.5714, 20.2857, 10].forEach((expectedY, index) => (
+      [73.1837, 64.3673, 55.551, 46.7347, 37.9184, 29.102, 20.2857].forEach((expectedY, index) => (
         expect(initialPoints[index].y).toBeCloseTo(expectedY)
       ));
       expect(Array.from(initialChart.querySelectorAll('.quick-planner-activity-count'), (label) => label.textContent))
@@ -493,7 +535,7 @@ describe('QuickPlannerActivity', () => {
       const nextChart = screen.getByRole('img', { name: chartLabel });
       const nextPoints = getPoints(nextChart);
       expect(nextPoints.map(({ x }) => x)).toEqual([36, 84, 132, 180, 228, 276, 324]);
-      [61.4286, 51.1429, 40.8571, 30.5714, 20.2857, 10, 71.7143].forEach((expectedY, index) => (
+      [64.3673, 55.551, 46.7347, 37.9184, 29.102, 20.2857, 73.1837].forEach((expectedY, index) => (
         expect(nextPoints[index].y).toBeCloseTo(expectedY)
       ));
       expect(Array.from(nextChart.querySelectorAll('.quick-planner-activity-count'), (label) => label.textContent))

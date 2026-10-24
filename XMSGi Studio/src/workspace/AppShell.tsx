@@ -47,6 +47,7 @@ type AppShellProps = PropsWithChildren<{
   closeNotification?: () => void;
   browserDraftMode?: boolean;
   connected: boolean;
+  connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
   headerPending?: boolean;
   authBusy: boolean;
   isConfirmingLogout: boolean;
@@ -76,6 +77,7 @@ export function AppShell({
   notification,
   closeNotification,
   connected,
+  connectionRecoveryStatus = null,
   headerPending = false,
   authBusy,
   isConfirmingLogout,
@@ -265,7 +267,12 @@ export function AppShell({
                 </span>
               )}
               <span className="topbar-logout-photo-ring" aria-hidden="true" />
-              <span className="topbar-logout-photo-status" aria-hidden="true" />
+              <span
+                className={`topbar-logout-photo-status${connectionRecoveryStatus ? ' is-offline' : ''}`}
+                title={t(connectionRecoveryStatus === 'offline' ? 'telegramStatus.offlineMessage' : connectionRecoveryStatus === 'reconnecting' ? 'telegramStatus.networkMessage' : 'telegramStatus.connectedMessage')}
+                aria-label={t(connectionRecoveryStatus === 'offline' ? 'telegramStatus.offlineMessage' : connectionRecoveryStatus === 'reconnecting' ? 'telegramStatus.networkMessage' : 'telegramStatus.connectedMessage')}
+                role="img"
+              />
             </button>
               </>
             )}

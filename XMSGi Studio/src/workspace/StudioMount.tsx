@@ -7,6 +7,7 @@ type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAc
   & Pick<StudioBridgeProps,
     | 'selectedChat'
     | 'onSelectChat'
+    | 'connectionRecoveryStatus'
     | 'onRegisterPlannerTextOpener'
     | 'onRegisterBeforeLeaveStudio'
     | 'onRegisterHistoryDraftOpener'
@@ -69,13 +70,14 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
   ]);
 }
 
-export function StudioMount({ connected, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterBeforeLeaveStudio, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
+export function StudioMount({ connected, connectionRecoveryStatus, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterBeforeLeaveStudio, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
   const stableScheduler = useStableSchedulerRuntime(scheduler);
 
   return (
     <Suspense fallback={null}>
       <StudioApp
         connected={connected}
+        connectionRecoveryStatus={connectionRecoveryStatus}
         activeAccountId={activeAccountId}
         chats={chats}
         selectedChat={selectedChat}

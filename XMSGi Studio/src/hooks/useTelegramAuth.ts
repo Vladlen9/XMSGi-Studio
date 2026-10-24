@@ -53,6 +53,10 @@ function getFriendlyAuthError(error: string): TranslationKey {
   return 'auth.genericSignInError';
 }
 
+function isConfirmedAuthFailure(error: string) {
+  return /auth required|reauth_required|session expired|authorization revoked|not authorized/i.test(error);
+}
+
 type TelegramStatusApiResult = {
   success: boolean;
   accountId?: string;
@@ -78,11 +82,13 @@ export function useTelegramAuth({
 }: TelegramAuthOptions) {
   const { t } = useLocale();
   const [connected, setConnected] = useState(false);
+  const [sessionAvailable, setSessionAvailable] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
   const signedOutRef = useRef(false);
   const [returningUserName, setReturningUserName] = useState('');
   const [returningUserUsername, setReturningUserUsername] = useState('');
   const [connecting, setConnecting] = useState(true);
+  const [sessionResolved, setSessionResolved] = useState(false);
   const [connectionResolved, setConnectionResolved] = useState(false);
   const [authStep, setAuthStep] = useState<'phone' | 'code' | 'password'>('phone');
   const [showAuthForm, setShowAuthForm] = useState(false);
@@ -200,6 +206,8 @@ export function useTelegramAuth({
 
       setConnecting(false);
       setConnected(true);
+      setSessionAvailable(true);
+      setSessionResolved(true);
       signedOutRef.current = false;
       setSignedOut(false);
       setShowAuthForm(false);
@@ -226,6 +234,7 @@ export function useTelegramAuth({
       }
 
       setConnected(false);
+      setSessionAvailable(false);
       signedOutRef.current = true;
       setSignedOut(true);
       setShowAuthForm(false);
@@ -285,6 +294,8 @@ export function useTelegramAuth({
       signedOutRef.current = false;
       setSignedOut(false);
       setConnected(true);
+      setSessionAvailable(true);
+      setSessionResolved(true);
       setShowAuthForm(false);
       setReturningUserName(result.authState.userName || returningUserName);
       setReturningUserUsername(result.authState.username || returningUserUsername);
@@ -318,6 +329,7 @@ export function useTelegramAuth({
       }
 
       setConnected(false);
+      setSessionAvailable(false);
       signedOutRef.current = false;
       setSignedOut(false);
       setReturningUserName('');
@@ -347,6 +359,7 @@ export function useTelegramAuth({
       if (!hasTelegramBridge()) {
         setConnecting(false);
         setConnected(false);
+        setSessionResolved(true);
         setConnectionResolved(true);
         return;
       }
@@ -360,8 +373,10 @@ export function useTelegramAuth({
           const authState = authResult.authState;
           const hasSession = authState.hasSession;
 
+          setSessionResolved(true);
           signedOutRef.current = hasSession && authState.signedOut;
           setSignedOut(signedOutRef.current);
+          setSessionAvailable(hasSession && !authState.signedOut);
           setConnected(authState.connected);
           setReturningUserName(authState.userName || '');
           setReturningUserUsername(authState.username || '');
@@ -377,14 +392,25 @@ export function useTelegramAuth({
             setConnected(result.success);
             setConnectionResolved(true);
 
-            if (!result.success) {
-              setAuthError(result.error || t('auth.connectFailed'));
+            if (!result.success && isConfirmedAuthFailure(result.error || '')) {
+              setSessionAvailable(false);
+              setAuthError(result.error || t('auth.sessionExpired'));
+            }
+          }).catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : '';
+            setConnecting(false);
+            setConnected(false);
+            setConnectionResolved(true);
+            if (isConfirmedAuthFailure(message)) {
+              setSessionAvailable(false);
+              setAuthError(message || t('auth.sessionExpired'));
             }
           });
         })
         .catch(() => {
           setConnecting(false);
           setConnected(false);
+          setSessionResolved(true);
           setConnectionResolved(true);
           setLocalizedAuthError('auth.readStateFailed');
         });
@@ -442,12 +468,20 @@ export function useTelegramAuth({
 
         if (value.status === 'connected' && !signedOutRef.current) {
           setConnected(true);
+          setSessionAvailable(true);
+          setConnecting(false);
+          setConnectionResolved(true);
+        }
+
+        if (value.status === 'network/retrying' || value.status === 'reconnecting') {
+          setConnected(false);
           setConnecting(false);
           setConnectionResolved(true);
         }
 
         if (value.status === 'reauth_required') {
           setConnected(false);
+          setSessionAvailable(false);
           setConnecting(false);
           setConnectionResolved(true);
           setAuthError(value.error || t('auth.sessionExpired'));
@@ -455,6 +489,7 @@ export function useTelegramAuth({
 
         if (value.status === 'auth required') {
           setConnected(false);
+          setSessionAvailable(false);
           setConnecting(false);
           setConnectionResolved(true);
           setAuthError(value.error || t('telegramStatus.authRequiredMessage'));
@@ -476,6 +511,7 @@ export function useTelegramAuth({
       if (typeof status === 'string') {
         if (status === 'connected' && !signedOutRef.current) {
           setConnected(true);
+          setSessionAvailable(true);
           setConnecting(false);
           setConnectionResolved(true);
         }
@@ -483,6 +519,8 @@ export function useTelegramAuth({
         if (
           status === 'disconnected' ||
           status === 'offline' ||
+          status === 'network/retrying' ||
+          status === 'reconnecting' ||
           status === 'error'
         ) {
           setConnected(false);
@@ -512,6 +550,9 @@ export function useTelegramAuth({
   return {
     connected,
     setConnected,
+    sessionAvailable,
+    setSessionAvailable,
+    sessionResolved,
     signedOut,
     setSignedOut,
     returningUserName,

@@ -74,6 +74,14 @@ describe('QuickPlanner feedback', () => {
     );
   });
 
+  it('shows reconnection progress in the Planner status area', () => {
+    render(<QuickPlanner connectionRecoveryStatus="reconnecting" />, 'Send now');
+
+    const status = document.querySelector('.quick-planner-action-feedback.is-connection-status');
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status?.querySelector('.quick-planner-connection-spinner')).toBeInTheDocument();
+  });
+
   it('uses a white selected Planner action in light theme and a muted dark fill in dark theme', () => {
     expect(quickPlannerStyles).toMatch(
       /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active\s*\{\s*color:\s*var\(--planner-accent\);\s*border:\s*1px solid #239dfb;\s*background:\s*#ffffff;/,

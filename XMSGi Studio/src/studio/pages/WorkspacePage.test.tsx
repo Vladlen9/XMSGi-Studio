@@ -35,6 +35,20 @@ let telegramStatusListener: ((status: unknown) => void) | null = null;
 const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/colorThemes.css'), 'utf8');
 
+describe('WorkspacePage feedback layout', () => {
+  it('insets editor warnings and errors forty pixels from the footer edge', () => {
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-transient-feedback\s*\{[^}]*right:\s*40px;/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-transient-feedback\.is-mass-warning\s*\{[^}]*left:\s*40px;/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-transient-feedback\.is-connection-offline\s*\{[^}]*animation:\s*workspace-publish-feedback-in/,
+    );
+  });
+});
+
 function getInMemoryWorkspaceDraft(): WorkspaceDraft {
   const workspaceDraft = inMemoryDraftStore.workspaceDraft;
   if (!workspaceDraft || typeof workspaceDraft !== 'object') {
@@ -128,6 +142,23 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
     unmount: view.unmount,
   };
 }
+
+describe('WorkspacePage connection status', () => {
+  it('shows a spinner while reconnecting and a persistent error after timeout', async () => {
+    const view = await renderWorkspacePage({ connectionRecoveryStatus: 'reconnecting' });
+    const status = document.querySelector('.workspace-page-publish-transient-feedback');
+
+    expect(status).toHaveAttribute('role', 'status');
+    expect(status?.querySelector('.workspace-page-connection-spinner')).toBeInTheDocument();
+
+    view.rerender({ connectionRecoveryStatus: 'offline' });
+    const offlineStatus = document.querySelector('.workspace-page-publish-transient-feedback');
+    expect(offlineStatus).toHaveAttribute('role', 'alert');
+    expect(offlineStatus).toHaveClass('is-connection-offline');
+    expect(offlineStatus?.querySelector('.workspace-page-connection-spinner')).not.toBeInTheDocument();
+    expect(offlineStatus).toHaveTextContent(/нет соединения|telegram is unavailable/i);
+  });
+});
 
   async function openDraftsStage() {
     await act(async () => {

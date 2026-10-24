@@ -199,6 +199,14 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   margin-left: -33px;
 }
 
+.quick-planner-activity-chart[data-period='7'] .quick-planner-activity-plot-depth {
+  top: 2px;
+}
+
+.quick-planner-activity-chart[data-period='7'] .quick-planner-activity-chart-svg {
+  transform: translateY(-10px);
+}
+
 .quick-planner-activity-chart[data-period='30'] {
   height: 168px;
   margin-right: -12px;
@@ -435,20 +443,11 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   transform: translateY(-0.7px);
 }
 
-.quick-planner-activity-point-halo {
-  fill: var(--activity-chart-color);
-  opacity: 0.15;
-  filter: blur(2px);
-}
-
-.quick-planner-activity-point-ring {
-  fill: var(--surface-raised, #fff);
-  stroke: #239dfb;
-  stroke-width: 1.5px;
-}
-
 .quick-planner-activity-point-dot {
-  fill: #239dfb;
+  fill: var(--activity-chart-color);
+  stroke: var(--surface-raised, #fff);
+  stroke-width: 1.5px;
+  filter: drop-shadow(0 1px 1px rgba(13, 94, 159, 0.28));
 }
 
 .quick-planner-activity-count-shadow,
@@ -763,11 +762,6 @@ html[data-theme='dark'] .quick-planner-activity-attention-details strong {
 html[data-theme='dark'] .quick-planner-activity-highlight span,
 html[data-theme='dark'] .quick-planner-activity-attention-details {
   color: #a5b6c2;
-}
-
-html[data-theme='dark'] .quick-planner-activity-point-ring {
-  fill: #171d22;
-  stroke: #65bdff;
 }
 
 html[data-theme='dark'] .quick-planner-activity-count-shadow {

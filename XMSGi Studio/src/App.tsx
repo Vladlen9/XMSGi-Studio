@@ -258,6 +258,8 @@ function AppContent() {
 
   const {
     connected,
+    sessionAvailable,
+    sessionResolved,
     signedOut,
     returningUserName,
     returningUserUsername,
@@ -293,11 +295,26 @@ function AppContent() {
     },
   });
 
+  const [connectionRecoveryTimedOut, setConnectionRecoveryTimedOut] = useState(false);
+  useEffect(() => {
+    if (!sessionResolved || !sessionAvailable || connected || signedOut) {
+      setConnectionRecoveryTimedOut(false);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => setConnectionRecoveryTimedOut(true), 10_000);
+    return () => window.clearTimeout(timer);
+  }, [connected, sessionAvailable, sessionResolved, signedOut]);
+
+  const connectionRecoveryStatus = sessionResolved && sessionAvailable && !connected && !signedOut
+    ? connectionRecoveryTimedOut ? 'offline' : 'reconnecting'
+    : null;
+
   useLayoutEffect(() => {
-    if (connectionResolved && (!connected || signedOut) && productView !== 'planner') {
+    if (sessionResolved && connectionResolved && ((!connected && !sessionAvailable) || signedOut) && productView !== 'planner') {
       setProductView('planner');
     }
-  }, [connected, connectionResolved, productView, setProductView, signedOut]);
+  }, [connected, connectionResolved, productView, sessionAvailable, sessionResolved, setProductView, signedOut]);
 
   const {
     chats,
@@ -614,6 +631,8 @@ function AppContent() {
   const plannerSurface = getPlannerSurface({
     browserDraftMode,
     connected,
+    sessionAvailable,
+    sessionResolved,
     signedOut,
     connecting,
     connectionResolved,
@@ -624,7 +643,7 @@ function AppContent() {
     browserDraftMode ? 'planner' : 'studio',
   );
   const studioSurfaceAvailable = studioHasBeenOpened
-    && (browserDraftMode || (connectionResolved && connected && !signedOut));
+    && (browserDraftMode || (sessionResolved && (sessionAvailable || (connectionResolved && connected)) && !signedOut));
   const studioSurfaceVisible = backgroundProductView === 'studio'
     && studioSurfaceAvailable;
 
@@ -843,7 +862,8 @@ function AppContent() {
       onCloseSettings={closeSettings}
       notification={connected ? notification : undefined}
       closeNotification={closeNotification}
-      connected={connected && !signedOut}
+      connected={sessionResolved && (connected || sessionAvailable) && !signedOut}
+      connectionRecoveryStatus={connectionRecoveryStatus}
       headerPending={connecting || !connectionResolved}
       authBusy={authBusy}
       isConfirmingLogout={isConfirmingLogout}
@@ -877,6 +897,7 @@ function AppContent() {
         {studioSurfaceAvailable ? (
           <StudioMount
             connected={studioConnected}
+            connectionRecoveryStatus={connectionRecoveryStatus}
             activeAccountId={activeAccountId}
             chats={studioConnected ? chats : []}
             selectedChat={selectedChat}
@@ -905,6 +926,7 @@ function AppContent() {
               sent={personalSent}
               historyReady={personalHistoryReady}
               historyError={Boolean(personalHistoryLoadError)}
+              connectionRecoveryStatus={connectionRecoveryStatus}
               onSelectChat={setSelectedChat}
               onRemoveChat={handleRemoveChat}
               onSendNow={(chat, text, attachments, effect) => handlePersonalSendDraftNow(

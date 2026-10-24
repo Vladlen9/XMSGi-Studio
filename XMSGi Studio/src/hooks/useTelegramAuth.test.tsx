@@ -66,6 +66,59 @@ describe('useTelegramAuth', () => {
     }
   });
 
+  it('preserves a saved session through a failed connection and offline status', async () => {
+    const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
+    let emitStatus: (status: unknown) => void = () => undefined;
+    Object.defineProperty(window, 'telegram', {
+      configurable: true,
+      value: {
+        getAuthState: vi.fn().mockResolvedValue({
+          success: true,
+          authState: { hasSession: true, signedOut: false, connected: false, userName: 'Alex', state: 'ready' },
+        }),
+        connect: vi.fn().mockResolvedValue({ success: false, error: 'ERR_INTERNET_DISCONNECTED' }),
+        getStatus: vi.fn().mockResolvedValue({ success: true }),
+        getRateLimitState: vi.fn().mockResolvedValue({ success: true }),
+        onStatus: vi.fn((callback: (status: unknown) => void) => {
+          emitStatus = callback;
+          return vi.fn();
+        }),
+      },
+    });
+
+    try {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <LocaleProvider>{children}</LocaleProvider>
+      );
+      const { result } = renderHook(() => useTelegramAuth({
+        setIsSettingsOpen: vi.fn(),
+        setChats: vi.fn(),
+        setSelectedChat: vi.fn(),
+      }), { wrapper });
+
+      await waitFor(() => expect(result.current.connectionResolved).toBe(true));
+      expect(result.current.sessionAvailable).toBe(true);
+      expect(result.current.connected).toBe(false);
+      expect(result.current.signedOut).toBe(false);
+      expect(result.current.authError).toBe('');
+
+      act(() => emitStatus({ status: 'offline', connected: false }));
+      expect(result.current.sessionAvailable).toBe(true);
+      expect(result.current.signedOut).toBe(false);
+
+      act(() => emitStatus({ status: 'connected', connected: true }));
+      expect(result.current.sessionAvailable).toBe(true);
+      expect(result.current.connected).toBe(true);
+
+      act(() => emitStatus({ status: 'auth required', connected: false }));
+      expect(result.current.sessionAvailable).toBe(false);
+      expect(result.current.connected).toBe(false);
+    } finally {
+      if (previousTelegram) Object.defineProperty(window, 'telegram', previousTelegram);
+      else Reflect.deleteProperty(window, 'telegram');
+    }
+  });
+
   it('ignores a stale connected status after Remember me has signed out', async () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     let emitStatus: (status: unknown) => void = () => undefined;

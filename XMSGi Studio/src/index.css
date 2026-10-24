@@ -2237,6 +2237,10 @@ html:not([data-theme='dark']) .topbar .settings-action {
   pointer-events: none;
 }
 
+.topbar-logout-photo-status.is-offline {
+  background: var(--warning, #f0c75e);
+}
+
 .topbar-logout-modal-backdrop {
   position: fixed;
   inset: 0;

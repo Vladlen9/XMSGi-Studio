@@ -91,6 +91,7 @@ export interface StudioHistoryBridgeCallbacks {
 
 export interface StudioBridgeProps extends StudioHistoryBridgeCallbacks {
   connected?: boolean;
+  connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
   chats?: Chat[];
   selectedChat?: Chat | null;
   onSelectChat?: Dispatch<SetStateAction<Chat | null>>;

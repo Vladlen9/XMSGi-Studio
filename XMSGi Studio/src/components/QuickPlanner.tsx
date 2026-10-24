@@ -91,6 +91,7 @@ type QuickPlannerProps = {
   onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean | 'sent-history-failed'>;
   onSaveDraft?: (draft: { message: string; attachments: string[] }) => boolean;
   feedbackPreview?: QuickPlannerActionFeedback | null;
+  connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
 };
 
 function getChatInitial(name: string) {
@@ -198,6 +199,7 @@ export function QuickPlanner({
   onSchedule,
   onSaveDraft,
   feedbackPreview,
+  connectionRecoveryStatus = null,
 }: QuickPlannerProps) {
   const { locale, t } = useLocale();
   const [selectedMode, setSelectedMode] = useState('Send now');
@@ -1565,6 +1567,21 @@ export function QuickPlanner({
                       {action.id === 'retry' && <span>{action.label}</span>}
                     </button>
                   ))}
+                </div>
+              )}
+              {!visibleActionFeedback && connectionRecoveryStatus && (
+                <div
+                  className={`planner-inline-notification quick-planner-action-feedback is-connection-status is-${connectionRecoveryStatus === 'offline' ? 'error' : 'info'}`}
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {connectionRecoveryStatus === 'reconnecting' && (
+                    <span className="quick-planner-connection-spinner" aria-hidden="true" />
+                  )}
+                  <span className="quick-planner-action-feedback-message">
+                    {t(connectionRecoveryStatus === 'offline' ? 'telegramStatus.offlineMessage' : 'telegramStatus.networkMessage')}
+                  </span>
                 </div>
               )}
             </div>
