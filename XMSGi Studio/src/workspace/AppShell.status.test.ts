@@ -411,6 +411,72 @@ describe('shared History Drawer entry point', () => {
     }
   });
 
+  it.each([
+    [null, ''],
+    ['reconnecting', 'is-reconnecting'],
+    ['offline', 'is-offline'],
+  ] as const)('shows the avatar status for connection state %s', (connectionRecoveryStatus, statusClass) => {
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'studio',
+      onViewChange: vi.fn(),
+      connected: true,
+      connectionRecoveryStatus,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    }, createElement('div', null, 'Studio'))));
+
+    const status = view.container.querySelector('.topbar-logout-photo-status');
+    expect(status).not.toBeNull();
+    if (statusClass) expect(status).toHaveClass(statusClass);
+    else expect(status).not.toHaveClass('is-reconnecting', 'is-offline');
+  });
+
+  it('marks the avatar status red while an error notification is visible', () => {
+    const shellProps: Parameters<typeof AppShell>[0] = {
+      view: 'studio',
+      onViewChange: vi.fn(),
+      connected: true,
+      notification: { message: 'Could not publish.', title: 'Publish failed', type: 'error', visible: true },
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    };
+
+    const view = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Studio'))));
+
+    expect(view.container.querySelector('.topbar-logout-photo-status')).toHaveClass('has-error');
+
+    view.rerender(createElement(LocaleProvider, null, createElement(AppShell, {
+      ...shellProps,
+      notification: { ...shellProps.notification!, visible: false },
+    }, createElement('div', null, 'Studio'))));
+
+    expect(view.container.querySelector('.topbar-logout-photo-status')).not.toHaveClass('has-error');
+  });
+
   it('shows the cached Telegram photo immediately while refreshing it', () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     const cachedAvatar = 'data:image/jpeg;base64,cached-account-photo';

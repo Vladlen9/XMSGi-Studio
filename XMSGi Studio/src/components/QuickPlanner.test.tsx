@@ -12,6 +12,7 @@ import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
 const quickPlannerStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlanner.css'), 'utf8');
+const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../styles/colorThemes.css'), 'utf8');
 
 function render(ui: ReactNode, initialMode: 'Send now' | 'Schedule' = 'Schedule') {
@@ -78,8 +79,36 @@ describe('QuickPlanner feedback', () => {
     render(<QuickPlanner connectionRecoveryStatus="reconnecting" />, 'Send now');
 
     const status = document.querySelector('.quick-planner-action-feedback.is-connection-status');
+    const spinner = status?.querySelector('.quick-planner-connection-spinner');
     expect(status).toHaveAttribute('role', 'status');
-    expect(status?.querySelector('.quick-planner-connection-spinner')).toBeInTheDocument();
+    expect(spinner).toBeInTheDocument();
+    expect(globalStyles).toMatch(
+      /\.quick-planner-connection-spinner,[\s\S]*?\.workspace-page-connection-spinner\s*\{[^}]*width:\s*13px;[^}]*height:\s*13px;[^}]*flex:\s*0 0 13px;[^}]*border-radius:\s*50%;[^}]*animation:\s*connection-status-spin 800ms linear infinite;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-compose-footer \.quick-planner-action-feedback > \.quick-planner-action-feedback-message\s*\{[^}]*width:\s*auto;/,
+    );
+    expect(quickPlannerStyles).not.toMatch(
+      /\.quick-planner-compose-footer \.quick-planner-action-feedback > span\s*\{/,
+    );
+  });
+
+  it('repeats the offline status instead of showing the empty-message warning when sending', () => {
+    const { container } = render(<QuickPlanner connectionRecoveryStatus="offline" />, 'Send now');
+    const submitButton = container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit');
+
+    if (!submitButton) throw new Error('Expected the Planner send button');
+    fireEvent.click(submitButton);
+
+    let status = screen.getByRole('alert');
+    expect(status).toHaveTextContent('Telegram is unavailable. The app will keep trying to reconnect.');
+    expect(status).toHaveClass('is-error');
+
+    fireEvent.click(submitButton);
+    status = screen.getByRole('alert');
+    expect(status).toHaveTextContent('Telegram is unavailable. The app will keep trying to reconnect.');
+    expect(status).toHaveClass('is-retriggered');
+    expect(status).not.toHaveTextContent('Write a message');
   });
 
   it('uses a white selected Planner action in light theme and a muted dark fill in dark theme', () => {
@@ -103,6 +132,15 @@ describe('QuickPlanner feedback', () => {
     );
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner-time-list button:hover:not\(:disabled\),\s*html\[data-theme='dark'\] \.quick-planner-time-list button:focus-visible:not\(:disabled\),[\s\S]*?\{\s*background:\s*#239dfb !important;\s*color:\s*#ffffff !important;/,
+    );
+  });
+
+  it('makes the Planner time list scrollbar more visible in light theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-time-list\s*\{\s*scrollbar-color:\s*#7b8993 #edf1f3;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-time-list::-webkit-scrollbar-thumb\s*\{\s*background:\s*#7b8993;\s*border:\s*2px solid #edf1f3;/,
     );
   });
 

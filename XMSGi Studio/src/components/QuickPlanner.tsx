@@ -778,6 +778,10 @@ export function QuickPlanner({
   };
 
   const handleSubmit = async () => {
+    if (selectedMode === 'Send now' && connectionRecoveryStatus === 'offline') {
+      showActionFeedback(t('telegramStatus.offlineMessage'), 'error');
+      return;
+    }
     if (!message.trim() && attachments.length === 0) {
       showActionFeedback(t('quickPlanner.writeMessage'), 'warning');
       return;

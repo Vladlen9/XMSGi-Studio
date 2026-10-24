@@ -363,6 +363,29 @@ html[data-theme='light'] .quick-planner-date-picker-grid button.is-selected:hove
   font-weight: 600;
 }
 
+html[data-theme='light'] .quick-planner-time-list {
+  scrollbar-color: #7b8993 #edf1f3;
+}
+
+html[data-theme='light'] .quick-planner-time-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+html[data-theme='light'] .quick-planner-time-list::-webkit-scrollbar-track {
+  background: #edf1f3;
+  border-radius: 999px;
+}
+
+html[data-theme='light'] .quick-planner-time-list::-webkit-scrollbar-thumb {
+  background: #7b8993;
+  border: 2px solid #edf1f3;
+  border-radius: 999px;
+}
+
+html[data-theme='light'] .quick-planner-time-list::-webkit-scrollbar-thumb:hover {
+  background: #5f6e78;
+}
+
 html[data-theme='light'] .workspace-page-schedule-time-picker button:disabled {
   background: transparent !important;
   color: #68747d !important;

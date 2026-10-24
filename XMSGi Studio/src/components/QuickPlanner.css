@@ -2470,31 +2470,7 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
   gap: 8px;
 }
 
-.quick-planner-connection-spinner,
-.workspace-page-connection-spinner {
-  width: 13px;
-  height: 13px;
-  flex: 0 0 auto;
-  border: 1.5px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: connection-status-spin 800ms linear infinite;
-}
-
-@keyframes connection-status-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .quick-planner-connection-spinner,
-  .workspace-page-connection-spinner {
-    animation-duration: 2s;
-  }
-}
-
-.quick-planner-compose-footer .quick-planner-action-feedback > span {
+.quick-planner-compose-footer .quick-planner-action-feedback > .quick-planner-action-feedback-message {
   display: block;
   min-width: 0;
   width: auto;
@@ -2589,22 +2565,6 @@ html[data-theme='dark'] .quick-planner .quick-planner-schedule-row .quick-planne
 .quick-planner-compose-footer .quick-planner-action-feedback.is-retriggered {
   animation: planner-notification-retrigger 620ms ease-out;
   filter: none !important;
-}
-
-@keyframes planner-notification-retrigger {
-  0%, 100% {
-    transform: translateY(0);
-  }
-
-  35% {
-    transform: translateY(-3px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .quick-planner-compose-footer .quick-planner-action-feedback.is-retriggered {
-    animation: none;
-  }
 }
 
 .quick-planner .quick-planner-action-feedback.is-error {

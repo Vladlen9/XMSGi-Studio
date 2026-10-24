@@ -268,7 +268,7 @@ export function AppShell({
               )}
               <span className="topbar-logout-photo-ring" aria-hidden="true" />
               <span
-                className={`topbar-logout-photo-status${connectionRecoveryStatus ? ' is-offline' : ''}`}
+                className={`topbar-logout-photo-status${connectionRecoveryStatus === 'reconnecting' ? ' is-reconnecting' : connectionRecoveryStatus === 'offline' ? ' is-offline' : ''}${notification?.visible && notification.type === 'error' ? ' has-error' : ''}`}
                 title={t(connectionRecoveryStatus === 'offline' ? 'telegramStatus.offlineMessage' : connectionRecoveryStatus === 'reconnecting' ? 'telegramStatus.networkMessage' : 'telegramStatus.connectedMessage')}
                 aria-label={t(connectionRecoveryStatus === 'offline' ? 'telegramStatus.offlineMessage' : connectionRecoveryStatus === 'reconnecting' ? 'telegramStatus.networkMessage' : 'telegramStatus.connectedMessage')}
                 role="img"

@@ -111,13 +111,13 @@ Full control over every post in the queue — right up to the moment it's sent.
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.3.0.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio.1.3.0.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.3.0.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.3.0_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/xmsgi-studio_1.3.0_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.0.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.0-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.0/XMSGi.Studio-1.3.0-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.3.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio.1.3.1.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.3.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.3.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/xmsgi-studio_1.3.1_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1-arm64.dmg) |
 
-The v1.3.0 download links will work after the release and its platform packages are published.
+The v1.3.1 download links will work after the release and its platform packages are published.
 
 ### First launch on macOS
 
@@ -195,7 +195,7 @@ Full documentation lives in the [`docs/`](docs/README.md) directory:
 
 ## 🧪 Automated tests
 
-The v1.3.0 pre-release test run found **1,065 automated test cases**: **1,065 passed**, **0 failed**, and **0 skipped**. The suite covers UI components, application logic, React hooks, storage, scheduling, Telegram/Electron integration, and packaging metadata.
+The v1.3.1 release-candidate run passed **1,088 automated tests** — more than 1,000 checks across UI components, application logic, React hooks, storage, scheduling, Telegram/Electron integration, and packaging metadata.
 
 Validated with `npm test`, `npm run typecheck`, and `git diff --check`.
 

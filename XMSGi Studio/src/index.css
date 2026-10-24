@@ -1,6 +1,48 @@
 @import './styles/tokens.css';
 @import './styles/settings.css';
 
+.quick-planner-connection-spinner,
+.workspace-page-connection-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: connection-status-spin 800ms linear infinite;
+}
+
+@keyframes connection-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-planner-connection-spinner,
+  .workspace-page-connection-spinner {
+    animation-duration: 2s;
+  }
+}
+
+@keyframes planner-notification-retrigger {
+  0%, 100% {
+    translate: 0 0;
+  }
+
+  35% {
+    translate: 0 -3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-planner-compose-footer .quick-planner-action-feedback.is-retriggered,
+  .workspace-page-publish-transient-feedback.is-retriggered {
+    animation: none;
+  }
+}
+
 .history-drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -2229,7 +2271,7 @@ html:not([data-theme='dark']) .topbar .settings-action {
   z-index: 2;
   width: 11px;
   height: 11px;
-  border: 2px solid #0b0d10;
+  border: 2px solid var(--void);
   border-radius: 50%;
   background: var(--ok);
   background-clip: padding-box;
@@ -2237,8 +2279,13 @@ html:not([data-theme='dark']) .topbar .settings-action {
   pointer-events: none;
 }
 
-.topbar-logout-photo-status.is-offline {
+.topbar-logout-photo-status.is-reconnecting {
   background: var(--warning, #f0c75e);
+}
+
+.topbar-logout-photo-status.is-offline,
+.topbar-logout-photo-status.has-error {
+  background: var(--danger, #b42318);
 }
 
 .topbar-logout-modal-backdrop {

@@ -33,6 +33,7 @@ const baseNotification: NotificationState = {
 let inMemoryDraftStore: PersistedDraftStore;
 let telegramStatusListener: ((status: unknown) => void) | null = null;
 const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
+const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../index.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/colorThemes.css'), 'utf8');
 
 describe('WorkspacePage feedback layout', () => {
@@ -45,6 +46,12 @@ describe('WorkspacePage feedback layout', () => {
     );
     expect(workspacePageStyles).toMatch(
       /\.workspace-page-publish-transient-feedback\.is-connection-offline\s*\{[^}]*animation:\s*workspace-publish-feedback-in/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-transient-feedback\.is-retriggered\s*\{[^}]*animation:\s*planner-notification-retrigger 620ms ease-out;/,
+    );
+    expect(globalStyles).toMatch(
+      /@keyframes planner-notification-retrigger[\s\S]*?translate:\s*0 -3px;/,
     );
   });
 });
@@ -2301,6 +2308,7 @@ describe('WorkspacePage main-screen flows', () => {
     const { rerender, unmount } = await renderWorkspacePage({ notification, closeNotification });
     const firstNotification = document.querySelector('.workspace-page-publish-transient-feedback');
     expect(firstNotification).not.toBeNull();
+    expect(firstNotification).not.toHaveClass('is-retriggered');
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
@@ -2309,6 +2317,7 @@ describe('WorkspacePage main-screen flows', () => {
     const repeatedNotification = document.querySelector('.workspace-page-publish-transient-feedback');
 
     expect(repeatedNotification).not.toBe(firstNotification);
+    expect(repeatedNotification).toHaveClass('is-retriggered');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });

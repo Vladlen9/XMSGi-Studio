@@ -819,6 +819,8 @@ export function WorkspacePage({
   const [publishFeedbackDetail, setPublishFeedbackDetail] = useState('');
   const [publishFeedbackKind, setPublishFeedbackKind] = useState<'warning' | 'success'>('warning');
   const [publishFeedbackInstance, setPublishFeedbackInstance] = useState(0);
+  const [retriggeredPublishFeedback, setRetriggeredPublishFeedback] = useState<{ message: string; kind: string } | null>(null);
+  const lastPublishFeedbackRef = useRef<{ message: string; kind: string } | null>(null);
   const [telegramConnectionState, setTelegramConnectionState] = useState<TelegramConnectionState>(
     connected ? 'connected' : 'disconnected',
   );
@@ -1138,8 +1140,23 @@ export function WorkspacePage({
       setPublishFeedbackDetail('');
     }
     setPublishFeedbackInstance((instance) => instance + 1);
+    const kind = notification.type === 'info' ? 'notice' : notification.type;
+    const identity = { message: notification.message, kind };
+    const previousIdentity = lastPublishFeedbackRef.current;
+    setRetriggeredPublishFeedback(
+      previousIdentity?.message === identity.message && previousIdentity.kind === identity.kind
+        ? identity
+        : null,
+    );
+    lastPublishFeedbackRef.current = identity;
 
-    const timer = window.setTimeout(closeNotification, NOTIFICATION_DURATION_MS[notification.type]);
+    const timer = window.setTimeout(() => {
+      if (lastPublishFeedbackRef.current?.message === identity.message && lastPublishFeedbackRef.current.kind === identity.kind) {
+        lastPublishFeedbackRef.current = null;
+        setRetriggeredPublishFeedback(null);
+      }
+      closeNotification();
+    }, NOTIFICATION_DURATION_MS[notification.type]);
     return () => window.clearTimeout(timer);
   }, [closeNotification, notification.message, notification.revision, notification.type, notification.visible]);
 
@@ -1170,6 +1187,14 @@ export function WorkspacePage({
     if (publishFeedbackTimerRef.current !== null) {
       window.clearTimeout(publishFeedbackTimerRef.current);
     }
+    const identity = { message, kind };
+    const previousIdentity = lastPublishFeedbackRef.current;
+    setRetriggeredPublishFeedback(
+      previousIdentity?.message === identity.message && previousIdentity.kind === identity.kind
+        ? identity
+        : null,
+    );
+    lastPublishFeedbackRef.current = identity;
     setPublishFeedbackInstance((instance) => instance + 1);
     setPublishFeedback(message);
     setPublishFeedbackDetail(detail);
@@ -1178,6 +1203,10 @@ export function WorkspacePage({
       setPublishFeedback('');
       setPublishFeedbackDetail('');
       publishFeedbackTimerRef.current = null;
+      if (lastPublishFeedbackRef.current?.message === identity.message && lastPublishFeedbackRef.current.kind === identity.kind) {
+        lastPublishFeedbackRef.current = null;
+        setRetriggeredPublishFeedback(null);
+      }
     }, kind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess);
   }, []);
 
@@ -3488,7 +3517,7 @@ export function WorkspacePage({
                 {publishFooterStatus && (
                   <div
                     key={`${publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
-                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
+                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${retriggeredPublishFeedback?.message === publishFooterStatus.message && retriggeredPublishFeedback.kind === publishFooterStatus.kind ? ' is-retriggered' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
                     style={publishFooterStatus.duration === null
                       ? undefined
                       : { '--status-duration': `${publishFooterStatus.duration}ms` } as React.CSSProperties}

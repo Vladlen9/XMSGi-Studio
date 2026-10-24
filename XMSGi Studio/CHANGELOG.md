@@ -10,6 +10,12 @@
 
 - No changes yet.
 
+## 1.3.1 - 2026-10-24
+
+### Improvements
+
+- Improved the visibility of the time picker scrollbar in light theme.
+
 ## 1.3.0 - 2026-10-24
 
 ### Highlights
