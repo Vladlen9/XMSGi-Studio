@@ -108,6 +108,14 @@
       margin-bottom: 16px;
       word-wrap: break-word;
     }
+    .hero .hero-year {
+      margin: 0 auto 12px;
+      color: var(--neon);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
     .hero h1 em {
       font-style: normal;
       background: linear-gradient(105deg, #fff 20%, var(--neon) 100%);
@@ -364,6 +372,7 @@
 
 <section class="hero">
   <div class="wrap">
+    <p class="hero-year">XMSGi Studio · <span data-current-year>2026</span></p>
     <h1 data-i18n="h1">Посты в Telegram<br><em>по расписанию.</em></h1>
     <a class="hero-cta" href="https://github.com/molodoy01/XMSGi-Studio/releases/latest">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -426,8 +435,8 @@
       <span data-i18n="c1d">Измените текст или медиа запланированной публикации — она уйдёт в обновлённом виде.</span>
     </div>
     <div class="point">
-      <strong data-i18n="c2t">Перенесите или отмените</strong>
-      <span data-i18n="c2d">Измените дату и время публикации или уберите отправку из очереди.</span>
+      <strong data-i18n="c2t">Вся история публикаций</strong>
+      <span data-i18n="c2d">Очередь, отправленные посты и черновики — в одной истории. Сохраняйте идеи, чтобы вернуться и превратить их в публикации.</span>
     </div>
     <div class="point">
       <strong data-i18n="c3t">Activity — ваш ритм публикаций</strong>
@@ -499,7 +508,7 @@
 
 <div class="wrap">
   <footer>
-    <span>© 2026 XMSGi Studio</span>
+    <span>© <span data-current-year>2026</span> XMSGi Studio</span>
     <div class="links">
       <a href="https://github.com/molodoy01/XMSGi-Studio" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/molodoy01/XMSGi-Studio/releases" target="_blank" rel="noopener" data-i18n="rel">Релизы</a>
@@ -537,7 +546,7 @@
       mgmtTitle: "Контроль<br><em>остаётся у вас.</em>",
       mgmtSub: "Правьте, переносите и отслеживайте публикации — вплоть до самой отправки.",
       c1t: "Обновите пост без пересоздания", c1d: "Измените текст или медиа запланированной публикации — она уйдёт в обновлённом виде.",
-      c2t: "Перенесите или отмените", c2d: "Измените дату и время публикации или уберите отправку из очереди.",
+      c2t: "Вся история публикаций", c2d: "Очередь, отправленные посты и черновики — в одной истории. Сохраняйте идеи, чтобы вернуться и превратить их в публикации.",
       c3t: "Activity — ваш ритм публикаций", c3d: "Смотрите, сколько сообщений отправили за неделю или месяц, и планируйте следующие публикации с учётом своей активности."
     },
     en: {
@@ -567,7 +576,7 @@
       mgmtTitle: "Control<br><em>stays in your hands.</em>",
       mgmtSub: "Edit, reschedule and track your posts — right up to the moment they're sent.",
       c1t: "Update without recreating", c1d: "Change the text or media of a scheduled post and it will go out with your updates.",
-      c2t: "Reschedule or cancel", c2d: "Change the send date and time, or remove a post from the queue.",
+      c2t: "Your publishing history", c2d: "Your queue, sent posts and drafts — all in one history. Save ideas and return when you're ready to turn them into posts.",
       c3t: "Activity — your publishing rhythm", c3d: "See how many messages you sent this week or month, then plan your next posts based on your activity."
     }
   };
@@ -591,6 +600,10 @@
     });
     localStorage.setItem("xmsgi-lang", l);
   }
+
+  document.querySelectorAll("[data-current-year]").forEach(el => {
+    el.textContent = new Date().getFullYear();
+  });
 
   document.querySelectorAll(".lang button").forEach(b => {
     b.addEventListener("click", () => setLang(b.dataset.lang));
