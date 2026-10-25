@@ -316,6 +316,25 @@ describe('Posts page split view', () => {
     expect(container.querySelector('.history-record-open')).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('returns the post list to the top when source, category, or search changes', () => {
+    const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
+    const recordList = container.querySelector<HTMLDivElement>('.history-record-list')!;
+
+    recordList.scrollTop = 240;
+    fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
+    expect(recordList.scrollTop).toBe(0);
+
+    recordList.scrollTop = 180;
+    fireEvent.click(screen.getByRole('button', { name: 'Studio' }));
+    expect(recordList.scrollTop).toBe(0);
+
+    recordList.scrollTop = 120;
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search history' }), {
+      target: { value: 'release' },
+    });
+    expect(recordList.scrollTop).toBe(0);
+  });
+
   it('supports arrow, Home, and End navigation across status tabs', () => {
     renderHistoryPage([upcomingRecord, workspaceSentRecord]);
     const scheduledTab = screen.getByRole('tab', { name: 'Scheduled' });

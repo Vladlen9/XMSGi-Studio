@@ -625,6 +625,12 @@ export function HistoryDrawer({
   }, [isOpen, selectedRecord]);
 
   useLayoutEffect(() => {
+    if (!isOpen || !pageMode) return;
+    const list = historyRecordListRef.current;
+    if (list) list.scrollTop = 0;
+  }, [isOpen, pageMode, query, sourceFilter, statusFilter]);
+
+  useLayoutEffect(() => {
     if (!isOpen || !actionMenuOpenId) return;
     const list = historyRecordListRef.current;
     const actionMenu = actionMenuRef.current;
