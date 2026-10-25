@@ -1215,7 +1215,7 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (min-width: 761px) {
   .history-drawer.is-page .history-detail-panel {
-    margin-bottom: -62px;
+    margin-bottom: 0;
   }
 }
 
