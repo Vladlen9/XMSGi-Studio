@@ -872,15 +872,14 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-drawer-controls.is-page-controls {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
-  grid-template-areas: "source close" "statuses .";
-  grid-template-rows: auto auto;
-  align-items: stretch;
-  justify-content: stretch;
-  column-gap: 0;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 22px;
   width: 100%;
-  padding: 0 24px;
+  min-height: 62px;
+  padding: 8px 16px;
   border-bottom: 1px solid rgba(147, 166, 177, 0.18);
 }
 
@@ -905,34 +904,32 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-page-filter-section {
   display: flex;
   min-width: 0;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding: 9px 0 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
 .history-page-filter-section.is-status-section {
-  grid-area: statuses;
   min-width: 0;
-  padding: 6px 18px 0 0;
+  padding: 0;
 }
 
 .history-page-filter-section.is-source-section {
-  grid-area: source;
   display: flex;
-  flex-direction: column;
-  align-self: stretch;
-  align-items: stretch;
+  flex-direction: row;
+  align-self: center;
+  align-items: center;
   justify-content: flex-start;
-  gap: 4px;
-  padding: 7px 18px 0 0;
+  gap: 9px;
+  padding: 0;
 }
 
 .history-page-filter-section.is-source-section .history-page-filter-label {
-  align-self: flex-start;
+  align-self: center;
 }
 
 .history-page-filter-label {
@@ -943,6 +940,7 @@ html.electron-runtime .history-confirmation-backdrop {
   letter-spacing: 0.08em;
   line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .history-drawer-controls.is-page-controls .history-source-filters,
@@ -955,12 +953,11 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-page-filter-section.is-status-section .history-status-filters {
-  grid-area: categories;
   width: max-content;
   max-width: 100%;
   min-width: 0;
   flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   padding: 0;
 }
@@ -984,9 +981,12 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-drawer.is-page .history-result-count {
-  flex: 0 1 128px;
+  flex: 0 1 108px;
   width: auto;
-  min-width: 72px;
+  min-width: 0;
+  max-width: 108px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(145, 168, 179, 0.16);
 }
 
 .history-drawer-controls.is-page-controls .history-status-tab {
@@ -1054,8 +1054,9 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-page-controls-close {
-  justify-self: end;
-  align-self: start;
+  grid-area: auto;
+  align-self: center;
+  margin-left: auto;
 }
 
 .history-drawer-controls.is-page-controls .history-filter {
@@ -1120,6 +1121,45 @@ html.electron-runtime .history-confirmation-backdrop {
   padding: 6px 8px;
 }
 
+.history-content.is-page .history-record-list {
+  gap: 8px;
+}
+
+.history-content.is-page .history-record {
+  padding: 7px 10px;
+}
+
+.history-content.is-page .history-record-open {
+  padding: 3px 5px 4px;
+}
+
+.history-content.is-page .history-record-meta {
+  display: flex;
+  min-height: 20px;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.history-content.is-page .history-record-date {
+  margin-left: auto;
+  text-align: right;
+}
+
+.history-content.is-page .history-record-attachments {
+  width: auto;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.history-content.is-page .history-record-attachments.is-empty {
+  display: none;
+}
+
+.history-content.is-page .history-record-text {
+  margin-top: 5px;
+  -webkit-line-clamp: 1;
+}
+
 .history-drawer.is-page .history-search-dock {
   width: 100%;
   min-width: 0;
@@ -1164,7 +1204,7 @@ html.electron-runtime .history-confirmation-backdrop {
   position: relative;
   min-width: 0;
   min-height: 0;
-  margin: 12px 16px 24px;
+  margin: 0 16px 24px;
   overflow: auto;
   border: 1px solid rgba(154, 168, 184, 0.14);
   border-radius: 16px;
@@ -2329,10 +2369,33 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (max-width: 760px) {
   .history-drawer-controls.is-page-controls {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: "source close" "statuses statuses";
     grid-template-rows: auto auto;
     row-gap: 0;
+  }
+
+  .history-page-filter-section.is-source-section {
+    grid-area: source;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 7px 18px 0 0;
+  }
+
+  .history-page-filter-section.is-status-section {
+    grid-area: statuses;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 6px 18px 0 0;
+  }
+
+  .history-page-controls-close {
+    grid-area: close;
+    justify-self: end;
+    margin-left: 0;
   }
 
   .history-page-filter-section.is-source-section .history-source-filters {
