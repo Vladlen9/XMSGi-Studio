@@ -889,7 +889,7 @@ html.electron-runtime .history-confirmation-backdrop {
     margin-left: 0;
     overflow: hidden;
     border: 1px solid rgba(154, 168, 184, 0.16);
-    border-radius: 16px;
+    border-radius: 12px;
   }
 
   .history-content.is-page .history-list-pane .history-record-list {
@@ -1231,6 +1231,7 @@ html.electron-runtime .history-confirmation-backdrop {
 @media (min-width: 761px) {
   .history-drawer.is-page .history-detail-panel {
     margin-bottom: 0;
+    border-radius: 12px;
   }
 }
 
