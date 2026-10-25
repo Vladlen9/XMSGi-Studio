@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { applyColorTheme, COLOR_THEME_STORAGE_KEY } from './colorTheme';
+import { applyColorTheme, COLOR_THEME_STORAGE_KEY, readColorTheme } from './colorTheme';
 
 const themeBootstrap = readFileSync(path.resolve(process.cwd(), 'public', 'theme-init.js'), 'utf8');
 
@@ -10,6 +10,7 @@ describe('applyColorTheme', () => {
     vi.useFakeTimers();
     localStorage.removeItem(COLOR_THEME_STORAGE_KEY);
     document.documentElement.dataset.theme = 'light';
+    delete document.documentElement.dataset.themeVariant;
     document.documentElement.style.colorScheme = 'light';
     document.documentElement.classList.remove('is-theme-transitioning');
     applyColorTheme('light');
@@ -92,6 +93,20 @@ describe('applyColorTheme', () => {
     expect(document.documentElement).not.toHaveClass('is-theme-transitioning');
   });
 
+  it('applies and reads the charcoal variant on top of the dark base theme', () => {
+    applyColorTheme('charcoal');
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.themeVariant).toBe('charcoal');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('charcoal');
+    expect(readColorTheme()).toBe('charcoal');
+
+    applyColorTheme('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.themeVariant).toBeUndefined();
+  });
+
   it('restores the saved theme synchronously before the app renders', () => {
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, 'dark');
     document.documentElement.dataset.theme = 'light';
@@ -102,5 +117,18 @@ describe('applyColorTheme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(document.documentElement.style.colorScheme).toBe('dark');
     expect(document.documentElement.style.backgroundColor).toBe('rgb(13, 17, 21)');
+  });
+
+  it('restores the saved charcoal theme synchronously before the app renders', () => {
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, 'charcoal');
+    document.documentElement.dataset.theme = 'light';
+    document.documentElement.style.colorScheme = 'light';
+
+    new Function(themeBootstrap)();
+
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.themeVariant).toBe('charcoal');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(37, 36, 34)');
   });
 });

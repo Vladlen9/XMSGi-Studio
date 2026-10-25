@@ -153,6 +153,15 @@ function searchHistory(query: string) {
   });
 }
 
+function openSourceMenu() {
+  fireEvent.click(document.querySelector('.history-source-select')!);
+  return within(document.querySelector('.history-source-menu')!);
+}
+
+function selectHistorySource(label: string) {
+  fireEvent.click(openSourceMenu().getByRole('menuitemradio', { name: label }));
+}
+
 describe('history drawer transient menus', () => {
   it('closes export menus when the drawer closes', () => {
     const renderDrawer = (isOpen: boolean) => (
@@ -234,13 +243,12 @@ describe('Posts page split view', () => {
 
   it('offers an empty-state create action matching the selected source', () => {
     renderHistoryPage([]);
-    const sourceFilters = within(screen.getByRole('group', { name: 'Post source' }));
 
-    fireEvent.click(sourceFilters.getByRole('button', { name: 'Studio' }));
+    selectHistorySource('Studio');
     expect(screen.getByRole('button', { name: 'Create in Studio' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Create in Planner' })).not.toBeInTheDocument();
 
-    fireEvent.click(sourceFilters.getByRole('button', { name: 'Planner' }));
+    selectHistorySource('Planner');
     expect(screen.queryByRole('button', { name: 'Create in Studio' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create in Planner' })).toBeInTheDocument();
   });
@@ -251,18 +259,24 @@ describe('Posts page split view', () => {
     try {
       const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
       const controls = container.querySelector<HTMLDivElement>('.history-drawer-controls')!;
-      const statusFilters = controls.querySelector<HTMLDivElement>('.history-status-filters')!;
-      const statusSection = controls.querySelector<HTMLDivElement>('.is-status-section')!;
-      const sourceSection = controls.querySelector<HTMLDivElement>('.is-source-section')!;
+      const listPane = container.querySelector<HTMLDivElement>('.history-list-pane')!;
+      const statusFilters = listPane.querySelector<HTMLDivElement>('.history-status-filters')!;
+      const statusSection = listPane.querySelector<HTMLDivElement>('.history-list-status-section')!;
+      const sourceRow = statusSection.querySelector<HTMLDivElement>('.history-list-source-row')!;
+      const sourceSection = sourceRow.querySelector<HTMLDivElement>('.is-source-section')!;
       const sourceFilters = sourceSection.querySelector<HTMLDivElement>('.history-source-filters')!;
+      const statusHeading = statusSection.querySelector<HTMLDivElement>('.history-list-status-heading')!;
       const detailPanel = container.querySelector<HTMLDivElement>('.history-detail-panel')!;
       const recordList = container.querySelector<HTMLDivElement>('.history-record-list')!;
       const tools = container.querySelector<HTMLDivElement>('.history-drawer-tools')!;
       const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
       const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
 
-      expect(controls).toContainElement(statusFilters);
       expect(controls).toContainElement(container.querySelector('.history-page-controls-close'));
+      expect(controls.querySelector('.history-status-filters')).toBeNull();
+      expect(listPane).toContainElement(statusFilters);
+      expect(statusSection).toContainElement(statusFilters);
+      expect(statusSection.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(tools).toContainElement(searchDock);
@@ -272,14 +286,17 @@ describe('Posts page split view', () => {
       expect(footer).toContainElement(container.querySelector('.history-delete-button, .history-delete-placeholder'));
       expect(screen.getByRole('search')).toBeInTheDocument();
       expect(screen.getByRole('tablist', { name: 'Post status' })).toBeInTheDocument();
-      expect(controls.querySelectorAll('.history-page-filter-section')).toHaveLength(2);
-      expect(controls.querySelector('.is-status-section')).toContainElement(statusFilters);
+      expect(controls.querySelectorAll('.history-page-filter-section')).toHaveLength(0);
+      expect(statusHeading).toContainElement(statusFilters);
       expect(sourceSection).toContainElement(sourceFilters);
-      expect(sourceSection.compareDocumentPosition(statusSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(sourceRow).toContainElement(sourceSection);
+      expect(statusHeading.compareDocumentPosition(sourceRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(detailPanel).not.toContainElement(sourceFilters);
       expect(container.querySelector('.history-drawer-header')).toBeNull();
-      expect(screen.getByText('Source')).toBeInTheDocument();
-      expect(screen.getByText('Category')).toBeInTheDocument();
+      expect(sourceSection).not.toHaveTextContent('Section');
+      expect(sourceSection.querySelector('.history-source-select')).toHaveTextContent('All');
+      expect(statusHeading).toHaveTextContent('Category');
+      expect(statusHeading).toContainElement(statusFilters);
       fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
       expect(container.querySelector('.history-drawer-tools')).toBeInTheDocument();
       expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
@@ -325,7 +342,7 @@ describe('Posts page split view', () => {
     expect(recordList.scrollTop).toBe(0);
 
     recordList.scrollTop = 180;
-    fireEvent.click(screen.getByRole('button', { name: 'Studio' }));
+    selectHistorySource('Studio');
     expect(recordList.scrollTop).toBe(0);
 
     recordList.scrollTop = 120;
@@ -416,24 +433,24 @@ describe('history filter selected states', () => {
     expect(scheduledTab.querySelector('.history-status-label')?.textContent).toBe('План');
   });
 
-  it('keeps source and status selections on their buttons without a moving indicator', () => {
+  it('keeps source selection in its compact menu and status selection on its tab', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
-    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
     const sourceFilters = container.querySelector('.history-source-filters') as HTMLDivElement;
     const statusFilters = container.querySelector('.history-status-filters') as HTMLDivElement;
-    const activeSource = sourceFilters.querySelector<HTMLButtonElement>('[aria-pressed="true"]')!;
     const activeStatus = statusFilters.querySelector<HTMLButtonElement>('[aria-selected="true"]')!;
 
-    expect(activeSource).toHaveAttribute('data-history-filter', 'all');
-    expect(activeSource).toHaveClass('is-active');
+    expect(sourceFilters.querySelector('.history-source-select')).toHaveTextContent('All');
+    expect(sourceFilters.querySelector('.history-source-menu')).toBeNull();
     expect(activeStatus).toHaveAttribute('data-history-filter', 'scheduled');
     expect(activeStatus).toHaveClass('is-active');
     expect(container.querySelector('.history-glass-indicator')).toBeNull();
 
-    fireEvent.click(sourceFilters.querySelector('[data-history-filter="workspace"]')!);
+    selectHistorySource('Studio');
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
 
-    expect(sourceFilters.querySelector('[data-history-filter="workspace"]')).toHaveClass('is-active');
+    expect(sourceFilters.querySelector('.history-source-select')).toHaveTextContent('Studio');
     expect(statusFilters.querySelector('[data-history-filter="sent"]')).toHaveClass('is-active');
   });
 
@@ -442,8 +459,9 @@ describe('history filter selected states', () => {
       sourceFilter: 'all',
       statusFilter: 'scheduled',
     }));
-    const { container } = renderHistory([completedRecord, workspaceSentRecord]);
+    const { container } = renderHistoryPage([completedRecord, workspaceSentRecord]);
     const sourceFilters = container.querySelector('.history-source-filters')!;
+    openSourceMenu();
 
     expect(sourceFilters.querySelector('[data-history-filter="all"] .history-filter-count')).toHaveTextContent('2');
     expect(sourceFilters.querySelector('[data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1');

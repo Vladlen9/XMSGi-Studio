@@ -39,6 +39,21 @@
   --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.32);
 }
 
+:root[data-theme='dark'][data-theme-variant='charcoal'] {
+  --void: #252422;
+  --ink: #2d2c29;
+  --text: #eceae6;
+  --dim: #b8b4ac;
+  --faint: #77736c;
+  --line: #45433e;
+  --signal: #c1b9aa;
+  --surface-raised: #302f2c;
+  --surface-muted: #383733;
+  --surface-hover: #41403b;
+  --accent-soft: #454039;
+  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
 html.is-theme-transitioning,
 html.is-theme-transitioning body,
 html.is-theme-transitioning body :where(*) {

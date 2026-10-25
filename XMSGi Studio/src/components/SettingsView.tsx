@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { ChevronRight, Moon, Send, Sun, X } from 'lucide-react';
+import { ChevronRight, Circle, Moon, Send, Sun, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/lib/i18n';
 import { applyColorTheme, readColorTheme, type ColorTheme } from '@/lib/colorTheme';
@@ -274,6 +274,15 @@ export function SettingsView({
                 >
                   <Moon size={16} strokeWidth={1.7} aria-hidden="true" />
                   {t('settings.darkTheme')}
+                </button>
+                <button
+                  type="button"
+                  className={colorTheme === 'charcoal' ? 'is-selected' : ''}
+                  onClick={() => selectColorTheme('charcoal')}
+                  aria-pressed={colorTheme === 'charcoal'}
+                >
+                  <Circle size={16} strokeWidth={1.7} aria-hidden="true" />
+                  {t('settings.charcoalTheme')}
                 </button>
               </div>
             </div>

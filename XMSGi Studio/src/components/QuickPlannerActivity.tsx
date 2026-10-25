@@ -18,6 +18,7 @@ const WEEKLY_SCALE_LEVELS = 7;
 const WEEKLY_LINE_EDGE_INSET_PX = 12;
 const WEEKLY_LINE_FADE_PX = 24;
 const WEEKLY_EDGE_SLOPE_FACTOR = 0.35;
+const WEEKLY_LINE_MORPH_DURATION = 340;
 
 function getLocalDateKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
@@ -207,6 +208,25 @@ function getSmoothPath(points: Array<{ x: number; y: number }>) {
   }, `M ${points[0].x} ${points[0].y}`);
 }
 
+function interpolateSvgPath(fromPath: string, toPath: string, progress: number) {
+  if (progress <= 0) return fromPath;
+  if (progress >= 1) return toPath;
+
+  const numberPattern = /-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi;
+  const fromValues = Array.from(fromPath.matchAll(numberPattern), ([value]) => Number(value));
+  const toValues = Array.from(toPath.matchAll(numberPattern), ([value]) => Number(value));
+  if (fromValues.length !== toValues.length) return toPath;
+
+  const easedProgress = progress * progress * (3 - 2 * progress);
+  let valueIndex = 0;
+  return toPath.replace(numberPattern, () => {
+    const value = fromValues[valueIndex]
+      + (toValues[valueIndex] - fromValues[valueIndex]) * easedProgress;
+    valueIndex += 1;
+    return String(Number(value.toFixed(3)));
+  });
+}
+
 export function QuickPlannerActivity({
   sent = [],
   upcoming = [],
@@ -216,6 +236,11 @@ export function QuickPlannerActivity({
   const { locale, t } = useLocale();
   const [activityView, setActivityView] = useState<ActivityView>('sent');
   const [period, setPeriod] = useState<ActivityPeriod>(7);
+  const [previousWeeklyLinePath, setPreviousWeeklyLinePath] = useState<string | null>(null);
+  const [weeklyLineProgress, setWeeklyLineProgress] = useState(1);
+  const [weeklyLineAnimationVersion, setWeeklyLineAnimationVersion] = useState(0);
+  const [chartTransition, setChartTransition] = useState<'idle' | 'clearing' | 'revealing'>('idle');
+  const [pendingPeriod, setPendingPeriod] = useState<ActivityPeriod | null>(null);
   const [hoveredMonthDay, setHoveredMonthDay] = useState<string | null>(null);
   const [monthTooltipVisible, setMonthTooltipVisible] = useState(false);
   const [monthTooltipLeft, setMonthTooltipLeft] = useState<number | null>(null);
@@ -351,6 +376,42 @@ export function QuickPlannerActivity({
     return () => observer.disconnect();
   }, [activityView, historyReady, historyError]);
 
+  useEffect(() => {
+    if (chartTransition !== 'clearing' || pendingPeriod === null) return undefined;
+    const timer = window.setTimeout(() => {
+      setPeriod(pendingPeriod);
+      setChartTransition('revealing');
+    }, 140);
+    return () => window.clearTimeout(timer);
+  }, [chartTransition, pendingPeriod]);
+
+  useEffect(() => {
+    if (chartTransition !== 'revealing') return undefined;
+    const timer = window.setTimeout(() => {
+      setChartTransition('idle');
+      setPendingPeriod(null);
+    }, 380);
+    return () => window.clearTimeout(timer);
+  }, [chartTransition]);
+
+  useEffect(() => {
+    if (previousWeeklyLinePath === null) return undefined;
+    const startedAt = performance.now();
+    let animationFrame = 0;
+    const updateProgress = (now: number) => {
+      const progress = Math.min((now - startedAt) / WEEKLY_LINE_MORPH_DURATION, 1);
+      setWeeklyLineProgress(progress);
+      if (progress < 1) {
+        animationFrame = window.requestAnimationFrame(updateProgress);
+      } else {
+        setPreviousWeeklyLinePath(null);
+      }
+    };
+
+    animationFrame = window.requestAnimationFrame(updateProgress);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [previousWeeklyLinePath, weeklyLineAnimationVersion]);
+
   useLayoutEffect(() => {
     const section = activitySectionRef.current;
     const chart = activityChartRef.current;
@@ -459,7 +520,10 @@ export function QuickPlannerActivity({
     },
   ];
   const linePath = getSmoothPath(linePoints);
-  const areaPath = `${linePath} L ${lineEndX} 92 L ${lineStartX} 92 Z`;
+  const weeklyLinePath = previousWeeklyLinePath === null
+    ? linePath
+    : interpolateSvgPath(previousWeeklyLinePath, linePath, weeklyLineProgress);
+  const areaPath = `${weeklyLinePath} L ${lineEndX} 92 L ${lineStartX} 92 Z`;
   const activityChartLabel = activityView === 'scheduled'
     ? t('quickPlanner.activityScheduledChartLabel', { count: total, days: period })
     : activityView === 'all'
@@ -492,7 +556,22 @@ export function QuickPlannerActivity({
           aria-pressed={activityView === id}
           className={`quick-planner-activity-view${activityView === id ? ' is-active' : ''}`}
           key={id}
-          onClick={() => setActivityView(id)}
+          onClick={() => {
+            if (activityView === id) return;
+            const shouldMorphWeeklyLine = period === 7
+              && chartTransition === 'idle'
+              && (typeof window.matchMedia !== 'function'
+                || !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            if (shouldMorphWeeklyLine) {
+              const visiblePath = previousWeeklyLinePath === null
+                ? linePath
+                : interpolateSvgPath(previousWeeklyLinePath, linePath, weeklyLineProgress);
+              setPreviousWeeklyLinePath(visiblePath);
+              setWeeklyLineProgress(0);
+              setWeeklyLineAnimationVersion((version) => version + 1);
+            }
+            setActivityView(id);
+          }}
           type="button"
         >
           <span>{label}</span>
@@ -513,10 +592,14 @@ export function QuickPlannerActivity({
         <div className="quick-planner-activity-period" role="group" aria-label={t('quickPlanner.activityPeriodLabel')}>
           {([7, 30] as const).map((days) => (
             <button
-              aria-pressed={period === days}
-              className={`quick-planner-activity-period-option${period === days ? ' is-active' : ''}`}
+              aria-pressed={(pendingPeriod ?? period) === days}
+              className={`quick-planner-activity-period-option${(pendingPeriod ?? period) === days ? ' is-active' : ''}`}
               key={days}
-              onClick={() => setPeriod(days)}
+              onClick={() => {
+                if (pendingPeriod === days || (chartTransition === 'idle' && period === days)) return;
+                setPendingPeriod(days);
+                setChartTransition('clearing');
+              }}
               type="button"
             >
               {t('quickPlanner.activityPeriodValue', { days })}
@@ -530,7 +613,7 @@ export function QuickPlannerActivity({
         <p className="quick-planner-activity-state">{t('quickPlanner.loadingActivity')}</p>
       ) : (
         <>
-          <div className={`quick-planner-activity-total${total === 0 ? ' is-empty' : ''}`}>
+          <div className={`quick-planner-activity-total${total === 0 ? ' is-empty' : ''}${chartTransition === 'clearing' ? ' is-clearing' : chartTransition === 'revealing' ? ' is-revealing' : ''}`}>
             <strong className="quick-planner-activity-total-count">{new Intl.NumberFormat(dateLocale).format(total)}</strong>
             <span className="quick-planner-activity-total-copy">
               {total === 0 ? (
@@ -541,7 +624,7 @@ export function QuickPlannerActivity({
             </span>
           </div>
           <div
-            className="quick-planner-activity-chart"
+            className={`quick-planner-activity-chart${chartTransition === 'clearing' ? ' is-clearing' : ''}${chartTransition === 'revealing' ? ' is-revealing' : ''}`}
             role="img"
             aria-label={activityChartLabel}
             data-period={period}
@@ -702,20 +785,20 @@ export function QuickPlannerActivity({
               {period === 7 && chartPoints.length > 0 && (
                 <g mask={`url(#${edgeFadeId})`}>
                   <path className="quick-planner-activity-area" d={areaPath} fill={`url(#${gradientId})`} />
-                  <path className="quick-planner-activity-line-depth" d={linePath} vectorEffect="non-scaling-stroke" />
-                  <path className="quick-planner-activity-line-glow" d={linePath} vectorEffect="non-scaling-stroke" />
+                  <path className="quick-planner-activity-line-depth" d={weeklyLinePath} vectorEffect="non-scaling-stroke" />
+                  <path className="quick-planner-activity-line-glow" d={weeklyLinePath} vectorEffect="non-scaling-stroke" />
                   <path
                     className="quick-planner-activity-line"
-                    d={linePath}
+                    d={weeklyLinePath}
                     stroke={`url(#${lineGradientId})`}
                     vectorEffect="non-scaling-stroke"
                   />
-                  <path className="quick-planner-activity-line-highlight" d={linePath} vectorEffect="non-scaling-stroke" />
+                  <path className="quick-planner-activity-line-highlight" d={weeklyLinePath} vectorEffect="non-scaling-stroke" />
                 </g>
               )}
               {chartPoints.map((point, index) => {
                 const count = chartDays[index].count;
-                const showCount = period === 7 && count > 0;
+                const showCount = period === 7 && count > 0 && previousWeeklyLinePath === null;
                 const countY = point.y + 19;
 
                 return (
@@ -741,7 +824,9 @@ export function QuickPlannerActivity({
                       </>
                     )}
                     {period === 7 && count > 0 && (
-                      <circle className="quick-planner-activity-point-dot" cx={point.x} cy={point.y} r="4" />
+                      previousWeeklyLinePath === null && (
+                        <circle className="quick-planner-activity-point-dot" cx={point.x} cy={point.y} r="4" />
+                      )
                     )}
                   </g>
                 );
@@ -798,7 +883,7 @@ export function QuickPlannerActivity({
               })}
             </div>
           </div>
-          <div className="quick-planner-activity-lower">
+          <div className={`quick-planner-activity-lower${chartTransition === 'clearing' ? ' is-clearing' : chartTransition === 'revealing' ? ' is-revealing' : ''}`}>
             <div className="quick-planner-activity-highlights" aria-label={t('quickPlanner.activityHighlights')} aria-live="polite">
               {activityView === 'sent' ? (
                 <>

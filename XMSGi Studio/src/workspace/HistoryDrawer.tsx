@@ -1,6 +1,6 @@
 import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, ChevronDown, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
@@ -479,6 +479,7 @@ export function HistoryDrawer({
   const statusFilterOverrideChangedRef = useRef(false);
   const [query, setQuery] = useState('');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null);
   const [draftUseTarget, setDraftUseTarget] = useState<HistoryItem | null>(null);
   const [draftItems, setDraftItems] = useState<HistoryItem[]>([]);
@@ -491,6 +492,9 @@ export function HistoryDrawer({
   const [previewImagePath, setPreviewImagePath] = useState<string | null>(null);
   const [previewImagePosition, setPreviewImagePosition] = useState<{ left: number; top: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceMenuRef = useRef<HTMLDivElement | null>(null);
+  const sourceMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sourceMenuItemsRef = useRef<HTMLDivElement | null>(null);
   const statusFiltersRef = useRef<HTMLDivElement | null>(null);
   const historyRecordListRef = useRef<HTMLDivElement | null>(null);
   const historySearchInputRef = useRef<HTMLInputElement | null>(null);
@@ -665,6 +669,7 @@ export function HistoryDrawer({
     if (!isOpen) {
       setConfirmAction(null);
       setIsExportMenuOpen(false);
+      setIsSourceMenuOpen(false);
       setActionMenuOpenId(null);
       setDraftUseTarget(null);
     }
@@ -732,6 +737,10 @@ export function HistoryDrawer({
       } else if (isExportMenuOpen) {
         event.preventDefault();
         setIsExportMenuOpen(false);
+      } else if (isSourceMenuOpen) {
+        event.preventDefault();
+        setIsSourceMenuOpen(false);
+        sourceMenuButtonRef.current?.focus();
       } else if (actionMenuOpenId) {
         event.preventDefault();
         setActionMenuOpenId(null);
@@ -752,7 +761,7 @@ export function HistoryDrawer({
       if (!pageMode) document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, onClose, pageMode, previewImagePath, selectedRecord]);
+  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, isSourceMenuOpen, onClose, pageMode, previewImagePath, selectedRecord]);
 
   useEffect(() => {
     if (!isOpen || !isExportMenuOpen) return;
@@ -766,6 +775,23 @@ export function HistoryDrawer({
       document.removeEventListener('mousedown', closeOnOutsideClick);
     };
   }, [isExportMenuOpen, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isSourceMenuOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!sourceMenuRef.current?.contains(event.target as Node)) setIsSourceMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [isOpen, isSourceMenuOpen]);
+
+  useEffect(() => {
+    if (isSourceMenuOpen) {
+      sourceMenuItemsRef.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus();
+    }
+  }, [isSourceMenuOpen]);
 
   useEffect(() => {
     if (!isOpen || !draftUseTarget) return;
@@ -1218,6 +1244,11 @@ export function HistoryDrawer({
       })}
     </div>
   );
+  const sourceLabels: Record<HistorySourceFilter, string> = {
+    all: t('history.sourceAll'),
+    workspace: t('history.sourceStudio'),
+    personal: t('history.sourcePersonal'),
+  };
   const historySourceFilters = (
     <div className="history-source-filters" role="group" aria-label={t('history.sources')}>
       {(['all', 'workspace', 'personal'] as const).map((item) => (
@@ -1236,12 +1267,70 @@ export function HistoryDrawer({
           }}
           className={`history-filter${sourceFilter === item ? ' is-active' : ''}`}
           aria-pressed={sourceFilter === item}
-          aria-label={item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}
+          aria-label={sourceLabels[item]}
         >
-          <span>{item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}</span>
+          <span>{sourceLabels[item]}</span>
           <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
         </button>
       ))}
+    </div>
+  );
+  const historySourceSelect = (
+    <div className="history-source-filters" ref={sourceMenuRef} role="group" aria-label={t('history.sources')}>
+      <button
+        ref={sourceMenuButtonRef}
+        type="button"
+        className="history-source-select"
+        onClick={() => setIsSourceMenuOpen((open) => !open)}
+        aria-haspopup="menu"
+        aria-expanded={isSourceMenuOpen}
+        aria-label={`${t('history.sourceCaption')}: ${sourceLabels[sourceFilter]} ${historyCounts.source[sourceFilter]}`}
+      >
+        <span>{sourceLabels[sourceFilter]}</span>
+        <span className="history-source-select-count" aria-hidden="true">{historyCounts.source[sourceFilter]}</span>
+        <ChevronDown size={14} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      {isSourceMenuOpen && (
+        <div className="history-source-menu" ref={sourceMenuItemsRef} role="menu" aria-label={t('history.sources')}>
+          {(['all', 'workspace', 'personal'] as const).map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="menuitemradio"
+              data-history-filter={item}
+              aria-checked={sourceFilter === item}
+              className="history-source-option"
+              onClick={() => {
+                setSourceFilterPinned(true);
+                if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
+                if (sourceFilter !== item) setSourceFilter(item);
+                if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
+                setBulkDeleteCategory(null);
+                setBulkDeleteRecordId(null);
+                setBulkDeleteError('');
+                setIsSourceMenuOpen(false);
+                sourceMenuButtonRef.current?.focus();
+              }}
+              onKeyDown={(event) => {
+                const options = sourceMenuItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]');
+                if (!options?.length) return;
+                const currentIndex = Array.from(options).indexOf(event.currentTarget);
+                let nextIndex: number;
+                if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % options.length;
+                else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + options.length) % options.length;
+                else if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = options.length - 1;
+                else return;
+                event.preventDefault();
+                options[nextIndex].focus();
+              }}
+            >
+              <span>{sourceLabels[item]}</span>
+              <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -1285,14 +1374,6 @@ export function HistoryDrawer({
         <div className={`history-drawer-controls${pageMode ? ' is-page-controls' : ''}`}>
           {pageMode ? (
             <>
-              <div className="history-page-filter-section is-source-section">
-                <span className="history-page-filter-label">{t('history.sourceCaption')}</span>
-                {historySourceFilters}
-              </div>
-              <div className="history-page-filter-section is-status-section">
-                <span className="history-page-filter-label">{t('history.statusCaption')}</span>
-                {historyStatusFilters}
-              </div>
               <button
                 type="button"
                 onClick={() => onClose()}
@@ -1307,6 +1388,19 @@ export function HistoryDrawer({
 
         <div className={`history-content${pageMode ? ' is-page' : ''}`} data-has-selection={Boolean(activeSelectedRecord)}>
         <div className="history-list-pane">
+        {pageMode && (
+          <div className="history-list-status-section">
+            <div className="history-list-status-heading">
+              <span className="history-page-filter-label">{t('history.statusCaption')}</span>
+              {historyStatusFilters}
+            </div>
+            <div className="history-list-source-row">
+              <div className="history-page-filter-section is-source-section">
+                {historySourceSelect}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="history-record-list" ref={historyRecordListRef}>
           {filteredRecords.length === 0 ? (
             <div className="history-empty" role="status">

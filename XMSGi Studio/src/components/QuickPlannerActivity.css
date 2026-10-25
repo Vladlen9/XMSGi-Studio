@@ -7,15 +7,16 @@
   margin-inline: -35px;
   padding: 14px 12px 8px;
   border: 1px solid rgba(91, 145, 177, 0.24);
-  border-radius: 12px;
+  border-radius: 16px;
+  overflow: visible;
   background:
-    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.88), transparent 56%),
-    linear-gradient(145deg, rgba(250, 253, 255, 0.96), rgba(225, 241, 250, 0.92));
+    radial-gradient(ellipse at 12% 0%, rgba(255, 255, 255, 0.96), transparent 52%),
+    linear-gradient(150deg, rgba(246, 251, 255, 0.97), rgba(223, 239, 250, 0.94));
   box-shadow:
-    0 8px 18px rgba(35, 70, 91, 0.1),
-    0 2px 4px rgba(35, 70, 91, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96),
-    inset 0 -1px 0 rgba(116, 162, 188, 0.1);
+    0 14px 28px rgba(35, 70, 91, 0.12),
+    0 4px 12px rgba(35, 70, 91, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1px 0 rgba(116, 162, 188, 0.12);
 }
 
 html[data-theme='dark'] .quick-planner-activity-section {
@@ -117,11 +118,26 @@ html[data-theme='dark'] .quick-planner-activity-period-option.is-active {
   align-items: center;
   gap: 11px;
   margin: 10px 0 2px;
+  padding: 4px 0 2px;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+}
+
+.quick-planner-activity-total.is-clearing,
+.quick-planner-activity-lower.is-clearing {
+  opacity: 0;
+  transform: translateY(4px) scale(0.985);
+  filter: blur(2px);
+  transition-duration: 120ms;
+}
+
+.quick-planner-activity-total.is-revealing,
+.quick-planner-activity-lower.is-revealing {
+  animation: quick-planner-activity-chart-reveal 380ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .quick-planner-activity-total-count {
   flex: 0 0 auto;
-  color: #263746;
+  color: #1d2d3c;
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-size: 32px;
   font-variant-numeric: tabular-nums;
@@ -129,9 +145,9 @@ html[data-theme='dark'] .quick-planner-activity-period-option.is-active {
   letter-spacing: -0.055em;
   line-height: 1;
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.96),
     0 2px 0 rgba(25, 43, 57, 0.18),
-    0 4px 6px rgba(25, 43, 57, 0.18);
+    0 5px 10px rgba(25, 43, 57, 0.12);
 }
 
 .quick-planner-activity-total-copy {
@@ -141,6 +157,7 @@ html[data-theme='dark'] .quick-planner-activity-period-option.is-active {
   align-items: center;
   padding-left: 11px;
   border-left: 1px solid rgba(71, 124, 158, 0.22);
+  opacity: 0.96;
 }
 
 .quick-planner-activity-total-label {
@@ -191,6 +208,44 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   height: 158px;
   margin: 4px -12px 0;
   isolation: isolate;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+}
+
+.quick-planner-activity-chart.is-clearing {
+  opacity: 0;
+  transform: translateY(4px) scale(0.985);
+  filter: blur(2px);
+  transition-duration: 120ms;
+}
+
+.quick-planner-activity-chart.is-revealing {
+  animation: quick-planner-activity-chart-reveal 380ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes quick-planner-activity-chart-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scaleY(0.92);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-planner-activity-chart.is-clearing,
+  .quick-planner-activity-chart.is-revealing,
+  .quick-planner-activity-total.is-clearing,
+  .quick-planner-activity-total.is-revealing,
+  .quick-planner-activity-lower.is-clearing,
+  .quick-planner-activity-lower.is-revealing {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
 }
 
 .quick-planner-activity-chart[data-period='7'] {
@@ -352,8 +407,10 @@ html:not([data-theme='dark']) .quick-planner-activity-scale-label.is-peak {
   stroke: rgba(193, 232, 255, 0.38);
   stroke-width: 0.6px;
   opacity: 0.9;
+  transform-box: fill-box;
+  transform-origin: center bottom;
   filter: drop-shadow(0 1px 1.5px rgba(11, 104, 184, 0.26));
-  transition: opacity 150ms ease, filter 150ms ease;
+  transition: opacity 220ms ease, filter 220ms ease, transform 220ms ease;
 }
 
 html:not([data-theme='dark']) .quick-planner-activity-month-bar {
@@ -395,6 +452,9 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
 
 .quick-planner-activity-area {
   pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 .quick-planner-activity-line-depth {
@@ -405,6 +465,9 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   stroke-linejoin: round;
   opacity: 0.24;
   transform: translateY(2px);
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 .quick-planner-activity-chart[data-period='7'] .quick-planner-activity-line-depth {
@@ -419,6 +482,9 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   stroke-linejoin: round;
   opacity: 0.24;
   filter: blur(4px);
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
 }
 
 .quick-planner-activity-chart[data-period='7'] .quick-planner-activity-line-glow {
@@ -432,6 +498,9 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: drop-shadow(0 1px 2px rgba(13, 94, 159, 0.4));
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
 }
 
 .quick-planner-activity-line-highlight {
@@ -441,13 +510,19 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   stroke-linecap: round;
   stroke-linejoin: round;
   transform: translateY(-0.7px);
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 .quick-planner-activity-point-dot {
   fill: var(--activity-chart-color);
   stroke: var(--surface-raised, #fff);
   stroke-width: 1.5px;
+  transform-box: fill-box;
+  transform-origin: center bottom;
   filter: drop-shadow(0 1px 1px rgba(13, 94, 159, 0.28));
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
 }
 
 .quick-planner-activity-count-shadow,
@@ -621,6 +696,7 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   flex: 1 1 auto;
   flex-direction: column;
   justify-content: flex-end;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
 }
 
 .quick-planner-activity-view {
@@ -638,7 +714,7 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   color: #758592;
   font: 700 11px/1.2 "Exo 2", Arial, sans-serif;
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .quick-planner-activity-view > span {
@@ -677,6 +753,7 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 20px -8px 8px;
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
 }
 
 .quick-planner-activity-highlight {
@@ -688,16 +765,19 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   justify-content: center;
   gap: 4px;
   padding: 6px 3px;
-  border: 1px solid rgba(105, 150, 177, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.38);
+  border: 1px solid rgba(105, 150, 177, 0.12);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(233, 245, 255, 0.56));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   text-align: center;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
 }
 
 .quick-planner-activity-highlight strong {
   color: #263746;
   font: 800 17px/1.1 "Exo 2", Arial, sans-serif;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
 }
 
 .quick-planner-activity-highlight span {
@@ -746,9 +826,10 @@ html[data-theme='dark'] .quick-planner-activity-view.is-active {
 }
 
 html[data-theme='dark'] .quick-planner-activity-highlight {
-  border-color: transparent;
-  border-radius: 0;
-  background: transparent;
+  border-color: rgba(110, 166, 202, 0.16);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(47, 62, 72, 0.72), rgba(35, 49, 58, 0.54));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 html[data-theme='dark'] .quick-planner-activity-highlight strong {

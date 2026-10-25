@@ -469,6 +469,65 @@ html[data-theme='dark'] .workspace-page-action-left-group .workspace-page-previe
   color: #53b3ff !important;
 }
 
+html[data-theme='dark'][data-theme-variant='charcoal'],
+html[data-theme='dark'][data-theme-variant='charcoal'] body,
+html[data-theme='dark'][data-theme-variant='charcoal'] #root {
+  background-color: #252422;
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .product-shell,
+html[data-theme='dark'][data-theme-variant='charcoal'] .product-shell.studio-shell,
+html[data-theme='dark'][data-theme-variant='charcoal'] .product-shell.planner-shell,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page,
+html[data-theme='dark'][data-theme-variant='charcoal'] .settings-view,
+html[data-theme='dark'][data-theme-variant='charcoal'] .auth-panel {
+  background: #252422;
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .topbar,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-toolbar,
+html[data-theme='dark'][data-theme-variant='charcoal'] .settings-view-section {
+  background-color: #2b2a27;
+  border-color: #45433e;
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-workbench,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-editor-shell,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-rich-text-input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page .workspace-page-rich-text-input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-message,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-mode-switch,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-presets,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-schedule-row button,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-time-list button,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-chat-menu input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-schedule-popover input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .quick-planner-emoji-search {
+  border-color: #4a4842;
+  background: #302f2c;
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-editor-shell {
+  box-shadow: inset 0 0 0 1px rgba(236, 234, 230, 0.035), 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-rich-text-input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page .workspace-page-rich-text-input,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page .workspace-page-rich-text-input:focus,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page .workspace-page-rich-text-input:focus-visible {
+  border-color: #4a4842 !important;
+  background: #302f2c !important;
+  color: #eceae6 !important;
+}
+
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-action-left-group .workspace-page-mode-button,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-action-left-group .workspace-page-preview-toggle,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-action-row .workspace-page-attachment-toggle,
+html[data-theme='dark'][data-theme-variant='charcoal'] .workspace-page-submit-actions .workspace-page-publish-menu-toggle {
+  border-color: #4a4842 !important;
+  background: #302f2c !important;
+}
+
 html[data-theme='dark'] .workspace-page .workspace-page-preview-pupil {
   fill: #53b3ff;
 }
@@ -1235,11 +1294,11 @@ html[data-theme='light'] .history-empty > svg {
 }
 
 html[data-theme='light'] .history-empty-art-orbit {
-  border-color: rgba(56, 132, 169, 0.36);
+  border-color: rgba(56, 132, 169, 0.52);
 }
 
 html[data-theme='light'] .history-empty-art-orbit--inner {
-  border-color: rgba(56, 132, 169, 0.48);
+  border-color: rgba(56, 132, 169, 0.66);
 }
 
 html[data-theme='light'] .history-empty-art-icon {
@@ -1251,19 +1310,19 @@ html[data-theme='light'] .history-empty-art-icon {
 }
 
 html[data-theme='light'] .history-empty-art-spark {
-  border-color: rgba(56, 132, 169, 0.68);
-  box-shadow: 0 0 7px rgba(56, 132, 169, 0.18);
+  border-color: rgba(43, 112, 149, 0.82);
+  box-shadow: 0 0 8px rgba(43, 112, 149, 0.26);
 }
 
 html[data-theme='light'] .history-empty button {
-  border-color: #d7e3e9;
+  border-color: #b8cbd4;
   background: #f1f6f8;
   color: #365466;
 }
 
 html[data-theme='light'] .history-empty button:hover,
 html[data-theme='light'] .history-empty button:focus-visible {
-  border-color: #a9cbd9;
+  border-color: #8fb7c8;
   background: #e5f2f7;
   color: #1d5068;
   box-shadow: 0 0 0 3px rgba(88, 160, 190, 0.12);
@@ -2527,16 +2586,16 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-icon 
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-orbit {
-  border-color: rgba(56, 132, 169, 0.36);
+  border-color: rgba(56, 132, 169, 0.52);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-orbit--inner {
-  border-color: rgba(56, 132, 169, 0.48);
+  border-color: rgba(56, 132, 169, 0.66);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-spark {
-  border-color: rgba(56, 132, 169, 0.68);
-  box-shadow: 0 0 7px rgba(56, 132, 169, 0.18);
+  border-color: rgba(43, 112, 149, 0.82);
+  box-shadow: 0 0 8px rgba(43, 112, 149, 0.26);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty h2 {
@@ -3060,4 +3119,374 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-empty p {
   color: #526570;
   font-size: 14px;
   line-height: 1.6;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-page-filter-label {
+  color: #9aadb6;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-page-filter-label::before {
+  background: #67d8cb;
+  box-shadow: 0 0 8px rgba(103, 216, 203, 0.45);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-filters {
+  border: 1px solid #314a52;
+  background: linear-gradient(180deg, #1b2d34, #17262d);
+  box-shadow: inset 0 1px 0 rgba(226, 248, 251, 0.06), 0 3px 10px rgba(4, 15, 19, 0.14);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-tab {
+  border-color: transparent;
+  background: transparent;
+  color: #a4b3ba;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-tab:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-tab:focus-visible {
+  border-color: rgba(132, 181, 185, 0.25);
+  background: rgba(132, 181, 185, 0.11);
+  color: #e2f0f0;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter.is-active,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-tab.is-active {
+  border-color: #4b928b;
+  background: linear-gradient(180deg, #2d6865, #245755);
+  color: #effffc;
+  box-shadow: inset 0 1px 0 rgba(239, 255, 252, 0.16), 0 2px 7px rgba(7, 20, 22, 0.2);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter-count {
+  border-color: rgba(156, 179, 185, 0.14);
+  background: rgba(154, 177, 183, 0.12);
+  color: #b8c5c9;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-filter.is-active .history-filter-count,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-status-tab.is-active .history-filter-count {
+  border-color: rgba(197, 247, 238, 0.2);
+  background: rgba(204, 250, 241, 0.16);
+  color: #d7fff7;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-page-filter-label {
+  color: #5c737d;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-page-filter-label::before {
+  background: #278f8c;
+  box-shadow: 0 0 7px rgba(39, 143, 140, 0.3);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-source-filters,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-filters {
+  border: 1px solid #c5d4d9;
+  background: linear-gradient(180deg, #edf3f4, #e3ebee);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 5px rgba(35, 58, 70, 0.06);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-tab {
+  border-color: transparent;
+  background: transparent;
+  color: #506670;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter:hover,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-tab:hover,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-tab:focus-visible {
+  border-color: #c4d4d8;
+  background: rgba(255, 255, 255, 0.68);
+  color: #294e5c;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter.is-active,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-tab.is-active {
+  border-color: #8fbeb8;
+  background: linear-gradient(180deg, #ffffff, #d7ece7);
+  color: #165a57;
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 5px rgba(34, 112, 104, 0.12);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter-count {
+  border-color: #d0dcdf;
+  background: #e6edef;
+  color: #566d76;
+  box-shadow: none;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-filter.is-active .history-filter-count,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .history-status-tab.is-active .history-filter-count {
+  border-color: #b4d7d0;
+  background: #c4e2dc;
+  color: #165a57;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-filters {
+  border: 1px solid rgba(141, 180, 190, 0.2);
+  background: rgba(27, 43, 50, 0.54);
+  box-shadow: inset 0 1px 0 rgba(221, 244, 248, 0.045);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab {
+  border-color: transparent;
+  background: transparent;
+  color: #95a5ae;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:focus-visible {
+  border-color: transparent;
+  background: rgba(137, 157, 168, 0.1);
+  color: #e3f2f2;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active {
+  border-color: rgba(107, 223, 211, 0.32);
+  background: linear-gradient(180deg, rgba(83, 193, 185, 0.26), rgba(35, 99, 103, 0.2));
+  color: #d2f6f1;
+  box-shadow: inset 0 1px 0 rgba(235, 255, 251, 0.15), 0 2px 8px rgba(22, 112, 111, 0.2);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter-count,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count {
+  border: 1px solid rgba(145, 168, 179, 0.12);
+  background: linear-gradient(180deg, rgba(137, 157, 168, 0.18), rgba(137, 157, 168, 0.09));
+  color: #9cabb3;
+  box-shadow: inset 0 1px 0 rgba(230, 243, 248, 0.06);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active .history-filter-count,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
+  border-color: rgba(126, 229, 218, 0.25);
+  background: linear-gradient(180deg, rgba(99, 208, 197, 0.3), rgba(67, 154, 153, 0.2));
+  color: #b2f4ed;
+  box-shadow: inset 0 1px 0 rgba(230, 255, 251, 0.14), 0 2px 6px rgba(25, 113, 112, 0.16);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:focus-visible {
+  border-color: rgba(154, 240, 229, 0.48);
+  background: linear-gradient(180deg, rgba(102, 207, 197, 0.23), rgba(42, 111, 115, 0.16));
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters {
+  border-color: rgba(151, 169, 180, 0.2);
+  background: rgba(36, 47, 54, 0.72);
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.045);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter {
+  color: #aab6bc;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:focus-visible {
+  border-color: rgba(173, 190, 198, 0.2);
+  background: rgba(147, 166, 177, 0.12);
+  color: #edf2f4;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active {
+  border-color: rgba(163, 183, 193, 0.3);
+  background: linear-gradient(180deg, rgba(104, 126, 138, 0.34), rgba(71, 89, 99, 0.32));
+  color: #f0f4f6;
+  box-shadow: inset 0 1px 0 rgba(239, 247, 250, 0.12), 0 2px 7px rgba(7, 20, 22, 0.16);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter-count {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border-color: rgba(166, 184, 192, 0.14);
+  border: 0;
+  background: transparent;
+  color: #c4cdd1;
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active .history-filter-count {
+  border: 0;
+  background: transparent;
+  color: #f0f4f6;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-filters {
+  border-color: rgba(151, 169, 180, 0.2);
+  background: rgba(36, 47, 54, 0.72);
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.045);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab {
+  color: #aab6bc;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:focus-visible {
+  border-color: rgba(173, 190, 198, 0.2);
+  background: rgba(147, 166, 177, 0.12);
+  color: #edf2f4;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active {
+  border-color: rgba(163, 183, 193, 0.3);
+  background: linear-gradient(180deg, rgba(104, 126, 138, 0.34), rgba(71, 89, 99, 0.32));
+  color: #f0f4f6;
+  box-shadow: inset 0 1px 0 rgba(239, 247, 250, 0.12), 0 2px 7px rgba(7, 20, 22, 0.16);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count {
+  border-color: rgba(166, 184, 192, 0.14);
+  background: rgba(166, 184, 192, 0.12);
+  color: #c4cdd1;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
+  border-color: rgba(224, 233, 237, 0.18);
+  background: rgba(224, 233, 237, 0.14);
+  color: #f0f4f6;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:focus-visible {
+  border-color: rgba(173, 190, 198, 0.44);
+  background: rgba(154, 168, 184, 0.18);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #c4cdd1;
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
+  border: 0;
+  background: transparent;
+  color: #f0f4f6;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-filters {
+  border: 1px solid #303b44;
+  border-radius: 12px;
+  background: #151b20;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters {
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab {
+  border: 1px solid rgba(154, 168, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(154, 168, 184, 0.07);
+  color: #d3dce4;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:focus-visible {
+  border-color: rgba(154, 168, 184, 0.36);
+  background: rgba(154, 168, 184, 0.14);
+  color: #edf2f5;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter.is-active,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active {
+  border-color: rgba(154, 168, 184, 0.44);
+  background: rgba(154, 168, 184, 0.2);
+  color: #f0f4f6;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-filters {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:not(.is-active),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:not(.is-active):hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:not(.is-active):focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:not(.is-active):hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-controls .history-source-filters .history-filter:not(.is-active):focus-visible {
+  color: #edf2f5;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active),
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active):hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active):focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active):hover,
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active):focus-visible {
+  color: #edf2f5;
+}
+
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-filters {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-select,
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-select:hover,
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-select:focus-visible,
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-select[aria-expanded='true'] {
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section .history-source-select-count {
+  display: none;
 }
