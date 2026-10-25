@@ -517,7 +517,7 @@ export function HistoryDrawer({
   sourceFilterOnOpen?: HistorySourceFilter;
   sourceFilterOnOpenMode?: 'initial' | 'temporary';
   statusFilterOnOpen?: Exclude<HistoryStatusFilter, 'notes'>;
-  onClose: () => void;
+  onClose: (restorePreviousView?: boolean) => void;
   records: HistoryItem[];
   onCancel: (record: HistoryItem) => void;
   onReschedule: (record: HistoryItem) => void;
@@ -1173,7 +1173,7 @@ export function HistoryDrawer({
       <div
         className={`history-drawer-backdrop${pageMode ? ' is-page' : ''}`}
         aria-hidden="true"
-        onClick={onClose}
+        onClick={() => onClose()}
       />
 
       <aside
@@ -1191,7 +1191,7 @@ export function HistoryDrawer({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onClose()}
             aria-label={t('history.close')}
             className="history-drawer-close"
           >
@@ -1275,7 +1275,7 @@ export function HistoryDrawer({
                         if (isPlannerDraftRecord(record)) {
                           setDraftUseTarget((current) => current?.id === record.id ? null : record);
                         }
-                        else { onUseDraft?.(record); onClose(); }
+                        else { onUseDraft?.(record); onClose(false); }
                       }, type: 'use-draft' }
                     : null;
               const secondaryActions = [
@@ -1489,7 +1489,7 @@ export function HistoryDrawer({
                               onClick={() => {
                                 onUseDraft?.(draftUseTarget, 'studio');
                                 setDraftUseTarget(null);
-                                onClose();
+                                onClose(false);
                               }}
                             >
                               {t('product.studio')}
@@ -1501,7 +1501,7 @@ export function HistoryDrawer({
                               onClick={() => {
                                 onUseDraft?.(draftUseTarget, 'planner');
                                 setDraftUseTarget(null);
-                                onClose();
+                                onClose(false);
                               }}
                             >
                               {t('product.planner')}

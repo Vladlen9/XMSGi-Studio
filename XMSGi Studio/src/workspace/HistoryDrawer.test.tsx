@@ -850,7 +850,7 @@ describe('HistoryDrawer search', () => {
     fireEvent.click(within(chooser).getByRole('menuitem', { name: destinationLabel }));
 
     expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, destination);
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledWith(false);
   });
 
   it('mentions drafts in the empty Planner state', () => {

@@ -107,6 +107,7 @@ export function useTelegramAuth({
     setAuthErrorValue(t(key));
   }, [t]);
   const visibleAuthError = authErrorTranslationKey ? t(authErrorTranslationKey) : authError;
+  const authNotice = authErrorTranslationKey === 'auth.enterTwoFactor';
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatusSnapshot>({
     accountId: '',
@@ -575,6 +576,7 @@ export function useTelegramAuth({
     authBusy,
     setAuthBusy,
     authError: visibleAuthError,
+    authNotice,
     telegramStatus,
     setAuthError,
     isConfirmingLogout,

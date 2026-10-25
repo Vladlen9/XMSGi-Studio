@@ -59,6 +59,17 @@ function AppContent() {
   const { t } = useLocale();
   const browserDraftMode = !isDesktopTelegramRuntime();
   const [, setSavedPlannerDraftRevision] = useState(0);
+  const [plannerDraftLoadRequest, setPlannerDraftLoadRequest] = useState<{
+    revision: number;
+    text: string;
+    attachments: string[];
+    entities: RichTextEntity[];
+    restoreDraft: {
+      text: string;
+      attachments: string[];
+      entities: RichTextEntity[];
+    } | null;
+  } | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const initialMessageSession = createMessageSession({
     text: readPlannerDraft(),
@@ -229,6 +240,7 @@ function AppContent() {
   const studioHistoryReschedulerRef = useRef<((message: StudioScheduledMessage) => void) | null>(null);
   const studioPlannerTextOpenerRef = useRef<((payload: StudioPlannerTextPayload) => Promise<boolean>) | null>(null);
   const pendingPlannerTextRef = useRef<StudioPlannerTextPayload | null>(null);
+  const pendingPlannerTextOpenedRef = useRef<((opened: boolean) => void) | null>(null);
   const [studioPlannerTextOpenerVersion, setStudioPlannerTextOpenerVersion] = useState(0);
   const registerPlannerTextOpener = useCallback((opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => {
     studioPlannerTextOpenerRef.current = opener;
@@ -272,6 +284,7 @@ function AppContent() {
     twoFactorPassword,
     authBusy,
     authError,
+    authNotice,
     telegramStatus,
     isConfirmingLogout,
     setIsConfirmingLogout,
@@ -403,12 +416,15 @@ function AppContent() {
     studioNotifications.closeNotification,
   );
 
-  const openPlannerTextInStudio = async (payload: StudioPlannerTextPayload) => {
+  const openPlannerTextInStudio = (
+    payload: StudioPlannerTextPayload,
+    onOpened?: (opened: boolean) => void,
+  ) => {
     if (!hasPlannerPayloadContent(payload)) {
       showNotification('Add text or an attachment before opening Studio.', 'warning', 'Nothing to open');
-      return;
+      return false;
     }
-    if (pendingPlannerTextRef.current !== null) return;
+    if (pendingPlannerTextRef.current !== null) return false;
 
     pendingPlannerTextRef.current = {
       text: payload.text,
@@ -416,9 +432,11 @@ function AppContent() {
       entities: payload.entities.map((entity) => ({ ...entity })),
       ...(payload.effect ? { effect: payload.effect } : {}),
     };
+    pendingPlannerTextOpenedRef.current = onOpened ?? null;
     setCurrentAction('draft');
     setMessageSessionStatus('preview');
     setProductView('studio');
+    return true;
   };
 
   useEffect(() => {
@@ -429,14 +447,20 @@ function AppContent() {
       const timeout = window.setTimeout(() => {
         if (pendingPlannerTextRef.current !== pendingText) return;
         pendingPlannerTextRef.current = null;
+        const onOpened = pendingPlannerTextOpenedRef.current;
+        pendingPlannerTextOpenedRef.current = null;
+        onOpened?.(false);
         showNotification('Studio did not finish loading. Planner text is unchanged.', 'error', 'Could not open Studio');
       }, 10000);
       return () => window.clearTimeout(timeout);
     }
 
     pendingPlannerTextRef.current = null;
+    const onOpened = pendingPlannerTextOpenedRef.current;
+    pendingPlannerTextOpenedRef.current = null;
     try {
       void opener(pendingText).then((opened) => {
+        onOpened?.(opened);
         if (!opened) {
           showNotification(
             'Studio could not preserve its current document. Planner text was not opened.',
@@ -445,9 +469,11 @@ function AppContent() {
           );
         }
       }).catch(() => {
+        onOpened?.(false);
         showNotification('Studio could not open the Planner text. Your Planner text is unchanged.', 'error', 'Could not open Studio');
       });
     } catch {
+      onOpened?.(false);
       showNotification('Studio could not open the Planner text. Your Planner text is unchanged.', 'error', 'Could not open Studio');
     }
   }, [productView, showNotification, studioPlannerTextOpenerVersion]);
@@ -605,7 +631,10 @@ function AppContent() {
   const useHistoryDraft = (record: HistoryItem, destination?: 'planner' | 'studio') => {
     if (record.original.kind === 'saved-draft') {
       setProductView('studio');
-      studioDraftUseRef.current?.(record.original.draft);
+      const applyDraft = studioDraftUseRef.current;
+      if (!applyDraft) return;
+      applyDraft(record.original.draft);
+      void studioDraftDeleterRef.current?.(record.original.draft.id);
       return;
     }
 
@@ -617,14 +646,48 @@ function AppContent() {
     if (!plannerPayload) return;
 
     if (destination === 'studio') {
-      void openPlannerTextInStudio(plannerPayload);
+      const savedDraftId = record.original.kind === 'saved-planner-draft' ? record.original.draft.id : null;
+      openPlannerTextInStudio(plannerPayload, (opened) => {
+        if (!opened || !savedDraftId) return;
+        const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
+        if (!writeSavedPlannerDrafts(remainingDrafts)) {
+          showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
+        }
+      });
       return;
     }
 
     setProductView('planner');
+    const restoreDraft = plannerDraftLoadRequest?.restoreDraft ?? {
+      text: readPlannerDraft(),
+      attachments: readPlannerDraftAttachments(),
+      entities: readPlannerDraftEntities(),
+    };
+    flushPlannerDraftWrite();
     setMessageEntities(plannerPayload.entities);
     setPlannerAttachments(plannerPayload.attachments);
     setMessage(plannerPayload.text);
+    setPlannerDraftLoadRequest((current) => ({
+      revision: (current?.revision ?? 0) + 1,
+      text: plannerPayload.text,
+      attachments: [...plannerPayload.attachments],
+      entities: [...plannerPayload.entities],
+      restoreDraft,
+    }));
+    if (record.original.kind === 'saved-planner-draft') {
+      const savedDraftId = record.original.draft.id;
+      const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
+      if (!writeSavedPlannerDrafts(remainingDrafts)) {
+        showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
+      }
+    }
+  };
+
+  const restorePlannerDraft = (draft: { text: string; attachments: string[]; entities: RichTextEntity[] }) => {
+    setMessageEntities(draft.entities);
+    setPlannerAttachments(draft.attachments);
+    setMessage(draft.text);
+    setPlannerDraftLoadRequest((current) => current ? { ...current, restoreDraft: null } : current);
   };
 
   const studioConnected = connected && !signedOut && activeAccountId === 'account-1';
@@ -791,6 +854,7 @@ function AppContent() {
       telegramTwoFactorPassword={twoFactorPassword}
       telegramAuthBusy={authBusy}
       telegramAuthError={authError}
+      telegramAuthNotice={authNotice}
       telegramStatus={telegramStatus}
       telegramCredentials={telegramCredentials}
       telegramApiId={telegramApiId}
@@ -920,6 +984,8 @@ function AppContent() {
         {route === '/settings' ? renderSettingsPage() : (
           plannerSurface === 'pending' ? null : plannerSurface === 'quick' ? (
             <QuickPlanner
+              draftLoadRequest={plannerDraftLoadRequest}
+              onRestoreDraft={restorePlannerDraft}
               chats={chats}
               selectedChat={selectedChat}
               upcoming={personalUpcoming}
@@ -972,6 +1038,7 @@ function AppContent() {
             twoFactorPassword={twoFactorPassword}
             authBusy={authBusy}
             authError={authError}
+            authNotice={authNotice}
             setShowAuthForm={setShowAuthForm}
             setAuthStep={setAuthStep}
             setPhoneNumber={setPhoneNumber}

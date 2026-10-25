@@ -1580,6 +1580,19 @@ export function WorkspacePage({
   const reconnectingForSend = publishingDraft
     && (telegramConnectionState === 'connecting' || telegramConnectionState === 'reconnecting');
   const localizeChatName = (name: string) => name === 'Saved Messages' ? t('studio.savedMessagesType') : name;
+  const selectedChatSubtitle = selectedChat
+    ? selectedChat.name === 'Saved Messages'
+      ? t('studio.privateChat')
+      : selectedChat.type === 'private'
+        ? selectedChat.username
+          ? `@${selectedChat.username.replace(/^@/, '')}`
+          : t('studio.privateChat')
+        : selectedChat.type === 'group'
+          ? t('studio.groupChat')
+          : selectedChat.type === 'channel'
+            ? t('studio.channelType')
+            : t('studio.chatType')
+    : '';
   const currentModeSummary = rescheduleSource
     ? t('studio.replaceScheduled', { chat: localizeChatName(rescheduleSource.chatName) })
     : publishAction === 'schedule'
@@ -1976,11 +1989,11 @@ export function WorkspacePage({
     setTemplateDraftBody(template?.body ?? '');
   };
 
-  const closeTemplateEditor = () => {
+  const closeTemplateEditor = useCallback(() => {
     setTemplateEditingId(null);
     setTemplateDraftName('');
     setTemplateDraftBody('');
-  };
+  }, []);
 
   const openDraftEditor = (draft?: SavedDraft) => {
     draftEditingSourceRef.current = draft ?? null;
@@ -2093,14 +2106,14 @@ export function WorkspacePage({
     return () => onRegisterHistoryRescheduleHandler(null);
   }, [onRegisterHistoryRescheduleHandler]);
 
-  const closeDraftEditor = () => {
+  const closeDraftEditor = useCallback(() => {
     draftEditingSourceRef.current = null;
     setDraftEditingId(null);
     setDraftEditorColor('gray');
     setDraftName('');
     setDraftBodyText('');
     setDraftBodyEntities([]);
-  };
+  }, []);
 
   const handleDeleteDraft = async (draft: SavedDraft) => {
     if (!await confirm({
@@ -2120,6 +2133,26 @@ export function WorkspacePage({
       replaceSavedDrafts(nextSavedDrafts);
     });
     if (deleted) showPublishFeedback(checkpoint.error || t('studio.draftDeleted'), checkpoint.error ? 'warning' : 'success');
+  };
+
+  const handleRenameDraft = async (draft: SavedDraft, name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return false;
+    const currentSavedDrafts = savedDraftsRef.current;
+    const currentDraft = currentSavedDrafts.find((item) => item.id === draft.id);
+    if (!currentDraft) return false;
+    if (currentDraft.name === trimmedName) return true;
+
+    const nextSavedDrafts = currentSavedDrafts.map((item) => (
+      item.id === draft.id
+        ? { ...item, name: trimmedName, updatedAt: new Date().toISOString() }
+        : item
+    ));
+    const saved = await persistDraftStore(nextSavedDrafts, createWorkspaceDraftSnapshot(), () => {
+      replaceSavedDrafts(nextSavedDrafts);
+    });
+    if (saved) showPublishFeedback(t('studio.draftRenamed'), 'success');
+    return saved;
   };
 
   historyDraftClearerRef.current = async () => {
@@ -2272,7 +2305,7 @@ export function WorkspacePage({
     setStageMode('editor');
   };
 
-  const changeStageMode = (nextMode: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons') => {
+  const changeStageMode = useCallback((nextMode: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons') => {
     if (nextMode !== 'schedule') setScheduleFocus(null);
     if (stageMode === 'chat' && nextMode !== 'chat') {
       setSelectedChat(workspaceChatOriginRef.current);
@@ -2283,7 +2316,7 @@ export function WorkspacePage({
     if (nextMode !== 'draft') closeDraftEditor();
     setStageTab(nextMode === 'template' ? 'templates' : nextMode === 'draft' ? 'drafts' : nextMode === 'buttons' ? 'buttons' : 'editor');
     setStageMode(nextMode);
-  };
+  }, [closeDraftEditor, closeTemplateEditor, setSelectedChat, stageMode]);
 
   const openPlannerTextInEditor = useCallback(async (payload: StudioPlannerTextPayload) => {
     const text = payload.text;
@@ -2294,9 +2327,10 @@ export function WorkspacePage({
         || attachment.sourcePath === rawIncomingAttachments[index].path
       ));
     if ((!text.trim() && rawIncomingAttachments.length === 0) || !draftStoreReady || !draftStateHydrated) return false;
-    if (stageMode !== 'editor' || draftEditingId || rescheduleSourceRef.current) return false;
+    if (draftEditingId || rescheduleSourceRef.current) return false;
 
     if (draftBody === text && sameAttachments) {
+      setDraftEntities(normalizeRichTextEntities(payload.entities, text.length));
       setMessageEffectId(payload.effect ?? null);
       plannerRestoreRef.current ??= {
         draft: createSavedDraft({
@@ -2315,6 +2349,7 @@ export function WorkspacePage({
           repeatOccurrences,
         }),
       };
+      changeStageMode('editor');
       bodyInputRef.current?.focus({ preventScroll: true });
       return true;
     }
@@ -2397,12 +2432,12 @@ export function WorkspacePage({
     setAttachments(incomingAttachments);
     setInlineButtons([]);
     setPublishAction('send');
-    setStageTab('editor');
     focusPlannerEditorAtEndRef.current = true;
-    setStageMode('editor');
+    changeStageMode('editor');
     return true;
   }, [
     attachments,
+    changeStageMode,
     createWorkspaceDraftSnapshot,
     date,
     draftBody,
@@ -2418,7 +2453,6 @@ export function WorkspacePage({
     recordWorkspaceVersion,
     selectedChat,
     showPublishFeedback,
-    stageMode,
     t,
     time,
     workspaceDocumentId,
@@ -2991,7 +3025,7 @@ export function WorkspacePage({
                           <ChatAvatar name={selectedChat.name} src={selectedChat.avatarDataUrl} className="workspace-page-chat-trigger-avatar" />
                           <span className="workspace-page-chat-trigger-copy">
                             <strong>{localizeChatName(selectedChat.name)}</strong>
-                            <span>{selectedChat.name === 'Saved Messages' ? t('studio.savedMessagesType') : selectedChat.type || t('studio.chatType')}</span>
+                            <span>{selectedChatSubtitle}</span>
                           </span>
                           <ChatPickerChevron />
                         </>
@@ -3097,6 +3131,7 @@ export function WorkspacePage({
                         templates={templates}
                         savedDrafts={savedDrafts}
                         onInsertDraft={useSavedDraft}
+                        onRenameDraft={handleRenameDraft}
                         draftEditingId={draftEditingId}
                         draftColor={draftEditorColor}
                         setDraftColor={setDraftEditorColor}

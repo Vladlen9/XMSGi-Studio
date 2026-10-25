@@ -19,6 +19,7 @@ type LoginPageProps = {
   twoFactorPassword: string;
   authBusy: boolean;
   authError: string;
+  authNotice: boolean;
   setShowAuthForm: React.Dispatch<React.SetStateAction<boolean>>;
   setAuthStep: React.Dispatch<React.SetStateAction<AuthStep>>;
   setPhoneNumber: React.Dispatch<React.SetStateAction<string>>;
@@ -42,6 +43,7 @@ export function LoginPage({
   twoFactorPassword,
   authBusy,
   authError,
+  authNotice,
   setShowAuthForm,
   setAuthStep,
   setPhoneNumber,
@@ -285,8 +287,8 @@ export function LoginPage({
               <div ref={loginErrorSlotRef} className={`login-error-slot${visibleAuthMessage ? ' has-message' : ''}`} aria-live="polite">
                 <div className="login-error-slot-content">
                   {visibleAuthMessage && (
-                    <p className={`login-error${isConnectionWarning ? ' is-warning' : ''}`} role={isConnectionWarning ? 'status' : 'alert'}>
-                      {!isConnectionWarning && <span className="login-error-mark" aria-hidden="true">!</span>}
+                    <p className={`login-error${isConnectionWarning ? ' is-warning' : ''}${authNotice ? ' is-info' : ''}`} role={isConnectionWarning || authNotice ? 'status' : 'alert'}>
+                      {!isConnectionWarning && <span className="login-error-mark" aria-hidden="true">{authNotice ? 'i' : '!'}</span>}
                       <span>{visibleAuthMessage}</span>
                     </p>
                   )}

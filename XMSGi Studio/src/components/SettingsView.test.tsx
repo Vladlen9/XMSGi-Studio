@@ -31,6 +31,7 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsV
         telegramTwoFactorPassword=""
         telegramAuthBusy={false}
         telegramAuthError=""
+        telegramAuthNotice={false}
         telegramStatus={{ accountId: 'account-1', status: 'normal' } satisfies TelegramStatusSnapshot}
         telegramCredentials={{ hasCredentials: true, hasSession: true, connected: true, signedOut: false }}
         telegramApiId=""
@@ -262,6 +263,24 @@ describe('SettingsView Telegram integration', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Manage connection' });
     expect(dialog).toHaveTextContent('Signed out');
     expect(within(dialog).getByLabelText('Phone')).toBeInTheDocument();
+  });
+
+  it('shows the two-factor prompt as an informational status in Telegram settings', async () => {
+    const message = 'Code accepted. Your Telegram account has two-step verification enabled. Enter your password to continue.';
+    renderSettings({
+      telegramConnected: false,
+      telegramAuthStep: 'password',
+      telegramAuthError: message,
+      telegramAuthNotice: true,
+      telegramCredentials: { hasCredentials: true, hasSession: false, connected: false, signedOut: true },
+    });
+
+    const dialog = await screen.findByRole('dialog', { name: 'Manage connection' });
+    const notice = within(dialog).getByText(message);
+
+    expect(notice).toHaveAttribute('role', 'status');
+    expect(notice).toHaveClass('settings-view-notice');
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('offers reconnect for an existing Telegram session when disconnected', () => {

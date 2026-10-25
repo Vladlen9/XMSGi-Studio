@@ -895,9 +895,11 @@ export function useScheduler({
           : replacementCancellationFailed ? t('schedule.partialCancellationTitle') : t('schedule.scheduledTitle');
         if (errorDetails) showNotification(notificationMessage, notificationType, notificationTitle, errorDetails);
         else showNotification(notificationMessage, notificationType, notificationTitle);
-        setLastAction('scheduled');
-        setSuccessPulse(true);
-        scheduleTimeout(() => setSuccessPulse(false), 1500);
+        if (fullyConfirmed && historyPersisted && !replacementCancellationFailed) {
+          setLastAction('scheduled');
+          setSuccessPulse(true);
+          scheduleTimeout(() => setSuccessPulse(false), 1500);
+        }
         return fullyConfirmed && historyPersisted && !replacementCancellationFailed;
       })
       .catch(async (error) => {

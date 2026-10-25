@@ -835,6 +835,39 @@ html.electron-runtime .workspace-page-rich-text-stage > .workspace-page-textarea
   text-align: left;
 }
 
+.workspace-page-draft-rename {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+
+.workspace-page-draft-rename input {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 27px;
+  width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--line, rgba(154, 168, 184, 0.3));
+  border-radius: 5px;
+  background: var(--surface, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.workspace-page-draft-rename input:focus-visible {
+  border-color: var(--accent, #548ed3);
+  outline: 2px solid color-mix(in srgb, var(--accent, #548ed3) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.workspace-page-draft-rename > span {
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
 .workspace-page-template-stage-item strong,
 .workspace-page-template-stage-item span {
   overflow: hidden;

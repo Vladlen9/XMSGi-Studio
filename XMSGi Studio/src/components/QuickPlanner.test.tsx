@@ -7,7 +7,13 @@ import { fileURLToPath } from 'node:url';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
-import { flushPlannerDraftWrite, readPlannerDraftAttachments, writePlannerDraft } from '../lib/plannerDraft';
+import {
+  flushPlannerDraftWrite,
+  readPlannerDraft,
+  readPlannerDraftAttachments,
+  readPlannerDraftEntities,
+  writePlannerDraft,
+} from '../lib/plannerDraft';
 import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
@@ -91,6 +97,112 @@ describe('QuickPlanner feedback', () => {
     expect(quickPlannerStyles).not.toMatch(
       /\.quick-planner-compose-footer \.quick-planner-action-feedback > span\s*\{/,
     );
+  });
+
+  it('loads a selected history draft into the active Planner editor', () => {
+    const request = {
+      revision: 1,
+      text: 'Continue editing this saved draft',
+      attachments: ['C:/drafts/photo.png'],
+      entities: [{ type: 'bold' as const, offset: 0, length: 8 }],
+      restoreDraft: { text: '', attachments: [], entities: [] },
+    };
+    const view = render(<QuickPlanner />, 'Send now');
+    view.rerender(createElement(LocaleProvider, null, <QuickPlanner draftLoadRequest={request} />));
+
+    expect(view.container.querySelector<HTMLTextAreaElement>('.quick-planner-message')?.value)
+      .toBe('Continue editing this saved draft');
+    expect(view.container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('photo.png');
+    expect(readPlannerDraftAttachments()).toEqual(['C:/drafts/photo.png']);
+  });
+
+  it('restores the previous Planner draft after successfully sending a selected Posts draft', async () => {
+    const chat: Chat = { id: 'chat-restore', name: 'Restore chat' };
+    const restoreDraft = {
+      text: 'Previous Planner text',
+      attachments: ['C:/planner/previous.pdf'],
+      entities: [{ type: 'italic' as const, offset: 0, length: 8 }],
+    };
+    const onRestoreDraft = vi.fn();
+    const onSendNow = vi.fn().mockResolvedValue(true);
+    const { container } = render(
+      <QuickPlanner
+        chats={[chat]}
+        selectedChat={chat}
+        draftLoadRequest={{
+          revision: 1,
+          text: 'Selected Posts draft',
+          attachments: ['C:/posts/selected.png'],
+          entities: [],
+          restoreDraft,
+        }}
+        onRestoreDraft={onRestoreDraft}
+        onSendNow={onSendNow}
+      />,
+    );
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submit = container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', ['C:/posts/selected.png'], undefined);
+    expect(editor).toHaveValue(restoreDraft.text);
+    expect(container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('previous.pdf');
+    expect(readPlannerDraft()).toBe(restoreDraft.text);
+    expect(readPlannerDraftAttachments()).toEqual(restoreDraft.attachments);
+    expect(readPlannerDraftEntities()).toEqual(restoreDraft.entities);
+    expect(onRestoreDraft).toHaveBeenCalledWith(restoreDraft);
+    expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('You had text here before');
+    await act(async () => vi.advanceTimersByTimeAsync(3360));
+    expect(screen.getByRole('status')).toHaveTextContent('You had text here before — we put it back in the editor.');
+    expect(screen.getByRole('status')).toHaveClass('is-success');
+    await act(async () => vi.advanceTimersByTimeAsync(4359));
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('keeps the selected Posts draft after a failed send and restores the previous draft on retry success', async () => {
+    const chat: Chat = { id: 'chat-retry-restore', name: 'Retry restore chat' };
+    const restoreDraft = { text: 'Previous Planner text', attachments: [], entities: [] };
+    const onRestoreDraft = vi.fn();
+    const onSendNow = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const { container } = render(
+      <QuickPlanner
+        chats={[chat]}
+        selectedChat={chat}
+        draftLoadRequest={{
+          revision: 1,
+          text: 'Selected Posts draft',
+          attachments: [],
+          entities: [],
+          restoreDraft,
+        }}
+        onRestoreDraft={onRestoreDraft}
+        onSendNow={onSendNow}
+      />,
+    );
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submit = container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+    expect(editor).toHaveValue('Selected Posts draft');
+    expect(onRestoreDraft).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+    expect(editor).toHaveValue(restoreDraft.text);
+    expect(onRestoreDraft).toHaveBeenCalledWith(restoreDraft);
   });
 
   it('repeats the offline status instead of showing the empty-message warning when sending', () => {

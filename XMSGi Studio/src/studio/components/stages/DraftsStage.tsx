@@ -1,5 +1,5 @@
-import type { Dispatch, SetStateAction } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react';
+import { Check, Download, Pencil, Upload, X } from 'lucide-react';
 import type { DraftColor, SavedDraft } from '@studio/types';
 import { useLocale } from '@studio/lib/i18n';
 import { DraftColorPicker } from '@studio/components/DraftColorPicker';
@@ -18,6 +18,7 @@ interface Props {
   onModeChange: (mode: StageMode) => void;
   savedDrafts: SavedDraft[];
   onInsertDraft: (draft: SavedDraft) => void;
+  onRenameDraft: (draft: SavedDraft, name: string) => Promise<boolean>;
   draftEditingId: string | null;
   draftColor: DraftColor;
   setDraftColor: Dispatch<SetStateAction<DraftColor>>;
@@ -41,6 +42,7 @@ export function DraftsStage({
   onModeChange,
   savedDrafts,
   onInsertDraft,
+  onRenameDraft,
   draftEditingId,
   draftColor,
   setDraftColor,
@@ -59,6 +61,40 @@ export function DraftsStage({
   onImportEditorText,
 }: Props) {
   const { t } = useLocale();
+  const [renamingDraftId, setRenamingDraftId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
+
+  const cancelRename = () => {
+    setRenamingDraftId(null);
+    setRenameValue('');
+  };
+
+  const saveRename = async (draft: SavedDraft) => {
+    const name = renameValue.trim();
+    if (!name || renameSaving) return;
+    if (name === draft.name) {
+      cancelRename();
+      return;
+    }
+
+    setRenameSaving(true);
+    try {
+      if (await onRenameDraft(draft, name)) cancelRename();
+    } finally {
+      setRenameSaving(false);
+    }
+  };
+
+  const handleRenameKeyDown = (event: KeyboardEvent<HTMLInputElement>, draft: SavedDraft) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelRename();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      void saveRename(draft);
+    }
+  };
 
   return (
     <div className={`workspace-page-rich-text-stage-view workspace-page-rich-text-template-stage workspace-page-rich-text-draft-stage ${mode === 'draft' ? 'is-active' : ''}${draftEditingId ? ' has-draft-editor' : ''}`} aria-hidden={mode !== 'draft'}>
@@ -95,18 +131,70 @@ export function DraftsStage({
               const attachmentSummary = getDraftAttachmentSummary(draft, t);
               return (
                 <div className="workspace-page-template-stage-item" key={draft.id}>
-                  <button type="button" onClick={() => onInsertDraft(draft)}>
-                    <strong>
-                      <span className="workspace-page-draft-color-dot" data-color={draft.color ?? 'gray'} aria-hidden="true" />
-                      {draft.name}
-                    </strong>
-                    <span>
-                      {t('studio.characterCount', { count: draft.body.length })}{attachmentSummary ? ` · ${attachmentSummary}` : ''}
-                    </span>
-                  </button>
+                  {renamingDraftId === draft.id ? (
+                    <div className="workspace-page-draft-rename">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                        onKeyDown={(event) => handleRenameKeyDown(event, draft)}
+                        aria-label={t('studio.newDraftName')}
+                        autoFocus
+                        disabled={renameSaving || draftStoreSaving}
+                      />
+                      <span>{t('studio.characterCount', { count: draft.body.length })}{attachmentSummary ? ` · ${attachmentSummary}` : ''}</span>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => onInsertDraft(draft)}>
+                      <strong>
+                        <span className="workspace-page-draft-color-dot" data-color={draft.color ?? 'gray'} aria-hidden="true" />
+                        {draft.name}
+                      </strong>
+                      <span>
+                        {t('studio.characterCount', { count: draft.body.length })}{attachmentSummary ? ` · ${attachmentSummary}` : ''}
+                      </span>
+                    </button>
+                  )}
                   <div>
-                    <button type="button" onClick={() => openDraftEditor(draft)}>{t('studio.edit')}</button>
-                    <button type="button" onClick={() => onDeleteDraft(draft)}>{t('studio.delete')}</button>
+                    {renamingDraftId === draft.id ? (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={t('studio.saveDraftName')}
+                          title={t('studio.saveDraftName')}
+                          onClick={() => { void saveRename(draft); }}
+                          disabled={!renameValue.trim() || renameSaving || draftStoreSaving}
+                        >
+                          <Check size={15} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t('common.cancel')}
+                          title={t('common.cancel')}
+                          onClick={cancelRename}
+                          disabled={renameSaving}
+                        >
+                          <X size={15} aria-hidden="true" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={t('studio.renameDraft', { name: draft.name })}
+                          title={t('studio.renameDraft', { name: draft.name })}
+                          onClick={() => {
+                            setRenamingDraftId(draft.id);
+                            setRenameValue(draft.name);
+                          }}
+                          disabled={!draftStoreReady || draftStoreSaving}
+                        >
+                          <Pencil size={14} aria-hidden="true" />
+                        </button>
+                        <button type="button" onClick={() => openDraftEditor(draft)}>{t('studio.edit')}</button>
+                        <button type="button" onClick={() => onDeleteDraft(draft)}>{t('studio.delete')}</button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

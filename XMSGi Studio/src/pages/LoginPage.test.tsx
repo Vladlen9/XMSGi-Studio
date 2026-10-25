@@ -19,6 +19,7 @@ function renderLogin(overrides: Partial<ComponentProps<typeof LoginPage>> = {}) 
     twoFactorPassword: '',
     authBusy: false,
     authError: '',
+    authNotice: false,
     setShowAuthForm: vi.fn(),
     setAuthStep: vi.fn(),
     setPhoneNumber: vi.fn(),
@@ -150,6 +151,19 @@ describe('LoginPage', () => {
     expect(slot?.nextElementSibling).toBe(form);
     expect(slot?.classList.contains('has-message')).toBe(true);
     expect(slot?.querySelector('.login-error-slot-content')?.firstElementChild).toBe(status);
+  });
+
+  it('shows the two-factor password prompt as an informational status', () => {
+    const { container } = renderLogin({
+      showAuthForm: true,
+      authStep: 'password',
+      authError: 'Code accepted. Your Telegram account has two-step verification enabled. Enter your password to continue.',
+      authNotice: true,
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Code accepted.');
+    expect(container.querySelector('.login-error')).toHaveClass('is-info');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows the offline warning on the initial screen without opening the sign-in form', () => {
@@ -406,6 +420,7 @@ function renderLoginProps(overrides: Partial<ComponentProps<typeof LoginPage>>):
     twoFactorPassword: '',
     authBusy: false,
     authError: '',
+    authNotice: false,
     setShowAuthForm: vi.fn(),
     setAuthStep: vi.fn(),
     setPhoneNumber: vi.fn(),

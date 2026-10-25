@@ -53,6 +53,7 @@ interface Props {
   saveTemplateStage: () => void;
   savedDrafts: SavedDraft[];
   onInsertDraft: (draft: SavedDraft) => void;
+  onRenameDraft: (draft: SavedDraft, name: string) => Promise<boolean>;
   draftEditingId: string | null;
   draftColor: DraftColor;
   setDraftColor: Dispatch<SetStateAction<DraftColor>>;
@@ -111,6 +112,7 @@ export function WorkspaceTextStage({
   saveTemplateStage,
   savedDrafts,
   onInsertDraft,
+  onRenameDraft,
   draftEditingId,
   draftColor,
   setDraftColor,
@@ -174,6 +176,7 @@ export function WorkspaceTextStage({
         onModeChange={onModeChange}
         savedDrafts={savedDrafts}
         onInsertDraft={onInsertDraft}
+        onRenameDraft={onRenameDraft}
         draftEditingId={draftEditingId}
         draftColor={draftColor}
         setDraftColor={setDraftColor}

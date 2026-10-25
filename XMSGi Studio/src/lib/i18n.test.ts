@@ -57,7 +57,7 @@ describe('i18n', () => {
       ['auth.networkSignInError', 'Can’t reach Telegram. Check your internet connection and try again.', 'Нет связи с Telegram. Проверьте интернет и попробуйте снова.'],
       ['auth.genericSignInError', 'Telegram couldn’t complete sign-in. Try again or contact support.', 'Telegram не завершил вход. Попробуйте снова или обратитесь в поддержку.'],
       ['auth.desktopBridgeRequired', 'Sign in to Telegram in the XMSGi desktop app.', 'Войти в Telegram можно только в приложении XMSGi для компьютера.'],
-      ['auth.enterTwoFactor', 'Enter your Telegram two-step verification password to continue.', 'Введите пароль двухэтапной проверки Telegram, чтобы продолжить.'],
+      ['auth.enterTwoFactor', 'Code accepted. Your Telegram account has two-step verification enabled. Enter your password to continue.', 'Код подтверждён. В аккаунте включена двухэтапная проверка Telegram — введите пароль, чтобы продолжить.'],
       ['auth.disconnectFailed', 'Couldn’t sign out of Telegram. Try again.', 'Не удалось выйти из Telegram. Попробуйте снова.'],
       ['auth.restoreFailed', 'Couldn’t restore your saved Telegram session. Sign in again.', 'Не удалось восстановить сессию Telegram. Войдите снова.'],
       ['auth.removeFailed', 'Couldn’t remove your Telegram account. Try again.', 'Не удалось удалить аккаунт Telegram. Попробуйте снова.'],

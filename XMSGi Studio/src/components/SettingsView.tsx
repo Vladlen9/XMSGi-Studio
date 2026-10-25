@@ -19,6 +19,7 @@ type SettingsViewProps = {
   telegramTwoFactorPassword: string;
   telegramAuthBusy: boolean;
   telegramAuthError: string;
+  telegramAuthNotice: boolean;
   telegramStatus: TelegramStatusSnapshot;
   telegramCredentials: { hasCredentials: boolean; apiId?: string; hasSession: boolean; connected: boolean; signedOut: boolean };
   telegramApiId: string;
@@ -49,6 +50,7 @@ export function SettingsView({
   telegramTwoFactorPassword,
   telegramAuthBusy,
   telegramAuthError,
+  telegramAuthNotice,
   telegramStatus,
   telegramCredentials,
   telegramApiId,
@@ -375,7 +377,14 @@ export function SettingsView({
                             <input type="password" value={telegramTwoFactorPassword} onChange={(event) => onTelegramTwoFactorPasswordChange(event.target.value)} placeholder={t('auth.twoFactorPasswordPlaceholder')} autoComplete="current-password" />
                           </label>
                         )}
-                        {telegramAuthError && <p className="settings-view-error" role="alert">{telegramAuthError}</p>}
+                        {telegramAuthError && (
+                          <p
+                            className={telegramAuthNotice ? 'settings-view-notice' : 'settings-view-error'}
+                            role={telegramAuthNotice ? 'status' : 'alert'}
+                          >
+                            {telegramAuthError}
+                          </p>
+                        )}
                         <div className="telegram-manager-actions topbar-logout-modal-actions">
                           <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
                           <button type="submit" className="topbar-logout-modal-action topbar-logout-modal-action--confirm" disabled={telegramAuthBusy || (telegramAuthStep === 'phone' ? !telegramPhoneNumber.trim() : telegramAuthStep === 'code' ? !telegramPhoneCode.trim() : !telegramTwoFactorPassword)}>
@@ -389,7 +398,14 @@ export function SettingsView({
                         <button type="button" className="topbar-logout-modal-action topbar-logout-modal-action--cancel" onClick={() => setIsTelegramManagementOpen(false)}>{t('common.cancel')}</button>
                       </>
                     )}
-                    {telegramAuthError && (telegramConnected || telegramCredentials.hasSession) && <p className="settings-view-error" role="alert">{telegramAuthError}</p>}
+                    {telegramAuthError && (telegramConnected || telegramCredentials.hasSession) && (
+                      <p
+                        className={telegramAuthNotice ? 'settings-view-notice' : 'settings-view-error'}
+                        role={telegramAuthNotice ? 'status' : 'alert'}
+                      >
+                        {telegramAuthError}
+                      </p>
+                    )}
                   </div>
 
                   <details className="telegram-manager-advanced" open={!telegramCredentials.hasCredentials}>

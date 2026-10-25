@@ -14,6 +14,7 @@ type SettingsPageProps = {
   telegramTwoFactorPassword: string;
   telegramAuthBusy: boolean;
   telegramAuthError: string;
+  telegramAuthNotice: boolean;
   telegramStatus: TelegramStatusSnapshot;
   telegramCredentials: { hasCredentials: boolean; hasSession: boolean; connected: boolean; signedOut: boolean };
   telegramApiId: string;
@@ -44,6 +45,7 @@ export function SettingsPage({
   telegramTwoFactorPassword,
   telegramAuthBusy,
   telegramAuthError,
+  telegramAuthNotice,
   telegramStatus,
   telegramCredentials,
   telegramApiId,
@@ -74,6 +76,7 @@ export function SettingsPage({
       telegramTwoFactorPassword={telegramTwoFactorPassword}
       telegramAuthBusy={telegramAuthBusy}
       telegramAuthError={telegramAuthError}
+      telegramAuthNotice={telegramAuthNotice}
       telegramStatus={telegramStatus}
       telegramCredentials={telegramCredentials}
       telegramApiId={telegramApiId}

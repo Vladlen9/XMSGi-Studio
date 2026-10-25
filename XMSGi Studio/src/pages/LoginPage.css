@@ -517,6 +517,17 @@ button.login-divider {
   background: #9c6800;
 }
 
+.login-error.is-info {
+  border-color: #7a9bb5;
+  border-left-color: #356d96;
+  background: #e5f2fb;
+  color: #193b53;
+}
+
+.login-error.is-info .login-error-mark {
+  background: #356d96;
+}
+
 .login-error-slot {
   display: grid;
   grid-template-rows: 0fr;
@@ -558,9 +569,21 @@ html[data-theme='dark'] .login-error.is-warning {
   color: #ffe9ad;
 }
 
+html[data-theme='dark'] .login-error.is-info {
+  border-color: #52758f;
+  border-left-color: #72b6e3;
+  background: #1b2d3a;
+  color: #d9efff;
+}
+
 html[data-theme='dark'] .login-error.is-warning .login-error-mark {
   background: #e1b956;
   color: #251d0d;
+}
+
+html[data-theme='dark'] .login-error.is-info .login-error-mark {
+  background: #72b6e3;
+  color: #102330;
 }
 
 html[data-theme='dark'] .login-error-mark {

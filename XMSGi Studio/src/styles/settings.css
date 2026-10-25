@@ -885,6 +885,18 @@ html.electron-runtime .telegram-manager-backdrop::before {
   line-height: 1.5;
 }
 
+.settings-view-notice {
+  margin-top: 14px;
+  color: #4f91b8;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+html[data-theme='light'] .settings-view-notice {
+  color: #276484;
+}
+
 .settings-version {
   margin-top: 24px;
   color: var(--dim);

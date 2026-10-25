@@ -171,12 +171,12 @@ export function AppShell({
     setPostsOpen(true);
     onViewChange('posts');
   };
-  const closePosts = () => {
+  const closePosts = (restorePreviousView = true) => {
     setHistorySourceFilterOnOpen(undefined);
     setHistorySourceFilterOnOpenMode('temporary');
     setHistoryStatusFilterOnOpen(undefined);
     setPostsOpen(false);
-    onViewChange(previousProductViewRef.current);
+    if (restorePreviousView) onViewChange(previousProductViewRef.current);
   };
   const changeView = (nextView: ProductView) => {
     if (nextView === 'posts') {
@@ -206,6 +206,12 @@ export function AppShell({
       )}
       {connected && (
         <header className={`topbar${settingsOpen ? ' settings-topbar' : ''}`}>
+          <div className="topbar-identity">
+            <span className="brand" aria-label="XMSGi">
+              <span>XMSGi</span>
+            </span>
+          </div>
+
           {!settingsOpen && (
             <button
               type="button"

@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LocaleProvider } from '@studio/lib/i18n';
 import type { Chat, SavedDraft, Template } from '@studio/types';
@@ -92,6 +92,7 @@ function renderStage(overrides: Partial<React.ComponentProps<typeof WorkspaceTex
     saveTemplateStage: vi.fn(),
     savedDrafts: [savedDraftA],
     onInsertDraft: vi.fn(),
+    onRenameDraft: vi.fn().mockResolvedValue(true),
     draftEditingId: null,
     draftColor: 'gray',
     setDraftColor: vi.fn(),
@@ -316,6 +317,32 @@ describe('WorkspaceTextStage editor flows', () => {
     expect(getDraftButton('Follow-up')?.textContent).not.toContain('attachment');
     expect(getDraftButton('One attachment')?.textContent).toContain('19 characters · 1 attachment');
     expect(getDraftButton('Two attachments')?.textContent).toContain('19 characters · 2 attachments');
+    unmount();
+  });
+
+  it('renames a saved draft inline and supports Escape to cancel', async () => {
+    const onRenameDraft = vi.fn().mockResolvedValue(true);
+    const { unmount } = renderStage({ mode: 'draft', onRenameDraft });
+
+    act(() => {
+      (screen.getByRole('button', { name: 'Rename draft “Follow-up”' }) as HTMLButtonElement).click();
+    });
+    const nameInput = screen.getByRole('textbox', { name: 'New draft name' });
+    expect(nameInput).toHaveValue('Follow-up');
+
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: 'Renamed draft' } });
+      fireEvent.keyDown(nameInput, { key: 'Enter' });
+    });
+
+    expect(onRenameDraft).toHaveBeenCalledWith(savedDraftA, 'Renamed draft');
+    expect(screen.queryByRole('textbox', { name: 'New draft name' })).not.toBeInTheDocument();
+
+    act(() => {
+      (screen.getByRole('button', { name: 'Rename draft “Follow-up”' }) as HTMLButtonElement).click();
+    });
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'New draft name' }), { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'New draft name' })).not.toBeInTheDocument();
     unmount();
   });
 

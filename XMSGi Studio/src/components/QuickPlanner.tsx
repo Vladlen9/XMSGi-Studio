@@ -1,5 +1,5 @@
 import { type ChangeEvent, type CSSProperties, type DragEvent, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { Chat, ScheduledMessage } from '@/types';
+import type { Chat, RichTextEntity, ScheduledMessage } from '@/types';
 import { useLocale } from '@/lib/i18n';
 import { EmojiPickerPanel } from './EmojiPickerPanel';
 import {
@@ -78,6 +78,18 @@ type ChatPickerOption = {
 };
 
 type QuickPlannerProps = {
+  draftLoadRequest?: {
+    revision: number;
+    text: string;
+    attachments: string[];
+    entities: RichTextEntity[];
+    restoreDraft: {
+      text: string;
+      attachments: string[];
+      entities: RichTextEntity[];
+    } | null;
+  } | null;
+  onRestoreDraft?: (draft: { text: string; attachments: string[]; entities: RichTextEntity[] }) => void;
   chats?: Chat[];
   selectedChat?: Chat | null;
   upcoming?: ScheduledMessage[];
@@ -116,6 +128,7 @@ const feedbackDurationMs = {
   success: 3360,
   info: 3360,
 } as const;
+const restoredDraftFeedbackDurationMs = feedbackDurationMs.success + 1000;
 
 function toDateInputValue(date: Date) {
   const pad = (value: number) => String(value).padStart(2, '0');
@@ -186,6 +199,8 @@ function getUpcomingMessages(messages: ScheduledMessage[], now: Date) {
 }
 
 export function QuickPlanner({
+  draftLoadRequest = null,
+  onRestoreDraft,
   chats = [],
   selectedChat: activeChat = null,
   upcoming = [],
@@ -204,6 +219,12 @@ export function QuickPlanner({
   const { locale, t } = useLocale();
   const [selectedMode, setSelectedMode] = useState('Send now');
   const [message, setMessage] = useState(readPlannerDraft);
+  const lastLoadedDraftRevisionRef = useRef<number | null>(null);
+  const restoreDraftOnCompletionRef = useRef<{
+    text: string;
+    attachments: string[];
+    entities: RichTextEntity[];
+  } | null>(null);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const activityNow = new Date();
   const upcomingMessages = getUpcomingMessages(upcoming, activityNow);
@@ -292,6 +313,30 @@ export function QuickPlanner({
   useEffect(() => {
     writePlannerDraft(message, readPlannerDraftEntities(), attachments.map(({ path }) => path));
   }, [attachments, message]);
+
+  useEffect(() => {
+    if (!draftLoadRequest || lastLoadedDraftRevisionRef.current === draftLoadRequest.revision) return;
+    lastLoadedDraftRevisionRef.current = draftLoadRequest.revision;
+    restoreDraftOnCompletionRef.current = draftLoadRequest.restoreDraft;
+    setMessage(draftLoadRequest.text);
+    setAttachments(draftLoadRequest.attachments.map((path) => ({ name: getAttachmentName(path), path })));
+  }, [draftLoadRequest]);
+
+  const clearOrRestoreDraftAfterCompletion = () => {
+    const restoreDraft = restoreDraftOnCompletionRef.current;
+    restoreDraftOnCompletionRef.current = null;
+    if (!restoreDraft) {
+      setMessage('');
+      setAttachments([]);
+      return false;
+    }
+
+    writePlannerDraft(restoreDraft.text, restoreDraft.entities, restoreDraft.attachments);
+    setMessage(restoreDraft.text);
+    setAttachments(restoreDraft.attachments.map((path) => ({ name: getAttachmentName(path), path })));
+    onRestoreDraft?.(restoreDraft);
+    return true;
+  };
 
   useLayoutEffect(() => {
     const list = attachmentListRef.current;
@@ -429,7 +474,11 @@ export function QuickPlanner({
     };
   }, []);
 
-  const showActionFeedback = (message: string, tone: QuickPlannerActionFeedback['tone']) => {
+  const showActionFeedback = (
+    message: string,
+    tone: QuickPlannerActionFeedback['tone'],
+    nextFeedback?: Pick<QuickPlannerActionFeedback, 'message' | 'tone'> & { durationMs?: number },
+  ) => {
     if (actionFeedbackTimeoutRef.current !== null) {
       window.clearTimeout(actionFeedbackTimeoutRef.current);
     }
@@ -438,6 +487,17 @@ export function QuickPlanner({
     setActionFeedbackInstance((instance) => instance + 1);
     setActionFeedback({ message, tone });
     actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+      if (nextFeedback) {
+        setActionFeedbackRetriggered(false);
+        setActionFeedbackInstance((instance) => instance + 1);
+        setActionFeedback(nextFeedback);
+        actionFeedbackTimeoutRef.current = window.setTimeout(() => {
+          setActionFeedback(null);
+          setActionFeedbackRetriggered(false);
+          actionFeedbackTimeoutRef.current = null;
+        }, nextFeedback.durationMs ?? feedbackDurationMs[nextFeedback.tone]);
+        return;
+      }
       setActionFeedback(null);
       setActionFeedbackRetriggered(false);
       actionFeedbackTimeoutRef.current = null;
@@ -818,9 +878,10 @@ export function QuickPlanner({
           showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
           return;
         }
-        showActionFeedback(t('quickPlanner.draftSavedToPosts'), 'success');
-        setMessage('');
-        setAttachments([]);
+        const restored = clearOrRestoreDraftAfterCompletion();
+        showActionFeedback(t('quickPlanner.draftSavedToPosts'), 'success', restored
+          ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
+          : undefined);
         return;
       }
       showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
@@ -846,9 +907,10 @@ export function QuickPlanner({
             showActionFeedback(t('quickPlanner.messageNotSent'), 'error');
             return;
           }
-          showActionFeedback(t('quickPlanner.messageSent'), 'success');
-          setMessage('');
-          setAttachments([]);
+          const restored = clearOrRestoreDraftAfterCompletion();
+          showActionFeedback(t('quickPlanner.messageSent'), 'success', restored
+            ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
+            : undefined);
           setSelectedEffectId(null);
         } catch {
           showActionFeedback(t('quickPlanner.messageCouldNotSend'), 'error');
@@ -880,9 +942,10 @@ export function QuickPlanner({
             showActionFeedback(t('quickPlanner.messageCouldNotSchedule'), 'error');
             return;
           }
-          showActionFeedback(t('quickPlanner.scheduleRequestSent'), 'success');
-          setMessage('');
-          setAttachments([]);
+          const restored = clearOrRestoreDraftAfterCompletion();
+          showActionFeedback(t('quickPlanner.scheduleRequestSent'), 'success', restored
+            ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
+            : undefined);
           setSelectedEffectId(null);
           setScheduleTimeTouched(false);
           scheduleNowConfirmationRef.current = null;

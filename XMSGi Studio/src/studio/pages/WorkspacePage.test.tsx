@@ -322,6 +322,54 @@ describe('WorkspacePage main-screen flows', () => {
     }
   });
 
+  it.each([
+    [{ ...chatA, name: 'Alex Example', type: 'private' as const, username: 'alex_example' }, '@alex_example'],
+    [{ ...chatA, name: 'Alex Example', type: 'private' as const, username: undefined }, 'Private chat'],
+    [{ ...chatA, name: 'Design group', type: 'group' as const, username: 'design' }, 'Group chat'],
+  ])('shows chat details instead of repeating the selected chat name', async (selectedChat, expectedSubtitle) => {
+    localStorage.setItem('awaitmsg_locale', 'en');
+    const { rerender, unmount } = await renderWorkspacePage({
+      selectedChat,
+      chats: [selectedChat],
+    });
+
+    try {
+      const trigger = document.querySelector('.workspace-page-chat-trigger')!;
+      expect(trigger.querySelector('strong')).toHaveTextContent(selectedChat.name);
+      expect(trigger.querySelector('.workspace-page-chat-trigger-copy span')).toHaveTextContent(expectedSubtitle);
+      expect(trigger.querySelector('.workspace-page-chat-trigger-copy span')).not.toHaveTextContent(selectedChat.name);
+
+      rerender({ selectedChat: { ...selectedChat, username: '@alex_example' }, chats: [{ ...selectedChat, username: '@alex_example' }] });
+      if (selectedChat.type === 'private') {
+        expect(trigger.querySelector('.workspace-page-chat-trigger-copy span')).toHaveTextContent('@alex_example');
+      }
+    } finally {
+      unmount();
+    }
+  });
+
+  it.each([
+    ['en', 'Saved Messages', 'Private chat'],
+    ['ru', 'Сохранённые сообщения', 'Личный чат'],
+  ])('shows the private chat type under Saved Messages in %s', async (locale, expectedName, expectedSubtitle) => {
+    localStorage.setItem('awaitmsg_locale', locale);
+    const savedMessagesChat: Chat = { ...chatA, id: 'chat-saved', name: 'Saved Messages', type: 'private' };
+    const { unmount } = await renderWorkspacePage({
+      selectedChat: savedMessagesChat,
+      chats: [savedMessagesChat],
+    });
+
+    try {
+      const trigger = document.querySelector('.workspace-page-chat-trigger')!;
+      expect(trigger.querySelector('strong')).toHaveTextContent(expectedName);
+      expect(trigger.querySelector('.workspace-page-chat-trigger-copy span')).toHaveTextContent(expectedSubtitle);
+      expect(trigger.querySelector('.workspace-page-chat-trigger-copy span')).not.toHaveTextContent(expectedName);
+    } finally {
+      unmount();
+      localStorage.removeItem('awaitmsg_locale');
+    }
+  });
+
   it('hides the chat name in the current action for Saved Messages', async () => {
     localStorage.setItem('awaitmsg_locale', 'en');
     const savedMessagesChat: Chat = { ...chatA, id: 'chat-saved', name: 'Saved Messages', type: 'private' };
@@ -943,6 +991,27 @@ describe('WorkspacePage main-screen flows', () => {
       name: 'brief.pdf',
     });
     expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
+    unmount();
+  });
+
+  it('returns to the main Studio editor when opening Planner text from another stage', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = { schemaVersion: 2, migrationVersion: 1, savedDrafts: [], workspaceDraft: null };
+    const registerPlannerTextOpener = vi.fn();
+    const { unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+    await openDraftsStage();
+
+    let opened = false;
+    await act(async () => {
+      opened = await opener!({ text: 'Planner text from another stage', attachments: [], entities: [] });
+    });
+
+    expect(opened).toBe(true);
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
+      .toContain('Planner text from another stage');
+    expect(document.querySelector('.workspace-page-mode-button-draft.is-active')).toBeNull();
     unmount();
   });
 
@@ -2824,6 +2893,44 @@ describe('WorkspacePage main-screen flows', () => {
     await waitFor(() => expect(window.draftStorage.save).toHaveBeenCalled());
     expect(inMemoryDraftStore.savedDrafts.map((draft) => draft.name)).toEqual(['Saved post', 'Older draft']);
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent).toBe('Draft saved.');
+    unmount();
+  });
+
+  it('renames a saved draft inline and persists the updated name', async () => {
+    const savedDraft = {
+      id: 'renameable-draft',
+      name: 'Original name',
+      body: 'Draft content stays unchanged',
+      createdAt: '2026-10-20T10:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z',
+    };
+    inMemoryDraftStore = {
+      schemaVersion: 3,
+      migrationVersion: 1,
+      savedDrafts: [savedDraft],
+      workspaceDraft: null,
+    };
+    const { unmount } = await renderWorkspacePage();
+    const draftModeButton = Array.from(document.querySelectorAll('.workspace-page-action-left-group > button'))
+      .find((button) => button.textContent?.trim() === 'Draft') as HTMLButtonElement;
+    await act(async () => draftModeButton.click());
+
+    await act(async () => {
+      (screen.getByRole('button', { name: 'Rename draft “Original name”' }) as HTMLButtonElement).click();
+    });
+    const nameInput = screen.getByRole('textbox', { name: 'New draft name' });
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: 'Updated name' } });
+      (screen.getByRole('button', { name: 'Save draft name' }) as HTMLButtonElement).click();
+    });
+
+    await waitFor(() => expect(inMemoryDraftStore.savedDrafts[0]).toMatchObject({
+      name: 'Updated name',
+      body: 'Draft content stays unchanged',
+    }));
+    expect(window.draftStorage.save).toHaveBeenCalled();
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toBe('Draft name updated.');
     unmount();
   });
 

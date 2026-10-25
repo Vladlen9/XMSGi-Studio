@@ -160,8 +160,8 @@ html[data-theme='dark'] .quick-planner-toolbar {
 }
 
 html[data-theme='dark'] .quick-planner-schedule-row {
-  border-top-color: rgba(0, 0, 0, 0.2);
-  background: linear-gradient(180deg, rgba(32, 40, 46, 0.76), rgba(28, 36, 42, 0.8));
+  --quick-planner-schedule-border-top: rgba(0, 0, 0, 0.2);
+  --quick-planner-schedule-background: linear-gradient(180deg, rgba(32, 40, 46, 0.76), rgba(28, 36, 42, 0.8));
 }
 
 html[data-theme='dark'] .quick-planner-message,
@@ -2001,6 +2001,10 @@ html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .ch
 html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header::after {
   background: linear-gradient(90deg, transparent, rgba(220, 235, 247, 0.2) 12%, rgba(220, 235, 247, 0.2) 88%, transparent);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='light'] .workspace-page .chat-preview-stand.is-mobile .chat-preview-header {
+  box-shadow: 0 3px 10px rgba(35, 55, 70, 0.16);
 }
 
 html[data-theme='light'] .workspace-page .chat-preview-window.theme-telegram .chat-preview-header-copy strong {

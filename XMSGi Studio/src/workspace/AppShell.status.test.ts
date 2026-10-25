@@ -1,11 +1,12 @@
-import { createElement, useContext } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createElement, useContext, useState } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
 import { persistPostsReturnView } from '@/lib/productView';
 import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
 import { AppShell, getTelegramStatusPresentation } from './AppShell';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
+import { normalizeSavedPlannerDraft } from './historyModel';
 
 const baseStatus = {
   accountId: 'telegram-session:active-account',
@@ -36,6 +37,90 @@ describe('Telegram status presentation', () => {
     ['unknown error', { ...baseStatus, status: 'error' as const, category: 'unknown' as const }, 'error', 'telegramStatus.error'],
   ])('maps %s to a visible presentation', (_name, status, tone, labelKey) => {
     expect(getTelegramStatusPresentation(status)).toMatchObject({ tone, labelKey });
+  });
+});
+
+describe('product navigation', () => {
+  it('shows the XMSGi brand and opens Planner from the Studio topbar', () => {
+    const onViewChange = vi.fn();
+    render(createElement(LocaleProvider, null, createElement(AppShell, {
+      view: 'studio',
+      onViewChange,
+      connected: true,
+      authBusy: false,
+      isConfirmingLogout: false,
+      setIsConfirmingLogout: vi.fn(),
+      setShowAuthForm: vi.fn(),
+      handleDisconnect: async () => undefined,
+      handleForgetAccount: async () => undefined,
+      onOpenSettings: vi.fn(),
+      historyRecords: [],
+      onHistoryCancel: vi.fn(),
+      onHistoryReschedule: vi.fn(),
+      onHistorySendNow: vi.fn(),
+      onHistoryDelete: vi.fn(),
+      onHistoryOpenDraft: vi.fn(),
+      onHistoryClearSent: vi.fn(),
+    })));
+
+    expect(screen.getByText('XMSGi')).toBeInTheDocument();
+    expect(document.querySelector('.topbar-identity .brand-mark')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Planner' }));
+
+    expect(onViewChange).toHaveBeenCalledWith('planner');
+  });
+
+  it.each(['studio', 'planner'] as const)('opens the selected %s destination from Posts', (destination) => {
+    const draft = normalizeSavedPlannerDraft({
+      id: `destination-${destination}`,
+      message: 'Planner draft to use',
+      attachments: [],
+      entities: [],
+      reminderType: null,
+      savedAt: '2026-10-24T12:00:00.000Z',
+    });
+    const onHistoryUseDraft = vi.fn();
+
+    function AppShellHarness() {
+      const [view, setView] = useState<'studio' | 'planner' | 'posts'>('studio');
+      return createElement(AppShell, {
+        view,
+        onViewChange: setView,
+        connected: true,
+        authBusy: false,
+        isConfirmingLogout: false,
+        setIsConfirmingLogout: vi.fn(),
+        setShowAuthForm: vi.fn(),
+        handleDisconnect: async () => undefined,
+        handleForgetAccount: async () => undefined,
+        onOpenSettings: vi.fn(),
+        historyRecords: [draft],
+        onHistoryCancel: vi.fn(),
+        onHistoryReschedule: vi.fn(),
+        onHistorySendNow: vi.fn(),
+        onHistoryDelete: vi.fn(),
+        onHistoryOpenDraft: vi.fn(),
+        onHistoryUseDraft: (record, selectedDestination) => {
+          onHistoryUseDraft(record, selectedDestination);
+          if (selectedDestination) setView(selectedDestination);
+        },
+        onHistoryClearSent: vi.fn(),
+      }, createElement('div', null, 'Studio'));
+    }
+
+    const { container } = render(createElement(LocaleProvider, null, createElement(AppShellHarness)));
+    fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
+    fireEvent.click(container.querySelector('[data-history-filter="personal"]') as HTMLButtonElement);
+    fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
+    fireEvent.click(screen.getByRole('button', { name: /Use draft/ }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', {
+      name: destination === 'studio' ? 'Studio' : 'Planner',
+    }));
+
+    expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, destination);
+    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(container.querySelector('.product-shell')).toHaveClass(destination === 'studio' ? 'studio-shell' : 'planner-shell');
   });
 });
 

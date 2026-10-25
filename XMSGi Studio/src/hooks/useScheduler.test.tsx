@@ -741,6 +741,47 @@ describe('useScheduler native history', () => {
     expect(events.indexOf('persist')).toBeLessThan(events.indexOf('schedule-retry'));
   });
 
+  it('keeps the draft and does not report success when a repeated schedule partially fails', async () => {
+    const chat = { id: 'chat-partial-repeat', name: 'Partial repeat chat' };
+    const { date, time } = getFutureReplacementTimes().replacementDateTime;
+    const schedule = vi.fn()
+      .mockResolvedValueOnce({ success: true, confirmed: true, telegramMessageId: 'scheduled-first' })
+      .mockResolvedValueOnce({ success: false, error: 'Second schedule failed.' });
+    const setMessage = vi.fn();
+    const { result } = renderWorkspaceHistory(
+      [],
+      [],
+      { schedule },
+      vi.fn(),
+      'workspace',
+      chat,
+      setMessage,
+    );
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    let scheduleRequest!: Promise<boolean | void | 'sent-history-failed'>;
+    act(() => {
+      scheduleRequest = result.current.handleSchedule(
+        { chatId: chat.id, message: 'Preserve this draft', date, time, waitForConfirmation: true },
+        { mode: 'daily', occurrences: 2 },
+      );
+    });
+    let scheduled = true;
+    await act(async () => {
+      scheduled = await scheduleRequest === true;
+    });
+
+    expect(scheduled).toBe(false);
+    expect(schedule).toHaveBeenCalledTimes(2);
+    expect(result.current.upcoming).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'scheduled', telegramMessageId: 'scheduled-first' }),
+      expect.objectContaining({ status: 'failed', lastError: 'Second schedule failed.' }),
+    ]));
+    expect(setMessage).not.toHaveBeenCalled();
+    expect(result.current.successPulse).toBe(false);
+    expect(result.current.lastAction).toBeNull();
+  });
+
   it('keeps a Telegram-confirmed retry scheduled when its final history write fails', async () => {
     const previousLocale = window.localStorage.getItem('awaitmsg_locale');
     window.localStorage.setItem('awaitmsg_locale', 'en');
