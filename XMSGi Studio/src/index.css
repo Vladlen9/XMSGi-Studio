@@ -869,8 +869,6 @@ html.electron-runtime .history-confirmation-backdrop {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  border-right: 1px solid rgba(154, 168, 184, 0.12);
-  border-bottom: 1px solid rgba(154, 168, 184, 0.2);
 }
 
 .history-drawer-controls.is-page-controls {
@@ -882,7 +880,21 @@ html.electron-runtime .history-confirmation-backdrop {
   width: 100%;
   min-height: 62px;
   padding: 8px 16px;
-  border-bottom: 1px solid rgba(147, 166, 177, 0.18);
+  border-bottom: 0;
+}
+
+@media (min-width: 761px) {
+  .history-content.is-page .history-list-pane {
+    margin-left: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(154, 168, 184, 0.16);
+    border-radius: 16px;
+  }
+
+  .history-content.is-page .history-list-pane .history-record-list {
+    padding-right: 10px;
+    padding-left: 8px;
+  }
 }
 
 .history-content.is-page .history-record-list {
@@ -2448,6 +2460,10 @@ html.electron-runtime .history-confirmation-backdrop {
 
   .history-content.is-page .history-list-pane {
     height: 100%;
+    margin: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
   }
 
   .history-drawer.is-page .history-drawer-tools {
