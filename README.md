@@ -162,4 +162,5 @@ Please report vulnerabilities privately through the repository security process.
 This project is licensed under the MIT License. The canonical license text is in [LICENSE](LICENSE).
 
 ---
-XMSGi Studio делает планирование встреч и создание публикаций в Telegram простым, локальным и надежным.
+Why XMSGi Studio?
+XMSGi Studio was created because existing Telegram scheduling tools felt slow, bloated and disconnected from the actual Telegram experience.
