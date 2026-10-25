@@ -861,6 +861,7 @@ html.electron-runtime .history-confirmation-backdrop {
   flex: 1 1 auto;
   grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
   grid-template-rows: minmax(0, 1fr);
+  margin-bottom: 5px;
 }
 
 .history-content.is-page .history-list-pane {
@@ -869,6 +870,7 @@ html.electron-runtime .history-confirmation-backdrop {
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid rgba(154, 168, 184, 0.12);
+  border-bottom: 1px solid rgba(154, 168, 184, 0.2);
 }
 
 .history-drawer-controls.is-page-controls {
