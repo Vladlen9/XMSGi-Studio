@@ -1,11 +1,12 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
 import { getDraftStorageApi } from '@studio/lib/draftStore';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
+import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import type { HistoryItem, PlannerReminderType } from './historyModel';
 
 type HistorySourceFilter = 'all' | 'workspace' | 'personal';
@@ -201,73 +202,6 @@ function formatDraftCount(count: number, locale: Locale) {
         ? 'черновика'
         : 'черновиков';
   return `${count} ${label}`;
-}
-
-function positionHistoryGlassIndicator(container: HTMLDivElement | null) {
-  if (!container) return;
-
-  const indicator = container.querySelector<HTMLElement>('.history-glass-indicator');
-  const active = container.querySelector<HTMLElement>('[aria-pressed="true"], [aria-selected="true"]');
-  if (!indicator || !active) return;
-
-  const containerBounds = container.getBoundingClientRect();
-  const activeBounds = active.getBoundingClientRect();
-  const nextFilter = active.dataset.historyFilter || '';
-  const previousFilter = indicator.dataset.activeFilter;
-  const reduceMotion = typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const surface = indicator.querySelector<HTMLElement>('.history-glass-surface');
-  const sheen = indicator.querySelector<HTMLElement>('.history-glass-sheen');
-
-  if (previousFilter && previousFilter !== nextFilter && !reduceMotion) {
-    if (surface && typeof surface.animate === 'function') {
-      surface.animate([
-        { transform: 'scaleX(0.9) scaleY(0.92)', borderRadius: '15px' },
-        { transform: 'scaleX(1.08) scaleY(1.08)', borderRadius: '12px', offset: 0.54 },
-        { transform: 'scale(1)', borderRadius: '10px' },
-      ], { duration: 640, easing: 'cubic-bezier(0.2, 0.85, 0.25, 1)' });
-    }
-
-    if (sheen && typeof sheen.animate === 'function') {
-      sheen.animate([
-        { transform: 'translateX(0) skewX(-18deg)', opacity: 0 },
-        { transform: 'translateX(145%) skewX(-18deg)', opacity: 0.4, offset: 0.55 },
-        { transform: 'translateX(290%) skewX(-18deg)', opacity: 0 },
-      ], { duration: 720, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)' });
-    }
-  }
-
-  const scaleX = container.offsetWidth > 0 ? containerBounds.width / container.offsetWidth : 1;
-  const scaleY = container.offsetHeight > 0 ? containerBounds.height / container.offsetHeight : 1;
-
-  indicator.dataset.activeFilter = nextFilter;
-  indicator.style.setProperty('--history-glass-x', `${(activeBounds.left - containerBounds.left) / scaleX - container.clientLeft}px`);
-  indicator.style.setProperty('--history-glass-y', `${(activeBounds.top - containerBounds.top) / scaleY - container.clientTop}px`);
-  indicator.style.width = `${activeBounds.width / scaleX}px`;
-  indicator.style.height = `${activeBounds.height / scaleY}px`;
-  indicator.style.opacity = '1';
-}
-
-function bounceHistoryGlassIndicator(container: HTMLDivElement | null, filter: HistoryStatusFilter | HistorySourceFilter) {
-  if (!container) return;
-
-  const indicator = container.querySelector<HTMLElement>('.history-glass-indicator');
-  const surface = indicator?.querySelector<HTMLElement>('.history-glass-surface');
-  const reduceMotion = typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!surface || indicator?.dataset.activeFilter !== filter || reduceMotion || typeof surface.animate !== 'function') return;
-
-  const currentTransform = getComputedStyle(surface).transform;
-  if (typeof surface.getAnimations === 'function') {
-    surface.getAnimations().forEach((animation) => animation.cancel());
-  }
-  surface.animate([
-    { transform: currentTransform === 'none' ? 'scale(1)' : currentTransform },
-    { transform: 'scale(1.075)', offset: 0.42 },
-    { transform: 'scale(1.01)', offset: 0.72 },
-    { transform: 'scale(1.02)', offset: 0.86 },
-    { transform: 'scale(1)', offset: 1 },
-  ], { duration: 780, easing: 'cubic-bezier(0.33, 0, 0.67, 1)', fill: 'none' });
 }
 
 function scrollHistoryRecordIntoView(list: HTMLDivElement, record: HTMLElement) {
@@ -533,6 +467,7 @@ export function HistoryDrawer({
   onCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
 }) {
   const { locale, t } = useLocale();
+  const navigation = useContext(QuickPlannerNavigationContext);
   const [savedFilters] = useState(loadSavedHistoryFilters);
   const [sourceFilter, setSourceFilter] = useState<HistorySourceFilter>(savedFilters.sourceFilter);
   const [sourceFilterPinned, setSourceFilterPinned] = useState(savedFilters.sourceFilterPinned);
@@ -556,7 +491,6 @@ export function HistoryDrawer({
   const [previewImagePath, setPreviewImagePath] = useState<string | null>(null);
   const [previewImagePosition, setPreviewImagePosition] = useState<{ left: number; top: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
-  const sourceFiltersRef = useRef<HTMLDivElement | null>(null);
   const statusFiltersRef = useRef<HTMLDivElement | null>(null);
   const historyRecordListRef = useRef<HTMLDivElement | null>(null);
   const historySearchInputRef = useRef<HTMLInputElement | null>(null);
@@ -613,29 +547,6 @@ export function HistoryDrawer({
       if (!statusFilterWasChanged) setStatusFilter(previousStatusFilter);
     }
   }, [isOpen, statusFilter, statusFilterOnOpen]);
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-
-    const containers = [sourceFiltersRef.current, statusFiltersRef.current]
-      .filter((container): container is HTMLDivElement => container !== null);
-    const updateIndicators = () => {
-      containers.forEach(positionHistoryGlassIndicator);
-    };
-    updateIndicators();
-
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateIndicators);
-    containers.forEach((container) => {
-      resizeObserver?.observe(container);
-      container.querySelectorAll('button').forEach((button) => resizeObserver?.observe(button));
-    });
-    window.addEventListener('resize', updateIndicators);
-
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', updateIndicators);
-    };
-  }, [isOpen, locale, sourceFilter, statusFilter]);
 
   useEffect(() => {
     try {
@@ -1239,11 +1150,6 @@ export function HistoryDrawer({
   );
   const historyStatusFilters = (
     <div className="history-status-filters" ref={statusFiltersRef} role="tablist" aria-label={t('history.statuses')}>
-      <span className="history-glass-indicator" aria-hidden="true">
-        <span className="history-glass-surface">
-          <span className="history-glass-sheen" />
-        </span>
-      </span>
       {visibleStatusFilters.map((item) => {
         const labelKey = item === 'scheduled'
           ? 'history.categoryScheduled'
@@ -1267,9 +1173,7 @@ export function HistoryDrawer({
             data-history-filter={item}
             tabIndex={statusFilter === item ? 0 : -1}
             onClick={() => {
-              if (statusFilter === item) {
-                bounceHistoryGlassIndicator(statusFiltersRef.current, item);
-              } else {
+              if (statusFilter !== item) {
                 if (statusFilterBeforeOverrideRef.current !== null) statusFilterOverrideChangedRef.current = true;
                 setStatusFilter(item);
               }
@@ -1308,6 +1212,32 @@ export function HistoryDrawer({
       })}
     </div>
   );
+  const historySourceFilters = (
+    <div className="history-source-filters" role="group" aria-label={t('history.sources')}>
+      {(['all', 'workspace', 'personal'] as const).map((item) => (
+        <button
+          key={item}
+          type="button"
+          data-history-filter={item}
+          onClick={() => {
+            setSourceFilterPinned(true);
+            if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
+            if (sourceFilter !== item) setSourceFilter(item);
+            if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
+            setBulkDeleteCategory(null);
+            setBulkDeleteRecordId(null);
+            setBulkDeleteError('');
+          }}
+          className={`history-filter${sourceFilter === item ? ' is-active' : ''}`}
+          aria-pressed={sourceFilter === item}
+          aria-label={item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}
+        >
+          <span>{item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}</span>
+          <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
+        </button>
+      ))}
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -1327,58 +1257,46 @@ export function HistoryDrawer({
         aria-modal={pageMode ? undefined : true}
         aria-label={t('history.title')}
       >
-        <header className="history-drawer-header">
-          <div className="history-drawer-heading">
-            <span className="history-drawer-header-icon" aria-hidden="true">
-              <Send size={20} strokeWidth={1.8} />
-            </span>
-            <h2 aria-label={t('history.title')}>{t('history.title')}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => onClose()}
-            aria-label={t('history.close')}
-            className="history-drawer-close"
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
-        </header>
+        {!pageMode && (
+          <header className="history-drawer-header">
+            <div className="history-drawer-heading">
+              <span className="history-drawer-header-icon" aria-hidden="true">
+                <Send size={20} strokeWidth={1.8} />
+              </span>
+              <h2 aria-label={t('history.title')}>{t('history.title')}</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => onClose()}
+              aria-label={t('history.close')}
+              className="history-drawer-close"
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </header>
+        )}
 
         <div className={`history-drawer-controls${pageMode ? ' is-page-controls' : ''}`}>
-          <div className="history-source-filters" ref={sourceFiltersRef} role="group" aria-label={t('history.sources')}>
-            <span className="history-glass-indicator" aria-hidden="true">
-              <span className="history-glass-surface">
-                <span className="history-glass-sheen" />
-              </span>
-            </span>
-            {(['all', 'workspace', 'personal'] as const).map((item) => (
+          {pageMode ? (
+            <>
+              <div className="history-page-filter-section is-source-section">
+                <span className="history-page-filter-label">{t('history.sourceCaption')}</span>
+                {historySourceFilters}
+              </div>
+              <div className="history-page-filter-section is-status-section">
+                <span className="history-page-filter-label">{t('history.statusCaption')}</span>
+                {historyStatusFilters}
+              </div>
               <button
-                key={item}
                 type="button"
-                data-history-filter={item}
-                onClick={() => {
-                  setSourceFilterPinned(true);
-                  if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
-                  if (sourceFilter === item) {
-                    bounceHistoryGlassIndicator(sourceFiltersRef.current, item);
-                  } else {
-                    setSourceFilter(item);
-                  }
-                  if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
-                  setBulkDeleteCategory(null);
-                  setBulkDeleteRecordId(null);
-                  setBulkDeleteError('');
-                }}
-                className={`history-filter${sourceFilter === item ? ' is-active' : ''}`}
-                aria-pressed={sourceFilter === item}
-                aria-label={item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}
+                onClick={() => onClose()}
+                aria-label={t('history.close')}
+                className="history-page-controls-close history-drawer-close"
               >
-                <span>{item === 'all' ? t('history.sourceAll') : item === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}</span>
-                <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
+                <X size={18} aria-hidden="true" />
               </button>
-            ))}
-          </div>
-          {pageMode && historyStatusFilters}
+            </>
+          ) : historySourceFilters}
         </div>
 
         <div className={`history-content${pageMode ? ' is-page' : ''}`} data-has-selection={Boolean(activeSelectedRecord)}>
@@ -1386,7 +1304,19 @@ export function HistoryDrawer({
         <div className="history-record-list" ref={historyRecordListRef}>
           {filteredRecords.length === 0 ? (
             <div className="history-empty" role="status">
-              <Search size={21} strokeWidth={1.5} aria-hidden="true" />
+              {pageMode ? (
+                <div className="history-empty-art" aria-hidden="true">
+                  <span className="history-empty-art-orbit history-empty-art-orbit--outer" />
+                  <span className="history-empty-art-orbit history-empty-art-orbit--inner" />
+                  <span className="history-empty-art-spark history-empty-art-spark--left" />
+                  <span className="history-empty-art-spark history-empty-art-spark--right" />
+                  <span className="history-empty-art-icon">
+                    <Search size={26} strokeWidth={1.8} />
+                  </span>
+                </div>
+              ) : (
+                <Search size={21} strokeWidth={1.5} aria-hidden="true" />
+              )}
               <strong>{query ? t('history.noResults') : t('history.emptyCategory')}</strong>
               <span>{query
                 ? t('history.changeSearch')
@@ -1396,6 +1326,22 @@ export function HistoryDrawer({
                   ? t('history.personalEmpty')
                   : t('history.generalEmpty')}</span>
               {query && <button type="button" onClick={() => setQuery('')}>{t('history.resetSearch')}</button>}
+              {pageMode && !query.trim() && statusFilter !== 'sent' && (
+                <div className="history-empty-create-actions">
+                  {sourceFilter !== 'personal' && statusFilter !== 'notes' && (
+                    <button type="button" onClick={navigation.openStudio}>
+                      <Plus size={14} aria-hidden="true" />
+                      {t('history.createInStudio')}
+                    </button>
+                  )}
+                  {sourceFilter !== 'workspace' && (
+                    <button type="button" onClick={navigation.openQuickPlan}>
+                      <Plus size={14} aria-hidden="true" />
+                      {t('history.createInPlanner')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             visibleRecords.map((record, index) => {
@@ -1942,8 +1888,16 @@ export function HistoryDrawer({
               );
             })() : (
               <div className="history-detail-empty">
-                <FileText size={28} aria-hidden="true" />
-                <h2>{t('history.detailEmptyTitle')}</h2>
+                <div className="history-detail-empty-art" aria-hidden="true">
+                  <span className="history-detail-empty-art-orbit history-detail-empty-art-orbit--outer" />
+                  <span className="history-detail-empty-art-orbit history-detail-empty-art-orbit--inner" />
+                  <span className="history-detail-empty-art-spark history-detail-empty-art-spark--left" />
+                  <span className="history-detail-empty-art-spark history-detail-empty-art-spark--right" />
+                  <span className="history-detail-empty-art-icon">
+                    <Send size={28} strokeWidth={1.8} />
+                  </span>
+                </div>
+                <h2>{t('history.title')}</h2>
                 <p>{t('history.detailEmptyText')}</p>
               </div>
             )}

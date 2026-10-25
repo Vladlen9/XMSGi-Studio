@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
 import { HistoryDrawer } from './HistoryDrawer';
+import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import { normalizePlannerDraft, normalizeSavedDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
 
 const scheduledMessage: ScheduledMessage = {
@@ -190,26 +191,102 @@ describe('Posts page split view', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
   });
 
-  it('keeps section navigation above the list and search with the bottom actions', () => {
-    const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
-    const controls = container.querySelector<HTMLDivElement>('.history-drawer-controls')!;
-    const statusFilters = controls.querySelector<HTMLDivElement>('.history-status-filters')!;
-    const recordList = container.querySelector<HTMLDivElement>('.history-record-list')!;
-    const tools = container.querySelector<HTMLDivElement>('.history-drawer-tools')!;
-    const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
-    const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
+  it('offers product-specific create actions for an empty category, but not empty search results', () => {
+    const openStudio = vi.fn();
+    const openQuickPlan = vi.fn();
+    render(
+      <LocaleProvider>
+        <QuickPlannerNavigationContext.Provider value={{
+          currentSection: 'posts',
+          openStudio,
+          openQuickPlan,
+          openPosts: vi.fn(),
+          openSettings: vi.fn(),
+        }}>
+          <HistoryDrawer
+            isOpen
+            pageMode
+            onClose={vi.fn()}
+            records={[]}
+            onCancel={vi.fn()}
+            onReschedule={vi.fn()}
+            onSendNow={vi.fn()}
+            onDelete={vi.fn()}
+            onOpenDraft={vi.fn()}
+            onClearSent={vi.fn()}
+          />
+        </QuickPlannerNavigationContext.Provider>
+      </LocaleProvider>,
+    );
 
-    expect(controls).toContainElement(statusFilters);
-    expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(recordList.compareDocumentPosition(searchDock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(tools).toContainElement(searchDock);
-    expect(footer).not.toContainElement(statusFilters);
-    expect(screen.getByRole('search')).toBeInTheDocument();
-    expect(screen.getByRole('tablist', { name: 'Post status' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
-    expect(container.querySelector('.history-drawer-tools')).toBeInTheDocument();
-    expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
-    expect(container.querySelector('.history-export-button')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Create in Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create in Planner' }));
+    expect(openStudio).toHaveBeenCalledOnce();
+    expect(openQuickPlan).toHaveBeenCalledOnce();
+    expect(document.querySelector('.history-empty-art')).toHaveAttribute('aria-hidden', 'true');
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search history' }), {
+      target: { value: 'no match' },
+    });
+    expect(screen.queryByRole('button', { name: 'Create in Studio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create in Planner' })).not.toBeInTheDocument();
+  });
+
+  it('offers an empty-state create action matching the selected source', () => {
+    renderHistoryPage([]);
+    const sourceFilters = within(screen.getByRole('group', { name: 'Post source' }));
+
+    fireEvent.click(sourceFilters.getByRole('button', { name: 'Studio' }));
+    expect(screen.getByRole('button', { name: 'Create in Studio' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Create in Planner' })).not.toBeInTheDocument();
+
+    fireEvent.click(sourceFilters.getByRole('button', { name: 'Planner' }));
+    expect(screen.queryByRole('button', { name: 'Create in Studio' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create in Planner' })).toBeInTheDocument();
+  });
+
+  it('keeps search and bottom actions in the Posts dock', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-28T12:00:00.000Z'));
+    try {
+      const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
+      const controls = container.querySelector<HTMLDivElement>('.history-drawer-controls')!;
+      const statusFilters = controls.querySelector<HTMLDivElement>('.history-status-filters')!;
+      const statusSection = controls.querySelector<HTMLDivElement>('.is-status-section')!;
+      const sourceSection = controls.querySelector<HTMLDivElement>('.is-source-section')!;
+      const sourceFilters = sourceSection.querySelector<HTMLDivElement>('.history-source-filters')!;
+      const detailPanel = container.querySelector<HTMLDivElement>('.history-detail-panel')!;
+      const recordList = container.querySelector<HTMLDivElement>('.history-record-list')!;
+      const tools = container.querySelector<HTMLDivElement>('.history-drawer-tools')!;
+      const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
+      const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
+
+      expect(controls).toContainElement(statusFilters);
+      expect(controls).toContainElement(container.querySelector('.history-page-controls-close'));
+      expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(tools).toContainElement(searchDock);
+      expect(searchDock.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(footer).not.toContainElement(statusFilters);
+      expect(footer).toContainElement(container.querySelector('.history-export-button'));
+      expect(footer).toContainElement(container.querySelector('.history-delete-button, .history-delete-placeholder'));
+      expect(screen.getByRole('search')).toBeInTheDocument();
+      expect(screen.getByRole('tablist', { name: 'Post status' })).toBeInTheDocument();
+      expect(controls.querySelectorAll('.history-page-filter-section')).toHaveLength(2);
+      expect(controls.querySelector('.is-status-section')).toContainElement(statusFilters);
+      expect(sourceSection).toContainElement(sourceFilters);
+      expect(sourceSection.compareDocumentPosition(statusSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(detailPanel).not.toContainElement(sourceFilters);
+      expect(container.querySelector('.history-drawer-header')).toBeNull();
+      expect(screen.getByText('Source')).toBeInTheDocument();
+      expect(screen.getByText('Category')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
+      expect(container.querySelector('.history-drawer-tools')).toBeInTheDocument();
+      expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
+      expect(container.querySelector('.history-export-button')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('keeps the full list visible while showing the selected post details separately', () => {
@@ -222,7 +299,11 @@ describe('Posts page split view', () => {
     const { container } = renderHistoryPage([upcomingRecord, secondRecord]);
 
     expect(container.querySelectorAll('.history-record')).toHaveLength(2);
-    expect(screen.getByText('Select a post')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty h2')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty-art')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.history-detail-empty-art-icon')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty-art-orbit--outer')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty-art-spark--left')).toBeInTheDocument();
 
     fireEvent.click(container.querySelector('.history-record-open')!);
 
@@ -304,7 +385,7 @@ describe('Posts page split view', () => {
   });
 });
 
-describe('history filter glass indicators', () => {
+describe('history filter selected states', () => {
   it('keeps full Russian category labels accessible', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     window.localStorage.setItem('awaitmsg_locale', 'ru');
@@ -316,24 +397,25 @@ describe('history filter glass indicators', () => {
     expect(scheduledTab.querySelector('.history-status-label')?.textContent).toBe('План');
   });
 
-  it('tracks the selected source and status filters', () => {
+  it('keeps source and status selections on their buttons without a moving indicator', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
     const sourceFilters = container.querySelector('.history-source-filters') as HTMLDivElement;
     const statusFilters = container.querySelector('.history-status-filters') as HTMLDivElement;
-    const sourceIndicator = sourceFilters.querySelector<HTMLElement>('.history-glass-indicator');
-    const statusIndicator = statusFilters.querySelector<HTMLElement>('.history-glass-indicator');
+    const activeSource = sourceFilters.querySelector<HTMLButtonElement>('[aria-pressed="true"]')!;
+    const activeStatus = statusFilters.querySelector<HTMLButtonElement>('[aria-selected="true"]')!;
 
-    expect(sourceIndicator?.dataset.activeFilter).toBe('all');
-    expect(statusIndicator?.dataset.activeFilter).toBe('scheduled');
-    expect(sourceIndicator?.style.opacity).toBe('1');
-    expect(statusIndicator?.style.opacity).toBe('1');
+    expect(activeSource).toHaveAttribute('data-history-filter', 'all');
+    expect(activeSource).toHaveClass('is-active');
+    expect(activeStatus).toHaveAttribute('data-history-filter', 'scheduled');
+    expect(activeStatus).toHaveClass('is-active');
+    expect(container.querySelector('.history-glass-indicator')).toBeNull();
 
     fireEvent.click(sourceFilters.querySelector('[data-history-filter="workspace"]')!);
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
 
-    expect(sourceIndicator?.dataset.activeFilter).toBe('workspace');
-    expect(statusIndicator?.dataset.activeFilter).toBe('sent');
+    expect(sourceFilters.querySelector('[data-history-filter="workspace"]')).toHaveClass('is-active');
+    expect(statusFilters.querySelector('[data-history-filter="sent"]')).toHaveClass('is-active');
   });
 
   it('keeps source totals inclusive of sent records while Scheduled is selected', () => {
@@ -457,47 +539,6 @@ describe('history filter glass indicators', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
   });
 
-  it('bounces the selected status in place when clicked again', () => {
-    window.localStorage.removeItem('xmsgi-history-filters');
-    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
-    const selectedTab = container.querySelector<HTMLElement>('.history-status-tab[aria-selected="true"]')!;
-    const surface = container.querySelector<HTMLElement>('.history-status-filters .history-glass-surface')!;
-    const animate = vi.fn();
-    Object.defineProperty(surface, 'animate', { configurable: true, value: animate });
-
-    fireEvent.click(selectedTab);
-
-    expect(animate).toHaveBeenCalledOnce();
-    const [frames, timing] = animate.mock.calls[0];
-    expect(frames).toEqual(expect.arrayContaining([
-      expect.objectContaining({ transform: 'scale(1.075)', offset: 0.42 }),
-      expect.objectContaining({ transform: 'scale(1.01)', offset: 0.72 }),
-      expect.objectContaining({ transform: 'scale(1.02)', offset: 0.86 }),
-      expect.objectContaining({ transform: 'scale(1)' }),
-    ]));
-    expect(frames.every((frame: Keyframe) => !String(frame.transform).includes('translate'))).toBe(true);
-    expect(timing.duration).toBe(780);
-    expect(timing.easing).toBe('cubic-bezier(0.33, 0, 0.67, 1)');
-  });
-
-  it('uses the same in-place bounce when the selected source is clicked again', () => {
-    window.localStorage.removeItem('xmsgi-history-filters');
-    const { container } = renderHistory([upcomingRecord, workspaceSentRecord]);
-    const selectedTab = container.querySelector<HTMLElement>('.history-filter[aria-pressed="true"]')!;
-    const surface = container.querySelector<HTMLElement>('.history-source-filters .history-glass-surface')!;
-    const animate = vi.fn();
-    Object.defineProperty(surface, 'animate', { configurable: true, value: animate });
-
-    fireEvent.click(selectedTab);
-
-    expect(animate).toHaveBeenCalledOnce();
-    const [frames] = animate.mock.calls[0];
-    expect(frames).toEqual(expect.arrayContaining([
-      expect.objectContaining({ transform: 'scale(1.075)', offset: 0.42 }),
-      expect.objectContaining({ transform: 'scale(1.01)', offset: 0.72 }),
-    ]));
-    expect(frames.every((frame: Keyframe) => !String(frame.transform).includes('translate'))).toBe(true);
-  });
 });
 
 function mockHistoryRecordScroll(container: HTMLElement, recordBounds = { top: 350, height: 100 }, scale = 1) {
