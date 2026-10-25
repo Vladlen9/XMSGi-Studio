@@ -10,6 +10,7 @@ export function createSavedDraft(
   return {
     id: uid(),
     documentId: input.documentId ?? uid(),
+    postId: input.postId,
     name: input.name.trim(),
     body: input.body,
     color: input.color ?? 'gray',
@@ -35,6 +36,7 @@ export function updateSavedDraft(
   return {
     ...draft,
     documentId: input.documentId ?? draft.documentId ?? draft.id,
+    postId: input.postId ?? draft.postId,
     name: input.name.trim(),
     body: input.body,
     color: input.color ?? draft.color ?? 'gray',

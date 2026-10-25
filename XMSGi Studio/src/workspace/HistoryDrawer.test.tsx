@@ -124,6 +124,27 @@ function renderHistory(
   return { ...view, onClose, onCancel, onDelete, onSendNow, onOpenDraft, onUseDraft, onReschedule, onClearSent, onClearDrafts, onCancelQueue };
 }
 
+function renderHistoryPage(records = [upcomingRecord]) {
+  const onClose = vi.fn();
+  return render(
+    <LocaleProvider>
+      <HistoryDrawer
+        isOpen
+        pageMode
+        onClose={onClose}
+        records={records}
+        onCancel={vi.fn()}
+        onReschedule={vi.fn()}
+        onSendNow={vi.fn()}
+        onDelete={vi.fn()}
+        onOpenDraft={vi.fn()}
+        onClearSent={vi.fn()}
+        onCancelQueue={vi.fn()}
+      />
+    </LocaleProvider>,
+  );
+}
+
 function searchHistory(query: string) {
   renderHistory();
   fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
@@ -161,6 +182,125 @@ describe('history drawer transient menus', () => {
 
     expect(view.container.querySelector('.history-export-menu')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Export current category' })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('Posts page split view', () => {
+  beforeEach(() => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+  });
+
+  it('keeps section navigation above the list and search with the bottom actions', () => {
+    const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
+    const controls = container.querySelector<HTMLDivElement>('.history-drawer-controls')!;
+    const statusFilters = controls.querySelector<HTMLDivElement>('.history-status-filters')!;
+    const recordList = container.querySelector<HTMLDivElement>('.history-record-list')!;
+    const tools = container.querySelector<HTMLDivElement>('.history-drawer-tools')!;
+    const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
+    const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
+
+    expect(controls).toContainElement(statusFilters);
+    expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(recordList.compareDocumentPosition(searchDock) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tools).toContainElement(searchDock);
+    expect(footer).not.toContainElement(statusFilters);
+    expect(screen.getByRole('search')).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Post status' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
+    expect(container.querySelector('.history-drawer-tools')).toBeInTheDocument();
+    expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
+    expect(container.querySelector('.history-export-button')).toBeInTheDocument();
+  });
+
+  it('keeps the full list visible while showing the selected post details separately', () => {
+    const secondRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'scheduled-studio-2',
+      text: 'Вторая публикация остаётся в списке',
+      when: '2026-09-30T17:30:00.000Z',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const { container } = renderHistoryPage([upcomingRecord, secondRecord]);
+
+    expect(container.querySelectorAll('.history-record')).toHaveLength(2);
+    expect(screen.getByText('Select a post')).toBeInTheDocument();
+
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    expect(container.querySelectorAll('.history-record')).toHaveLength(2);
+    expect(screen.getAllByText('Релиз нового набора шаблонов для Telegram-канала').length).toBeGreaterThan(0);
+    expect(screen.getByText('Вторая публикация остаётся в списке')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'brief.pdf' }))
+      .toHaveAttribute('download', 'brief.pdf');
+    expect(screen.getByRole('button', { name: 'Back to posts' })).toBeInTheDocument();
+    expect(container.querySelector('.history-record-open')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('supports arrow, Home, and End navigation across status tabs', () => {
+    renderHistoryPage([upcomingRecord, workspaceSentRecord]);
+    const scheduledTab = screen.getByRole('tab', { name: 'Scheduled' });
+    const sentTab = screen.getByRole('tab', { name: 'Sent' });
+    const draftsTab = screen.getByRole('tab', { name: 'Drafts' });
+
+    expect(scheduledTab).toHaveAttribute('tabindex', '0');
+    expect(sentTab).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(scheduledTab, { key: 'ArrowRight' });
+    expect(sentTab).toHaveFocus();
+    expect(sentTab).toHaveAttribute('aria-selected', 'true');
+    expect(sentTab).toHaveAttribute('tabindex', '0');
+
+    fireEvent.keyDown(sentTab, { key: 'End' });
+    expect(draftsTab).toHaveFocus();
+    expect(draftsTab).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(draftsTab, { key: 'ArrowRight' });
+    expect(scheduledTab).toHaveFocus();
+    expect(scheduledTab).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(scheduledTab, { key: 'Home' });
+    expect(scheduledTab).toHaveFocus();
+    expect(scheduledTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('focuses and selects the history query with Ctrl+F or Cmd+F', () => {
+    renderHistoryPage([upcomingRecord]);
+    const search = screen.getByRole('textbox', { name: 'Search history' }) as HTMLInputElement;
+    fireEvent.change(search, { target: { value: 'launch' } });
+
+    fireEvent.keyDown(document, { key: 'f', ctrlKey: true });
+
+    expect(search).toHaveFocus();
+    expect(search.selectionStart).toBe(0);
+    expect(search.selectionEnd).toBe('launch'.length);
+  });
+
+  it('returns keyboard focus to the selected post after leaving mobile details', async () => {
+    const previousMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn((media: string) => ({
+        matches: media === '(max-width: 900px)',
+        media,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
+    try {
+      const { container } = renderHistoryPage([upcomingRecord]);
+      const rowButton = container.querySelector('.history-record-open') as HTMLButtonElement;
+      fireEvent.click(rowButton);
+      fireEvent.click(screen.getByRole('button', { name: 'Back to posts' }));
+
+      await waitFor(() => expect(container.querySelector('.history-record-open')).toHaveFocus());
+    } finally {
+      if (previousMatchMedia) Object.defineProperty(window, 'matchMedia', previousMatchMedia);
+      else Reflect.deleteProperty(window, 'matchMedia');
+    }
   });
 });
 
@@ -645,21 +785,49 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
   });
 
-  it('shows matching totals and clears an empty search', () => {
+  it('finds records by attachment name', () => {
+    searchHistory('brief.pdf');
+
+    expect(screen.getByText('XMSGi Updates')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('finds Planner drafts by reminder type', () => {
+    const plannerDraft = normalizePlannerDraft(
+      'Собрать материалы',
+      null,
+      '2026-09-29T17:30:00.000Z',
+      [],
+      [],
+      'meeting',
+    );
+    renderHistory(plannerDraft ? [plannerDraft] : []);
+    fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
+      target: { value: 'встреча' },
+    });
+
+    expect(screen.getByRole('article')).toHaveTextContent('Собрать материалы');
+  });
+
+  it('counts results within the selected category and clears an empty search', () => {
     renderHistory([upcomingRecord, personalUpcomingRecord, completedRecord]);
+    expect(screen.getByText('Показано 2 из 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Планер' }));
+    expect(screen.getByText('Показано 1 из 1')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Экспортировать текущую категорию' }));
     expect(screen.getByRole('menu', { name: 'Формат экспорта' })).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
       target: { value: 'нет такого сообщения' },
     });
 
-    expect(screen.getByText('Найдено 0 из 3')).toBeInTheDocument();
+    expect(screen.getByText('Найдено 0 из 1')).toBeInTheDocument();
     expect(screen.getByText('Ничего не найдено')).toBeInTheDocument();
     expect(screen.queryByRole('menu', { name: 'Формат экспорта' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Очистить поиск' }));
 
-    expect(screen.getAllByRole('article')).toHaveLength(2);
-    expect(screen.getByText('Найдено 2 из 3')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Показано 1 из 1')).toBeInTheDocument();
   });
 
   it('reserves the clear-button slot while the search is empty', () => {

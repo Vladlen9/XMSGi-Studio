@@ -54,6 +54,7 @@ export interface SavedDraftAttachment {
 export interface SavedDraft {
   id: string;
   documentId?: string;
+  postId?: string;
   name: string;
   body: string;
   color?: DraftColor;

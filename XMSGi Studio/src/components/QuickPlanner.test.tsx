@@ -166,6 +166,41 @@ describe('QuickPlanner feedback', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
+  it('does not show a previous-text notice when the Planner was empty before loading a Posts draft', async () => {
+    const chat: Chat = { id: 'chat-empty-restore', name: 'Empty restore chat' };
+    const onRestoreDraft = vi.fn();
+    const onSendNow = vi.fn().mockResolvedValue(true);
+    const { container } = render(
+      <QuickPlanner
+        chats={[chat]}
+        selectedChat={chat}
+        draftLoadRequest={{
+          revision: 1,
+          text: 'Selected Posts draft',
+          attachments: [],
+          entities: [],
+          restoreDraft: null,
+        }}
+        onRestoreDraft={onRestoreDraft}
+        onSendNow={onSendNow}
+      />,
+    );
+    const editor = screen.getByRole('textbox', { name: 'Reminder text' });
+    const submit = container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', undefined, undefined);
+    expect(editor).toHaveValue('');
+    expect(onRestoreDraft).toHaveBeenCalledWith(null);
+    expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('You had text here before');
+  });
+
   it('keeps the selected Posts draft after a failed send and restores the previous draft on retry success', async () => {
     const chat: Chat = { id: 'chat-retry-restore', name: 'Retry restore chat' };
     const restoreDraft = { text: 'Previous Planner text', attachments: [], entities: [] };

@@ -641,6 +641,13 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
   transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
+.quick-planner-activity-view > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .quick-planner-activity-view:hover:not(.is-active) {
   color: #1676bb;
 }
@@ -658,8 +665,10 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
 }
 
 .quick-planner-activity-view strong {
+  flex: 0 0 auto;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .quick-planner-activity-highlights {

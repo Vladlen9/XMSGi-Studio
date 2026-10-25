@@ -63,6 +63,11 @@ function normalizeEntityValues(entities?: unknown[]): DraftRecord['entities'] {
   });
 }
 
+function normalizeInlineButtonValues(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((row) => (Array.isArray(row) ? row : []));
+}
+
 export function readDraftStore(): DraftStoreSnapshot {
   const activeDraft = readLocalStorage<DraftRecord | null>(ACTIVE_DRAFT_KEY, null);
   const savedDrafts = readLocalStorage<DraftRecord[]>(SAVED_DRAFTS_KEY, []);
@@ -75,6 +80,27 @@ export function readDraftStore(): DraftStoreSnapshot {
     || savedDrafts.some((draft) => !draft || typeof draft !== 'object'
       || typeof draft.id !== 'string' || typeof draft.message !== 'string')) {
     throw new Error('Saved drafts have an invalid structure.');
+  }
+
+  if (activeDraft !== null && activeDraft !== undefined && typeof activeDraft === 'object') {
+    if (activeDraft.date !== undefined && typeof activeDraft.date !== 'string') {
+      throw new Error('Active draft date is invalid.');
+    }
+    if (activeDraft.time !== undefined && typeof activeDraft.time !== 'string') {
+      throw new Error('Active draft time is invalid.');
+    }
+    if (activeDraft.repeatMode !== undefined && !['none', 'daily', 'weekly', 'biweekly', 'monthly'].includes(activeDraft.repeatMode)) {
+      throw new Error('Active draft repeat mode is invalid.');
+    }
+    if (activeDraft.repeatDays !== undefined && !Array.isArray(activeDraft.repeatDays)) {
+      throw new Error('Active draft repeat days are invalid.');
+    }
+    if (activeDraft.repeatOccurrences !== undefined && typeof activeDraft.repeatOccurrences !== 'number') {
+      throw new Error('Active draft repeat occurrences are invalid.');
+    }
+    if (activeDraft.inlineButtons !== undefined && !Array.isArray(activeDraft.inlineButtons)) {
+      throw new Error('Active draft inline buttons are invalid.');
+    }
   }
 
   return {
@@ -181,6 +207,12 @@ export function createActiveDraftSnapshot(input: {
   entities?: unknown[];
   attachments?: DraftAttachment[] | string[];
   selectedChatId?: string | null;
+  date?: string;
+  time?: string;
+  repeatMode?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  repeatDays?: string[];
+  repeatOccurrences?: number;
+  inlineButtons?: unknown[];
   id?: string;
   updatedAt?: string;
 }): DraftRecord {
@@ -190,6 +222,12 @@ export function createActiveDraftSnapshot(input: {
     entities: normalizeEntityValues(input.entities),
     attachments: normalizeAttachmentValues(input.attachments),
     selectedChatId: input.selectedChatId ?? null,
+    date: input.date ?? '',
+    time: input.time ?? '',
+    repeatMode: input.repeatMode ?? 'none',
+    repeatDays: Array.isArray(input.repeatDays) ? input.repeatDays : [],
+    repeatOccurrences: typeof input.repeatOccurrences === 'number' ? input.repeatOccurrences : 1,
+    inlineButtons: normalizeInlineButtonValues(input.inlineButtons),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
 }

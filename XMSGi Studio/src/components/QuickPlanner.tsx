@@ -89,7 +89,7 @@ type QuickPlannerProps = {
       entities: RichTextEntity[];
     } | null;
   } | null;
-  onRestoreDraft?: (draft: { text: string; attachments: string[]; entities: RichTextEntity[] }) => void;
+  onRestoreDraft?: (draft: { text: string; attachments: string[]; entities: RichTextEntity[] } | null) => void;
   chats?: Chat[];
   selectedChat?: Chat | null;
   upcoming?: ScheduledMessage[];
@@ -325,9 +325,11 @@ export function QuickPlanner({
   const clearOrRestoreDraftAfterCompletion = () => {
     const restoreDraft = restoreDraftOnCompletionRef.current;
     restoreDraftOnCompletionRef.current = null;
-    if (!restoreDraft) {
+    if (!restoreDraft || (!restoreDraft.text.trim() && restoreDraft.attachments.length === 0)) {
+      writePlannerDraft('', [], []);
       setMessage('');
       setAttachments([]);
+      onRestoreDraft?.(null);
       return false;
     }
 

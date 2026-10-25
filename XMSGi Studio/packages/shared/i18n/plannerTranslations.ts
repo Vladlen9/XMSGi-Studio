@@ -254,7 +254,7 @@ export const plannerTranslations = {
     'quickPlanner.activityTotalLabel': 'подтверждённых отправок',
     'quickPlanner.activityViewLabel': 'Раздел активности',
     'quickPlanner.activityViewSent': 'Отправлено',
-    'quickPlanner.activityViewScheduled': 'В расписании',
+    'quickPlanner.activityViewScheduled': 'Очередь',
     'quickPlanner.activityViewAll': 'Все',
     'quickPlanner.activityHighlights': 'Сводка активности',
     'quickPlanner.activityHighlightSent': 'подтверждённых отправок',

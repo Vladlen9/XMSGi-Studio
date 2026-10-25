@@ -18,6 +18,12 @@ export type DraftRecord = {
   entities: DraftMessageEntity[];
   attachments: DraftAttachment[];
   selectedChatId: string | null;
+  date?: string;
+  time?: string;
+  repeatMode?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+  repeatDays?: string[];
+  repeatOccurrences?: number;
+  inlineButtons?: unknown[];
   updatedAt: string;
 };
 
@@ -56,6 +62,12 @@ export function createDraftRecord(input: Partial<DraftRecord> & Pick<DraftRecord
     entities: Array.isArray(input.entities) ? input.entities : [],
     attachments: Array.isArray(input.attachments) ? input.attachments : [],
     selectedChatId: input.selectedChatId ?? null,
+    date: typeof input.date === 'string' ? input.date : '',
+    time: typeof input.time === 'string' ? input.time : '',
+    repeatMode: input.repeatMode ?? 'none',
+    repeatDays: Array.isArray(input.repeatDays) ? input.repeatDays : [],
+    repeatOccurrences: typeof input.repeatOccurrences === 'number' ? input.repeatOccurrences : 1,
+    inlineButtons: Array.isArray(input.inlineButtons) ? input.inlineButtons : [],
     updatedAt: input.updatedAt ?? timestamp,
   };
 }

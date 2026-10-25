@@ -234,7 +234,7 @@ function AppContent() {
   }, [productView, showNotification, studioNotifications.showNotification, t]);
   const [studioMessage, setStudioMessage] = useState('');
   const studioDraftOpenerRef = useRef<((draft: SavedDraft) => void) | null>(null);
-  const studioDraftUseRef = useRef<((draft: SavedDraft) => void) | null>(null);
+  const studioDraftUseRef = useRef<((draft: SavedDraft) => Promise<boolean>) | null>(null);
   const studioDraftClearerRef = useRef<(() => Promise<boolean>) | null>(null);
   const studioDraftDeleterRef = useRef<((draftId: string) => Promise<boolean>) | null>(null);
   const studioHistoryReschedulerRef = useRef<((message: StudioScheduledMessage) => void) | null>(null);
@@ -249,7 +249,7 @@ function AppContent() {
   const registerHistoryDraftOpener = useCallback((opener: ((draft: SavedDraft) => void) | null) => {
     studioDraftOpenerRef.current = opener;
   }, []);
-  const registerHistoryDraftUseHandler = useCallback((handler: ((draft: SavedDraft) => void) | null) => {
+  const registerHistoryDraftUseHandler = useCallback((handler: ((draft: SavedDraft) => Promise<boolean>) | null) => {
     studioDraftUseRef.current = handler;
   }, []);
   const registerHistoryRescheduleHandler = useCallback((handler: ((message: StudioScheduledMessage) => void) | null) => {
@@ -633,8 +633,7 @@ function AppContent() {
       setProductView('studio');
       const applyDraft = studioDraftUseRef.current;
       if (!applyDraft) return;
-      applyDraft(record.original.draft);
-      void studioDraftDeleterRef.current?.(record.original.draft.id);
+      void applyDraft(record.original.draft);
       return;
     }
 
@@ -658,12 +657,17 @@ function AppContent() {
     }
 
     setProductView('planner');
-    const restoreDraft = plannerDraftLoadRequest?.restoreDraft ?? {
+    flushPlannerDraftWrite();
+    const currentDraft = {
       text: readPlannerDraft(),
       attachments: readPlannerDraftAttachments(),
       entities: readPlannerDraftEntities(),
     };
-    flushPlannerDraftWrite();
+    const restoreDraft = plannerDraftLoadRequest
+      ? plannerDraftLoadRequest.restoreDraft
+      : currentDraft.text.trim() || currentDraft.attachments.length > 0
+        ? currentDraft
+        : null;
     setMessageEntities(plannerPayload.entities);
     setPlannerAttachments(plannerPayload.attachments);
     setMessage(plannerPayload.text);
@@ -683,11 +687,11 @@ function AppContent() {
     }
   };
 
-  const restorePlannerDraft = (draft: { text: string; attachments: string[]; entities: RichTextEntity[] }) => {
-    setMessageEntities(draft.entities);
-    setPlannerAttachments(draft.attachments);
-    setMessage(draft.text);
-    setPlannerDraftLoadRequest((current) => current ? { ...current, restoreDraft: null } : current);
+  const restorePlannerDraft = (draft: { text: string; attachments: string[]; entities: RichTextEntity[] } | null) => {
+    setMessageEntities(draft?.entities ?? []);
+    setPlannerAttachments(draft?.attachments ?? []);
+    setMessage(draft?.text ?? '');
+    setPlannerDraftLoadRequest(null);
   };
 
   const studioConnected = connected && !signedOut && activeAccountId === 'account-1';

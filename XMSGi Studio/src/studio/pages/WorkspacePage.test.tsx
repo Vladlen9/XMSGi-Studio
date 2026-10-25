@@ -522,7 +522,7 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('loads a saved draft into the main editor through the history use handler', async () => {
+  it('moves a history draft into the editor and records the replaced text without keeping a duplicate', async () => {
     const savedDraft = {
       id: 'use-in-composer',
       name: 'Composer draft',
@@ -538,21 +538,37 @@ describe('WorkspacePage main-screen flows', () => {
       schemaVersion: 2,
       migrationVersion: 1,
       savedDrafts: [savedDraft],
-      workspaceDraft: null,
+      workspaceDraft: {
+        documentId: 'history-use-existing-document',
+        body: 'Existing Studio document',
+        entities: [],
+        attachments: [],
+        savedAt: '12:00',
+      },
     };
-    let useHistoryDraft: ((draft: typeof savedDraft) => void) | null = null;
+    let useHistoryDraft: ((draft: typeof savedDraft) => Promise<boolean>) | null = null;
     const { unmount } = await renderWorkspacePage({
       onRegisterHistoryDraftUseHandler: (handler) => { useHistoryDraft = handler; },
     });
 
+    let applied = false;
     await act(async () => {
-      useHistoryDraft?.(savedDraft);
+      applied = await useHistoryDraft?.(savedDraft) ?? false;
     });
 
     const editor = document.querySelector('[aria-label="Post content"]');
+    expect(applied).toBe(true);
     expect(editor?.getAttribute('aria-hidden')).toBe('false');
     expect(editor?.textContent).toBe(savedDraft.body);
-    expect(inMemoryDraftStore.savedDrafts[0]).toEqual(savedDraft);
+    expect(inMemoryDraftStore.savedDrafts).toEqual([]);
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: savedDraft.body });
+    expect(document.querySelector('.workspace-page-publish-transient-feedback'))
+      .toHaveTextContent('Draft moved to the editor.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveClass('is-success');
+    expect(inMemoryDraftStore.documentHistories?.['history-use-existing-document']?.some((version) => (
+      (version.snapshot as WorkspaceDraft).body === 'Existing Studio document'
+      && version.reason === 'before-replacement'
+    ))).toBe(true);
     unmount();
   });
 
@@ -1268,10 +1284,40 @@ describe('WorkspacePage main-screen flows', () => {
     expect(getInMemoryWorkspaceDraft().body).toBe('Previous Studio post');
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).toContain('Previous Studio post');
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).not.toContain('Planner post');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback'))
+      .toHaveTextContent('You had text here before — we put it back in the editor.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveClass('is-success');
     expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
       (version.snapshot as WorkspaceDraft).body === 'Planner post'
       && version.reason === 'publish'
     ))).toBe(true);
+    unmount();
+  });
+
+  it('does not register an empty Studio document for restoration after opening Planner text', async () => {
+    localStorage.removeItem('awaitmsg-workspace-draft');
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [],
+      workspaceDraft: null,
+    };
+    const registerPlannerTextOpener = vi.fn();
+    const { rerender, unmount } = await renderWorkspacePage({ onRegisterPlannerTextOpener: registerPlannerTextOpener });
+    const opener = registerPlannerTextOpener.mock.calls.map(([handler]) => handler)
+      .find((handler) => typeof handler === 'function') as ((payload: StudioPlannerTextPayload) => Promise<boolean>) | undefined;
+
+    await act(async () => {
+      await opener!({ text: 'Planner post', attachments: [], entities: [] });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+    await act(async () => {
+      rerender({ successPulse: true, lastAction: 'sent' });
+      await new Promise((resolve) => window.setTimeout(resolve, 400));
+    });
+
+    expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent).not.toContain('Planner post');
+    expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
     unmount();
   });
 

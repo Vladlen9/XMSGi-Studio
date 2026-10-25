@@ -70,6 +70,12 @@ export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
       entities: unifiedDraft.entities as unknown as RichTextEntity[],
       attachments: unifyDraftAttachmentPaths(unifiedDraft.attachments as Array<{ id?: string; name?: string; path?: string; size?: number; kind?: string; type?: string; mimeType?: string; sourcePath?: string; previewUrl?: string; position?: number; albumId?: string; unavailable?: boolean }>),
       selectedChat: unifiedDraft.selectedChatId ? { id: unifiedDraft.selectedChatId, name: '', username: '', type: 'unknown' } as Chat : null,
+      date: typeof unifiedDraft.date === 'string' ? unifiedDraft.date : '',
+      time: typeof unifiedDraft.time === 'string' ? unifiedDraft.time : '',
+      inlineButtons: Array.isArray(unifiedDraft.inlineButtons) ? (unifiedDraft.inlineButtons as unknown as InlineButtonRow[]) : [],
+      repeatMode: ['none', 'daily', 'weekly', 'biweekly', 'monthly'].includes(unifiedDraft.repeatMode ?? 'none') ? (unifiedDraft.repeatMode ?? 'none') : 'none',
+      repeatDays: Array.isArray(unifiedDraft.repeatDays) ? unifiedDraft.repeatDays as string[] : [],
+      repeatOccurrences: typeof unifiedDraft.repeatOccurrences === 'number' ? unifiedDraft.repeatOccurrences : 1,
       savedAt: unifiedDraft.updatedAt,
     };
   }

@@ -119,7 +119,7 @@ type WorkspacePageProps = {
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftOpener?: (opener: ((draft: SavedDraft) => void) | null) => void;
-  onRegisterHistoryDraftUseHandler?: (handler: ((draft: SavedDraft) => void) | null) => void;
+  onRegisterHistoryDraftUseHandler?: (handler: ((draft: SavedDraft) => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftClearHandler?: (handler: (() => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftDeleteHandler?: (handler: ((draftId: string) => Promise<boolean>) | null) => void;
   onRegisterHistoryRescheduleHandler?: (handler: ((message: ScheduledMessage) => void) | null) => void;
@@ -697,7 +697,7 @@ export function WorkspacePage({
   const focusEditorAfterStageEscapeRef = useRef(false);
   const restorePlannerDocumentRef = useRef<() => Promise<boolean>>(async () => false);
   const historyDraftOpenerRef = useRef<(draft: SavedDraft) => void>(() => undefined);
-  const historyDraftUseRef = useRef<(draft: SavedDraft) => void>(() => undefined);
+  const historyDraftUseRef = useRef<(draft: SavedDraft) => Promise<boolean>>(async () => false);
   const historyDraftClearerRef = useRef<() => Promise<boolean>>(async () => false);
   const historyDraftDeleterRef = useRef<(draftId: string) => Promise<boolean>>(async () => false);
   const historyRescheduleHandlerRef = useRef<(message: ScheduledMessage) => void>(() => undefined);
@@ -875,7 +875,7 @@ export function WorkspacePage({
   // Previous Studio document auto-saved when a Planner note is opened in the editor.
   // Restored after the Planner note is saved, sent, or scheduled so the user never loses
   // what was already in the editor before opening the Planner text.
-  const plannerRestoreRef = useRef<{ draft: SavedDraft } | null>(null);
+  const plannerRestoreRef = useRef<{ draft: SavedDraft | null } | null>(null);
   const scheduleSubmissionPendingRef = useRef(false);
   const scheduleSubmissionStartedRef = useRef(false);
   const publishMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1358,9 +1358,15 @@ export function WorkspacePage({
 
       attachmentPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       attachmentPreviewUrlsRef.current.clear();
-      if (plannerRestoreRef.current) {
+      if (plannerRestoreRef.current?.draft) {
         void restorePlannerDocumentRef.current();
         return;
+      }
+      plannerRestoreRef.current = null;
+      if (bodyInputRef.current) {
+        bodyInputRef.current.innerHTML = '';
+        bodyInputRef.current.dataset.selectionStart = '0';
+        bodyInputRef.current.dataset.selectionEnd = '0';
       }
       setDraftBody('');
       setDraftEntities([]);
@@ -1703,6 +1709,11 @@ export function WorkspacePage({
           replaceAttachments(returnedAttachments);
 
           if (firstGroupSent) {
+            if (bodyInputRef.current) {
+              bodyInputRef.current.innerHTML = '';
+              bodyInputRef.current.dataset.selectionStart = '0';
+              bodyInputRef.current.dataset.selectionEnd = '0';
+            }
             setDraftBody('');
             setDraftEntities([]);
             setInlineButtons([]);
@@ -1729,6 +1740,11 @@ export function WorkspacePage({
 
       setSendError('');
       if (sent !== 'sent-history-failed') {
+        if (bodyInputRef.current) {
+          bodyInputRef.current.innerHTML = '';
+          bodyInputRef.current.dataset.selectionStart = '0';
+          bodyInputRef.current.dataset.selectionEnd = '0';
+        }
         setDraftBody('');
         setDraftEntities([]);
         setMessageEffectId(null);
@@ -1825,7 +1841,7 @@ export function WorkspacePage({
     setScheduleSelectionConfirmed(false);
     setPublishAction('draft');
     setPublishMenuOpen(false);
-    if (plannerRestoreRef.current) {
+    if (plannerRestoreRef.current?.draft) {
       const checkpoint = await recordWorkspaceVersion(createWorkspaceDraftSnapshot(), 'publish');
       if (!checkpoint.success) {
         showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
@@ -2006,8 +2022,38 @@ export function WorkspacePage({
     setStageMode('draft');
   };
 
-  const useDraftInComposer = (draft: SavedDraft) => {
+  const useDraftInComposer = async (draft: SavedDraft): Promise<boolean> => {
+    const previousSnapshot = createWorkspaceDraftSnapshot();
+    const checkpoint = await recordWorkspaceVersion(previousSnapshot, 'before-replacement');
+    if (!checkpoint.success) {
+      showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
+      return false;
+    }
+
     const draftChat = draft.selectedChat && chats.find((chat) => chat.id === draft.selectedChat?.id);
+    const nextSavedDrafts = deleteSavedDraft(savedDraftsRef.current, draft.id);
+    const nextWorkspaceDraft: WorkspaceDraft = {
+      documentId: draft.documentId ?? draft.id,
+      body: draft.body,
+      entities: draft.entities ?? [],
+      attachments: normalizeAttachments(draft.attachments),
+      selectedChat: draftChat ?? draft.selectedChat ?? null,
+      inlineButtons: draft.inlineButtons ?? [],
+      date: draft.date ?? '',
+      time: draft.time ?? '',
+      repeatMode: draft.repeatMode ?? 'none',
+      repeatDays: draft.repeatDays ?? [],
+      repeatOccurrences: draft.repeatOccurrences ?? 1,
+      savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    const persisted = await persistDraftStore(nextSavedDrafts, nextWorkspaceDraft, () => {
+      replaceSavedDrafts(nextSavedDrafts);
+    });
+    if (!persisted) {
+      showPublishFeedback(t('studio.draftsCouldNotSave'), 'warning');
+      return false;
+    }
+
     if (draftChat) setSelectedChat(draftChat);
     setDraftBody(draft.body);
     setDraftEntities(draft.entities ?? []);
@@ -2026,6 +2072,8 @@ export function WorkspacePage({
     setStageTab('editor');
     focusRescheduledEditorAtEndRef.current = true;
     changeStageMode('editor');
+    showPublishFeedback(t('studio.draftMovedToEditor'), 'success');
+    return true;
   };
 
   const rescheduleMessage = (message: ScheduledMessage) => {
@@ -2332,23 +2380,25 @@ export function WorkspacePage({
     if (draftBody === text && sameAttachments) {
       setDraftEntities(normalizeRichTextEntities(payload.entities, text.length));
       setMessageEffectId(payload.effect ?? null);
-      plannerRestoreRef.current ??= {
-        draft: createSavedDraft({
-          name: 'Studio document before Planner',
-          documentId: workspaceDocumentId,
-          color: draftColor,
-          body: draftBody,
-          entities: draftEntities,
-          attachments,
-          selectedChat,
-          inlineButtons,
-          date,
-          time,
-          repeatMode,
-          repeatDays,
-          repeatOccurrences,
-        }),
-      };
+      if (hasDraftContent(draftBody, attachments) || inlineButtons.length > 0) {
+        plannerRestoreRef.current ??= {
+          draft: createSavedDraft({
+            name: 'Studio document before Planner',
+            documentId: workspaceDocumentId,
+            color: draftColor,
+            body: draftBody,
+            entities: draftEntities,
+            attachments,
+            selectedChat,
+            inlineButtons,
+            date,
+            time,
+            repeatMode,
+            repeatDays,
+            repeatOccurrences,
+          }),
+        };
+      }
       changeStageMode('editor');
       bodyInputRef.current?.focus({ preventScroll: true });
       return true;
@@ -2417,7 +2467,12 @@ export function WorkspacePage({
       repeatDays: previousSnapshot.repeatDays,
       repeatOccurrences: previousSnapshot.repeatOccurrences,
     });
-    plannerRestoreRef.current = { draft: previousDocument };
+    plannerRestoreRef.current = {
+      draft: hasDraftContent(previousDocument.body, normalizeAttachments(previousDocument.attachments))
+        || (previousDocument.inlineButtons?.length ?? 0) > 0
+        ? previousDocument
+        : null,
+    };
 
     attachmentSelectionGenerationRef.current += 1;
     setWorkspaceDocumentId(uid());
@@ -2470,7 +2525,7 @@ export function WorkspacePage({
   // Restore the previous Studio document after a Planner note is completed.
   const restorePlannerDocument = async () => {
     const pending = plannerRestoreRef.current;
-    if (!pending) return false;
+    if (!pending?.draft) return false;
 
     cancelPendingAutosave();
     const { draft } = pending;
@@ -2523,6 +2578,7 @@ export function WorkspacePage({
     setPublishAction('send');
     setStageTab('editor');
     setStageMode('editor');
+    showPublishFeedback(t('studio.previousTextRestored'), 'success');
     return true;
   };
 

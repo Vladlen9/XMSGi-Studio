@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { setCurrentAccountId } from '../domain/accountContext';
+import {
+  convertDomainDraftToLegacy,
+  convertDomainTemplateToLegacy,
+  convertLegacyDraftToDomain,
+  convertLegacyTemplateToDomain,
+} from './domainBridge';
 import { createDomainDraft, createPublishPost } from './postStudioService';
 
 describe('postStudioService', () => {
@@ -43,5 +49,55 @@ describe('postStudioService', () => {
     expect(draft.authorAccountId).toBe('account-boundary');
     expect(post.accountId).toBe('account-boundary');
     expect(post.channelId).toBe('channel-boundary');
+  });
+
+  it('preserves postId across legacy and domain draft conversion', () => {
+    const legacyDraft = {
+      id: 'draft-1',
+      name: 'Draft name',
+      body: 'hello',
+      postId: 'post-42',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    } as any;
+
+    const domainDraft = convertLegacyDraftToDomain(legacyDraft, 'account-1');
+    const restored = convertDomainDraftToLegacy(domainDraft);
+
+    expect(domainDraft.postId).toBe('post-42');
+    expect(restored.postId).toBe('post-42');
+  });
+
+  it('preserves template formatting metadata across legacy and domain conversion', () => {
+    const legacyTemplate = {
+      id: 'template-1',
+      name: 'Greeting',
+      body: 'Hello world',
+      entities: [
+        { type: 'bold', offset: 0, length: 5 },
+        { type: 'text_url', offset: 6, length: 5, url: 'https://example.com' },
+      ],
+      tags: ['work', 'welcome'],
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    } as any;
+
+    const domainTemplate = convertLegacyTemplateToDomain(legacyTemplate, 'account-1');
+    const roundTrippedTemplate = convertDomainTemplateToLegacy(domainTemplate);
+
+    expect(domainTemplate.fields).toEqual([
+      'bold:0:5',
+      'text_url:6:5:https://example.com',
+    ]);
+    expect(roundTrippedTemplate).toMatchObject({
+      id: 'template-1',
+      name: 'Greeting',
+      body: 'Hello world',
+      entities: [
+        { type: 'bold', offset: 0, length: 5 },
+        { type: 'text_url', offset: 6, length: 5, url: 'https://example.com' },
+      ],
+      tags: ['work', 'welcome'],
+    });
   });
 });

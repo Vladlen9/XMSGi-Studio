@@ -149,6 +149,31 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).toMatch(darkTrackFill);
   });
 
+  it('keeps activity labels on one line while large counts stay intact', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-view > span\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-view strong\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;/,
+    );
+
+    const when = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    renderActivity(
+      <QuickPlannerActivity
+        upcoming={Array.from({ length: 1002 }, (_, index) => createSentMessage({
+          id: `scheduled-${index}`,
+          status: 'scheduled',
+          when,
+          sentAt: undefined,
+        }))}
+      />,
+    );
+
+    const scheduledButton = screen.getByRole('button', { name: /Scheduled\s*1,002/ });
+    expect(scheduledButton.querySelector('span')).toHaveTextContent('Scheduled');
+    expect(scheduledButton.querySelector('strong')).toHaveTextContent('1,002');
+  });
+
   it('renders independently and charts distinct confirmed sends', () => {
     const now = new Date();
     const sentAt = now.toISOString();

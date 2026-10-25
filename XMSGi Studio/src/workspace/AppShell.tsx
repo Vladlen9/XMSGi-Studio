@@ -296,26 +296,28 @@ export function AppShell({
         openPosts,
         openSettings,
       }}>
-        <main className="product-shell-content">{children}</main>
+        <main className={`product-shell-content${isPostsVisible ? ' is-posts' : ''}`}>
+          {children}
+          <HistoryDrawer
+            isOpen={isPostsVisible}
+            pageMode={isPostsVisible}
+            sourceFilterOnOpen={historySourceFilterOnOpen}
+            sourceFilterOnOpenMode={historySourceFilterOnOpenMode}
+            statusFilterOnOpen={historyStatusFilterOnOpen}
+            onClose={closePosts}
+            records={historyRecords}
+            onCancel={onHistoryCancel}
+            onReschedule={onHistoryReschedule}
+            onSendNow={onHistorySendNow}
+            onDelete={onHistoryDelete}
+            onOpenDraft={onHistoryOpenDraft}
+            onUseDraft={onHistoryUseDraft}
+            onClearSent={onHistoryClearSent}
+            onClearDrafts={onHistoryClearDrafts}
+            onCancelQueue={onHistoryCancelQueue}
+          />
+        </main>
       </QuickPlannerNavigationContext.Provider>
-      <HistoryDrawer
-        isOpen={view === 'posts' || postsOpen}
-        pageMode={view === 'posts' || postsOpen}
-        sourceFilterOnOpen={historySourceFilterOnOpen}
-        sourceFilterOnOpenMode={historySourceFilterOnOpenMode}
-        statusFilterOnOpen={historyStatusFilterOnOpen}
-        onClose={closePosts}
-        records={historyRecords}
-        onCancel={onHistoryCancel}
-        onReschedule={onHistoryReschedule}
-        onSendNow={onHistorySendNow}
-        onDelete={onHistoryDelete}
-        onOpenDraft={onHistoryOpenDraft}
-        onUseDraft={onHistoryUseDraft}
-        onClearSent={onHistoryClearSent}
-        onClearDrafts={onHistoryClearDrafts}
-        onCancelQueue={onHistoryCancelQueue}
-      />
       {isConfirmingLogout && (
         <div
           className="topbar-logout-modal-backdrop"

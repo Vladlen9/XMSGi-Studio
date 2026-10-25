@@ -113,13 +113,14 @@ describe('product navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
     fireEvent.click(container.querySelector('[data-history-filter="personal"]') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
+    fireEvent.click(container.querySelector('.history-record-open') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('button', { name: /Use draft/ }));
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', {
+    fireEvent.click(within(screen.getByRole('group', { name: /Where would you like to open/ })).getByRole('button', {
       name: destination === 'studio' ? 'Studio' : 'Planner',
     }));
 
     expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, destination);
-    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     expect(container.querySelector('.product-shell')).toHaveClass(destination === 'studio' ? 'studio-shell' : 'planner-shell');
   });
 });
@@ -196,7 +197,7 @@ describe('shared History Drawer entry point', () => {
     expect(document.querySelector('.shell-notification')).toHaveTextContent('Planner is ready.');
   });
 
-  it.each(['planner', 'studio'] as const)('opens the same drawer from %s', (view) => {
+  it.each(['planner', 'studio'] as const)('opens the Posts page from %s', (view) => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const onOpenSettings = vi.fn();
     const onViewChange = vi.fn();
@@ -229,20 +230,25 @@ describe('shared History Drawer entry point', () => {
     expect(onViewChange).toHaveBeenCalledWith('planner');
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
+    expect(document.querySelector('.history-drawer-backdrop')).not.toBeInTheDocument();
+    expect(document.querySelector('.product-shell-content')).toHaveClass('is-posts');
     expect(document.querySelector(`[data-history-filter="${view === 'planner' ? 'personal' : 'workspace'}"]`))
       .toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
     fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent(view === 'planner' ? 'quick-plan' : 'studio');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Settings from Quick Plan' }));
     expect(onOpenSettings).toHaveBeenCalledOnce();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
-
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
-    expect(screen.getByText('Current screen')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
   });
 
   it('closes Posts before navigating to Studio or Settings from Quick Planner', () => {
@@ -271,14 +277,14 @@ describe('shared History Drawer entry point', () => {
     }, plannerNavigation)));
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Studio from Quick Plan' }));
-    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     expect(onViewChange).toHaveBeenCalledWith('studio');
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Settings from Quick Plan' }));
-    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
@@ -314,13 +320,13 @@ describe('shared History Drawer entry point', () => {
     rerenderShell = view.rerender;
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
 
     rerenderShell(renderShell(true));
     fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
 
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     });
   });
 
@@ -359,7 +365,7 @@ describe('shared History Drawer entry point', () => {
     expect(document.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('keeps the previous Planner surface active beneath Posts after reload', () => {
+  it('renders Posts as a standalone page and does not close it on Escape', () => {
     persistPostsReturnView('planner');
     const onViewChange = vi.fn();
     const { container } = render(createElement(LocaleProvider, null, createElement(AppShell, {
@@ -382,10 +388,14 @@ describe('shared History Drawer entry point', () => {
       onHistoryClearSent: vi.fn(),
     }, createElement(QuickPlannerNavigationTestButtons))));
 
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
     expect(container.querySelector('.product-shell')).toHaveClass('planner-shell');
+    expect(container.querySelector('.history-drawer-backdrop')).not.toBeInTheDocument();
+    expect(container.querySelector('.product-shell-content')).toHaveClass('is-posts');
+    expect(container.querySelector('.history-drawer')?.parentElement).toBe(container.querySelector('.product-shell-content'));
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(onViewChange).toHaveBeenLastCalledWith('planner');
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
+    expect(onViewChange).not.toHaveBeenCalledWith('planner');
   });
 
   it('closes Posts before topbar Studio and Settings navigation', () => {
@@ -414,17 +424,17 @@ describe('shared History Drawer entry point', () => {
     const view = render(createElement(LocaleProvider, null, createElement(AppShell, shellProps, createElement('div', null, 'Quick Planner'))));
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
     view.rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'posts' }, createElement('div', null, 'Posts'))));
     fireEvent.click(view.container.querySelector('.product-mode-switch') as HTMLButtonElement);
     expect(onViewChange).toHaveBeenLastCalledWith('studio');
     view.rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'studio' }, createElement('div', null, 'Studio'))));
-    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     expect(onOpenSettings).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
   });
 
   it('shows the current Telegram profile photo in the topbar', async () => {
@@ -763,13 +773,13 @@ describe('shared History Drawer entry point', () => {
     ));
     const firstView = renderShell();
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
-    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
     firstView.unmount();
 
     window.localStorage.setItem('xmsgi-history-drawer-open', 'true');
     const secondView = renderShell();
     try {
-      expect(screen.queryByRole('dialog', { name: 'Posts' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     } finally {
       secondView.unmount();
     }

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
@@ -385,11 +385,14 @@ function matchesHistoryQuery(record: HistoryItem, query: string, locale: Locale,
 
   const timestamp = getHistoryTimestamp(record);
   const date = new Date(timestamp);
+  const reminderType = getPlannerReminderType(record);
   const searchableValues = [
     record.title,
     record.text,
     record.channelName,
     record.channelLabel,
+    ...record.attachments.map((attachment) => getAttachmentName(attachment, t)),
+    ...(reminderType ? [getPlannerReminderTypePresentation(reminderType, t).label] : []),
     record.source === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal'),
     getHistoryStatusLabel(record.status, t),
     formatTime(timestamp, locale),
@@ -556,7 +559,9 @@ export function HistoryDrawer({
   const sourceFiltersRef = useRef<HTMLDivElement | null>(null);
   const statusFiltersRef = useRef<HTMLDivElement | null>(null);
   const historyRecordListRef = useRef<HTMLDivElement | null>(null);
+  const historySearchInputRef = useRef<HTMLInputElement | null>(null);
   const expandedRecordRef = useRef<HTMLElement | null>(null);
+  const detailBackButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
   const draftDestinationAnchorRef = useRef<HTMLDivElement | null>(null);
   const preExpansionScrollTopRef = useRef<number | null>(null);
@@ -735,6 +740,11 @@ export function HistoryDrawer({
   }, [isOpen, selectedRecord]);
 
   useEffect(() => {
+    if (!isOpen || !pageMode || !selectedRecord || typeof window.matchMedia !== 'function') return;
+    if (window.matchMedia('(max-width: 900px)').matches) detailBackButtonRef.current?.focus();
+  }, [isOpen, pageMode, selectedRecord]);
+
+  useEffect(() => {
     if (!isOpen) {
       setConfirmAction(null);
       setIsExportMenuOpen(false);
@@ -771,40 +781,61 @@ export function HistoryDrawer({
   useEffect(() => {
     if (!isOpen) return;
 
+    const focusSearch = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'f') return;
+      event.preventDefault();
+      historySearchInputRef.current?.focus();
+      historySearchInputRef.current?.select();
+    };
+
+    document.addEventListener('keydown', focusSearch);
+    return () => document.removeEventListener('keydown', focusSearch);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      event.preventDefault();
 
       if (previewImagePath) {
+        event.preventDefault();
         closeImagePreview();
       } else if (confirmAction) {
+        event.preventDefault();
         setConfirmAction(null);
       } else if (draftUseTarget) {
+        event.preventDefault();
         setDraftUseTarget(null);
       } else if (bulkDeleteCategory && !bulkDeleteBusy) {
+        event.preventDefault();
         setBulkDeleteCategory(null);
         setBulkDeleteRecordId(null);
         setBulkDeleteError('');
       } else if (isExportMenuOpen) {
+        event.preventDefault();
         setIsExportMenuOpen(false);
       } else if (actionMenuOpenId) {
+        event.preventDefault();
         setActionMenuOpenId(null);
       } else if (selectedRecord) {
+        event.preventDefault();
         setSelectedRecord(null);
-      } else if (!bulkDeleteBusy) {
+      } else if (!pageMode && !bulkDeleteBusy) {
+        event.preventDefault();
         onClose();
       }
     };
 
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    if (!pageMode) document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleEscape);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      if (!pageMode) document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, onClose, previewImagePath, selectedRecord]);
+  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, onClose, pageMode, previewImagePath, selectedRecord]);
 
   useEffect(() => {
     if (!isOpen || !isExportMenuOpen) return;
@@ -894,6 +925,7 @@ export function HistoryDrawer({
   const selectedRecordIndex = selectedRecord
     ? filteredRecords.findIndex((record) => record.id === selectedRecord.id)
     : -1;
+  const activeSelectedRecord = selectedRecordIndex >= 0 ? filteredRecords[selectedRecordIndex] : null;
   const queueCancellableRecords = filteredRecords.filter((record) => (
     isQueueCancellationCandidate(record)
   ));
@@ -914,7 +946,7 @@ export function HistoryDrawer({
     : queueCancellableRecords.length > 0
       ? t('history.cancelScheduled')
       : t('history.deleteScheduleErrors');
-  const visibleRecords = selectedRecordIndex >= 0
+  const visibleRecords = !pageMode && selectedRecordIndex >= 0
     ? filteredRecords.slice(0, selectedRecordIndex + 1)
     : filteredRecords;
   const selectedCategoryLabel = getHistoryCategoryLabel(statusFilter, t);
@@ -1166,19 +1198,132 @@ export function HistoryDrawer({
     }
   }, [bulkDeleteCategory, bulkDeleteRecord?.id, bulkDeleteRecordId, historyCounts.status, statusFilter]);
 
+  const historyResultCountLabel = t(query.trim() ? 'history.results' : 'history.showingResults', {
+    shown: filteredRecords.length,
+    total: historyCounts.status[statusFilter],
+  });
+  const historySearchControl = (
+    <div className="history-search-dock">
+      <div className="history-search" role="search">
+        <Search size={18} strokeWidth={1.7} aria-hidden="true" />
+        <div className="history-search-entry">
+          <input
+            ref={historySearchInputRef}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t('history.searchPlaceholderHint')}
+            aria-label={t('history.searchPlaceholder')}
+            title={t('history.searchHelp')}
+          />
+          <button
+            type="button"
+            className={`history-search-clear${query.length > 0 ? '' : ' is-reserved'}`}
+            onClick={() => setQuery('')}
+            disabled={query.length === 0}
+            aria-label={t('history.clearSearch')}
+          >
+            <X size={15} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+        </div>
+        <div
+          className="history-result-count"
+          role="status"
+          aria-live="polite"
+          aria-label={historyResultCountLabel}
+          title={historyResultCountLabel}
+        >
+          {historyResultCountLabel}
+        </div>
+      </div>
+    </div>
+  );
+  const historyStatusFilters = (
+    <div className="history-status-filters" ref={statusFiltersRef} role="tablist" aria-label={t('history.statuses')}>
+      <span className="history-glass-indicator" aria-hidden="true">
+        <span className="history-glass-surface">
+          <span className="history-glass-sheen" />
+        </span>
+      </span>
+      {visibleStatusFilters.map((item) => {
+        const labelKey = item === 'scheduled'
+          ? 'history.categoryScheduled'
+          : item === 'sent'
+            ? 'history.categorySent'
+            : item === 'notes'
+              ? 'history.categoryNotes'
+              : 'history.categoryDrafts';
+        const compactLabelKey = item === 'scheduled'
+          ? 'history.categoryScheduledCompact'
+          : item === 'sent'
+            ? 'history.categorySentCompact'
+            : item === 'notes'
+              ? 'history.categoryNotesCompact'
+              : 'history.categoryDraftsCompact';
+
+        return (
+          <button
+            key={item}
+            type="button"
+            data-history-filter={item}
+            tabIndex={statusFilter === item ? 0 : -1}
+            onClick={() => {
+              if (statusFilter === item) {
+                bounceHistoryGlassIndicator(statusFiltersRef.current, item);
+              } else {
+                if (statusFilterBeforeOverrideRef.current !== null) statusFilterOverrideChangedRef.current = true;
+                setStatusFilter(item);
+              }
+              setBulkDeleteCategory(null);
+              setBulkDeleteRecordId(null);
+              setBulkDeleteError('');
+            }}
+            onKeyDown={(event) => {
+              const tabs = statusFiltersRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+              if (!tabs?.length) return;
+              const currentIndex = Array.from(tabs).indexOf(event.currentTarget);
+              let nextIndex: number;
+
+              if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+              else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+              else if (event.key === 'Home') nextIndex = 0;
+              else if (event.key === 'End') nextIndex = tabs.length - 1;
+              else return;
+
+              event.preventDefault();
+              const nextTab = tabs[nextIndex];
+              nextTab.focus();
+              nextTab.click();
+            }}
+            className={`history-status-tab${statusFilter === item ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={statusFilter === item}
+            aria-label={t(labelKey)}
+            title={t(labelKey)}
+          >
+            <span className="history-status-label">{t(labelKey)}</span>
+            <span className="history-status-label-compact">{t(compactLabelKey)}</span>
+            <span className="history-filter-count" aria-hidden="true">{historyCounts.status[item]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (!isOpen) return null;
 
   return (
     <>
-      <div
-        className={`history-drawer-backdrop${pageMode ? ' is-page' : ''}`}
-        aria-hidden="true"
-        onClick={() => onClose()}
-      />
+      {!pageMode && (
+        <div
+          className="history-drawer-backdrop"
+          aria-hidden="true"
+          onClick={() => onClose()}
+        />
+      )}
 
       <aside
         className={`history-drawer${pageMode ? ' is-page' : ''}`}
-        role="dialog"
+        role={pageMode ? 'region' : 'dialog'}
         aria-modal={pageMode ? undefined : true}
         aria-label={t('history.title')}
       >
@@ -1199,7 +1344,7 @@ export function HistoryDrawer({
           </button>
         </header>
 
-        <div className="history-drawer-controls">
+        <div className={`history-drawer-controls${pageMode ? ' is-page-controls' : ''}`}>
           <div className="history-source-filters" ref={sourceFiltersRef} role="group" aria-label={t('history.sources')}>
             <span className="history-glass-indicator" aria-hidden="true">
               <span className="history-glass-surface">
@@ -1233,9 +1378,11 @@ export function HistoryDrawer({
               </button>
             ))}
           </div>
-
+          {pageMode && historyStatusFilters}
         </div>
 
+        <div className={`history-content${pageMode ? ' is-page' : ''}`} data-has-selection={Boolean(activeSelectedRecord)}>
+        <div className="history-list-pane">
         <div className="history-record-list" ref={historyRecordListRef}>
           {filteredRecords.length === 0 ? (
             <div className="history-empty" role="status">
@@ -1252,7 +1399,8 @@ export function HistoryDrawer({
             </div>
           ) : (
             visibleRecords.map((record, index) => {
-              const isExpanded = selectedRecord?.id === record.id;
+              const isSelected = activeSelectedRecord?.id === record.id;
+              const isExpanded = !pageMode && selectedRecord?.id === record.id;
               const timestamp = getHistoryTimestamp(record);
               const channelDetail = [record.channelLabel, record.channelName]
                 .find((value) => value.trim() && value.trim() !== record.title.trim());
@@ -1316,15 +1464,17 @@ export function HistoryDrawer({
               )}
               <article
                 ref={isExpanded ? expandedRecordRef : undefined}
-                className={`history-record${isExpanded ? ' is-expanded' : ''}${record.status === 'draft' ? ' is-draft' : ''}`}
+                className={`history-record${isExpanded ? ' is-expanded' : ''}${isSelected ? ' is-selected' : ''}${record.status === 'draft' ? ' is-draft' : ''}`}
                 data-draft-color={record.status === 'draft' ? record.draftColor ?? 'gray' : undefined}
               >
                 <button
                   type="button"
                   className="history-record-open"
-                  onClick={() => toggleExpandedRecord(record, isExpanded)}
+                  data-history-record-id={pageMode ? record.id : undefined}
+                  onClick={() => pageMode ? setSelectedRecord(record) : toggleExpandedRecord(record, isExpanded)}
                   aria-label={t('history.expandRecord', { action: t(isExpanded ? 'history.collapse' : 'history.open'), title: record.title })}
-                  aria-expanded={isExpanded}
+                  aria-expanded={!pageMode ? isExpanded : undefined}
+                  aria-pressed={pageMode ? isSelected : undefined}
                 >
                   <span className="history-record-meta">
                     <span className="history-record-source-group">
@@ -1452,7 +1602,7 @@ export function HistoryDrawer({
                     )}
                   </div>
                 )}
-                <div className="history-record-actions">
+                {!pageMode && <div className="history-record-actions">
                   <div className="history-record-leading-actions">
                     {primaryAction && (
                       <div
@@ -1544,7 +1694,7 @@ export function HistoryDrawer({
                       </div>
                     )}
                   </div>
-                  <button
+                  {!pageMode && <button
                     type="button"
                     className="history-record-action is-expand"
                     onClick={() => toggleExpandedRecord(record, isExpanded)}
@@ -1555,106 +1705,257 @@ export function HistoryDrawer({
                       ? <Minimize2 size={14} strokeWidth={1.8} aria-hidden="true" />
                       : <Maximize2 size={14} strokeWidth={1.8} aria-hidden="true" />}
                     <span>{t(isExpanded ? 'history.collapse' : 'history.fullSize')}</span>
-                  </button>
+                  </button>}
                   {record.status === 'sending' && scheduleMessage && (
                     <button type="button" className="history-record-action is-send-now" disabled>
                       <span>{t('history.sending')}</span>
                     </button>
                   )}
-                </div>
+                </div>}
               </article>
               </Fragment>
               );
             })
           )}
         </div>
+        </div>
+
+        {pageMode && (
+          <aside
+            className="history-detail-panel"
+            data-selected={Boolean(activeSelectedRecord)}
+            aria-label={activeSelectedRecord
+              ? t('history.detailsPanel')
+              : t('history.detailEmptyTitle')}
+          >
+            {activeSelectedRecord ? (() => {
+              const timestamp = getHistoryTimestamp(activeSelectedRecord);
+              const visibleError = getVisibleHistoryError(activeSelectedRecord.lastError, t);
+              const channelDetail = [activeSelectedRecord.channelLabel, activeSelectedRecord.channelName]
+                .find((value) => value.trim() && value.trim() !== activeSelectedRecord.title.trim());
+              const scheduleMessage = activeSelectedRecord.original.kind === 'scheduled'
+                ? activeSelectedRecord.original.message
+                : null;
+              const canDeleteSentRecord = (activeSelectedRecord.status === 'sent' || activeSelectedRecord.status === 'failed')
+                && Boolean(scheduleMessage);
+
+              return (
+                <>
+                  <div className="history-detail-header">
+                    <button
+                      type="button"
+                      className="history-detail-back"
+                      ref={detailBackButtonRef}
+                      onClick={() => {
+                        const recordId = activeSelectedRecord.id;
+                        setSelectedRecord(null);
+                        if (typeof window.matchMedia === 'function'
+                          && window.matchMedia('(max-width: 900px)').matches) {
+                          window.requestAnimationFrame(() => {
+                            const recordButtons = historyRecordListRef.current
+                              ?.querySelectorAll<HTMLButtonElement>('.history-record-open');
+                            const selectedButton = Array.from(recordButtons ?? [])
+                              .find((button) => button.dataset.historyRecordId === recordId);
+                            selectedButton?.focus();
+                          });
+                        }
+                      }}
+                    >
+                      <ArrowLeft size={16} aria-hidden="true" />
+                      <span>{t('history.backToList')}</span>
+                    </button>
+                    <div className="history-detail-heading">
+                      <span className={`history-record-source is-${activeSelectedRecord.source === 'workspace' ? 'studio' : 'personal'}`}>
+                        {activeSelectedRecord.source === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}
+                      </span>
+                      <span className={`history-detail-status is-${activeSelectedRecord.status}`}>
+                        {getHistoryStatusLabel(activeSelectedRecord.status, t)}
+                      </span>
+                    </div>
+                    <h2>{activeSelectedRecord.title}</h2>
+                    <div className="history-detail-meta">
+                      {channelDetail && <span>{channelDetail}</span>}
+                      <time dateTime={timestamp}>
+                        {new Intl.DateTimeFormat(locale === 'ru' ? 'ru-RU' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp))}
+                      </time>
+                    </div>
+                  </div>
+                  {visibleError && <p className="history-detail-error" role="alert">{visibleError}</p>}
+                  <div className="history-detail-body">
+                    <div className="history-post-bubble">
+                      {activeSelectedRecord.attachments.length > 0 && (
+                        <div className="history-post-attachments" aria-label={t('history.attachmentsLabel')}>
+                          {activeSelectedRecord.attachments.map((attachment, attachmentIndex) => {
+                            const attachmentName = getAttachmentName(attachment, t);
+                            return isImageAttachment(attachment) ? (
+                              <img
+                                key={`${attachment}-${attachmentIndex}`}
+                                src={toAttachmentUrl(attachment)}
+                                alt={attachmentName}
+                                onPointerEnter={(event) => openImagePreview(event.currentTarget, attachment)}
+                                onPointerLeave={closeImagePreview}
+                              />
+                            ) : (
+                              <a
+                                key={`${attachment}-${attachmentIndex}`}
+                                href={toAttachmentUrl(attachment)}
+                                download={attachmentName}
+                              >
+                                <FileText size={17} strokeWidth={1.7} aria-hidden="true" />
+                                <span>{attachmentName}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {activeSelectedRecord.text && (
+                        <div
+                          className="history-post-text"
+                          dangerouslySetInnerHTML={{
+                            __html: richTextToHtml(activeSelectedRecord.text, activeSelectedRecord.entities),
+                          }}
+                        />
+                      )}
+                      <InlineKeyboardPreview markup={scheduleMessage?.replyMarkup} />
+                      {(activeSelectedRecord.silent || activeSelectedRecord.effect) && (
+                        <div className="history-post-options">
+                          {activeSelectedRecord.silent && <span>{t('history.silent')}</span>}
+                          {activeSelectedRecord.effect && <span>{t('history.effect', { effect: activeSelectedRecord.effect })}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="history-detail-actions" aria-label={t('history.actionsPanel')}>
+                    {activeSelectedRecord.status === 'failed' && (
+                      <button
+                        type="button"
+                        className="history-record-action is-primary"
+                        onClick={() => confirmSendNow(activeSelectedRecord)}
+                      >
+                        {getRetryActionLabel(activeSelectedRecord, t)}
+                      </button>
+                    )}
+                    {activeSelectedRecord.status === 'draft' && (
+                      <>
+                        <button
+                          type="button"
+                          className="history-record-action is-primary"
+                          onClick={() => {
+                            if (isPlannerDraftRecord(activeSelectedRecord)) {
+                              setDraftUseTarget(activeSelectedRecord);
+                            } else {
+                              onUseDraft?.(activeSelectedRecord);
+                              onClose(false);
+                            }
+                          }}
+                        >
+                          {t('history.useDraft')}
+                        </button>
+                        <button
+                          type="button"
+                          className="history-record-action is-delete"
+                          onClick={() => {
+                            setBulkDeleteError('');
+                            setBulkDeleteCategory('drafts');
+                            setBulkDeleteRecordId(activeSelectedRecord.id);
+                          }}
+                        >
+                          {t('history.delete')}
+                        </button>
+                      </>
+                    )}
+                    {activeSelectedRecord.status === 'scheduled' && (
+                      <>
+                        {activeSelectedRecord.source === 'workspace' && (
+                          <button
+                            type="button"
+                            className="history-record-action is-primary"
+                            onClick={() => {
+                              onReschedule(activeSelectedRecord);
+                              onClose();
+                            }}
+                          >
+                            {t('history.edit')}
+                          </button>
+                        )}
+                        {scheduleMessage && (
+                          <>
+                            <button
+                              type="button"
+                              className="history-record-action is-send-now"
+                              onClick={() => confirmSendNow(activeSelectedRecord)}
+                            >
+                              {t('history.sendNow')}
+                            </button>
+                            <button
+                              type="button"
+                              className="history-record-action is-delete"
+                              onClick={() => setConfirmAction({ type: 'cancel', recordId: activeSelectedRecord.id })}
+                            >
+                              {t('history.cancel')}
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {canDeleteSentRecord && (
+                      <button
+                        type="button"
+                        className="history-record-action is-delete"
+                        onClick={() => setConfirmAction({ type: 'delete', recordId: activeSelectedRecord.id })}
+                      >
+                        {t('history.delete')}
+                      </button>
+                    )}
+                    {activeSelectedRecord.status === 'sending' && (
+                      <button type="button" className="history-record-action is-send-now" disabled>
+                        {t('history.sending')}
+                      </button>
+                    )}
+                  </div>
+                  {draftUseTarget?.id === activeSelectedRecord.id && (
+                    <div className="history-detail-draft-menu" role="group" aria-label={t('history.chooseDraftDestination', { title: activeSelectedRecord.title })}>
+                      <span>{t('history.chooseDraftDestination', { title: activeSelectedRecord.title })}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUseDraft?.(draftUseTarget, 'studio');
+                          setDraftUseTarget(null);
+                          onClose(false);
+                        }}
+                      >
+                        {t('product.studio')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUseDraft?.(draftUseTarget, 'planner');
+                          setDraftUseTarget(null);
+                          onClose(false);
+                        }}
+                      >
+                        {t('product.planner')}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
+              <div className="history-detail-empty">
+                <FileText size={28} aria-hidden="true" />
+                <h2>{t('history.detailEmptyTitle')}</h2>
+                <p>{t('history.detailEmptyText')}</p>
+              </div>
+            )}
+          </aside>
+        )}
+        </div>
 
         <div className="history-drawer-tools">
-          <div className="history-search-dock">
-          <div className="history-search" role="search">
-            <Search size={18} strokeWidth={1.7} aria-hidden="true" />
-            <div className="history-search-entry">
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('history.searchPlaceholder')}
-                aria-label={t('history.searchPlaceholder')}
-              />
-              <button
-                type="button"
-                className={`history-search-clear${query.length > 0 ? '' : ' is-reserved'}`}
-                onClick={() => setQuery('')}
-                disabled={query.length === 0}
-                aria-label={t('history.clearSearch')}
-              >
-                <X size={15} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              className="history-result-count"
-              role="status"
-              aria-live="polite"
-              aria-label={t('history.results', { shown: filteredRecords.length, total: historyCounts.total })}
-              title={t('history.results', { shown: filteredRecords.length, total: historyCounts.total })}
-            >
-              {t('history.results', { shown: filteredRecords.length, total: historyCounts.total })}
-            </div>
-          </div>
-          </div>
-
+          {historySearchControl}
           <div className="history-drawer-footer" aria-label={t('history.actionsPanel')}>
             <div className="history-status-row">
-            <div className="history-status-filters" ref={statusFiltersRef} role="tablist" aria-label={t('history.statuses')}>
-              <span className="history-glass-indicator" aria-hidden="true">
-                <span className="history-glass-surface">
-                  <span className="history-glass-sheen" />
-                </span>
-              </span>
-              {visibleStatusFilters.map((item) => {
-                const labelKey = item === 'scheduled'
-                  ? 'history.categoryScheduled'
-                  : item === 'sent'
-                    ? 'history.categorySent'
-                    : item === 'notes'
-                      ? 'history.categoryNotes'
-                      : 'history.categoryDrafts';
-                const compactLabelKey = item === 'scheduled'
-                  ? 'history.categoryScheduledCompact'
-                  : item === 'sent'
-                    ? 'history.categorySentCompact'
-                    : item === 'notes'
-                      ? 'history.categoryNotesCompact'
-                      : 'history.categoryDraftsCompact';
-
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    data-history-filter={item}
-                    onClick={() => {
-                      if (statusFilter === item) {
-                        bounceHistoryGlassIndicator(statusFiltersRef.current, item);
-                      } else {
-                        if (statusFilterBeforeOverrideRef.current !== null) statusFilterOverrideChangedRef.current = true;
-                        setStatusFilter(item);
-                      }
-                      setBulkDeleteCategory(null);
-                      setBulkDeleteRecordId(null);
-                      setBulkDeleteError('');
-                    }}
-                    className={`history-status-tab${statusFilter === item ? ' is-active' : ''}`}
-                    role="tab"
-                    aria-selected={statusFilter === item}
-                    aria-label={t(labelKey)}
-                    title={t(labelKey)}
-                  >
-                    <span className="history-status-label">{t(labelKey)}</span>
-                    <span className="history-status-label-compact">{t(compactLabelKey)}</span>
-                    <span className="history-filter-count" aria-hidden="true">{historyCounts.status[item]}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {!pageMode && historyStatusFilters}
 
             <div className="history-export-control" ref={exportMenuRef}>
               {canDeleteCurrentCategory ? (

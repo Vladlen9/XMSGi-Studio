@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createActiveDraftSnapshot,
   readActiveDraftState,
   readDraftStore,
   writeActiveDraft,
@@ -65,5 +66,33 @@ describe('browser draft storage error handling', () => {
 
     expect(writeDraftStore({ activeDraft: null, savedDrafts: [] })).toBe(false);
     expect(localStorage.getItem('xmsgi:saved-drafts:v1')).toBe(oldDrafts);
+  });
+
+  it('preserves schedule and button metadata in the active draft round-trip', () => {
+    const draft = createActiveDraftSnapshot({
+      message: 'Scheduled update',
+      entities: [{ type: 'bold', offset: 0, length: 8 }],
+      attachments: [{ name: 'photo.png', path: '/tmp/photo.png' }],
+      selectedChatId: 'chat-42',
+      date: '2026-02-14',
+      time: '18:30',
+      repeatMode: 'weekly',
+      repeatDays: ['Sat'],
+      repeatOccurrences: 3,
+      inlineButtons: [[{ text: 'Open', url: 'https://example.com' }]],
+      id: 'active-meta-test',
+    });
+
+    expect(writeActiveDraft(draft)).toBe(true);
+    expect(readActiveDraftState().draft).toMatchObject({
+      id: 'active-meta-test',
+      message: 'Scheduled update',
+      date: '2026-02-14',
+      time: '18:30',
+      repeatMode: 'weekly',
+      repeatDays: ['Sat'],
+      repeatOccurrences: 3,
+      inlineButtons: [[{ text: 'Open', url: 'https://example.com' }]],
+    });
   });
 });
