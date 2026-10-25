@@ -163,4 +163,5 @@ This project is licensed under the MIT License. The canonical license text is in
 
 ---
 Why XMSGi Studio?
+
 XMSGi Studio was created because existing Telegram scheduling tools felt slow, bloated and disconnected from the actual Telegram experience.
