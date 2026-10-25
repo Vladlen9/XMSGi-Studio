@@ -1244,9 +1244,10 @@ html[data-theme='light'] .history-empty-art-orbit--inner {
 
 html[data-theme='light'] .history-empty-art-icon {
   border-color: rgba(56, 132, 169, 0.7);
+  background: #f5f7f9;
   color: #428db3;
-  filter: drop-shadow(0 0 7px rgba(56, 132, 169, 0.25));
-  box-shadow: 0 0 18px rgba(56, 132, 169, 0.08);
+  filter: drop-shadow(0 0 5px rgba(56, 132, 169, 0.17));
+  box-shadow: 0 0 14px rgba(56, 132, 169, 0.05);
 }
 
 html[data-theme='light'] .history-empty-art-spark {
@@ -2519,10 +2520,10 @@ html[data-theme='dark'] .history-drawer.is-page .history-detail-empty {
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-icon {
   border-color: rgba(56, 132, 169, 0.7);
-  background: transparent;
+  background: #f1f7fa;
   color: #2c83ae;
-  filter: drop-shadow(0 0 7px rgba(44, 131, 174, 0.25));
-  box-shadow: 0 0 18px rgba(56, 132, 169, 0.08);
+  filter: drop-shadow(0 0 5px rgba(44, 131, 174, 0.17));
+  box-shadow: 0 0 14px rgba(56, 132, 169, 0.05);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-empty-art-orbit {

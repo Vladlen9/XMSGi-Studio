@@ -988,6 +988,7 @@ html.electron-runtime .history-confirmation-backdrop {
 
 .history-drawer.is-page .history-search {
   min-width: 0;
+  padding-right: 12px;
 }
 
 .history-drawer.is-page .history-search-entry {
@@ -1132,7 +1133,9 @@ html.electron-runtime .history-confirmation-backdrop {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  width: calc(45% - 24px);
+  width: calc(45% - 7.2px);
+  margin-right: 0;
+  margin-left: 0;
   padding: 6px 8px;
 }
 
@@ -1400,8 +1403,8 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-detail-empty-art-spark {
   position: absolute;
   z-index: 2;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border: 1px solid rgba(55, 150, 255, 0.74);
   border-radius: 2px;
   box-shadow: 0 0 8px rgba(37, 133, 255, 0.32);
@@ -1415,8 +1418,6 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-detail-empty-art-spark--right {
   top: 40px;
   right: calc(50% - 61px);
-  width: 7px;
-  height: 7px;
 }
 
 .history-detail-empty-art-icon {
@@ -1428,10 +1429,10 @@ html.electron-runtime .history-confirmation-backdrop {
   place-items: center;
   border: 1px solid rgba(46, 138, 239, 0.7);
   border-radius: 14px;
-  background: transparent;
+  background: #11171b;
   color: #67b8ff;
-  filter: drop-shadow(0 0 8px rgba(37, 133, 255, 0.5));
-  box-shadow: 0 0 18px rgba(20, 113, 231, 0.12);
+  filter: drop-shadow(0 0 6px rgba(37, 133, 255, 0.34));
+  box-shadow: 0 0 14px rgba(20, 113, 231, 0.08);
 }
 
 .history-detail-empty h2 {
@@ -1447,6 +1448,73 @@ html.electron-runtime .history-confirmation-backdrop {
   color: #9aacc0;
   font-size: 11px;
   line-height: 1.55;
+}
+
+@media (min-width: 761px) {
+  .history-drawer.is-page .history-detail-empty-art {
+    order: 2;
+    width: min(100%, 260px);
+    height: 150px;
+  }
+
+  .history-drawer.is-page .history-detail-empty h2 {
+    order: 1;
+    transform: translateY(20px);
+  }
+
+  .history-drawer.is-page .history-detail-empty p {
+    order: 3;
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-orbit--outer {
+    width: 220px;
+    height: 84px;
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-orbit--inner {
+    width: 148px;
+    height: 58px;
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-spark--left {
+    left: calc(50% - 69px);
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-spark--right {
+    top: 62px;
+    right: calc(50% - 105px);
+    width: 10px;
+    height: 10px;
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 17px;
+  }
+
+  .history-drawer.is-page .history-detail-empty-art-icon svg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .history-drawer.is-page .history-detail-empty h2 {
+    font-size: 16px;
+  }
+
+  .history-drawer.is-page .history-detail-empty p {
+    max-width: 380px;
+    font-size: 12px;
+  }
+
+  .history-drawer.is-page .history-detail-empty {
+    position: absolute;
+    inset: 0;
+    justify-content: flex-end;
+    min-height: 0;
+    padding: 32px 24px 100px;
+    transform: none;
+  }
 }
 
 .history-date-heading {
@@ -2203,17 +2271,17 @@ html.electron-runtime .history-confirmation-backdrop {
   place-items: center;
   border: 1px solid rgba(46, 138, 239, 0.7);
   border-radius: 14px;
-  background: transparent;
+  background: #11171b;
   color: #67b8ff;
-  filter: drop-shadow(0 0 8px rgba(37, 133, 255, 0.5));
-  box-shadow: 0 0 18px rgba(20, 113, 231, 0.12);
+  filter: drop-shadow(0 0 6px rgba(37, 133, 255, 0.34));
+  box-shadow: 0 0 14px rgba(20, 113, 231, 0.08);
 }
 
 .history-empty-art-spark {
   position: absolute;
   z-index: 2;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border: 1px solid rgba(55, 150, 255, 0.74);
   border-radius: 2px;
   box-shadow: 0 0 8px rgba(37, 133, 255, 0.32);
@@ -2227,8 +2295,6 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-empty-art-spark--right {
   top: 40px;
   right: calc(50% - 61px);
-  width: 7px;
-  height: 7px;
 }
 
 .history-empty > svg {
