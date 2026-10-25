@@ -1053,6 +1053,11 @@ html.electron-runtime .history-confirmation-backdrop {
   max-width: 100%;
 }
 
+.history-page-controls-close {
+  justify-self: end;
+  align-self: start;
+}
+
 .history-drawer-controls.is-page-controls .history-filter {
   min-height: 26px;
   gap: 6px;
