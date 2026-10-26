@@ -114,20 +114,20 @@ describe('SettingsView Telegram integration', () => {
       window.localStorage.setItem('awaitmsg_locale', 'en');
       const english = renderSettings();
       expect(within(english.container).getByText('App theme')).toBeInTheDocument();
-      expect(within(english.container).getByText('Choose a light, dark, or experimental graphite theme for the entire app.')).toBeInTheDocument();
+      expect(within(english.container).getByText('Choose a light or dark theme for the entire app.')).toBeInTheDocument();
       expect(within(english.container).getByRole('group', { name: 'Color' })).toBeInTheDocument();
       expect(within(english.container).getByRole('button', { name: 'Light' })).toBeInTheDocument();
       expect(within(english.container).getByRole('button', { name: 'Dark' })).toBeInTheDocument();
-      expect(within(english.container).getByRole('button', { name: 'Graphite (test)' })).toBeInTheDocument();
+      expect(within(english.container).queryByRole('button', { name: /graphite/i })).not.toBeInTheDocument();
 
       window.localStorage.setItem('awaitmsg_locale', 'ru');
       const russian = renderSettings();
       expect(within(russian.container).getByText('Тема приложения')).toBeInTheDocument();
-      expect(within(russian.container).getByText('Выберите светлую, тёмную или графитовую тестовую тему для всего приложения.')).toBeInTheDocument();
+      expect(within(russian.container).getByText('Выберите светлую или тёмную тему для всего приложения.')).toBeInTheDocument();
       expect(within(russian.container).getByRole('group', { name: 'Цвет' })).toBeInTheDocument();
       expect(within(russian.container).getByRole('button', { name: 'Светлая' })).toBeInTheDocument();
       expect(within(russian.container).getByRole('button', { name: 'Тёмная' })).toBeInTheDocument();
-      expect(within(russian.container).getByRole('button', { name: 'Графитовая (тест)' })).toBeInTheDocument();
+      expect(within(russian.container).queryByRole('button', { name: /графит/i })).not.toBeInTheDocument();
     } finally {
       if (originalLocale === null) window.localStorage.removeItem('awaitmsg_locale');
       else window.localStorage.setItem('awaitmsg_locale', originalLocale);
@@ -150,7 +150,6 @@ describe('SettingsView Telegram integration', () => {
     const themeGroup = screen.getByRole('group', { name: 'Color' });
     const darkButton = within(themeGroup).getByRole('button', { name: 'Dark' });
     const lightButton = within(themeGroup).getByRole('button', { name: 'Light' });
-    const charcoalButton = within(themeGroup).getByRole('button', { name: 'Graphite (test)' });
 
     fireEvent.click(darkButton);
     expect(document.documentElement.dataset.theme).toBe('dark');
@@ -158,12 +157,6 @@ describe('SettingsView Telegram integration', () => {
     expect(document.documentElement).toHaveClass('is-theme-transitioning');
     expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('dark');
     expect(darkButton).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(charcoalButton);
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.dataset.themeVariant).toBe('charcoal');
-    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('charcoal');
-    expect(charcoalButton).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(lightButton);
     expect(document.documentElement.dataset.theme).toBe('light');

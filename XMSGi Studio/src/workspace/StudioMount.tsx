@@ -25,7 +25,7 @@ type StudioSchedulerHandlers = Pick<StudioSchedulerActions,
   | 'handleClearSent'
   | 'handleCancelMessage'
   | 'handleCancelMessages'
->;
+> & Pick<StudioSchedulerRuntime, 'showNotification'>;
 
 function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSchedulerRuntime {
   const schedulerRef = useRef(scheduler);
@@ -38,6 +38,7 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
     handleClearSent: (...args) => schedulerRef.current.handleClearSent(...args),
     handleCancelMessage: (...args) => schedulerRef.current.handleCancelMessage(...args),
     handleCancelMessages: (...args) => schedulerRef.current.handleCancelMessages(...args),
+    showNotification: (...args) => schedulerRef.current.showNotification(...args),
   }), []);
 
   return useMemo(() => ({
@@ -52,8 +53,6 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
     cancelingIds: scheduler.cancelingIds,
     sendingIds: scheduler.sendingIds,
     publishingDraft: scheduler.publishingDraft,
-    notification: scheduler.notification,
-    closeNotification: () => schedulerRef.current.closeNotification(),
   }), [
     actions,
     scheduler.protocolVersion,
@@ -66,7 +65,6 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
     scheduler.cancelingIds,
     scheduler.sendingIds,
     scheduler.publishingDraft,
-    scheduler.notification,
   ]);
 }
 

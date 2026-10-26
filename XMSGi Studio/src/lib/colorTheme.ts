@@ -1,4 +1,4 @@
-export type ColorTheme = 'light' | 'dark' | 'charcoal';
+export type ColorTheme = 'light' | 'dark';
 
 export const COLOR_THEME_STORAGE_KEY = 'xmsgi-color-theme-v1';
 const THEME_TRANSITION_DURATION_MS = 320;
@@ -8,7 +8,7 @@ let themeTransitionTimeout: number | undefined;
 export function readColorTheme(storageKey = COLOR_THEME_STORAGE_KEY): ColorTheme {
   try {
     const savedTheme = window.localStorage.getItem(storageKey);
-    return savedTheme === 'dark' || savedTheme === 'charcoal' ? savedTheme : 'light';
+    return savedTheme === 'dark' || savedTheme === 'charcoal' ? 'dark' : 'light';
   } catch {
     return 'light';
   }
@@ -18,8 +18,7 @@ export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean;
   if (typeof document !== 'undefined') {
     const root = document.documentElement;
     const baseTheme = theme === 'light' ? 'light' : 'dark';
-    const themeVariant = theme === 'charcoal' ? 'charcoal' : undefined;
-    const themeChanged = root.dataset.theme !== baseTheme || root.dataset.themeVariant !== themeVariant;
+    const themeChanged = root.dataset.theme !== baseTheme || root.dataset.themeVariant !== undefined;
     const prefersReducedMotion = typeof window !== 'undefined'
       && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
@@ -28,8 +27,7 @@ export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean;
       root.classList.add('is-theme-transitioning');
       void root.offsetWidth;
       root.dataset.theme = baseTheme;
-      if (themeVariant) root.dataset.themeVariant = themeVariant;
-      else delete root.dataset.themeVariant;
+      delete root.dataset.themeVariant;
       root.style.colorScheme = baseTheme;
       themeTransitionTimeout = window.setTimeout(() => {
         root.classList.remove('is-theme-transitioning');
@@ -40,8 +38,7 @@ export function applyColorTheme(theme: ColorTheme, options: { animate?: boolean;
       themeTransitionTimeout = undefined;
       root.classList.remove('is-theme-transitioning');
       root.dataset.theme = baseTheme;
-      if (themeVariant) root.dataset.themeVariant = themeVariant;
-      else delete root.dataset.themeVariant;
+      delete root.dataset.themeVariant;
       root.style.colorScheme = baseTheme;
     }
   }

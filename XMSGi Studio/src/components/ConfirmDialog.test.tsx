@@ -60,6 +60,29 @@ describe('ConfirmDialogProvider', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
+  it('confirms the dialog with Enter', async () => {
+    const { onResult } = renderConfirm();
+    fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete draft?' });
+    expect(within(dialog).getByRole('button', { name: 'Delete' })).toHaveFocus();
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(await screen.findByText('true')).toBeInTheDocument();
+    expect(onResult).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('keeps Enter on the cancel button from confirming', async () => {
+    const { onResult } = renderConfirm();
+    fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));
+    const cancel = screen.getByRole('button', { name: 'Cancel' });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: 'Enter' });
+
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
   it('keeps keyboard focus inside the dialog', () => {
     renderConfirm();
     fireEvent.click(screen.getByRole('button', { name: 'Open confirm' }));

@@ -149,15 +149,23 @@ describe('QuickPlanner feedback', () => {
     });
 
     expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', ['C:/posts/selected.png'], undefined);
+    expect(editor).toHaveValue('');
+    expect(container.querySelector('.quick-planner-attachment-name')).not.toBeInTheDocument();
+    expect(readPlannerDraft()).toBe('');
+    expect(readPlannerDraftAttachments()).toEqual([]);
+    expect(onRestoreDraft).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
+    expect(screen.getByRole('status')).not.toHaveTextContent('You had text here before');
+    await act(async () => vi.advanceTimersByTimeAsync(3359));
+    expect(editor).toHaveValue('');
+    expect(onRestoreDraft).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(editor).toHaveValue(restoreDraft.text);
     expect(container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('previous.pdf');
     expect(readPlannerDraft()).toBe(restoreDraft.text);
     expect(readPlannerDraftAttachments()).toEqual(restoreDraft.attachments);
     expect(readPlannerDraftEntities()).toEqual(restoreDraft.entities);
     expect(onRestoreDraft).toHaveBeenCalledWith(restoreDraft);
-    expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
-    expect(screen.getByRole('status')).not.toHaveTextContent('You had text here before');
-    await act(async () => vi.advanceTimersByTimeAsync(3360));
     expect(screen.getByRole('status')).toHaveTextContent('You had text here before — we put it back in the editor.');
     expect(screen.getByRole('status')).toHaveClass('is-success');
     await act(async () => vi.advanceTimersByTimeAsync(4359));
@@ -236,6 +244,9 @@ describe('QuickPlanner feedback', () => {
       fireEvent.click(submit);
       await Promise.resolve();
     });
+    expect(editor).toHaveValue('');
+    expect(onRestoreDraft).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(3360));
     expect(editor).toHaveValue(restoreDraft.text);
     expect(onRestoreDraft).toHaveBeenCalledWith(restoreDraft);
   });

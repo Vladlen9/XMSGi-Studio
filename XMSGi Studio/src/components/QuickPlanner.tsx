@@ -340,6 +340,34 @@ export function QuickPlanner({
     return true;
   };
 
+  const hasPreviousDraftToRestore = () => {
+    const restoreDraft = restoreDraftOnCompletionRef.current;
+    return Boolean(restoreDraft && (restoreDraft.text.trim() || restoreDraft.attachments.length > 0));
+  };
+
+  const clearCompletedDraft = () => {
+    writePlannerDraft('', [], []);
+    setMessage('');
+    setAttachments([]);
+  };
+
+  const showCompletionFeedback = (message: string) => {
+    const restorePreviousDraft = hasPreviousDraftToRestore();
+    if (restorePreviousDraft) {
+      clearCompletedDraft();
+    } else {
+      clearOrRestoreDraftAfterCompletion();
+    }
+    showActionFeedback(
+      message,
+      'success',
+      restorePreviousDraft
+        ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
+        : undefined,
+      restorePreviousDraft ? clearOrRestoreDraftAfterCompletion : undefined,
+    );
+  };
+
   useLayoutEffect(() => {
     const list = attachmentListRef.current;
     const scrollbar = attachmentScrollbarRef.current;
@@ -480,6 +508,7 @@ export function QuickPlanner({
     message: string,
     tone: QuickPlannerActionFeedback['tone'],
     nextFeedback?: Pick<QuickPlannerActionFeedback, 'message' | 'tone'> & { durationMs?: number },
+    onNextFeedback?: () => void,
   ) => {
     if (actionFeedbackTimeoutRef.current !== null) {
       window.clearTimeout(actionFeedbackTimeoutRef.current);
@@ -490,6 +519,7 @@ export function QuickPlanner({
     setActionFeedback({ message, tone });
     actionFeedbackTimeoutRef.current = window.setTimeout(() => {
       if (nextFeedback) {
+        onNextFeedback?.();
         setActionFeedbackRetriggered(false);
         setActionFeedbackInstance((instance) => instance + 1);
         setActionFeedback(nextFeedback);
@@ -880,10 +910,7 @@ export function QuickPlanner({
           showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
           return;
         }
-        const restored = clearOrRestoreDraftAfterCompletion();
-        showActionFeedback(t('quickPlanner.draftSavedToPosts'), 'success', restored
-          ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
-          : undefined);
+        showCompletionFeedback(t('quickPlanner.draftSavedToPosts'));
         return;
       }
       showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
@@ -909,10 +936,7 @@ export function QuickPlanner({
             showActionFeedback(t('quickPlanner.messageNotSent'), 'error');
             return;
           }
-          const restored = clearOrRestoreDraftAfterCompletion();
-          showActionFeedback(t('quickPlanner.messageSent'), 'success', restored
-            ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
-            : undefined);
+          showCompletionFeedback(t('quickPlanner.messageSent'));
           setSelectedEffectId(null);
         } catch {
           showActionFeedback(t('quickPlanner.messageCouldNotSend'), 'error');
@@ -944,10 +968,7 @@ export function QuickPlanner({
             showActionFeedback(t('quickPlanner.messageCouldNotSchedule'), 'error');
             return;
           }
-          const restored = clearOrRestoreDraftAfterCompletion();
-          showActionFeedback(t('quickPlanner.scheduleRequestSent'), 'success', restored
-            ? { message: t('quickPlanner.previousTextRestored'), tone: 'success', durationMs: restoredDraftFeedbackDurationMs }
-            : undefined);
+          showCompletionFeedback(t('quickPlanner.scheduleRequestSent'));
           setSelectedEffectId(null);
           setScheduleTimeTouched(false);
           scheduleNowConfirmationRef.current = null;

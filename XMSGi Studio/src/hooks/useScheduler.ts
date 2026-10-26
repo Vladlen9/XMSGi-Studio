@@ -1422,6 +1422,7 @@ export function useScheduler({
     options: {
       clearMessageOnSuccess?: boolean;
       isNestedBatchGroup?: boolean;
+      suppressNotifications?: boolean;
     } = {},
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
@@ -1451,7 +1452,7 @@ export function useScheduler({
               isPrimaryGroup ? replyMarkup : undefined,
               false,
               isPrimaryGroup ? effect : undefined,
-              { isNestedBatchGroup: true },
+              { isNestedBatchGroup: true, suppressNotifications: options.suppressNotifications },
               [group],
             );
             const sent = sentResult !== false;
@@ -1471,21 +1472,29 @@ export function useScheduler({
 
           if (allSent) {
             if (historyWriteFailed) {
-              showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+              if (!options.suppressNotifications) {
+                showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
+              }
               return 'sent-history-failed';
             } else {
               if (options.clearMessageOnSuccess !== false) setMessage('');
               draftSendAttemptRef.current = null;
               setSuccessPulse(true);
               setLastAction('sent');
-              showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+              if (!options.suppressNotifications) {
+                showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+              }
               scheduleTimeout(() => setSuccessPulse(false), 1500);
               scheduleTimeout(() => setLastAction(null), 1500);
             }
           } else if (sentGroupCount > 0) {
-            showNotification(t('schedule.partialAttachmentSend'), 'warning', t('schedule.sendFailedTitle'));
+            if (!options.suppressNotifications) {
+              showNotification(t('schedule.partialAttachmentSend'), 'warning', t('schedule.sendFailedTitle'));
+            }
           } else {
-            showNotification(t('schedule.sendFailed'), 'error', t('schedule.sendFailedTitle'));
+            if (!options.suppressNotifications) {
+              showNotification(t('schedule.sendFailed'), 'error', t('schedule.sendFailedTitle'));
+            }
           }
 
           return allSent;
@@ -1521,7 +1530,9 @@ export function useScheduler({
     if (unresolvedAttempt) {
       publishingDraftLockRef.current = false;
       setPublishingDraft(false);
-      showNotification(t('schedule.sendResultUnknown'), 'warning', t('schedule.errorTitle'));
+      if (!options.suppressNotifications) {
+        showNotification(t('schedule.sendResultUnknown'), 'warning', t('schedule.errorTitle'));
+      }
       return false;
     }
     const restoredAttempt = upcomingStateRef.current.find((item) => (
@@ -1624,7 +1635,7 @@ export function useScheduler({
       });
       const historyPersisted = await historyWrite;
       if (!historyPersisted) {
-        if (!isNestedBatchGroup) {
+        if (!isNestedBatchGroup && !options.suppressNotifications) {
           showNotification(t('schedule.historyWriteFailed'), 'warning', t('schedule.errorTitle'));
         }
         return 'sent-history-failed';
@@ -1634,7 +1645,9 @@ export function useScheduler({
       if (!isNestedBatchGroup) {
         setSuccessPulse(true);
         setLastAction('sent');
-        showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+        if (!options.suppressNotifications) {
+          showNotification(t('schedule.messageSent'), 'success', t('schedule.sent'));
+        }
         scheduleTimeout(() => setSuccessPulse(false), 1500);
         scheduleTimeout(() => setLastAction(null), 1500);
       }
@@ -1654,7 +1667,7 @@ export function useScheduler({
       upcomingStateRef.current = failedUpcoming;
       setUpcoming(failedUpcoming);
       await persistScheduleHistoryAndWait(historyScope, 'upcoming', failedUpcoming);
-      if (!isNestedBatchGroup) {
+      if (!isNestedBatchGroup && !options.suppressNotifications) {
         showNotification(
           sendRequestStarted ? t('schedule.sendResultUnknown') : errorDetails.message,
           sendRequestStarted ? 'warning' : 'error',

@@ -110,20 +110,10 @@ export function StudioEditorTestbench() {
       handleCancelMessage: async () => false,
       handleCancelMessages: async () => false,
     };
-    return createStudioSchedulerRuntime(
-      actions,
-      {
-        message: errorMessage,
-        title: errorVariant === 'mass-warning' ? t('schedule.massWarningTitle') : 'Studio',
-        type: errorVariant === 'warning' || errorVariant === 'mass-warning' || errorVariant === 'action-dismiss-warning'
-          ? 'warning'
-          : errorVariant === 'success'
-            ? 'success'
-            : 'error',
-        visible: !['none', 'progress', 'action-retry-error', 'action-dismiss-warning'].includes(errorVariant),
-      },
-      () => setErrorVariant('none'),
-    );
+    return createStudioSchedulerRuntime(actions, (message, type) => {
+      setErrorVariant(type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'error');
+      setErrorMessage(message);
+    });
   }, [errorMessage, errorVariant, t]);
   const actionFeedback = errorVariant === 'action-retry-error'
         ? {

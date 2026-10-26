@@ -12,10 +12,10 @@ type Options = {
   chats?: Chat[];
   selectedChat?: Chat | null;
   onSelectChat?: Dispatch<SetStateAction<Chat | null>>;
-  setNotification: Dispatch<SetStateAction<NotificationState>>;
+  showNotification: (message: string, type: NotificationState['type'], title: string) => void;
 };
 
-export function useStudioChats({ chats: initialChats, selectedChat: sharedSelectedChat, onSelectChat, setNotification }: Options) {
+export function useStudioChats({ chats: initialChats, selectedChat: sharedSelectedChat, onSelectChat, showNotification }: Options) {
   const [localSelectedChat, setLocalSelectedChat] = useState<Chat | null>(initialChats?.[0] ?? null);
   const hasSharedSelection = sharedSelectedChat !== undefined && onSelectChat !== undefined;
   const selectedChat = hasSharedSelection ? sharedSelectedChat : localSelectedChat;
@@ -60,18 +60,17 @@ export function useStudioChats({ chats: initialChats, selectedChat: sharedSelect
         })
         .catch((error) => {
           if (!cancelled) {
-            setNotification({
-              message: error instanceof Error ? error.message : 'Telegram chats could not be loaded.',
-              title: 'Studio',
-              type: 'error',
-              visible: true,
-            });
+            showNotification(
+              error instanceof Error ? error.message : 'Telegram chats could not be loaded.',
+              'error',
+              'Studio',
+            );
           }
         });
     }
 
     return () => { cancelled = true; };
-  }, [hasSharedSelection, initialChats, onSelectChat, selectedChat, setNotification, setSelectedChat]);
+  }, [hasSharedSelection, initialChats, onSelectChat, selectedChat, setSelectedChat, showNotification]);
 
   return {
     chats,

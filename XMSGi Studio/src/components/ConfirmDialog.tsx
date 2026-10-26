@@ -77,6 +77,13 @@ export function ConfirmDialogSurface({
         onCancel();
         return;
       }
+      if (event.key === 'Enter') {
+        if (event.target instanceof HTMLElement && event.target.closest('.confirm-dialog-cancel')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onConfirm();
+        return;
+      }
       if (event.key !== 'Tab') return;
 
       const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -100,7 +107,7 @@ export function ConfirmDialogSurface({
     };
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [onCancel]);
+  }, [onCancel, onConfirm]);
 
   return (
     <div
@@ -124,10 +131,11 @@ export function ConfirmDialogSurface({
             type="button"
             className={`confirm-dialog-confirm${destructive ? ' is-destructive' : ''}`}
             onClick={onConfirm}
+            autoFocus={destructive}
           >
             {confirmLabel}
           </button>
-          <button type="button" className="confirm-dialog-cancel" onClick={onCancel} autoFocus>
+          <button type="button" className="confirm-dialog-cancel" onClick={onCancel} autoFocus={!destructive}>
             {cancelLabel}
           </button>
         </div>

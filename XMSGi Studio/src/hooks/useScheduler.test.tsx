@@ -1470,6 +1470,54 @@ describe('useScheduler native history', () => {
     );
   });
 
+  it('suppresses completion success feedback when the caller manages the outcome notification', async () => {
+    const chat = { id: 'chat-managed-outcome', name: 'Managed outcome chat' };
+    const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 503 });
+    const showNotification = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(
+        chat,
+        'Overlay draft',
+        [],
+        [],
+        undefined,
+        false,
+        undefined,
+        { suppressNotifications: true },
+      )).resolves.toBe(true);
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  it('suppresses send failure toast when the caller displays it in its own status area', async () => {
+    const chat = { id: 'chat-managed-send-error', name: 'Managed send error chat' };
+    const send = vi.fn().mockResolvedValue({ success: false, error: 'Telegram rejected the message.' });
+    const showNotification = vi.fn();
+    const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    await act(async () => {
+      await expect(result.current.handleSendDraftNow(
+        chat,
+        'Rejected draft',
+        [],
+        [],
+        undefined,
+        false,
+        undefined,
+        { suppressNotifications: true },
+      )).resolves.toBe(false);
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
   it('clears the sending state for text sends with an empty attachment-groups array', async () => {
     const chat = { id: 'chat-empty-attachment-groups', name: 'Text chat' };
     const send = vi.fn().mockResolvedValue({ success: true, telegramMessageId: 502 });

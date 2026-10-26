@@ -93,14 +93,9 @@ describe('applyColorTheme', () => {
     expect(document.documentElement).not.toHaveClass('is-theme-transitioning');
   });
 
-  it('applies and reads the charcoal variant on top of the dark base theme', () => {
-    applyColorTheme('charcoal');
-
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.dataset.themeVariant).toBe('charcoal');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(localStorage.getItem(COLOR_THEME_STORAGE_KEY)).toBe('charcoal');
-    expect(readColorTheme()).toBe('charcoal');
+  it('treats a previously saved graphite theme as dark', () => {
+    localStorage.setItem(COLOR_THEME_STORAGE_KEY, 'charcoal');
+    expect(readColorTheme()).toBe('dark');
 
     applyColorTheme('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
@@ -119,7 +114,7 @@ describe('applyColorTheme', () => {
     expect(document.documentElement.style.backgroundColor).toBe('rgb(13, 17, 21)');
   });
 
-  it('restores the saved charcoal theme synchronously before the app renders', () => {
+  it('restores a previously saved graphite theme as dark before the app renders', () => {
     localStorage.setItem(COLOR_THEME_STORAGE_KEY, 'charcoal');
     document.documentElement.dataset.theme = 'light';
     document.documentElement.style.colorScheme = 'light';
@@ -127,8 +122,8 @@ describe('applyColorTheme', () => {
     new Function(themeBootstrap)();
 
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.dataset.themeVariant).toBe('charcoal');
+    expect(document.documentElement.dataset.themeVariant).toBeUndefined();
     expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(document.documentElement.style.backgroundColor).toBe('rgb(37, 36, 34)');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(13, 17, 21)');
   });
 });

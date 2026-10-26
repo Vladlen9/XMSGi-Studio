@@ -6,7 +6,6 @@ import {
   normalizeTelegramBridgeError,
   type StudioSchedulerActions,
 } from '@shared/bridge';
-import type { NotificationState } from '@/types';
 
 describe('Studio bridge contract', () => {
   it('versions the runtime and preserves host scheduler callbacks', () => {
@@ -29,28 +28,13 @@ describe('Studio bridge contract', () => {
       handleCancelMessage: vi.fn(async () => true),
       handleCancelMessages,
     };
-    const errorDetails = normalizeTelegramBridgeError({
-      error: 'Wait before retrying.',
-      code: 'FLOOD_WAIT_12',
-      category: 'flood',
-      retryable: true,
-      waitSeconds: 12,
-    }, 'publish', 'Publish failed.');
-    const notification: NotificationState = {
-      message: '',
-      title: '',
-      type: 'info',
-      visible: false,
-      errorDetails,
-    };
-    const closeNotification = vi.fn();
+    const showNotification = vi.fn();
 
-    const runtime = createStudioSchedulerRuntime(actions, notification, closeNotification);
+    const runtime = createStudioSchedulerRuntime(actions, showNotification);
 
     expect(runtime.protocolVersion).toBe(BRIDGE_PROTOCOL_VERSION);
     expect(runtime.handleCancelMessages).toBe(handleCancelMessages);
-    expect(runtime.closeNotification).toBe(closeNotification);
-    expect(runtime.notification.errorDetails).toBe(errorDetails);
+    expect(runtime.showNotification).toBe(showNotification);
   });
 
   it('normalizes existing Host error metadata without reclassifying it', () => {

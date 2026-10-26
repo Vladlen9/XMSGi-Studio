@@ -1,10 +1,16 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
+import { SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
 import { HistoryDrawer } from './HistoryDrawer';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import { normalizePlannerDraft, normalizeSavedDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
+
+const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
 
 const scheduledMessage: ScheduledMessage = {
   id: 'scheduled-studio-1',
@@ -102,6 +108,7 @@ function renderHistory(
   onClearDrafts = vi.fn().mockResolvedValue(true),
   onCancelQueue = vi.fn().mockResolvedValue(true),
   onUseDraft = vi.fn(),
+  draftDestination: 'planner' | 'studio' = 'studio',
 ) {
   const onClose = vi.fn();
   const view = render(
@@ -116,6 +123,7 @@ function renderHistory(
         onDelete={onDelete}
         onOpenDraft={onOpenDraft}
         onUseDraft={onUseDraft}
+        draftDestination={draftDestination}
         onClearSent={onClearSent}
         onClearDrafts={onClearDrafts}
         onCancelQueue={onCancelQueue}
@@ -198,6 +206,57 @@ describe('history drawer transient menus', () => {
 describe('Posts page split view', () => {
   beforeEach(() => {
     window.localStorage.removeItem('xmsgi-history-filters');
+  });
+
+  it('matches action button heights to search and removes the sticky date gutter', () => {
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page \.history-delete-button,[\s\S]*?\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*40px;[^}]*min-height:\s*40px;/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page \.history-content\.is-page \.history-date-heading\s*\{[^}]*margin:\s*0 -10px 0 -8px;[^}]*padding:\s*12px 18px 7px;/,
+    );
+  });
+
+  it('opens the first non-empty category for the selected source', async () => {
+    const studioDraft = normalizeSavedDraft({
+      id: 'studio-draft',
+      name: 'Studio draft',
+      body: 'A saved Studio draft',
+      entities: [],
+      attachments: [],
+      selectedChat: null,
+      inlineButtons: [],
+      createdAt: '2026-10-25T10:00:00.000Z',
+      updatedAt: '2026-10-25T10:00:00.000Z',
+    });
+    const plannerDraft = normalizePlannerDraft(
+      'A Planner draft',
+      null,
+      '2026-10-25T11:00:00.000Z',
+      [],
+      [],
+    )!;
+    const { container } = renderHistoryPage([studioDraft, plannerDraft]);
+    const statusFilters = container.querySelector('.history-status-filters')!;
+
+    await waitFor(() => {
+      expect(statusFilters.querySelector('[data-history-filter="drafts"]')).toHaveAttribute('aria-selected', 'true');
+    });
+
+    fireEvent.click(statusFilters.querySelector('[data-history-filter="scheduled"]')!);
+    const sourceMenu = openSourceMenu();
+    fireEvent.click(sourceMenu.getByRole('menuitemradio', { name: 'Studio' }));
+    expect(statusFilters.querySelector('[data-history-filter="drafts"]')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('article')).toHaveTextContent('Studio draft');
+  });
+
+  it('keeps the scheduled category selected when the chosen source has no records', async () => {
+    const { container } = renderHistoryPage([]);
+    const statusFilters = container.querySelector('.history-status-filters')!;
+    await waitFor(() => {
+      expect(statusFilters.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
+    });
+    expect(screen.getByText('Nothing in this category yet')).toBeInTheDocument();
   });
 
   it('offers product-specific create actions for an empty category, but not empty search results', () => {
@@ -293,7 +352,7 @@ describe('Posts page split view', () => {
       expect(statusHeading.compareDocumentPosition(sourceRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(detailPanel).not.toContainElement(sourceFilters);
       expect(container.querySelector('.history-drawer-header')).toBeNull();
-      expect(sourceSection).not.toHaveTextContent('Section');
+      expect(sourceSection.querySelector('.history-list-source-label')).toHaveTextContent('Section');
       expect(sourceSection.querySelector('.history-source-select')).toHaveTextContent('All');
       expect(statusHeading).toHaveTextContent('Category');
       expect(statusHeading).toContainElement(statusFilters);
@@ -316,7 +375,7 @@ describe('Posts page split view', () => {
     const { container } = renderHistoryPage([upcomingRecord, secondRecord]);
 
     expect(container.querySelectorAll('.history-record')).toHaveLength(2);
-    expect(container.querySelector('.history-detail-empty h2')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Select a post');
     expect(container.querySelector('.history-detail-empty-art')).toHaveAttribute('aria-hidden', 'true');
     expect(container.querySelector('.history-detail-empty-art-icon')).toBeInTheDocument();
     expect(container.querySelector('.history-detail-empty-art-orbit--outer')).toBeInTheDocument();
@@ -330,6 +389,7 @@ describe('Posts page split view', () => {
     expect(screen.getByRole('link', { name: 'brief.pdf' }))
       .toHaveAttribute('download', 'brief.pdf');
     expect(screen.getByRole('button', { name: 'Back to posts' })).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-category')).toHaveTextContent('Category: Scheduled');
     expect(container.querySelector('.history-record-open')).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -447,11 +507,56 @@ describe('history filter selected states', () => {
     expect(activeStatus).toHaveClass('is-active');
     expect(container.querySelector('.history-glass-indicator')).toBeNull();
 
-    selectHistorySource('Studio');
+    const sourceMenu = openSourceMenu();
+    const sourceMenuElement = document.querySelector('.history-source-menu')!;
+    expect(sourceMenuElement.parentElement).toBe(document.body);
+    expect(container.querySelector('.history-list-pane')).not.toContainElement(sourceMenuElement);
+    fireEvent.click(sourceMenu.getByRole('menuitemradio', { name: 'Studio' }));
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
 
     expect(sourceFilters.querySelector('.history-source-select')).toHaveTextContent('Studio');
     expect(statusFilters.querySelector('[data-history-filter="sent"]')).toHaveClass('is-active');
+  });
+
+  it('keeps the global search hint while changing categories', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
+    const search = screen.getByRole('textbox', { name: 'Поиск по истории' });
+    const statusFilters = container.querySelector('.history-status-filters')!;
+
+    expect(search).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+
+    fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+
+    fireEvent.click(statusFilters.querySelector('[data-history-filter="drafts"]')!);
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+  });
+
+  it('searches across categories while respecting the selected source', () => {
+    const { container } = renderHistoryPage([upcomingRecord, personalUpcomingRecord, completedRecord]);
+    const search = screen.getByRole('textbox', { name: 'Поиск по истории' });
+
+    fireEvent.change(search, { target: { value: 'подтвердить' } });
+
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getByText('Найдено 2 из 3')).toBeInTheDocument();
+    const results = screen.getAllByRole('article');
+    expect(results.some((result) => result.textContent?.includes('Запланировано'))).toBe(true);
+    expect(results.some((result) => result.textContent?.includes('Отправлено'))).toBe(true);
+
+    const sentResult = results.find((result) => result.textContent?.includes('Отправлено'))!;
+    fireEvent.click(sentResult.querySelector('.history-record-open')!);
+    expect(container.querySelector('.history-detail-category')).toHaveTextContent('Категория: Отправлено');
+
+    fireEvent.click(container.querySelector('[data-history-filter="sent"]')!);
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+
+    selectHistorySource('Studio');
+    expect(screen.queryAllByRole('article')).toHaveLength(0);
+    expect(screen.getByText('Найдено 0 из 1')).toBeInTheDocument();
+    expect(container.querySelector('[data-history-filter="scheduled"]')).toBeInTheDocument();
   });
 
   it('keeps source totals inclusive of sent records while Scheduled is selected', () => {
@@ -459,13 +564,37 @@ describe('history filter selected states', () => {
       sourceFilter: 'all',
       statusFilter: 'scheduled',
     }));
-    const { container } = renderHistoryPage([completedRecord, workspaceSentRecord]);
-    const sourceFilters = container.querySelector('.history-source-filters')!;
+    renderHistoryPage([completedRecord, workspaceSentRecord]);
     openSourceMenu();
+    const sourceMenu = document.querySelector('.history-source-menu')!;
 
-    expect(sourceFilters.querySelector('[data-history-filter="all"] .history-filter-count')).toHaveTextContent('2');
-    expect(sourceFilters.querySelector('[data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1');
-    expect(sourceFilters.querySelector('[data-history-filter="personal"] .history-filter-count')).toHaveTextContent('1');
+    expect(sourceMenu.querySelector('[data-history-filter="all"] .history-filter-count')).toHaveTextContent('2');
+    expect(sourceMenu.querySelector('[data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1');
+    expect(sourceMenu.querySelector('[data-history-filter="personal"] .history-filter-count')).toHaveTextContent('1');
+  });
+
+  it('formats source, status, and result counters correctly at one thousand', () => {
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    const records = Array.from({ length: 1000 }, (_, index) => ({
+      ...upcomingRecord,
+      id: `scheduled-studio-${index}`,
+    }));
+    const { container, unmount } = renderHistoryPage(records);
+
+    expect(container.querySelector('[data-history-filter="scheduled"] .history-filter-count')).toHaveTextContent('1,000');
+    expect(container.querySelector('.history-result-count')).toHaveTextContent('Showing 1,000 of 1,000');
+
+    openSourceMenu();
+    expect(document.querySelector('.history-source-menu [data-history-filter="all"] .history-filter-count')).toHaveTextContent('1,000');
+    expect(document.querySelector('.history-source-menu [data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1,000');
+
+    unmount();
+    const recordWithManyAttachments = {
+      ...upcomingRecord,
+      attachments: Array.from({ length: 1000 }, (_, index) => `C:\\files\\attachment-${index}.pdf`),
+    };
+    const { container: attachmentContainer } = renderHistoryPage([recordWithManyAttachments]);
+    expect(attachmentContainer.querySelector('.history-record-attachment-count')).toHaveTextContent('1,000');
   });
 
   it('opens on the Planner source until a user-selected source is saved across reopen', () => {
@@ -656,6 +785,7 @@ describe('HistoryDrawer search', () => {
 
     expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Search history' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Search history' })).toHaveAttribute('placeholder', 'All categories: text, chats, dates...');
     expect(screen.getByRole('tab', { name: 'Scheduled' })).toBeInTheDocument();
   });
 
@@ -810,6 +940,44 @@ describe('HistoryDrawer search', () => {
     delete (window as { draftStorage?: unknown }).draftStorage;
   });
 
+  it('refreshes saved Studio drafts while Posts remains open', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    const draft = {
+      id: 'live-studio-draft',
+      name: 'Newly saved draft',
+      body: 'Saved while Posts is open',
+      createdAt: '2026-09-28T10:00:00.000Z',
+      updatedAt: '2026-09-29T18:35:00.000Z',
+    };
+    const load = vi.fn()
+      .mockResolvedValueOnce({
+        success: true,
+        store: { schemaVersion: 1, migrationVersion: 1, savedDrafts: [], workspaceDraft: null },
+      })
+      .mockResolvedValue({
+        success: true,
+        store: { schemaVersion: 1, migrationVersion: 1, savedDrafts: [draft], workspaceDraft: null },
+      });
+    Object.defineProperty(window, 'draftStorage', {
+      configurable: true,
+      value: { load },
+    });
+
+    try {
+      renderHistory([]);
+      fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+      expect(await screen.findByText('В этой категории пока пусто')).toBeInTheDocument();
+
+      window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
+
+      expect(await screen.findByText('Newly saved draft')).toBeInTheDocument();
+      expect(load).toHaveBeenCalledTimes(2);
+    } finally {
+      if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+      else Reflect.deleteProperty(window, 'draftStorage');
+    }
+  });
+
   it('opens the records list at the top', () => {
     const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
     Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
@@ -899,7 +1067,7 @@ describe('HistoryDrawer search', () => {
       target: { value: 'нет такого сообщения' },
     });
 
-    expect(screen.getByText('Найдено 0 из 1')).toBeInTheDocument();
+    expect(screen.getByText('Найдено 0 из 2')).toBeInTheDocument();
     expect(screen.getByText('Ничего не найдено')).toBeInTheDocument();
     expect(screen.queryByRole('menu', { name: 'Формат экспорта' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Очистить поиск' }));
@@ -1031,7 +1199,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.getByRole('article')).toHaveTextContent('A saved Planner draft');
   });
 
-  it('shows saved Quick Planner drafts in Posts and offers both editor destinations', () => {
+  it('opens saved Quick Planner drafts in the editor that opened Posts', async () => {
     const savedPlannerDraft = normalizeSavedPlannerDraft({
       id: 'saved-idea-1',
       message: 'An idea saved from Quick Planner',
@@ -1040,17 +1208,30 @@ describe('HistoryDrawer search', () => {
       reminderType: 'idea',
       savedAt: '2026-10-06T10:00:00.000Z',
     });
-    const { onUseDraft } = renderHistory([savedPlannerDraft]);
+    const onUseDraft = vi.fn();
+    renderHistory(
+      [savedPlannerDraft],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      onUseDraft,
+      'planner',
+    );
 
     fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
     expect(screen.getByRole('article')).toHaveTextContent('An idea saved from Quick Planner');
     expect(screen.getByLabelText('Идея')).toHaveAttribute('data-reminder-type', 'idea');
     fireEvent.click(screen.getByRole('button', { name: /Использовать черновик/ }));
 
-    const chooser = screen.getByRole('menu', { name: /Saved Quick Planner draft/ });
-    fireEvent.click(within(chooser).getByRole('menuitem', { name: 'Планер' }));
-
     expect(onUseDraft).toHaveBeenCalledWith(savedPlannerDraft, 'planner');
+    expect(screen.queryByText(/Где открыть черновик/)).not.toBeInTheDocument();
+    expect(document.querySelector('.history-detail-draft-menu')).toBeNull();
+    expect(document.querySelector('.history-draft-destination-menu')).toBeNull();
   });
 
   it('keeps Posts rendering for a legacy Quick Planner draft without a saved date', () => {
@@ -1073,7 +1254,7 @@ describe('HistoryDrawer search', () => {
   it.each([
     ['Планер', 'planner'],
     ['Студия', 'studio'],
-  ] as const)('asks where to use a Quick Planner draft and opens it in %s', (destinationLabel, destination) => {
+  ] as const)('opens a Quick Planner draft directly in the active %s editor', async (_destinationLabel, destination) => {
     const plannerDraft = normalizePlannerDraft(
       'An editable Quick Planner note',
       channel,
@@ -1082,21 +1263,87 @@ describe('HistoryDrawer search', () => {
       ['C:\\files\\planner-note.pdf'],
     );
     expect(plannerDraft).not.toBeNull();
-    const { onUseDraft, onClose } = renderHistory([plannerDraft!]);
+    const { onUseDraft, onClose } = renderHistory(
+      [plannerDraft!],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      destination,
+    );
     fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
 
     fireEvent.click(screen.getByRole('button', { name: `Использовать черновик: ${plannerDraft!.title}` }));
 
-    const chooser = screen.getByRole('menu', { name: `Где открыть черновик «${plannerDraft!.title}»?` });
-    expect(onUseDraft).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(within(chooser).getAllByRole('menuitem')).toHaveLength(2);
-    expect(within(chooser).queryByRole('menuitem', { name: 'Отмена' })).not.toBeInTheDocument();
-    expect(chooser.parentElement).toHaveClass('history-record-primary-wrap');
-    fireEvent.click(within(chooser).getByRole('menuitem', { name: destinationLabel }));
-
     expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, destination);
-    expect(onClose).toHaveBeenCalledWith(false);
+    expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
+    expect(document.querySelector('.history-detail-draft-menu')).toBeNull();
+    expect(document.querySelector('.history-draft-destination-menu')).toBeNull();
+    await waitFor(() => expect(onClose).toHaveBeenCalledWith(false));
+  });
+
+  it('keeps Posts open when using a draft in the active editor fails', async () => {
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    const plannerDraft = normalizePlannerDraft(
+      'An editable Quick Planner note',
+      channel,
+      '2026-10-06T10:00:00.000Z',
+    )!;
+    const onUseDraft = vi.fn().mockResolvedValue(false);
+    const { onClose } = renderHistory([plannerDraft], undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, onUseDraft);
+    fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
+    fireEvent.click(screen.getByRole('button', { name: `Open post: ${plannerDraft.title}` }));
+    fireEvent.click(screen.getByRole('button', { name: /Use draft/ }));
+    await waitFor(() => expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, 'studio'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
+  });
+
+  it('uses the active editor directly from the draft detail panel', async () => {
+    window.localStorage.setItem('awaitmsg_locale', 'en');
+    const plannerDraft = normalizePlannerDraft(
+      'An editable Quick Planner note',
+      channel,
+      '2026-10-06T10:00:00.000Z',
+    )!;
+    const onUseDraft = vi.fn().mockResolvedValue(true);
+    const onClose = vi.fn();
+    render(
+      <LocaleProvider>
+        <HistoryDrawer
+          isOpen
+          pageMode
+          onClose={onClose}
+          records={[plannerDraft]}
+          onCancel={vi.fn()}
+          onReschedule={vi.fn()}
+          onSendNow={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenDraft={vi.fn()}
+          onUseDraft={onUseDraft}
+          draftDestination="planner"
+          onClearSent={vi.fn()}
+        />
+      </LocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
+    fireEvent.click(screen.getByRole('button', { name: `Open post: ${plannerDraft.title}` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use draft' }));
+
+    await waitFor(() => {
+      expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, 'planner');
+      expect(onClose).toHaveBeenCalledWith(false);
+    });
+    expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
+    expect(document.querySelector('.history-detail-draft-menu')).toBeNull();
+    expect(document.querySelector('.history-draft-destination-menu')).toBeNull();
   });
 
   it('mentions drafts in the empty Planner state', () => {
@@ -1218,9 +1465,9 @@ describe('HistoryDrawer search', () => {
       const confirmation = screen.getByRole('alertdialog', { name: 'Подтвердить удаление категории' });
       expect(confirmation).toHaveTextContent('Удалить 2 черновика? Восстановление невозможно.');
       expect(confirmation).toHaveAttribute('aria-modal', 'true');
-      expect(within(confirmation).getByRole('button', { name: 'Отмена' })).toHaveFocus();
+      expect(within(confirmation).getByRole('button', { name: 'Удалить 2 черновика' })).toHaveFocus();
       expect(onClearDrafts).not.toHaveBeenCalled();
-      fireEvent.click(within(confirmation).getByRole('button', { name: 'Удалить 2 черновика' }));
+      fireEvent.keyDown(confirmation, { key: 'Enter' });
 
       await waitFor(() => expect(onClearDrafts).toHaveBeenCalledOnce());
       expect(screen.queryByText('Draft A')).not.toBeInTheDocument();
@@ -1273,7 +1520,8 @@ describe('HistoryDrawer search', () => {
       expect(confirmation).toHaveTextContent('Удалить черновик «Draft to delete»? Восстановление невозможно.');
       expect([...confirmation.querySelectorAll('.history-record-confirmation-action')].map((button) => button.textContent?.trim()))
         .toEqual(['Удалить черновик', 'Отмена']);
-      fireEvent.click(within(confirmation).getByRole('button', { name: 'Удалить черновик' }));
+      expect(within(confirmation).getByRole('button', { name: 'Удалить черновик' })).toHaveFocus();
+      fireEvent.keyDown(confirmation, { key: 'Enter' });
 
       await waitFor(() => expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({
         id: 'workspace:draft:single-delete-draft',
@@ -1456,7 +1704,7 @@ describe('HistoryDrawer search', () => {
         source: 'workspace',
         status: 'draft',
         original: { kind: 'saved-draft', draft: expect.objectContaining({ id: 'studio-draft-1' }) },
-      }));
+      }), 'studio');
       expect(onOpenDraft).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: 'Ещё' }));
@@ -1494,7 +1742,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.queryByText('Завершённые')).not.toBeInTheDocument();
   });
 
-  it('exports only the currently selected source, status, and search results', async () => {
+  it('exports global search results within the selected source', async () => {
     const downloads = stubDownloads();
 
     try {
@@ -1504,11 +1752,11 @@ describe('HistoryDrawer search', () => {
       fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
         target: { value: 'подтвердить' },
       });
-      fireEvent.click(screen.getByRole('button', { name: 'Экспортировать текущую категорию' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Экспортировать результаты поиска' }));
 
-      expect(screen.getByText('Текущая категория: Отправлено')).toBeInTheDocument();
+      expect(screen.getByText('Результаты поиска')).toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: 'Экспортировать текущий список как JSON (.json)' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Экспортировать текущую категорию' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Экспортировать результаты поиска' })).toBeEnabled();
 
       fireEvent.click(screen.getByRole('menuitem', { name: 'Экспортировать текущий список как JSON (.json)' }));
 
@@ -1516,8 +1764,8 @@ describe('HistoryDrawer search', () => {
         filters: { source: string; status: string; query: string };
         records: Array<{ id: string }>;
       };
-      expect(payload.filters).toEqual({ source: 'personal', status: 'sent', query: 'подтвердить' });
-      expect(payload.records.map((record) => record.id)).toEqual([completedRecord.id]);
+      expect(payload.filters).toEqual({ source: 'personal', status: 'all', query: 'подтвердить' });
+      expect(payload.records.map((record) => record.id).sort()).toEqual([completedRecord.id, personalUpcomingRecord.id].sort());
     } finally {
       vi.unstubAllGlobals();
       vi.restoreAllMocks();

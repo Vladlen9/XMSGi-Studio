@@ -14,6 +14,14 @@ const baseStatus = {
 };
 const accountAvatarCacheKey = 'xmsgi-account-avatar-cache-v1';
 
+function openHistorySourceMenu() {
+  fireEvent.click(document.querySelector('.history-source-select') as HTMLButtonElement);
+}
+
+function getHistorySourceOption(source: 'all' | 'workspace' | 'personal') {
+  return document.querySelector(`.history-source-menu [data-history-filter="${source}"]`) as HTMLButtonElement;
+}
+
 function QuickPlannerNavigationTestButtons() {
   const { currentSection, openQuickPlan, openStudio, openPosts, openSettings } = useContext(QuickPlannerNavigationContext);
   return createElement('div', null,
@@ -83,7 +91,7 @@ describe('product navigation', () => {
     const onHistoryUseDraft = vi.fn();
 
     function AppShellHarness() {
-      const [view, setView] = useState<'studio' | 'planner' | 'posts'>('studio');
+      const [view, setView] = useState<'studio' | 'planner' | 'posts'>(destination);
       return createElement(AppShell, {
         view,
         onViewChange: setView,
@@ -111,15 +119,16 @@ describe('product navigation', () => {
 
     const { container } = render(createElement(LocaleProvider, null, createElement(AppShellHarness)));
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
-    fireEvent.click(container.querySelector('[data-history-filter="personal"]') as HTMLButtonElement);
+    fireEvent.click(container.querySelector('.history-source-select') as HTMLButtonElement);
+    fireEvent.click(document.querySelector('.history-source-menu [data-history-filter="all"]') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
     fireEvent.click(container.querySelector('.history-record-open') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('button', { name: /Use draft/ }));
-    fireEvent.click(within(screen.getByRole('group', { name: /Where would you like to open/ })).getByRole('button', {
-      name: destination === 'studio' ? 'Studio' : 'Planner',
-    }));
 
     expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, destination);
+    expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
+    expect(container.querySelector('.history-detail-draft-menu')).toBeNull();
+    expect(container.querySelector('.history-draft-destination-menu')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
     expect(container.querySelector('.product-shell')).toHaveClass(destination === 'studio' ? 'studio-shell' : 'planner-shell');
   });
@@ -233,8 +242,10 @@ describe('shared History Drawer entry point', () => {
     expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
     expect(document.querySelector('.history-drawer-backdrop')).not.toBeInTheDocument();
     expect(document.querySelector('.product-shell-content')).toHaveClass('is-posts');
-    expect(document.querySelector(`[data-history-filter="${view === 'planner' ? 'personal' : 'workspace'}"]`))
-      .toHaveAttribute('aria-pressed', 'true');
+    openHistorySourceMenu();
+    const activeSource = getHistorySourceOption(view === 'planner' ? 'personal' : 'workspace');
+    expect(activeSource).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(activeSource);
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
@@ -356,13 +367,17 @@ describe('shared History Drawer entry point', () => {
     }, plannerNavigation)));
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
-    expect(document.querySelector('[data-history-filter="personal"]')).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(document.querySelector('[data-history-filter="workspace"]')!);
+    openHistorySourceMenu();
+    expect(getHistorySourceOption('personal')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(getHistorySourceOption('workspace'));
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(screen.getByRole('button', { name: 'Studio from Quick Plan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
 
-    expect(document.querySelector('[data-history-filter="workspace"]')).toHaveAttribute('aria-pressed', 'true');
+    openHistorySourceMenu();
+    const selectedWorkspace = getHistorySourceOption('workspace');
+    expect(selectedWorkspace).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(selectedWorkspace);
   });
 
   it('renders Posts as a standalone page and does not close it on Escape', () => {

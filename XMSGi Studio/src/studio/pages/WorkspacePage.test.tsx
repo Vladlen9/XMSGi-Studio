@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Chat, NotificationState, PersistedDraftStore, ScheduledMessage } from '@studio/types';
+import type { Chat, PersistedDraftStore, ScheduledMessage } from '@studio/types';
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { readInitialWorkspaceDraft, type WorkspaceDraft } from '../lib/draftStore';
 import { BUILT_IN_TEMPLATES } from '../lib/builtInTemplates';
@@ -21,13 +21,6 @@ const chatA: Chat = {
   username: 'alpha',
   type: 'group',
   avatarDataUrl: '',
-};
-
-const baseNotification: NotificationState = {
-  message: '',
-  type: 'info',
-  title: '',
-  visible: false,
 };
 
 let inMemoryDraftStore: PersistedDraftStore;
@@ -125,8 +118,6 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
     scheduling: false,
     successPulse: false,
     lastAction: null,
-    notification: baseNotification,
-    closeNotification: vi.fn(),
     setDate: vi.fn(),
     setTime: vi.fn(),
     handleSchedule: vi.fn(),
@@ -143,6 +134,7 @@ async function renderWorkspacePage(overrides: Partial<React.ComponentProps<typeo
   });
 
   return {
+    showNotification: overrides.showNotification,
     rerender: (nextOverrides: Partial<React.ComponentProps<typeof WorkspacePage>> = {}) => act(() => {
       view.rerender(<LocaleProvider><ConfirmDialogProvider><WorkspacePage {...defaults} {...overrides} {...nextOverrides} /></ConfirmDialogProvider></LocaleProvider>);
     }),
@@ -522,7 +514,7 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('moves a history draft into the editor and records the replaced text without keeping a duplicate', async () => {
+  it('adds a history draft and restores replaced text when the added draft is cleared', async () => {
     const savedDraft = {
       id: 'use-in-composer',
       name: 'Composer draft',
@@ -547,29 +539,217 @@ describe('WorkspacePage main-screen flows', () => {
       },
     };
     let useHistoryDraft: ((draft: typeof savedDraft) => Promise<boolean>) | null = null;
+    const notify = vi.fn();
     const { unmount } = await renderWorkspacePage({
+      showNotification: notify,
       onRegisterHistoryDraftUseHandler: (handler) => { useHistoryDraft = handler; },
     });
+    const editor = document.querySelector<HTMLElement>('[aria-label="Post content"]')!;
+    act(() => editor.focus());
 
     let applied = false;
     await act(async () => {
       applied = await useHistoryDraft?.(savedDraft) ?? false;
     });
 
-    const editor = document.querySelector('[aria-label="Post content"]');
     expect(applied).toBe(true);
     expect(editor?.getAttribute('aria-hidden')).toBe('false');
     expect(editor?.textContent).toBe(savedDraft.body);
     expect(inMemoryDraftStore.savedDrafts).toEqual([]);
     expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: savedDraft.body });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback'))
-      .toHaveTextContent('Draft moved to the editor.');
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveClass('is-success');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('Draft added successfully.');
+    expect(notify).not.toHaveBeenCalledWith('Draft added successfully.', 'success', 'Studio');
+    expect(screen.queryByRole('button', { name: 'Restore previous text' })).not.toBeInTheDocument();
     expect(inMemoryDraftStore.documentHistories?.['history-use-existing-document']?.some((version) => (
       (version.snapshot as WorkspaceDraft).body === 'Existing Studio document'
       && version.reason === 'before-replacement'
     ))).toBe(true);
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Clear editor text' }).click();
+    });
+
+    expect(editor.textContent).toBe('Existing Studio document');
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({
+      documentId: 'history-use-existing-document',
+      body: 'Existing Studio document',
+    });
+    expect(inMemoryDraftStore.savedDrafts).toEqual([]);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('You had text here before — we put it back in the editor.');
+    expect(notify).not.toHaveBeenCalledWith(
+      'You had text here before — we put it back in the editor.',
+      'success',
+      'Studio',
+    );
     unmount();
+  });
+
+  it('restores replaced Studio text only after a successful send', async () => {
+    const savedDraft = {
+      id: 'send-restores-previous',
+      name: 'Send this draft',
+      body: 'Selected draft content',
+      entities: [],
+      attachments: [],
+      selectedChat: chatA,
+      inlineButtons: [],
+      createdAt: '2026-09-28T10:00:00.000Z',
+      updatedAt: '2026-09-29T18:35:00.000Z',
+    };
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [savedDraft],
+      workspaceDraft: {
+        documentId: 'previous-document',
+        body: 'Previous Studio content',
+        entities: [],
+        attachments: [],
+        savedAt: '12:00',
+      },
+    };
+    let rerenderWithSuccess: ((nextOverrides?: Partial<React.ComponentProps<typeof WorkspacePage>>) => void) | null = null;
+    const notify = vi.fn();
+    const handleSendDraftNow = vi.fn()
+      .mockResolvedValueOnce(false)
+      .mockImplementationOnce(async () => {
+        rerenderWithSuccess?.({
+          successPulse: false,
+        });
+        await Promise.resolve();
+        rerenderWithSuccess?.({
+          successPulse: true,
+          lastAction: 'sent',
+        });
+        await Promise.resolve();
+        return true;
+      });
+    let useHistoryDraft: ((draft: typeof savedDraft) => Promise<boolean>) | null = null;
+    const { unmount, rerender } = await renderWorkspacePage({
+      showNotification: notify,
+      handleSendDraftNow,
+      onRegisterHistoryDraftUseHandler: (handler) => { useHistoryDraft = handler; },
+    });
+    rerenderWithSuccess = rerender;
+    const editor = document.querySelector<HTMLElement>('[aria-label="Post content"]')!;
+
+    await act(async () => {
+      expect(await useHistoryDraft?.(savedDraft)).toBe(true);
+    });
+    expect(editor.textContent).toBe(savedDraft.body);
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(handleSendDraftNow).toHaveBeenCalledOnce();
+    expect(editor.textContent).toBe(savedDraft.body);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent)
+      .toContain('Message not sent.');
+
+    vi.useFakeTimers();
+    await act(async () => {
+      (document.querySelector('.workspace-page-send-retry') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+    expect(handleSendDraftNow).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await act(async () => Promise.resolve());
+    expect(handleSendDraftNow).toHaveBeenCalledTimes(2);
+    expect(handleSendDraftNow.mock.calls[1][8]).toBe(true);
+    expect(notify).not.toHaveBeenCalledWith('Message sent.', 'success', 'Studio', undefined, 3360);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('Message sent.');
+    expect(editor.textContent).toBe(savedDraft.body);
+    await act(async () => vi.advanceTimersByTimeAsync(3360));
+    expect(handleSendDraftNow).toHaveBeenCalledTimes(2);
+    expect(editor.textContent).toBe('Previous Studio content');
+    expect(inMemoryDraftStore.workspaceDraft).toMatchObject({ body: 'Previous Studio content' });
+    expect(inMemoryDraftStore.savedDrafts).toEqual([]);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('You had text here before — we put it back in the editor.');
+    expect(notify).not.toHaveBeenCalledWith(
+      'You had text here before — we put it back in the editor.',
+      'success',
+      'Studio',
+    );
+    unmount();
+    vi.useRealTimers();
+  });
+
+  it('keeps replaced Studio text until a sent-but-unrecorded result is acknowledged', async () => {
+    const savedDraft = {
+      id: 'send-history-warning',
+      name: 'Send this draft',
+      body: 'Selected draft content',
+      entities: [],
+      attachments: [],
+      selectedChat: chatA,
+      inlineButtons: [],
+      createdAt: '2026-09-28T10:00:00.000Z',
+      updatedAt: '2026-09-29T18:35:00.000Z',
+    };
+    inMemoryDraftStore = {
+      schemaVersion: 2,
+      migrationVersion: 1,
+      savedDrafts: [savedDraft],
+      workspaceDraft: {
+        documentId: 'previous-document',
+        body: 'Previous Studio content',
+        entities: [],
+        attachments: [],
+        savedAt: '12:00',
+      },
+    };
+    let rerenderWithSuccess: ((nextOverrides?: Partial<React.ComponentProps<typeof WorkspacePage>>) => void) | null = null;
+    const notify = vi.fn();
+    const handleSendDraftNow = vi.fn().mockImplementation(async () => {
+      rerenderWithSuccess?.({ successPulse: true, lastAction: 'sent' });
+      await Promise.resolve();
+      return 'sent-history-failed' as const;
+    });
+    let useHistoryDraft: ((draft: typeof savedDraft) => Promise<boolean>) | null = null;
+    const { unmount, rerender } = await renderWorkspacePage({
+      showNotification: notify,
+      handleSendDraftNow,
+      onRegisterHistoryDraftUseHandler: (handler) => { useHistoryDraft = handler; },
+    });
+    rerenderWithSuccess = rerender;
+    const editor = document.querySelector<HTMLElement>('[aria-label="Post content"]')!;
+
+    await act(async () => {
+      expect(await useHistoryDraft?.(savedDraft)).toBe(true);
+    });
+    vi.useFakeTimers();
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(handleSendDraftNow).toHaveBeenCalledOnce();
+    expect(handleSendDraftNow.mock.calls[0][8]).toBe(true);
+    expect(notify).not.toHaveBeenCalledWith(
+      'Telegram sent the message, but local history could not be saved. Do not resend this message.',
+      'warning',
+      'Studio',
+      undefined,
+      5000,
+    );
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-warning')?.textContent)
+      .toContain('Telegram sent the message, but local history could not be saved.');
+    expect(editor.textContent).toBe(savedDraft.body);
+    await act(async () => vi.advanceTimersByTimeAsync(4999));
+    expect(editor.textContent).toBe(savedDraft.body);
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(editor.textContent).toBe('Previous Studio content');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('You had text here before — we put it back in the editor.');
+    unmount();
+    vi.useRealTimers();
   });
 
   it('activates the editor highlight from buttons and preserves it in other windows', async () => {
@@ -993,6 +1173,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
       .toContain('Message from Quick Planner');
     expect(document.querySelector('[aria-label="Message effects"]')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('Draft added successfully.');
     await act(async () => {
       opened = await opener!(payload);
       await new Promise((resolve) => window.setTimeout(resolve, 400));
@@ -1072,6 +1254,8 @@ describe('WorkspacePage main-screen flows', () => {
     expect(opened).toBe(true);
     expect(document.querySelector('.workspace-page-rich-text-input.is-active')?.textContent)
       .toContain('Planner document');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
+      .toContain('Draft added successfully.');
     expect(inMemoryDraftStore.savedDrafts).toHaveLength(0);
     expect(Object.values(inMemoryDraftStore.documentHistories ?? {}).flat().some((version) => (
       (version.snapshot as WorkspaceDraft).body === 'Existing Studio document'
@@ -2383,67 +2567,10 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('renders app notifications in the footer instead of a floating toast', async () => {
-    vi.useFakeTimers();
-    const closeNotification = vi.fn();
-    const { unmount } = await renderWorkspacePage({
-      notification: {
-        ...baseNotification,
-        message: 'Saved to local queue.',
-        title: 'Studio',
-        type: 'success',
-        visible: true,
-      },
-      closeNotification,
-    });
-
+  it('leaves scheduler notification rendering to the shared app shell', async () => {
+    const { unmount } = await renderWorkspacePage();
     expect(document.querySelector('.app-notification')).toBeNull();
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toContain('Saved to local queue.');
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.classList.contains('is-success')).toBe(true);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3360);
-    });
-    expect(closeNotification).toHaveBeenCalledTimes(1);
-
     unmount();
-    vi.useRealTimers();
-  });
-
-  it('restarts the footer notification when the same notification is shown again', async () => {
-    vi.useFakeTimers();
-    const closeNotification = vi.fn();
-    const notification = {
-      ...baseNotification,
-      message: 'Saved to local queue.',
-      title: 'Studio',
-      type: 'success' as const,
-      visible: true,
-      revision: 1,
-    };
-    const { rerender, unmount } = await renderWorkspacePage({ notification, closeNotification });
-    const firstNotification = document.querySelector('.workspace-page-publish-transient-feedback');
-    expect(firstNotification).not.toBeNull();
-    expect(firstNotification).not.toHaveClass('is-retriggered');
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
-    });
-    rerender({ notification: { ...notification, revision: 2 }, closeNotification });
-    const repeatedNotification = document.querySelector('.workspace-page-publish-transient-feedback');
-
-    expect(repeatedNotification).not.toBe(firstNotification);
-    expect(repeatedNotification).toHaveClass('is-retriggered');
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
-    });
-    expect(closeNotification).not.toHaveBeenCalled();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(360);
-    });
-    expect(closeNotification).toHaveBeenCalledOnce();
-
-    unmount();
-    vi.useRealTimers();
   });
 
   it('keeps the editor preview and removes the duplicate queue UI', async () => {

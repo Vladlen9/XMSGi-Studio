@@ -10,6 +10,7 @@ import { readActiveDraftState } from '@/services/draftStoreService';
 
 export const WORKSPACE_DRAFT_KEY = 'xmsgi-workspace-draft';
 export const LEGACY_WORKSPACE_DRAFT_KEY = 'awaitmsg-workspace-draft';
+export const SAVED_STUDIO_DRAFTS_UPDATED_EVENT = 'xmsgi-saved-studio-drafts-updated';
 export const DEFAULT_DRAFT_SEEDED_KEY = 'xmsgi-default-draft-seeded-v1';
 export const DEFAULT_DRAFT_ID = 'xmsgi-default-draft-00-55';
 export const DEFAULT_DRAFT_NAME = 'Draft 00:55';

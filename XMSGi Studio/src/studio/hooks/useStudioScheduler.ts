@@ -25,7 +25,7 @@ type Options = {
   accountId: 'account-1' | 'account-2';
   chats: Chat[];
   selectedChat: Chat | null;
-  showNotification: (message: string, type?: NotificationState['type'], title?: string, errorDetails?: BridgeErrorDetails) => void;
+  showNotification: (message: string, type: NotificationState['type'], title: string, errorDetails?: BridgeErrorDetails) => void;
 };
 
 function makeMessage(chat: Chat, text: string, date: string, time: string, status: ScheduledMessage['status'], attachments?: string[]): ScheduledMessage {
@@ -268,6 +268,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     suppliedAttachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,
+    suppressNotifications = false,
   ): Promise<boolean | 'sent-history-failed'> => {
     hasLocalHistoryChangesRef.current = true;
     setPublishingDraft(true);
@@ -304,11 +305,13 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           for (let pendingGroupIndex = groupIndex + 1; pendingGroupIndex < attachmentGroups.length; pendingGroupIndex += 1) {
             onAttachmentGroupResult?.(pendingGroupIndex, false);
           }
-          showNotification(
-            error instanceof Error ? error.message : 'Send attempt could not be saved. Telegram was not contacted.',
-            'error',
-            'Studio',
-          );
+          if (!suppressNotifications) {
+            showNotification(
+              error instanceof Error ? error.message : 'Send attempt could not be saved. Telegram was not contacted.',
+              'error',
+              'Studio',
+            );
+          }
           return false;
         }
         setUpcoming((current) => [sendingMessage, ...current.filter((message) => message.sendAttemptId !== sendAttemptId)]);
@@ -350,22 +353,26 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
             )));
           } catch (error) {
             historyPersistenceFailed = true;
-            showNotification(
-              error instanceof Error ? error.message : 'Send result could not be saved.',
-              'warning',
-              'Studio',
-            );
+            if (!suppressNotifications) {
+              showNotification(
+                error instanceof Error ? error.message : 'Send result could not be saved.',
+                'warning',
+                'Studio',
+              );
+            }
           }
           onAttachmentGroupResult?.(groupIndex, false);
           for (let pendingGroupIndex = groupIndex + 1; pendingGroupIndex < attachmentGroups.length; pendingGroupIndex += 1) {
             onAttachmentGroupResult?.(pendingGroupIndex, false);
           }
-          showNotification(
-            definitelyRejected ? errorDetails.message : 'Telegram send result is unknown. Do not retry this message.',
-            definitelyRejected ? 'error' : 'warning',
-            'Studio',
-            errorDetails,
-          );
+          if (!suppressNotifications) {
+            showNotification(
+              definitelyRejected ? errorDetails.message : 'Telegram send result is unknown. Do not retry this message.',
+              definitelyRejected ? 'error' : 'warning',
+              'Studio',
+              errorDetails,
+            );
+          }
           return false;
         }
 
@@ -388,18 +395,24 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
       setLastAction('sent');
       setSuccessPulse(true);
       if (historyPersistenceFailed) {
-        showNotification(
-          'Telegram sent the message, but its history could not be saved. Do not retry this message.',
-          'warning',
-          'Studio',
-        );
+        if (!suppressNotifications) {
+          showNotification(
+            'Telegram sent the message, but its history could not be saved. Do not retry this message.',
+            'warning',
+            'Studio',
+          );
+        }
         return 'sent-history-failed';
       }
-      showNotification('Message sent through Telegram.', 'success', 'Studio');
+      if (!suppressNotifications) {
+        showNotification('Message sent through Telegram.', 'success', 'Studio');
+      }
       return true;
     } catch (error) {
       const errorDetails = normalizeTelegramBridgeError(error, 'publish', 'Telegram could not send the message.');
-      showNotification(errorDetails.message, 'error', 'Studio', errorDetails);
+      if (!suppressNotifications) {
+        showNotification(errorDetails.message, 'error', 'Studio', errorDetails);
+      }
       return false;
     } finally {
       setPublishingDraft(false);

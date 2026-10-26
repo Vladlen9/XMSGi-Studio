@@ -41,7 +41,7 @@ import {
   persistProductView,
   type ProductView,
 } from './lib/productView';
-import { getDraftStorageApi } from '@studio/lib/draftStore';
+import { getDraftStorageApi, SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
 import { appStateReducer, createInitialAppState, createMessageSession, type AppRoute } from './appState';
 
 function getCurrentHashPath(): AppRoute {
@@ -225,16 +225,13 @@ function AppContent() {
     showNotification,
     closeNotification,
   } = useNotifications();
-  const studioNotifications = useNotifications();
   useEffect(() => {
-    const notify = productView === 'studio'
-      ? studioNotifications.showNotification
-      : showNotification;
-    return subscribeToConfirmedSendHistoryWarning(notify, t);
-  }, [productView, showNotification, studioNotifications.showNotification, t]);
+    return subscribeToConfirmedSendHistoryWarning(showNotification, t);
+  }, [showNotification, t]);
   const [studioMessage, setStudioMessage] = useState('');
   const studioDraftOpenerRef = useRef<((draft: SavedDraft) => void) | null>(null);
   const studioDraftUseRef = useRef<((draft: SavedDraft) => Promise<boolean>) | null>(null);
+  const pendingStudioDraftUseWaitersRef = useRef(new Set<(handler: (draft: SavedDraft) => Promise<boolean>) => void>());
   const studioDraftClearerRef = useRef<(() => Promise<boolean>) | null>(null);
   const studioDraftDeleterRef = useRef<((draftId: string) => Promise<boolean>) | null>(null);
   const studioHistoryReschedulerRef = useRef<((message: StudioScheduledMessage) => void) | null>(null);
@@ -251,6 +248,9 @@ function AppContent() {
   }, []);
   const registerHistoryDraftUseHandler = useCallback((handler: ((draft: SavedDraft) => Promise<boolean>) | null) => {
     studioDraftUseRef.current = handler;
+    if (!handler) return;
+    for (const resolveHandler of pendingStudioDraftUseWaitersRef.current) resolveHandler(handler);
+    pendingStudioDraftUseWaitersRef.current.clear();
   }, []);
   const registerHistoryRescheduleHandler = useCallback((handler: ((message: StudioScheduledMessage) => void) | null) => {
     studioHistoryReschedulerRef.current = handler;
@@ -390,14 +390,14 @@ function AppContent() {
     refreshChatPermissions,
     chats,
     message: studioMessage,
-    showNotification: studioNotifications.showNotification,
+    showNotification,
     setMessage: setStudioMessage,
   });
 
   const studioBridgeScheduler = createStudioSchedulerRuntime(
     {
       ...studioScheduler,
-      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult, effect) => (
+      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult, effect, suppressNotifications) => (
         studioScheduler.handleSendDraftNow(
           chat,
           text,
@@ -406,14 +406,13 @@ function AppContent() {
           replyMarkup,
           false,
           effect,
-          {},
+          { suppressNotifications },
           attachmentGroups,
           onAttachmentGroupResult,
         )
       ),
     },
-    studioNotifications.notification,
-    studioNotifications.closeNotification,
+    showNotification,
   );
 
   const openPlannerTextInStudio = (
@@ -628,32 +627,69 @@ function AppContent() {
     }
   };
 
-  const useHistoryDraft = (record: HistoryItem, destination?: 'planner' | 'studio') => {
-    if (record.original.kind === 'saved-draft') {
+  const useHistoryDraft = async (record: HistoryItem, destination?: 'planner' | 'studio'): Promise<boolean> => {
+    const target = destination ?? getBackgroundProductView(
+      productViewRef.current,
+      browserDraftMode ? 'planner' : 'studio',
+    );
+    if (record.original.kind === 'saved-draft' && target === 'studio') {
       setProductView('studio');
-      const applyDraft = studioDraftUseRef.current;
-      if (!applyDraft) return;
-      void applyDraft(record.original.draft);
-      return;
+      const applyDraft = studioDraftUseRef.current ?? await new Promise<((draft: SavedDraft) => Promise<boolean>) | null>((resolve) => {
+        const resolveHandler = (handler: (draft: SavedDraft) => Promise<boolean>) => {
+          window.clearTimeout(timeoutId);
+          resolve(handler);
+        };
+        const timeoutId = window.setTimeout(() => {
+          pendingStudioDraftUseWaitersRef.current.delete(resolveHandler);
+          resolve(null);
+        }, 10_000);
+        pendingStudioDraftUseWaitersRef.current.add(resolveHandler);
+      });
+      if (!applyDraft) {
+        showNotification(t('studio.draftCouldNotBeOpened'), 'error', 'Studio');
+        return false;
+      }
+      try {
+        const applied = await applyDraft(record.original.draft);
+        if (!applied) return false;
+        return true;
+      } catch (error) {
+        console.error('Failed to use a saved Studio draft from Posts.', error);
+        showNotification(t('studio.draftCouldNotBeOpened'), 'error', 'Studio');
+        return false;
+      }
     }
 
     const plannerPayload = record.original.kind === 'planner-draft'
       ? { text: record.original.text, attachments: record.original.attachments, entities: record.original.entities }
       : record.original.kind === 'saved-planner-draft'
         ? { text: record.original.draft.message, attachments: record.original.draft.attachments, entities: record.original.draft.entities }
-        : null;
-    if (!plannerPayload) return;
+        : record.original.kind === 'saved-draft'
+          ? {
+            text: record.original.draft.body,
+            attachments: (record.original.draft.attachments ?? []).flatMap((attachment) => {
+              const path = attachment.sourcePath ?? attachment.path;
+              return path ? [path] : [];
+            }),
+            entities: record.original.draft.entities ?? [],
+          }
+          : null;
+    if (!plannerPayload) return false;
 
-    if (destination === 'studio') {
+    if (target === 'studio') {
       const savedDraftId = record.original.kind === 'saved-planner-draft' ? record.original.draft.id : null;
-      openPlannerTextInStudio(plannerPayload, (opened) => {
-        if (!opened || !savedDraftId) return;
-        const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
-        if (!writeSavedPlannerDrafts(remainingDrafts)) {
-          showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
-        }
+      return new Promise<boolean>((resolve) => {
+        const started = openPlannerTextInStudio(plannerPayload, (opened) => {
+          if (opened && savedDraftId) {
+            const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
+            if (!writeSavedPlannerDrafts(remainingDrafts)) {
+              showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
+            }
+          }
+          resolve(opened);
+        });
+        if (!started) resolve(false);
       });
-      return;
     }
 
     setProductView('planner');
@@ -678,13 +714,41 @@ function AppContent() {
       entities: [...plannerPayload.entities],
       restoreDraft,
     }));
-    if (record.original.kind === 'saved-planner-draft') {
+    if (record.original.kind === 'saved-planner-draft' || record.original.kind === 'saved-draft') {
+      const isStudioDraft = record.original.kind === 'saved-draft';
       const savedDraftId = record.original.draft.id;
-      const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
-      if (!writeSavedPlannerDrafts(remainingDrafts)) {
-        showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
+      if (isStudioDraft) {
+        let removed = false;
+        const deleteDraft = studioDraftDeleterRef.current;
+        if (deleteDraft) {
+          removed = await deleteDraft(savedDraftId);
+        } else {
+          const draftStorage = getDraftStorageApi();
+          if (draftStorage) {
+            try {
+              const loaded = await draftStorage.load();
+              if (loaded.success && loaded.store) {
+                const saved = await draftStorage.save({
+                  ...loaded.store,
+                  savedDrafts: loaded.store.savedDrafts.filter((draft) => draft.id !== savedDraftId),
+                });
+                removed = saved.success;
+                if (removed) window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
+              }
+            } catch (error) {
+              console.error('Failed to remove a used Studio draft from Posts.', error);
+            }
+          }
+        }
+        if (!removed) showNotification(t('studio.draftsCouldNotSave'), 'error', 'Studio');
+      } else {
+        const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
+        if (!writeSavedPlannerDrafts(remainingDrafts)) {
+          showNotification(t('quickPlanner.couldNotRemoveDraft'), 'error', t('quickPlanner.draftRemovalFailed'));
+        }
       }
     }
+    return true;
   };
 
   const restorePlannerDraft = (draft: { text: string; attachments: string[]; entities: RichTextEntity[] } | null) => {
@@ -928,7 +992,7 @@ function AppContent() {
       }}
       settingsOpen={route === '/settings'}
       onCloseSettings={closeSettings}
-      notification={connected ? notification : undefined}
+      notification={notification}
       closeNotification={closeNotification}
       connected={sessionResolved && (connected || sessionAvailable) && !signedOut}
       connectionRecoveryStatus={connectionRecoveryStatus}

@@ -11,6 +11,7 @@ import {
   LEGACY_WORKSPACE_DRAFT_KEY,
   markDefaultDraftSeeded,
   readWorkspaceDraftStoreFallback,
+  SAVED_STUDIO_DRAFTS_UPDATED_EVENT,
   seedDefaultDraft,
   WORKSPACE_DRAFT_KEY,
   writeWorkspaceDraftStoreFallback,
@@ -90,10 +91,12 @@ function useSavedDraftCollection() {
       const nextDocumentHistories = typeof getDocumentHistories === 'function'
         ? getDocumentHistories()
         : getDocumentHistories;
+      const nextSavedDrafts = typeof getSavedDrafts === 'function' ? getSavedDrafts() : getSavedDrafts;
+      const savedDraftsChanged = JSON.stringify(savedDraftsRef.current) !== JSON.stringify(nextSavedDrafts);
       const data: PersistedDraftStore = {
         schemaVersion: DRAFT_STORE_SCHEMA_VERSION,
         migrationVersion: 1,
-        savedDrafts: typeof getSavedDrafts === 'function' ? getSavedDrafts() : getSavedDrafts,
+        savedDrafts: nextSavedDrafts,
         workspaceDraft,
         documentHistories: nextDocumentHistories,
       };
@@ -110,6 +113,7 @@ function useSavedDraftCollection() {
         setDraftStoreError('');
         setDraftStoreBackups([]);
         onPersisted?.(data.documentHistories ?? {});
+        if (savedDraftsChanged) window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
         draftStorePendingRef.current -= 1;
         setDraftStoreSaving(draftStorePendingRef.current > 0);
         return true;
@@ -125,6 +129,7 @@ function useSavedDraftCollection() {
         setDraftStoreError('');
         setDraftStoreBackups([]);
         onPersisted?.(data.documentHistories ?? {});
+        if (savedDraftsChanged) window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
         return true;
       } catch (error) {
         setDraftStoreError(error instanceof Error ? error.message : 'Drafts could not be saved.');

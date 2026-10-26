@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type {
   Chat,
   InlineKeyboardMarkup,
-  NotificationState,
+  NotificationType,
   RichTextEntity,
   SavedDraft,
   ScheduledMessage,
@@ -32,10 +32,6 @@ export interface StudioSchedulePayload {
   replaceMessage?: ScheduledMessage;
 }
 
-export interface StudioBridgeNotification extends NotificationState {
-  errorDetails?: BridgeErrorDetails;
-}
-
 export interface StudioSchedulerActions {
   upcoming: ScheduledMessage[];
   sent: ScheduledMessage[];
@@ -56,6 +52,7 @@ export interface StudioSchedulerActions {
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,
+    suppressNotifications?: boolean,
   ) => Promise<boolean | 'sent-history-failed'>;
   handleSendNow: (message: ScheduledMessage) => void | Promise<void>;
   handleDeleteMessage: (message: ScheduledMessage) => void | Promise<void>;
@@ -66,8 +63,13 @@ export interface StudioSchedulerActions {
 
 export interface StudioSchedulerRuntime extends StudioSchedulerActions {
   protocolVersion: BridgeProtocolVersion;
-  notification: StudioBridgeNotification;
-  closeNotification: () => void;
+  showNotification: (
+    message: string,
+    type: NotificationType,
+    title: string,
+    errorDetails?: BridgeErrorDetails,
+    durationMs?: number,
+  ) => void;
 }
 
 export type RegisterHandler<T> = (handler: T | null) => void;

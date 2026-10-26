@@ -9,7 +9,6 @@ import { DraftColorPicker } from '../components/DraftColorPicker';
 import { DocumentHistoryDialog } from '../components/editor/DocumentHistoryDialog';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { WorkspaceTextStage } from '../components/WorkspaceTextStage';
-import { NOTIFICATION_DURATION_MS } from '../hooks/useNotifications';
 import { useStudioDrafts } from '../hooks/useStudioDrafts';
 import { createTemplate, deleteTemplate, insertTextAtSelection, updateTemplate } from '../lib/templates';
 import { BUILT_IN_TEMPLATES } from '../lib/builtInTemplates';
@@ -51,8 +50,9 @@ import type {
   ScheduledMessage,
   SavedDraft,
   Template,
+  NotificationType,
 } from '../types';
-import type { StudioPlannerTextPayload } from '@shared/bridge';
+import type { BridgeErrorDetails, StudioPlannerTextPayload } from '@shared/bridge';
 import './WorkspacePage.css';
 
 const MemoizedChatPreviewStand = memo(ChatPreviewStand);
@@ -96,8 +96,6 @@ type WorkspacePageProps = {
   scheduling: boolean;
   successPulse: boolean;
   lastAction: 'sent' | 'scheduled' | null;
-  notification: import('@studio/types').NotificationState;
-  closeNotification: () => void;
   setDate: React.Dispatch<React.SetStateAction<string>>;
   setTime: React.Dispatch<React.SetStateAction<string>>;
   handleSchedule: (payload?: {
@@ -114,8 +112,15 @@ type WorkspacePageProps = {
   }, repeat?: ScheduleRepeatOptions) => void | Promise<void | boolean | 'sent-history-failed'>;
   handleCancelMessage: (message: ScheduledMessage) => void;
   handleCancelMessages?: (messages: ScheduledMessage[]) => Promise<boolean>;
-  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string) => Promise<boolean | 'sent-history-failed'>;
+  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string, suppressNotifications?: boolean) => Promise<boolean | 'sent-history-failed'>;
   publishingDraft: boolean;
+  showNotification?: (
+    message: string,
+    type: NotificationType,
+    title: string,
+    errorDetails?: BridgeErrorDetails,
+    durationMs?: number,
+  ) => void;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftOpener?: (opener: ((draft: SavedDraft) => void) | null) => void;
@@ -132,9 +137,10 @@ type PublishFooterStatus = {
   detail?: string;
   kind: 'error' | 'progress' | 'warning' | 'success' | 'notice';
   transient: boolean;
-  dismissible: boolean;
   duration: number | null;
-  massWarning?: boolean;
+};
+type PendingDraftReplacement = {
+  previousSnapshot: WorkspaceDraft;
 };
 type IconRimMotion = {
   currentAngle: number;
@@ -668,8 +674,6 @@ export function WorkspacePage({
   scheduling,
   successPulse,
   lastAction,
-  notification,
-  closeNotification,
   setDate,
   setTime,
   handleSchedule,
@@ -786,6 +790,7 @@ export function WorkspacePage({
   });
   const [followCurrentTime, setFollowCurrentTime] = useState(true);
   const [scheduleClockNow, setScheduleClockNow] = useState(() => Date.now());
+  const publishFeedbackTimerRef = useRef<number | null>(null);
   const [scheduleSelectionConfirmed, setScheduleSelectionConfirmed] = useState(false);
   const [, setStageTab] = useState<'editor' | 'templates' | 'drafts' | 'buttons'>('editor');
   const [workspaceSelectedChats, setWorkspaceSelectedChats] = useState<Chat[]>([]);
@@ -818,7 +823,12 @@ export function WorkspacePage({
   const [publishFeedback, setPublishFeedback] = useState('');
   const [publishFeedbackDetail, setPublishFeedbackDetail] = useState('');
   const [publishFeedbackKind, setPublishFeedbackKind] = useState<'warning' | 'success'>('warning');
+  const [publishFeedbackOverridesProgress, setPublishFeedbackOverridesProgress] = useState(false);
   const [publishFeedbackInstance, setPublishFeedbackInstance] = useState(0);
+  const pendingDraftReplacementRef = useRef<PendingDraftReplacement | null>(null);
+  const suppressDraftReplacementSuccessClearRef = useRef(false);
+  const draftReplacementCompletionRef = useRef<Promise<boolean> | null>(null);
+  const completeDraftReplacementRef = useRef<() => Promise<boolean>>(async () => false);
   const [retriggeredPublishFeedback, setRetriggeredPublishFeedback] = useState<{ message: string; kind: string } | null>(null);
   const lastPublishFeedbackRef = useRef<{ message: string; kind: string } | null>(null);
   const [telegramConnectionState, setTelegramConnectionState] = useState<TelegramConnectionState>(
@@ -847,7 +857,6 @@ export function WorkspacePage({
     refreshScheduleClock();
     return () => window.clearTimeout(timeoutId);
   }, [followCurrentTime, scheduleFocus, setDate, setTime, stageMode]);
-  const publishFeedbackTimerRef = useRef<number | null>(null);
   const sendInFlightRef = useRef(false);
   const [publishAction, setPublishAction] = useState<PublishAction>('send');
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
@@ -1059,7 +1068,7 @@ export function WorkspacePage({
     if (stageMode !== 'editor' || (!focusRescheduledEditorAtEndRef.current && !focusPlannerEditorAtEndRef.current && !focusEditorAfterStageEscapeRef.current)) return;
 
     const editor = bodyInputRef.current;
-    if (editor && focusPlannerEditorAtEndRef.current) {
+    if (editor && (focusRescheduledEditorAtEndRef.current || focusPlannerEditorAtEndRef.current)) {
       const nextHtml = richTextToHtml(draftBody, draftEntities);
       if (editor.innerHTML !== nextHtml) editor.innerHTML = nextHtml;
     }
@@ -1131,36 +1140,6 @@ export function WorkspacePage({
   }, []);
 
   useEffect(() => {
-    if (!notification.visible) return;
-
-    if (publishFeedbackTimerRef.current !== null) {
-      window.clearTimeout(publishFeedbackTimerRef.current);
-      publishFeedbackTimerRef.current = null;
-      setPublishFeedback('');
-      setPublishFeedbackDetail('');
-    }
-    setPublishFeedbackInstance((instance) => instance + 1);
-    const kind = notification.type === 'info' ? 'notice' : notification.type;
-    const identity = { message: notification.message, kind };
-    const previousIdentity = lastPublishFeedbackRef.current;
-    setRetriggeredPublishFeedback(
-      previousIdentity?.message === identity.message && previousIdentity.kind === identity.kind
-        ? identity
-        : null,
-    );
-    lastPublishFeedbackRef.current = identity;
-
-    const timer = window.setTimeout(() => {
-      if (lastPublishFeedbackRef.current?.message === identity.message && lastPublishFeedbackRef.current.kind === identity.kind) {
-        lastPublishFeedbackRef.current = null;
-        setRetriggeredPublishFeedback(null);
-      }
-      closeNotification();
-    }, NOTIFICATION_DURATION_MS[notification.type]);
-    return () => window.clearTimeout(timer);
-  }, [closeNotification, notification.message, notification.revision, notification.type, notification.visible]);
-
-  useEffect(() => {
     setTelegramConnectionState(connected ? 'connected' : 'disconnected');
   }, [connected]);
 
@@ -1183,7 +1162,7 @@ export function WorkspacePage({
     return unsubscribe;
   }, []);
 
-  const showPublishFeedback = useCallback((message: string, kind: 'warning' | 'success' = 'warning', detail = '') => {
+  const showPublishFeedback = useCallback((message: string, kind: 'warning' | 'success' = 'warning', detail = '', durationMs?: number) => {
     if (publishFeedbackTimerRef.current !== null) {
       window.clearTimeout(publishFeedbackTimerRef.current);
     }
@@ -1199,15 +1178,17 @@ export function WorkspacePage({
     setPublishFeedback(message);
     setPublishFeedbackDetail(detail);
     setPublishFeedbackKind(kind);
+    setPublishFeedbackOverridesProgress(true);
     publishFeedbackTimerRef.current = window.setTimeout(() => {
       setPublishFeedback('');
       setPublishFeedbackDetail('');
+      setPublishFeedbackOverridesProgress(false);
       publishFeedbackTimerRef.current = null;
       if (lastPublishFeedbackRef.current?.message === identity.message && lastPublishFeedbackRef.current.kind === identity.kind) {
         lastPublishFeedbackRef.current = null;
         setRetriggeredPublishFeedback(null);
       }
-    }, kind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess);
+    }, durationMs ?? (kind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess));
   }, []);
 
   const flushBeforeLeaveStudio = useCallback(async () => {
@@ -1346,7 +1327,11 @@ export function WorkspacePage({
   }, [chatListOpen, publishMenuOpen, stageMode]);
 
   useEffect(() => {
-    if (!successPulse) return;
+    if (!successPulse || suppressDraftReplacementSuccessClearRef.current) return;
+    if (pendingDraftReplacementRef.current) {
+      void completeDraftReplacementRef.current();
+      return;
+    }
     const currentSnapshot = createWorkspaceDraftSnapshotRef.current();
     attachmentSelectionGenerationRef.current += 1;
     void (async () => {
@@ -1610,60 +1595,55 @@ export function WorkspacePage({
             ? t('studio.sendToSavedSummary')
             : t('studio.sendToChatSummary', { chat: localizeChatName(selectedChat.name) })
           : t('studio.sendChooseChatSummary');
-  const publishFooterStatus: PublishFooterStatus | null = notification.visible && notification.title === t('schedule.massWarningTitle')
-    ? {
-      message: notification.message,
-      kind: 'warning',
-      transient: false,
-      dismissible: true,
-      duration: 5000,
-      massWarning: true,
-    }
-    : sendError
-    ? { message: sendError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
+  const publishFooterStatus: PublishFooterStatus | null = sendError
+    ? { message: sendError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
     : connectionRecoveryStatus === 'offline'
-      ? { message: t('telegramStatus.offlineMessage'), kind: 'error', transient: false, dismissible: false, duration: null }
+      ? { message: t('telegramStatus.offlineMessage'), kind: 'error', transient: false, duration: null }
       : connectionRecoveryStatus === 'reconnecting'
-        ? { message: t('telegramStatus.networkMessage'), kind: 'progress', transient: false, dismissible: false, duration: null }
-    : sendInFlight || publishingDraft
-      ? { message: t(reconnectingForSend ? 'studio.reconnectingProgress' : 'studio.sentProgress'), kind: 'progress', transient: false, dismissible: false, duration: null }
-      : publishFeedback
-        ? {
-          message: publishFeedback,
-          detail: publishFeedbackDetail || undefined,
-          kind: publishFeedbackKind,
-          transient: true,
-          dismissible: false,
-          duration: publishFeedbackKind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess,
-        }
+        ? { message: t('telegramStatus.networkMessage'), kind: 'progress', transient: false, duration: null }
+        : publishFeedbackOverridesProgress && publishFeedback
+          ? {
+              message: publishFeedback,
+              detail: publishFeedbackDetail || undefined,
+              kind: publishFeedbackKind,
+              transient: true,
+              duration: publishFeedbackKind === 'warning'
+                ? FOOTER_STATUS_DURATION_MS.publishWarning
+                : FOOTER_STATUS_DURATION_MS.publishSuccess,
+            }
+          : sendInFlight || publishingDraft
+        ? { message: t(reconnectingForSend ? 'studio.reconnectingProgress' : 'studio.sentProgress'), kind: 'progress', transient: false, duration: null }
+        : publishFeedback && publishFeedbackKind === 'success'
+          ? {
+        message: publishFeedback,
+        detail: publishFeedbackDetail || undefined,
+        kind: publishFeedbackKind,
+        transient: true,
+        duration: FOOTER_STATUS_DURATION_MS.publishSuccess,
+          }
+        : publishFeedback
+          ? {
+        message: publishFeedback,
+        detail: publishFeedbackDetail || undefined,
+        kind: publishFeedbackKind,
+        transient: true,
+        duration: FOOTER_STATUS_DURATION_MS.publishWarning,
+          }
         : draftStoreError
-          ? { message: draftStoreError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.draftStoreError }
+          ? { message: draftStoreError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.draftStoreError }
           : attachmentError
-            ? { message: attachmentError, kind: 'error', transient: true, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.attachmentError }
+            ? { message: attachmentError, kind: 'error', transient: true, duration: FOOTER_STATUS_DURATION_MS.attachmentError }
             : textFileError
-              ? { message: textFileError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.textFileError }
+              ? { message: textFileError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.textFileError }
               : chatLookupError
-                ? { message: chatLookupError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.chatLookupError }
+                ? { message: chatLookupError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.chatLookupError }
                 : previewHistoryError
-                  ? { message: previewHistoryError, kind: 'error', transient: false, dismissible: false, duration: FOOTER_STATUS_DURATION_MS.previewHistoryError }
-                  : notification.visible
-                    ? {
-                      message: notification.message,
-                      kind: notification.type === 'info' ? 'notice' : notification.type,
-                      transient: notification.type === 'info' || notification.type === 'success',
-                      dismissible: true,
-                      duration: NOTIFICATION_DURATION_MS[notification.type],
-                    }
-                    : null;
+                ? { message: previewHistoryError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.previewHistoryError }
+                  : null;
 
   const sendDraftNow = async () => {
     if (!selectedChat || !canSendNow || sendInFlightRef.current) return;
-
-    if (publishFeedbackTimerRef.current !== null) {
-      window.clearTimeout(publishFeedbackTimerRef.current);
-      publishFeedbackTimerRef.current = null;
-    }
-    setPublishFeedback('');
+    const isDraftReplacementSend = pendingDraftReplacementRef.current !== null;
     const chat = selectedChat;
     const text = draftBody;
     const replyMarkup = toInlineKeyboardMarkup(inlineButtons);
@@ -1676,6 +1656,7 @@ export function WorkspacePage({
     setSendInFlight(true);
     setSendError('');
     setPublishMenuOpen(false);
+    suppressDraftReplacementSuccessClearRef.current = isDraftReplacementSend;
     try {
       const sent = await handleSendDraftNow(
         chat,
@@ -1694,8 +1675,10 @@ export function WorkspacePage({
           group?.attachments.forEach((attachment) => failedAttachmentIds.add(attachment.id));
         },
         messageEffectId ?? undefined,
+        true,
       );
       if (!sent) {
+        suppressDraftReplacementSuccessClearRef.current = false;
         if (failedAttachmentIds.size > 0) {
           const returnedAttachments = attachments.filter((attachment) => failedAttachmentIds.has(attachment.id));
           const returnedAttachmentIds = new Set(returnedAttachments.map((attachment) => attachment.id));
@@ -1739,14 +1722,19 @@ export function WorkspacePage({
       }
 
       setSendError('');
+      if (sent === 'sent-history-failed' && !isDraftReplacementSend) {
+        suppressDraftReplacementSuccessClearRef.current = false;
+      }
       if (sent !== 'sent-history-failed') {
-        if (bodyInputRef.current) {
-          bodyInputRef.current.innerHTML = '';
-          bodyInputRef.current.dataset.selectionStart = '0';
-          bodyInputRef.current.dataset.selectionEnd = '0';
+        if (!pendingDraftReplacementRef.current) {
+          if (bodyInputRef.current) {
+            bodyInputRef.current.innerHTML = '';
+            bodyInputRef.current.dataset.selectionStart = '0';
+            bodyInputRef.current.dataset.selectionEnd = '0';
+          }
+          setDraftBody('');
+          setDraftEntities([]);
         }
-        setDraftBody('');
-        setDraftEntities([]);
         setMessageEffectId(null);
       }
       showPublishFeedback(
@@ -1754,6 +1742,10 @@ export function WorkspacePage({
           ? 'Telegram sent the message, but local history could not be saved. Do not resend this message.'
           : t('studio.messageSent'),
         sent === 'sent-history-failed' ? 'warning' : 'success',
+        '',
+        sent === 'sent-history-failed'
+          ? FOOTER_STATUS_DURATION_MS.publishWarning
+          : FOOTER_STATUS_DURATION_MS.publishSuccess,
       );
 
       setPreviewHistory((current) => {
@@ -1769,7 +1761,19 @@ export function WorkspacePage({
         }
         return nextHistory;
       });
+      if (isDraftReplacementSend && pendingDraftReplacementRef.current) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(
+            resolve,
+            sent === 'sent-history-failed'
+              ? FOOTER_STATUS_DURATION_MS.publishWarning
+              : FOOTER_STATUS_DURATION_MS.publishSuccess,
+          );
+        });
+        await completePendingDraftReplacement();
+      }
     } catch {
+      suppressDraftReplacementSuccessClearRef.current = false;
       setSendError(t('studio.sendFailed'));
     } finally {
       sendInFlightRef.current = false;
@@ -2023,6 +2027,7 @@ export function WorkspacePage({
   };
 
   const useDraftInComposer = async (draft: SavedDraft): Promise<boolean> => {
+    cancelPendingAutosave();
     const previousSnapshot = createWorkspaceDraftSnapshot();
     const checkpoint = await recordWorkspaceVersion(previousSnapshot, 'before-replacement');
     if (!checkpoint.success) {
@@ -2072,9 +2077,82 @@ export function WorkspacePage({
     setStageTab('editor');
     focusRescheduledEditorAtEndRef.current = true;
     changeStageMode('editor');
+    pendingDraftReplacementRef.current = hasWorkspaceDocumentContent(previousSnapshot)
+      ? { previousSnapshot }
+      : null;
     showPublishFeedback(t('studio.draftMovedToEditor'), 'success');
     return true;
   };
+
+  const restorePreviousDraftAfterReplacement = async () => {
+    const pending = pendingDraftReplacementRef.current;
+    if (!pending) return false;
+    cancelPendingAutosave();
+    const { previousSnapshot } = pending;
+    const restoredEntities = normalizeRichTextEntities(previousSnapshot.entities, previousSnapshot.body.length);
+    const restoredAttachments = normalizeAttachments(previousSnapshot.attachments);
+    const restoredSnapshot = {
+      ...previousSnapshot,
+      entities: restoredEntities,
+      attachments: restoredAttachments,
+      inlineButtons: previousSnapshot.inlineButtons ?? [],
+      savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    const persisted = await persistDraftStore(savedDraftsRef.current, restoredSnapshot);
+    if (!persisted) {
+      showPublishFeedback(t('studio.draftsCouldNotSave'), 'warning');
+      return false;
+    }
+
+    pendingDraftReplacementRef.current = null;
+    suppressDraftReplacementSuccessClearRef.current = false;
+    attachmentSelectionGenerationRef.current += 1;
+    setWorkspaceDocumentId(restoredSnapshot.documentId ?? workspaceDocumentId);
+    if (bodyInputRef.current) {
+      bodyInputRef.current.innerHTML = richTextToHtml(restoredSnapshot.body, restoredEntities);
+    }
+    setDraftBody(restoredSnapshot.body);
+    setDraftEntities(restoredEntities);
+    replaceAttachments(restoredAttachments);
+    setInlineButtons(restoredSnapshot.inlineButtons);
+    setSelectedChat(restoredSnapshot.selectedChat ?? null);
+    setDate(restoredSnapshot.date ?? '');
+    setTime(restoredSnapshot.time ?? '');
+    setFollowCurrentTime(!restoredSnapshot.date && !restoredSnapshot.time);
+    setRepeatMode(restoredSnapshot.repeatMode ?? 'none');
+    setRepeatDays(restoredSnapshot.repeatDays ?? []);
+    setRepeatOccurrences(restoredSnapshot.repeatOccurrences ?? 1);
+    rescheduleSourceRef.current = null;
+    setRescheduleSource(null);
+    setScheduleSelectionConfirmed(false);
+    setPublishAction('send');
+    setStageTab('editor');
+    focusRescheduledEditorAtEndRef.current = true;
+    changeStageMode('editor');
+    showPublishFeedback(t('studio.previousTextRestored'), 'success');
+    return true;
+  };
+
+  const completePendingDraftReplacement = () => {
+    if (draftReplacementCompletionRef.current) return draftReplacementCompletionRef.current;
+    if (!pendingDraftReplacementRef.current) return Promise.resolve(false);
+
+    suppressDraftReplacementSuccessClearRef.current = true;
+    const completion = (async () => {
+      const checkpoint = await recordWorkspaceVersion(createWorkspaceDraftSnapshot(), 'publish');
+      const restored = await restorePreviousDraftAfterReplacement();
+      if (!checkpoint.success) showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
+      return restored;
+    })();
+    draftReplacementCompletionRef.current = completion;
+    void completion.finally(() => {
+      if (draftReplacementCompletionRef.current === completion) {
+        draftReplacementCompletionRef.current = null;
+      }
+    });
+    return completion;
+  };
+  completeDraftReplacementRef.current = completePendingDraftReplacement;
 
   const rescheduleMessage = (message: ScheduledMessage) => {
     const chat = chats.find((item) => item.id === message.chatId);
@@ -2401,6 +2479,7 @@ export function WorkspacePage({
       }
       changeStageMode('editor');
       bodyInputRef.current?.focus({ preventScroll: true });
+      showPublishFeedback(t('studio.draftMovedToEditor'), 'success');
       return true;
     }
 
@@ -2489,6 +2568,7 @@ export function WorkspacePage({
     setPublishAction('send');
     focusPlannerEditorAtEndRef.current = true;
     changeStageMode('editor');
+    showPublishFeedback(t('studio.draftMovedToEditor'), 'success');
     return true;
   }, [
     attachments,
@@ -2867,6 +2947,10 @@ export function WorkspacePage({
   };
 
   const handleBeforeClearEditorText = async () => {
+    if (pendingDraftReplacementRef.current) {
+      await restorePreviousDraftAfterReplacement();
+      return false;
+    }
     const checkpoint = await recordWorkspaceVersion(createWorkspaceDraftSnapshot(), 'before-clear');
     if (!checkpoint.success) {
       showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
@@ -3592,7 +3676,7 @@ export function WorkspacePage({
 
               </div>
 
-              <div className={`workspace-page-action-row workspace-page-draft-footer${publishFooterStatus?.massWarning ? ' has-mass-warning' : ''}`}>
+              <div className={`workspace-page-action-row workspace-page-draft-footer${publishFooterStatus?.kind === 'warning' && publishFooterStatus.message === t('schedule.massWarningTitle') ? ' has-mass-warning' : ''}`}>
                 <div className={`workspace-page-schedule-summary ${publishAction === 'draft' ? 'has-draft-color-picker' : ''}`}>
                   <div
                     className={`workspace-page-publish-footer-content${publishFooterStatus ? ' is-feedback-hidden' : ''}`}
@@ -3608,7 +3692,7 @@ export function WorkspacePage({
                 {publishFooterStatus && (
                   <div
                     key={`${publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
-                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.massWarning ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${retriggeredPublishFeedback?.message === publishFooterStatus.message && retriggeredPublishFeedback.kind === publishFooterStatus.kind ? ' is-retriggered' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
+                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.kind === 'warning' && publishFooterStatus.message === t('schedule.massWarningTitle') ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${retriggeredPublishFeedback?.message === publishFooterStatus.message && retriggeredPublishFeedback.kind === publishFooterStatus.kind ? ' is-retriggered' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
                     style={publishFooterStatus.duration === null
                       ? undefined
                       : { '--status-duration': `${publishFooterStatus.duration}ms` } as React.CSSProperties}
@@ -3646,11 +3730,6 @@ export function WorkspacePage({
                     {draftStoreError && publishFooterStatus.message === draftStoreError && (
                       <button type="button" className="workspace-page-send-retry" onClick={() => window.location.reload()}>
                         {t('studio.retry')}
-                      </button>
-                    )}
-                    {publishFooterStatus.dismissible && (
-                      <button type="button" className="workspace-page-publish-status-dismiss" onClick={closeNotification} aria-label={t('studio.dismissStatus')}>
-                        ×
                       </button>
                     )}
                   </div>

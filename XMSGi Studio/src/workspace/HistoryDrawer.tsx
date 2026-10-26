@@ -1,10 +1,10 @@
-import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, ChevronDown, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
-import { getDraftStorageApi } from '@studio/lib/draftStore';
+import { getDraftStorageApi, SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import type { HistoryItem, PlannerReminderType } from './historyModel';
@@ -12,6 +12,7 @@ import type { HistoryItem, PlannerReminderType } from './historyModel';
 type HistorySourceFilter = 'all' | 'workspace' | 'personal';
 type HistoryBulkActionSource = HistorySourceFilter;
 type HistoryStatusFilter = 'scheduled' | 'sent' | 'drafts' | 'notes';
+type HistoryExportStatus = HistoryStatusFilter | 'all';
 type HistoryExportFormat = 'txt' | 'json';
 type HistoryTranslate = ReturnType<typeof useLocale>['t'];
 const HISTORY_FILTER_STORAGE_KEY = 'xmsgi-history-filters';
@@ -111,10 +112,6 @@ function isSavedMessagesRecord(record: HistoryItem) {
   return normalizedName === 'saved messages' || normalizedName === 'сохранённые сообщения';
 }
 
-function isPlannerDraftRecord(record: HistoryItem) {
-  return record.original.kind === 'planner-draft' || record.original.kind === 'saved-planner-draft';
-}
-
 function getPlannerReminderType(record: HistoryItem): PlannerReminderType | null {
   if (record.original.kind === 'planner-draft') return record.original.reminderType;
   if (record.original.kind === 'saved-planner-draft') return record.original.draft.reminderType;
@@ -144,6 +141,14 @@ function matchesHistoryStatus(record: HistoryItem, filter: HistoryStatusFilter) 
   }
   if (filter === 'sent') return record.status === 'sent';
   return record.status === 'draft';
+}
+
+function getHistoryRecordCategory(record: HistoryItem): HistoryStatusFilter {
+  if (record.status === 'failed') return 'scheduled';
+  if (isSavedMessagesRecord(record)) return 'notes';
+  if (record.status === 'sent') return 'sent';
+  if (record.status === 'draft') return 'drafts';
+  return 'scheduled';
 }
 
 function getVisibleHistoryError(message: string | undefined, t: HistoryTranslate) {
@@ -187,6 +192,10 @@ function formatHistoryCount(count: number, locale: Locale) {
         ? 'записи'
         : 'записей';
   return `${count} ${label}`;
+}
+
+function formatDisplayCount(count: number, locale: Locale) {
+  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US').format(count);
 }
 
 function formatDraftCount(count: number, locale: Locale) {
@@ -338,14 +347,15 @@ function matchesHistoryQuery(record: HistoryItem, query: string, locale: Locale,
   return tokens.every((token) => searchableValues.some((value) => value.includes(token)));
 }
 
-function getHistoryCategoryLabel(status: HistoryStatusFilter, t: HistoryTranslate) {
+function getHistoryCategoryLabel(status: HistoryExportStatus, t: HistoryTranslate) {
+  if (status === 'all') return t('history.allPosts');
   if (status === 'scheduled') return t('history.categoryScheduled');
   if (status === 'sent') return t('history.categorySent');
   if (status === 'notes') return t('history.categoryNotes');
   return t('history.categoryDrafts');
 }
 
-function formatExportText(records: HistoryItem[], status: HistoryStatusFilter, source: HistorySourceFilter, locale: Locale, t: HistoryTranslate) {
+function formatExportText(records: HistoryItem[], status: HistoryExportStatus, source: HistorySourceFilter, locale: Locale, t: HistoryTranslate) {
   const dateLocale = locale === 'ru' ? 'ru-RU' : 'en-US';
   const exportedAt = new Intl.DateTimeFormat(dateLocale, {
     dateStyle: 'medium',
@@ -396,7 +406,7 @@ function formatExportText(records: HistoryItem[], status: HistoryStatusFilter, s
 
 function exportHistoryRecords(
   records: HistoryItem[],
-  status: HistoryStatusFilter,
+  status: HistoryExportStatus,
   source: HistorySourceFilter,
   query: string,
   format: HistoryExportFormat,
@@ -445,6 +455,7 @@ export function HistoryDrawer({
   onSendNow,
   onDelete,
   onUseDraft,
+  draftDestination = 'studio',
   onClearSent,
   onClearDrafts,
   onCancelQueue,
@@ -461,7 +472,8 @@ export function HistoryDrawer({
   onSendNow: (record: HistoryItem) => void;
   onDelete: (record: HistoryItem) => void | Promise<boolean>;
   onOpenDraft: (record: HistoryItem) => void;
-  onUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => void;
+  onUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => boolean | void | Promise<boolean | void>;
+  draftDestination?: 'planner' | 'studio';
   onClearSent: (source: HistoryBulkActionSource) => void;
   onClearDrafts?: (source: HistoryBulkActionSource) => Promise<boolean>;
   onCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
@@ -472,16 +484,18 @@ export function HistoryDrawer({
   const [sourceFilter, setSourceFilter] = useState<HistorySourceFilter>(savedFilters.sourceFilter);
   const [sourceFilterPinned, setSourceFilterPinned] = useState(savedFilters.sourceFilterPinned);
   const [statusFilter, setStatusFilter] = useState<HistoryStatusFilter>(savedFilters.statusFilter);
+  const autoCategorySignatureRef = useRef('');
   const sourceFilterBeforeOverrideRef = useRef<HistorySourceFilter | null>(null);
   const sourceFilterOverrideChangedRef = useRef(false);
   const initialSourceAppliedRef = useRef(false);
   const statusFilterBeforeOverrideRef = useRef<HistoryStatusFilter | null>(null);
   const statusFilterOverrideChangedRef = useRef(false);
   const [query, setQuery] = useState('');
+  const isGlobalSearch = Boolean(query.trim());
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
+  const [sourceMenuPosition, setSourceMenuPosition] = useState({ top: 0, left: 0 });
   const [selectedRecord, setSelectedRecord] = useState<HistoryItem | null>(null);
-  const [draftUseTarget, setDraftUseTarget] = useState<HistoryItem | null>(null);
   const [draftItems, setDraftItems] = useState<HistoryItem[]>([]);
   const [confirmAction, setConfirmAction] = useState<{ type: 'cancel' | 'delete' | 'send-now'; recordId: string } | null>(null);
   const [bulkDeleteCategory, setBulkDeleteCategory] = useState<'scheduled' | 'sent' | 'drafts' | 'notes' | null>(null);
@@ -501,7 +515,6 @@ export function HistoryDrawer({
   const expandedRecordRef = useRef<HTMLElement | null>(null);
   const detailBackButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
-  const draftDestinationAnchorRef = useRef<HTMLDivElement | null>(null);
   const preExpansionScrollTopRef = useRef<number | null>(null);
   const imageHoverTimerRef = useRef<number | null>(null);
 
@@ -551,6 +564,44 @@ export function HistoryDrawer({
       if (!statusFilterWasChanged) setStatusFilter(previousStatusFilter);
     }
   }, [isOpen, statusFilter, statusFilterOnOpen]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !isSourceMenuOpen) return;
+
+    const updateSourceMenuPosition = () => {
+      const anchor = sourceMenuButtonRef.current;
+      if (!anchor) return;
+
+      const anchorBounds = anchor.getBoundingClientRect();
+      const menuBounds = sourceMenuItemsRef.current?.getBoundingClientRect();
+      const menuWidth = menuBounds?.width || 160;
+      const menuHeight = menuBounds?.height || 140;
+      const horizontalPadding = 8;
+      const left = Math.max(
+        horizontalPadding,
+        Math.min(anchorBounds.right - menuWidth, window.innerWidth - menuWidth - horizontalPadding),
+      );
+      const spaceBelow = window.innerHeight - anchorBounds.bottom;
+      const top = spaceBelow >= menuHeight + 8 || spaceBelow >= anchorBounds.top
+        ? anchorBounds.bottom + 6
+        : Math.max(horizontalPadding, anchorBounds.top - menuHeight - 6);
+
+      setSourceMenuPosition({ top, left });
+    };
+
+    updateSourceMenuPosition();
+    window.addEventListener('resize', updateSourceMenuPosition);
+    window.addEventListener('scroll', updateSourceMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateSourceMenuPosition);
+      window.removeEventListener('scroll', updateSourceMenuPosition, true);
+    };
+  }, [isOpen, isSourceMenuOpen]);
+
+  useEffect(() => {
+    if (!isOpen) setIsSourceMenuOpen(false);
+  }, [isOpen]);
 
   useEffect(() => {
     try {
@@ -614,6 +665,30 @@ export function HistoryDrawer({
     setConfirmAction({ type: 'send-now', recordId: record.id });
   };
 
+  const applyHistoryDraft = (record: HistoryItem, destination?: 'planner' | 'studio') => {
+    if (!onUseDraft) return;
+    const result = onUseDraft(record, destination ?? draftDestination);
+    void Promise.resolve(result).then((used) => {
+      if (used === false) return;
+      onClose(false);
+    }).catch((error: unknown) => {
+      console.error('Failed to use a draft from Posts.', error);
+    });
+  };
+
+  const handleConfirmationKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Enter') return;
+    if (event.target instanceof HTMLElement && event.target.closest('.history-record-confirmation-action.is-secondary')) return;
+
+    const confirmButton = event.currentTarget.querySelector<HTMLButtonElement>(
+      '.history-record-confirmation-action.is-primary:not(:disabled)',
+    );
+    if (!confirmButton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    confirmButton.click();
+  };
+
   useLayoutEffect(() => {
     if (!isOpen) return;
     const list = historyRecordListRef.current;
@@ -641,13 +716,6 @@ export function HistoryDrawer({
     if (list && actionMenu) return alignHistoryScroll(list, actionMenu);
   }, [actionMenuOpenId, isOpen]);
 
-  useLayoutEffect(() => {
-    if (!isOpen || !draftUseTarget) return;
-    const list = historyRecordListRef.current;
-    const destinationMenu = list?.querySelector<HTMLElement>('.history-draft-destination-menu');
-    if (list && destinationMenu) return alignHistoryScroll(list, destinationMenu);
-  }, [draftUseTarget, isOpen]);
-
   useEffect(() => {
     if (!isOpen || !selectedRecord) return;
     const list = historyRecordListRef.current;
@@ -671,32 +739,41 @@ export function HistoryDrawer({
       setIsExportMenuOpen(false);
       setIsSourceMenuOpen(false);
       setActionMenuOpenId(null);
-      setDraftUseTarget(null);
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     let active = true;
+    let latestLoadId = 0;
     const draftStorage = getDraftStorageApi();
 
     const loadDrafts = async () => {
+      const loadId = ++latestLoadId;
       if (!draftStorage) {
-        setDraftItems([]);
+        if (active && loadId === latestLoadId) setDraftItems([]);
         return;
       }
 
       try {
         const result = await draftStorage.load();
-        if (active) setDraftItems(result.success ? normalizePersistedStudioDrafts(result.store) : []);
+        if (active && loadId === latestLoadId) {
+          setDraftItems(result.success ? normalizePersistedStudioDrafts(result.store) : []);
+        }
       } catch {
-        if (active) setDraftItems([]);
+        if (active && loadId === latestLoadId) setDraftItems([]);
       }
     };
 
+    const refreshDrafts = () => {
+      void loadDrafts();
+    };
+
     void loadDrafts();
+    window.addEventListener(SAVED_STUDIO_DRAFTS_UPDATED_EVENT, refreshDrafts);
     return () => {
       active = false;
+      window.removeEventListener(SAVED_STUDIO_DRAFTS_UPDATED_EVENT, refreshDrafts);
     };
   }, [isOpen]);
 
@@ -726,9 +803,6 @@ export function HistoryDrawer({
       } else if (confirmAction) {
         event.preventDefault();
         setConfirmAction(null);
-      } else if (draftUseTarget) {
-        event.preventDefault();
-        setDraftUseTarget(null);
       } else if (bulkDeleteCategory && !bulkDeleteBusy) {
         event.preventDefault();
         setBulkDeleteCategory(null);
@@ -761,7 +835,7 @@ export function HistoryDrawer({
       if (!pageMode) document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, draftUseTarget, isExportMenuOpen, isOpen, isSourceMenuOpen, onClose, pageMode, previewImagePath, selectedRecord]);
+  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, isExportMenuOpen, isOpen, isSourceMenuOpen, onClose, pageMode, previewImagePath, selectedRecord]);
 
   useEffect(() => {
     if (!isOpen || !isExportMenuOpen) return;
@@ -780,7 +854,10 @@ export function HistoryDrawer({
     if (!isOpen || !isSourceMenuOpen) return;
 
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!sourceMenuRef.current?.contains(event.target as Node)) setIsSourceMenuOpen(false);
+      const target = event.target as Node;
+      if (!sourceMenuRef.current?.contains(target) && !sourceMenuItemsRef.current?.contains(target)) {
+        setIsSourceMenuOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', closeOnOutsideClick);
@@ -793,27 +870,22 @@ export function HistoryDrawer({
     }
   }, [isSourceMenuOpen]);
 
-  useEffect(() => {
-    if (!isOpen || !draftUseTarget) return;
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!draftDestinationAnchorRef.current?.contains(event.target as Node)) setDraftUseTarget(null);
-    };
-
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, [draftUseTarget, isOpen]);
-
   const filteredRecords = useMemo(() => {
+    const isGlobalSearch = Boolean(query.trim());
     const categoryRecords = [...historyItems, ...draftItems]
       .filter((record) => {
         if (record.status === 'failed') return false;
         if (sourceFilter !== 'all' && record.source !== sourceFilter) return false;
-        if (!matchesHistoryStatus(record, statusFilter)) return false;
+        if (!isGlobalSearch && !matchesHistoryStatus(record, statusFilter)) return false;
 
         return matchesHistoryQuery(record, query, locale, t);
       });
-    const sortedRecords = sortHistoryItems(categoryRecords, statusFilter === 'notes' ? 'sent' : statusFilter);
+    const sortedRecords = sortHistoryItems(categoryRecords, isGlobalSearch || statusFilter === 'notes' ? 'sent' : statusFilter);
+    if (isGlobalSearch) {
+      return sortedRecords.sort((left, right) => (
+        (Date.parse(getHistoryTimestamp(right)) || 0) - (Date.parse(getHistoryTimestamp(left)) || 0)
+      ));
+    }
     if (sourceFilter !== 'all') return sortedRecords;
 
     return sortedRecords.sort((left, right) => {
@@ -865,6 +937,18 @@ export function HistoryDrawer({
   }, [draftItems, historyItems, sourceFilter]);
   const visibleStatusFilters: HistoryStatusFilter[] = ['scheduled', 'sent', 'drafts'];
 
+  useEffect(() => {
+    if (!pageMode) return;
+    const signature = `${sourceFilter}:${historyCounts.status.scheduled}:${historyCounts.status.sent}:${historyCounts.status.drafts}`;
+    if (autoCategorySignatureRef.current === signature) return;
+    autoCategorySignatureRef.current = signature;
+    if (historyCounts.status[statusFilter] > 0) return;
+
+    const nextStatus = (['scheduled', 'sent', 'drafts'] as const)
+      .find((status) => historyCounts.status[status] > 0);
+    if (nextStatus) setStatusFilter(nextStatus);
+  }, [historyCounts, pageMode, sourceFilter, statusFilter]);
+
   const selectedRecordIndex = selectedRecord
     ? filteredRecords.findIndex((record) => record.id === selectedRecord.id)
     : -1;
@@ -898,10 +982,9 @@ export function HistoryDrawer({
     : t('history.currentList');
   const exportMenuHeading = selectedRecord
     ? t('history.exporting', { scope: selectedRecord.title })
-    : t('history.exportCategory', { category: selectedCategoryLabel });
-  const canDeleteCurrentCategory = statusFilter === 'scheduled'
-    ? scheduleCleanupCount > 0
-    : (statusFilter === 'sent' || statusFilter === 'drafts' || statusFilter === 'notes') && historyCounts.status[statusFilter] > 0;
+    : isGlobalSearch
+      ? t('history.exportSearchResults')
+      : t('history.exportCategory', { category: selectedCategoryLabel });
   const selectedRecordMatchesDeleteCategory = Boolean(selectedRecordIndex >= 0 && selectedRecord && (
     statusFilter === 'scheduled'
       ? isQueueCancellationCandidate(selectedRecord) || isLocalScheduleFailure(selectedRecord)
@@ -911,6 +994,9 @@ export function HistoryDrawer({
           ? matchesHistoryStatus(selectedRecord, 'notes')
           : selectedRecord.status === 'draft'
   ));
+  const canDeleteCurrentCategory = (!isGlobalSearch || selectedRecordMatchesDeleteCategory) && (statusFilter === 'scheduled'
+    ? scheduleCleanupCount > 0
+    : (statusFilter === 'sent' || statusFilter === 'drafts' || statusFilter === 'notes') && historyCounts.status[statusFilter] > 0);
   const bulkDeleteRecord = bulkDeleteRecordId
     ? filteredRecords.find((record) => record.id === bulkDeleteRecordId) ?? null
     : null;
@@ -975,9 +1061,16 @@ export function HistoryDrawer({
         : t('history.deleteCount', { count: bulkDeleteCategory === 'sent' ? formatHistoryCount(bulkDeleteCount, locale) : formatDraftCount(bulkDeleteCount, locale) });
   const exportRecords = (format: HistoryExportFormat) => {
     const recordsToExport = selectedRecord ? [selectedRecord] : filteredRecords;
+    const exportStatus: HistoryExportStatus = selectedRecord
+      ? selectedRecord.status === 'draft'
+        ? 'drafts'
+        : selectedRecord.status === 'sent'
+          ? isSavedMessagesRecord(selectedRecord) ? 'notes' : 'sent'
+          : 'scheduled'
+      : isGlobalSearch ? 'all' : statusFilter;
     exportHistoryRecords(
       recordsToExport,
-      statusFilter,
+      exportStatus,
       selectedRecord?.source ?? sourceFilter,
       query,
       format,
@@ -1133,17 +1226,19 @@ export function HistoryDrawer({
   };
 
   useEffect(() => {
-    if (bulkDeleteCategory && ((statusFilter !== bulkDeleteCategory || historyCounts.status[bulkDeleteCategory] === 0)
+    if (bulkDeleteCategory && ((Boolean(query.trim()) && bulkDeleteRecordId === null)
+      || (statusFilter !== bulkDeleteCategory || historyCounts.status[bulkDeleteCategory] === 0)
       || (bulkDeleteRecordId !== null && bulkDeleteRecord?.id !== bulkDeleteRecordId))) {
       setBulkDeleteCategory(null);
       setBulkDeleteRecordId(null);
       setBulkDeleteError('');
     }
-  }, [bulkDeleteCategory, bulkDeleteRecord?.id, bulkDeleteRecordId, historyCounts.status, statusFilter]);
+  }, [bulkDeleteCategory, bulkDeleteRecord?.id, bulkDeleteRecordId, historyCounts.status, query, statusFilter]);
 
-  const historyResultCountLabel = t(query.trim() ? 'history.results' : 'history.showingResults', {
-    shown: filteredRecords.length,
-    total: historyCounts.status[statusFilter],
+  const globalSearchTotal = historyCounts.status.scheduled + historyCounts.status.sent + historyCounts.status.drafts;
+  const historyResultCountLabel = t(isGlobalSearch ? 'history.results' : 'history.showingResults', {
+    shown: formatDisplayCount(filteredRecords.length, locale),
+    total: formatDisplayCount(isGlobalSearch ? globalSearchTotal : historyCounts.status[statusFilter], locale),
   });
   const historySearchControl = (
     <div className="history-search-dock">
@@ -1238,7 +1333,7 @@ export function HistoryDrawer({
           >
             <span className="history-status-label">{t(labelKey)}</span>
             <span className="history-status-label-compact">{t(compactLabelKey)}</span>
-            <span className="history-filter-count" aria-hidden="true">{historyCounts.status[item]}</span>
+            <span className="history-filter-count" aria-hidden="true">{formatDisplayCount(historyCounts.status[item], locale)}</span>
           </button>
         );
       })}
@@ -1270,7 +1365,7 @@ export function HistoryDrawer({
           aria-label={sourceLabels[item]}
         >
           <span>{sourceLabels[item]}</span>
-          <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
+          <span className="history-filter-count" aria-hidden="true">{formatDisplayCount(historyCounts.source[item], locale)}</span>
         </button>
       ))}
     </div>
@@ -1284,54 +1379,61 @@ export function HistoryDrawer({
         onClick={() => setIsSourceMenuOpen((open) => !open)}
         aria-haspopup="menu"
         aria-expanded={isSourceMenuOpen}
-        aria-label={`${t('history.sourceCaption')}: ${sourceLabels[sourceFilter]} ${historyCounts.source[sourceFilter]}`}
+        aria-label={`${t('history.sourceCaption')}: ${sourceLabels[sourceFilter]} ${formatDisplayCount(historyCounts.source[sourceFilter], locale)}`}
       >
         <span>{sourceLabels[sourceFilter]}</span>
-        <span className="history-source-select-count" aria-hidden="true">{historyCounts.source[sourceFilter]}</span>
+        <span className="history-source-select-count" aria-hidden="true">{formatDisplayCount(historyCounts.source[sourceFilter], locale)}</span>
         <ChevronDown size={14} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      {isSourceMenuOpen && (
-        <div className="history-source-menu" ref={sourceMenuItemsRef} role="menu" aria-label={t('history.sources')}>
-          {(['all', 'workspace', 'personal'] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              role="menuitemradio"
-              data-history-filter={item}
-              aria-checked={sourceFilter === item}
-              className="history-source-option"
-              onClick={() => {
-                setSourceFilterPinned(true);
-                if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
-                if (sourceFilter !== item) setSourceFilter(item);
-                if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
-                setBulkDeleteCategory(null);
-                setBulkDeleteRecordId(null);
-                setBulkDeleteError('');
-                setIsSourceMenuOpen(false);
-                sourceMenuButtonRef.current?.focus();
-              }}
-              onKeyDown={(event) => {
-                const options = sourceMenuItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]');
-                if (!options?.length) return;
-                const currentIndex = Array.from(options).indexOf(event.currentTarget);
-                let nextIndex: number;
-                if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % options.length;
-                else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + options.length) % options.length;
-                else if (event.key === 'Home') nextIndex = 0;
-                else if (event.key === 'End') nextIndex = options.length - 1;
-                else return;
-                event.preventDefault();
-                options[nextIndex].focus();
-              }}
-            >
-              <span>{sourceLabels[item]}</span>
-              <span className="history-filter-count" aria-hidden="true">{historyCounts.source[item]}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
+  );
+  const historySourceMenu = isSourceMenuOpen && createPortal(
+    <div
+      className="history-source-menu"
+      ref={sourceMenuItemsRef}
+      role="menu"
+      aria-label={t('history.sources')}
+      style={{ top: sourceMenuPosition.top, left: sourceMenuPosition.left }}
+    >
+      {(['all', 'workspace', 'personal'] as const).map((item) => (
+        <button
+          key={item}
+          type="button"
+          role="menuitemradio"
+          data-history-filter={item}
+          aria-checked={sourceFilter === item}
+          className="history-source-option"
+          onClick={() => {
+            setSourceFilterPinned(true);
+            if (sourceFilterBeforeOverrideRef.current !== null) sourceFilterOverrideChangedRef.current = true;
+            if (sourceFilter !== item) setSourceFilter(item);
+            if (item !== 'personal' && statusFilter === 'notes') setStatusFilter('scheduled');
+            setBulkDeleteCategory(null);
+            setBulkDeleteRecordId(null);
+            setBulkDeleteError('');
+            setIsSourceMenuOpen(false);
+            sourceMenuButtonRef.current?.focus();
+          }}
+          onKeyDown={(event) => {
+            const options = sourceMenuItemsRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]');
+            if (!options?.length) return;
+            const currentIndex = Array.from(options).indexOf(event.currentTarget);
+            let nextIndex: number;
+            if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % options.length;
+            else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + options.length) % options.length;
+            else if (event.key === 'Home') nextIndex = 0;
+            else if (event.key === 'End') nextIndex = options.length - 1;
+            else return;
+            event.preventDefault();
+            options[nextIndex].focus();
+          }}
+        >
+          <span>{sourceLabels[item]}</span>
+          <span className="history-filter-count" aria-hidden="true">{formatDisplayCount(historyCounts.source[item], locale)}</span>
+        </button>
+      ))}
+    </div>,
+    document.body,
   );
 
   if (!isOpen) return null;
@@ -1396,6 +1498,7 @@ export function HistoryDrawer({
             </div>
             <div className="history-list-source-row">
               <div className="history-page-filter-section is-source-section">
+                <span className="history-list-source-label">{t('history.sourceCaption')}</span>
                 {historySourceSelect}
               </div>
             </div>
@@ -1465,12 +1568,7 @@ export function HistoryDrawer({
                       ? null
                       : { label: t('history.sendNow'), handler: () => confirmSendNow(record), type: 'send-now' }
                   : record.status === 'draft'
-                      ? { label: t('history.useDraft'), handler: () => {
-                        if (isPlannerDraftRecord(record)) {
-                          setDraftUseTarget((current) => current?.id === record.id ? null : record);
-                        }
-                        else { onUseDraft?.(record); onClose(false); }
-                      }, type: 'use-draft' }
+                      ? { label: t('history.useDraft'), handler: () => applyHistoryDraft(record), type: 'use-draft' }
                     : null;
               const secondaryActions = [
                 ...(record.status === 'draft'
@@ -1496,8 +1594,6 @@ export function HistoryDrawer({
                   }, type: 'delete' }]
                   : []),
               ];
-              const isPlannerDraftAction = primaryAction?.type === 'use-draft' && isPlannerDraftRecord(record);
-              const isDestinationMenuOpen = isPlannerDraftAction && draftUseTarget?.id === record.id;
               const reminderType = getPlannerReminderType(record);
               const reminderTypePresentation = reminderType ? getPlannerReminderTypePresentation(reminderType, t) : null;
 
@@ -1561,7 +1657,7 @@ export function HistoryDrawer({
                               : <span className="history-record-attachment-file" key={attachment}><Paperclip size={12} strokeWidth={1.8} /></span>
                           ))}
                         </span>
-                        <span className="history-record-attachment-count">{record.attachments.length}</span>
+                        <span className="history-record-attachment-count">{formatDisplayCount(record.attachments.length, locale)}</span>
                       </span>
                     ) : (
                       <span className="history-record-attachments is-empty" aria-hidden="true" />
@@ -1651,16 +1747,11 @@ export function HistoryDrawer({
                 {!pageMode && <div className="history-record-actions">
                   <div className="history-record-leading-actions">
                     {primaryAction && (
-                      <div
-                        className="history-record-primary-wrap"
-                        ref={isDestinationMenuOpen ? draftDestinationAnchorRef : undefined}
-                      >
+                      <div className="history-record-primary-wrap">
                         <button
                           type="button"
                           className="history-record-action is-primary"
                           onClick={primaryAction.handler}
-                          aria-haspopup={isPlannerDraftAction ? 'menu' : undefined}
-                          aria-expanded={isPlannerDraftAction ? Boolean(isDestinationMenuOpen) : undefined}
                           aria-label={primaryAction.type === 'reschedule'
                             ? t('history.showRecord', { action: t('history.edit'), title: record.title })
                             : primaryAction.type === 'open-draft'
@@ -1671,39 +1762,6 @@ export function HistoryDrawer({
                         >
                           <span>{primaryAction.label}</span>
                         </button>
-                        {isDestinationMenuOpen && draftUseTarget && (
-                          <div
-                            className="history-record-action-menu history-draft-destination-menu"
-                            role="menu"
-                            aria-label={t('history.chooseDraftDestination', { title: draftUseTarget.title })}
-                          >
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="history-record-action-menu-item"
-                              autoFocus
-                              onClick={() => {
-                                onUseDraft?.(draftUseTarget, 'studio');
-                                setDraftUseTarget(null);
-                                onClose(false);
-                              }}
-                            >
-                              {t('product.studio')}
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="history-record-action-menu-item"
-                              onClick={() => {
-                                onUseDraft?.(draftUseTarget, 'planner');
-                                setDraftUseTarget(null);
-                                onClose(false);
-                              }}
-                            >
-                              {t('product.planner')}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
                     {secondaryActions.length > 0 && (
@@ -1765,6 +1823,7 @@ export function HistoryDrawer({
           )}
         </div>
         </div>
+        {historySourceMenu}
 
         {pageMode && (
           <aside
@@ -1811,6 +1870,11 @@ export function HistoryDrawer({
                       <span>{t('history.backToList')}</span>
                     </button>
                     <div className="history-detail-heading">
+                      <span className="history-detail-category">
+                        {t('history.detailCategory', {
+                          category: getHistoryCategoryLabel(getHistoryRecordCategory(activeSelectedRecord), t),
+                        })}
+                      </span>
                       <span className={`history-record-source is-${activeSelectedRecord.source === 'workspace' ? 'studio' : 'personal'}`}>
                         {activeSelectedRecord.source === 'workspace' ? t('history.sourceStudio') : t('history.sourcePersonal')}
                       </span>
@@ -1886,14 +1950,7 @@ export function HistoryDrawer({
                         <button
                           type="button"
                           className="history-record-action is-primary"
-                          onClick={() => {
-                            if (isPlannerDraftRecord(activeSelectedRecord)) {
-                              setDraftUseTarget(activeSelectedRecord);
-                            } else {
-                              onUseDraft?.(activeSelectedRecord);
-                              onClose(false);
-                            }
-                          }}
+                          onClick={() => applyHistoryDraft(activeSelectedRecord)}
                         >
                           {t('history.useDraft')}
                         </button>
@@ -1959,31 +2016,6 @@ export function HistoryDrawer({
                       </button>
                     )}
                   </div>
-                  {draftUseTarget?.id === activeSelectedRecord.id && (
-                    <div className="history-detail-draft-menu" role="group" aria-label={t('history.chooseDraftDestination', { title: activeSelectedRecord.title })}>
-                      <span>{t('history.chooseDraftDestination', { title: activeSelectedRecord.title })}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onUseDraft?.(draftUseTarget, 'studio');
-                          setDraftUseTarget(null);
-                          onClose(false);
-                        }}
-                      >
-                        {t('product.studio')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onUseDraft?.(draftUseTarget, 'planner');
-                          setDraftUseTarget(null);
-                          onClose(false);
-                        }}
-                      >
-                        {t('product.planner')}
-                      </button>
-                    </div>
-                  )}
                 </>
               );
             })() : (
@@ -1997,7 +2029,7 @@ export function HistoryDrawer({
                     <Send size={28} strokeWidth={1.8} />
                   </span>
                 </div>
-                <h2>{t('history.title')}</h2>
+                <h2>{t('history.detailEmptyTitle')}</h2>
                 <p>{t('history.detailEmptyText')}</p>
               </div>
             )}
@@ -2058,10 +2090,14 @@ export function HistoryDrawer({
                   setIsExportMenuOpen((current) => !current);
                 }}
                 disabled={filteredRecords.length === 0}
-                aria-label={selectedRecord ? t('history.exportRecord', { title: selectedRecord.title }) : t('history.exportCurrent')}
+                aria-label={selectedRecord
+                  ? t('history.exportRecord', { title: selectedRecord.title })
+                  : isGlobalSearch ? t('history.exportSearchResultsAction') : t('history.exportCurrent')}
                 aria-haspopup="menu"
                 aria-expanded={isExportMenuOpen}
-                title={selectedRecord ? t('history.exportRecord', { title: selectedRecord.title }) : t('history.exportCount', { count: formatHistoryCount(filteredRecords.length, locale) })}
+                title={selectedRecord
+                  ? t('history.exportRecord', { title: selectedRecord.title })
+                  : t(isGlobalSearch ? 'history.exportSearchCount' : 'history.exportCount', { count: formatHistoryCount(filteredRecords.length, locale) })}
               >
                 <Download size={15} strokeWidth={1.8} aria-hidden="true" />
                 <span>{t('history.export')}</span>
@@ -2106,6 +2142,7 @@ export function HistoryDrawer({
               className="history-confirmation-modal"
               role="alertdialog"
               aria-modal="true"
+              onKeyDown={handleConfirmationKeyDown}
               aria-label={confirmAction.type === 'cancel'
                 ? t('history.confirmCancel')
                 : confirmAction.type === 'send-now' ? t('history.confirmSend') : t('history.confirmDelete')}
@@ -2130,6 +2167,7 @@ export function HistoryDrawer({
                 <button
                   type="button"
                   className="history-record-confirmation-action is-primary"
+                  autoFocus={confirmAction.type === 'delete'}
                   onClick={() => {
                     if (confirmAction.type === 'cancel') {
                       onCancel(confirmActionRecord);
@@ -2151,7 +2189,7 @@ export function HistoryDrawer({
                 <button
                   type="button"
                   className="history-record-confirmation-action is-secondary"
-                  autoFocus
+                  autoFocus={confirmAction.type !== 'delete'}
                   onClick={() => setConfirmAction(null)}
                 >
                   {t('common.cancel')}
@@ -2174,6 +2212,7 @@ export function HistoryDrawer({
               className="history-confirmation-modal"
               role="alertdialog"
               aria-modal="true"
+              onKeyDown={handleConfirmationKeyDown}
               aria-label={bulkDeleteCategory === 'scheduled'
                   ? bulkDeleteRecord
                   ? isLocalScheduleFailure(bulkDeleteRecord) ? t('history.confirmDeleteScheduleError') : t('history.confirmCancel')
@@ -2206,6 +2245,7 @@ export function HistoryDrawer({
                 <button
                   type="button"
                   className="history-record-confirmation-action is-primary"
+                  autoFocus
                   onClick={() => void confirmCategoryDelete()}
                   disabled={bulkDeleteBusy}
                 >
@@ -2216,7 +2256,6 @@ export function HistoryDrawer({
                 <button
                   type="button"
                   className="history-record-confirmation-action is-secondary"
-                  autoFocus
                   onClick={() => {
                     setBulkDeleteCategory(null);
                     setBulkDeleteRecordId(null);

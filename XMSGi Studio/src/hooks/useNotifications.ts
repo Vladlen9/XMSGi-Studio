@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NotificationState, NotificationType } from '@/types';
+import type { NotificationState, NotificationType } from '@shared/types';
 import type { BridgeErrorDetails } from '@shared/bridge';
 
 export function useNotifications() {

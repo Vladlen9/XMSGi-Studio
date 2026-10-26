@@ -89,7 +89,10 @@
   max-width: none;
   height: 100%;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -858,11 +861,23 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-content.is-page {
   display: grid;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
   grid-template-rows: minmax(0, 1fr);
-  column-gap: 16px;
+  column-gap: 14px;
   margin-bottom: 5px;
+  padding: 8px 12px 18px;
+}
+
+.history-drawer.is-page > .history-drawer-controls,
+.history-drawer.is-page > .history-drawer-tools,
+.history-content.is-page .history-list-status-section {
+  flex: 0 0 auto;
+}
+
+.history-drawer.is-page > .history-content.is-page {
+  min-height: 0;
+  flex: 1 1 0;
 }
 
 .history-content.is-page .history-list-pane {
@@ -870,6 +885,7 @@ html.electron-runtime .history-confirmation-backdrop {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
+  container-type: inline-size;
 }
 
 .history-drawer-controls.is-page-controls {
@@ -883,7 +899,7 @@ html.electron-runtime .history-confirmation-backdrop {
   width: 100%;
   min-height: 44px;
   padding: 3px 0 3px 8px;
-  border-bottom: 1px solid rgba(147, 166, 177, 0.14);
+  border-bottom: 0;
 }
 
 .history-page-filter-section.is-source-section {
@@ -1012,6 +1028,24 @@ html.electron-runtime .history-confirmation-backdrop {
 
 .history-list-status-section .history-status-label-compact {
   display: none;
+}
+
+@media (min-width: 1121px) {
+  .history-list-status-heading > .history-status-filters {
+    flex: 0 1 auto;
+  }
+
+  .history-list-status-section .history-status-filters {
+    width: max-content;
+    flex: 0 1 auto;
+    gap: 8px;
+  }
+
+  .history-list-status-section .history-status-tab {
+    flex: 0 0 auto;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
 }
 
 .history-content.is-page .history-record-list {
@@ -1245,29 +1279,31 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-source-menu {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;
+  z-index: 1200;
   display: grid;
-  min-width: max(100%, 132px);
-  gap: 2px;
-  padding: 4px;
+  width: max-content;
+  min-width: 176px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  gap: 4px;
+  padding: 7px;
   border: 1px solid #303b44;
-  border-radius: 9px;
-  background: #151b20;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+  border-radius: 12px;
+  background: rgba(21, 27, 32, 0.97);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38), 0 3px 9px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(232, 244, 249, 0.045);
+  overflow-y: auto;
 }
 
 .history-source-option {
   display: flex;
-  min-height: 32px;
+  min-height: 40px;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 0 9px;
+  gap: 24px;
+  padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: #d3dce4;
   font: inherit;
@@ -1366,6 +1402,20 @@ html.electron-runtime .history-confirmation-backdrop {
   padding: 6px 8px;
 }
 
+.history-drawer.is-page .history-delete-button,
+.history-drawer.is-page .history-delete-placeholder,
+.history-drawer.is-page .history-export-button {
+  box-sizing: border-box;
+  height: 40px;
+  min-height: 40px;
+}
+
+.history-drawer.is-page .history-delete-button,
+.history-drawer.is-page .history-delete-placeholder {
+  width: 40px;
+  flex-basis: 40px;
+}
+
 .history-content.is-page .history-record-list {
   gap: 8px;
   padding-bottom: 36px;
@@ -1376,7 +1426,7 @@ html.electron-runtime .history-confirmation-backdrop {
 }
 
 .history-content.is-page .history-record-open {
-  padding: 3px 5px 4px;
+  padding: 2px 5px 3px;
 }
 
 .history-content.is-page .history-record-meta {
@@ -1460,6 +1510,7 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-record.is-selected {
   border-color: rgba(88, 189, 232, 0.48);
   background: rgba(36, 91, 115, 0.2);
+  box-shadow: inset 0 1px 0 rgba(220, 244, 255, 0.05), 0 4px 14px rgba(0, 0, 0, 0.16);
 }
 
 @media (min-width: 761px) and (max-width: 1120px) {
@@ -1489,9 +1540,27 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (min-width: 761px) {
   .history-drawer.is-page .history-detail-panel {
-    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: -66px;
+    overflow: hidden;
     border-radius: 12px;
   }
+
+  .history-drawer.is-page .history-detail-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: auto;
+  }
+
+  .history-drawer.is-page .history-detail-actions {
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid rgba(154, 168, 184, 0.12);
+    background: rgba(16, 23, 29, 0.72);
+  }
+
 }
 
 .history-detail-header {
@@ -1527,6 +1596,17 @@ html.electron-runtime .history-confirmation-backdrop {
   padding: 4px 8px;
   border-radius: 999px;
   background: rgba(154, 168, 184, 0.1);
+}
+
+.history-detail-category {
+  padding: 4px 9px;
+  border: 1px solid rgba(111, 193, 226, 0.24);
+  border-radius: 999px;
+  background: rgba(48, 120, 150, 0.16);
+  color: #a9d9ec;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .history-detail-status {
@@ -1584,30 +1664,6 @@ html.electron-runtime .history-confirmation-backdrop {
   flex-wrap: wrap;
   gap: 8px;
   padding: 0 20px 20px;
-}
-
-.history-detail-draft-menu {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 20px 20px;
-  padding: 12px;
-  border: 1px solid rgba(154, 168, 184, 0.16);
-  border-radius: 10px;
-  color: #c5d0d8;
-  font-size: 12px;
-}
-
-.history-detail-draft-menu button {
-  min-height: 32px;
-  padding: 0 11px;
-  border: 1px solid rgba(154, 168, 184, 0.2);
-  border-radius: 8px;
-  background: rgba(154, 168, 184, 0.08);
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
 }
 
 .history-detail-empty {
@@ -1708,18 +1764,20 @@ html.electron-runtime .history-confirmation-backdrop {
 
 @media (min-width: 761px) {
   .history-drawer.is-page .history-detail-empty-art {
-    order: 2;
+    order: 0;
     width: min(100%, 260px);
     height: 150px;
+    margin-bottom: 10px;
   }
 
   .history-drawer.is-page .history-detail-empty h2 {
     order: 1;
-    transform: translateY(20px);
+    margin: 0 0 7px;
+    transform: none;
   }
 
   .history-drawer.is-page .history-detail-empty p {
-    order: 3;
+    order: 2;
   }
 
   .history-drawer.is-page .history-detail-empty-art-orbit--outer {
@@ -1766,9 +1824,9 @@ html.electron-runtime .history-confirmation-backdrop {
   .history-drawer.is-page .history-detail-empty {
     position: absolute;
     inset: 0;
-    justify-content: flex-end;
+    justify-content: center;
     min-height: 0;
-    padding: 32px 24px 100px;
+    padding: 32px 24px;
     transform: none;
   }
 }
@@ -1780,47 +1838,61 @@ html.electron-runtime .history-confirmation-backdrop {
   min-height: auto;
   margin: 4px 0 -2px;
   padding: 10px 10px 2px;
-  border-bottom: 0;
-  background: #0d1116;
-  color: var(--dim);
-  font-size: 10px;
+  border-bottom: 1px solid rgba(147, 166, 177, 0.08);
+  background: #141c21;
+  color: #9aadb6;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   line-height: 1.4;
   text-transform: uppercase;
-}
-
-/* Solid backdrop above the sticky date so records scrolling underneath
-   never peek through the gap between the list top and the heading. */
-.history-date-heading::before {
-  content: "";
-  position: absolute;
-  top: -16px;
-  right: 0;
-  left: 0;
-  height: 16px;
-  background: #0d1116;
 }
 
 .history-record {
   position: relative;
   margin: 0;
   padding: 14px 14px 12px;
-  border: 1px solid rgba(154, 168, 184, 0.09);
+  border: 1px solid rgba(154, 168, 184, 0.13);
   border-radius: 14px;
-  background: rgba(4, 7, 10, 0.45);
-  box-shadow: none;
+  background: linear-gradient(135deg, rgba(26, 36, 42, 0.76), rgba(16, 23, 28, 0.92));
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.035), 0 3px 10px rgba(0, 0, 0, 0.12);
   scroll-margin-top: 16px;
   transition: background 180ms ease, border-color 180ms ease;
+}
+
+.history-record::before {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--history-record-accent, #82939c);
+  content: "";
+  opacity: 0.42;
+  transition: opacity 180ms ease;
+}
+
+.history-record:hover,
+.history-record:focus-within {
+  border-color: color-mix(in srgb, var(--history-record-accent, #82939c) 32%, transparent);
+  background: linear-gradient(135deg, rgba(31, 43, 50, 0.9), rgba(18, 26, 31, 0.98));
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.05), 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+.history-record:hover::before,
+.history-record:focus-within::before,
+.history-record.is-selected::before {
+  opacity: 0.9;
 }
 
 .history-record.is-expanded {
   margin: 0;
   padding: 14px 14px 12px;
-  border: 1px solid rgba(154, 168, 184, 0.15);
+  border: 1px solid rgba(154, 168, 184, 0.2);
   border-radius: 14px;
-  background: rgba(4, 7, 10, 0.62);
-  box-shadow: none;
+  background: linear-gradient(135deg, rgba(28, 39, 46, 0.88), rgba(16, 23, 28, 0.96));
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.045), 0 4px 12px rgba(0, 0, 0, 0.14);
 }
 
 .history-record::after {
@@ -1872,12 +1944,118 @@ html.electron-runtime .history-confirmation-backdrop {
 
 .history-record.is-draft[data-draft-color] {
   --history-record-accent: var(--history-draft-color);
-  background: rgba(4, 7, 10, 0.45);
-  box-shadow: none;
+  background: linear-gradient(135deg, rgba(26, 36, 42, 0.76), rgba(16, 23, 28, 0.92));
+  box-shadow: inset 0 1px 0 rgba(230, 239, 243, 0.035), 0 3px 10px rgba(0, 0, 0, 0.12);
 }
 
 .history-record.is-draft:hover {
+  border-color: color-mix(in srgb, var(--history-record-accent) 32%, transparent);
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-list {
+  gap: 0;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-heading strong {
+  font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-size: 16px;
+  font-weight: 680;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-meta {
+  min-height: 15px;
+  margin-bottom: 2px;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-date {
+  color: #a1b0ba;
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-heading time {
+  color: #b4c1c9;
+  font-size: 11px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-text {
+  margin-top: 1px;
+  font-family: "Avenir Next", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-size: 12px;
+  color: rgba(191, 202, 210, 0.76);
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  line-height: 1.35;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record-chat {
+  margin-top: 1px;
+  color: #aab8c2;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record:has(.history-record-chat) .history-record-text {
+  margin-top: 2px;
+}
+
+.history-drawer.is-page .history-content.is-page .history-date-heading {
+  margin: 0 -10px 0 -8px;
+  padding: 12px 18px 7px;
+  box-sizing: border-box;
+  border-bottom-color: rgba(147, 166, 177, 0.1);
+}
+
+.history-drawer.is-page .history-content.is-page .history-date-heading::before {
+  right: -8px;
+  left: -8px;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record,
+.history-drawer.is-page .history-content.is-page .history-record.is-draft[data-draft-color] {
+  padding: 3px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(154, 168, 184, 0.12);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record::before {
+  top: 8px;
+  bottom: 8px;
+  opacity: 0;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record:hover,
+.history-drawer.is-page .history-content.is-page .history-record:focus-within {
+  border-color: transparent;
   border-bottom-color: rgba(154, 168, 184, 0.18);
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(31, 43, 50, 0.38), rgba(18, 26, 31, 0.08) 88%);
+  box-shadow: none;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record.is-selected {
+  border-color: transparent;
+  border-bottom-color: rgba(154, 168, 184, 0.2);
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(36, 91, 115, 0.3), rgba(24, 49, 59, 0.08) 90%);
+  box-shadow: none;
+}
+
+.history-drawer.is-page .history-content.is-page .history-record:hover::before,
+.history-drawer.is-page .history-content.is-page .history-record:focus-within::before,
+.history-drawer.is-page .history-content.is-page .history-record.is-selected::before {
+  opacity: 0.82;
 }
 
 .history-record-draft-dot {
@@ -1893,7 +2071,6 @@ html.electron-runtime .history-confirmation-backdrop {
 .history-record:focus-within {
   border-radius: 14px;
   outline: none;
-  background: rgba(4, 7, 10, 0.45);
 }
 
 .history-record-meta,
@@ -2337,10 +2514,6 @@ html.electron-runtime .history-confirmation-backdrop {
   border-radius: 10px;
   background: rgba(20, 24, 29, 0.98);
   box-shadow: inset 0 0 0 1px rgba(154, 168, 184, 0.04);
-}
-
-.history-record-action-menu.history-draft-destination-menu {
-  top: calc(100% + 4px);
 }
 
 .history-record-action-menu-item {
@@ -9745,10 +9918,10 @@ textarea:active,
   }
 
   .history-drawer-footer .history-export-button {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
     padding: 0;
     justify-content: center;
   }

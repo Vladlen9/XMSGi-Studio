@@ -62,7 +62,7 @@ type AppShellProps = PropsWithChildren<{
   onHistorySendNow: (record: HistoryItem) => void;
   onHistoryDelete: (record: HistoryItem) => void | Promise<boolean>;
   onHistoryOpenDraft: (record: HistoryItem) => void;
-  onHistoryUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => void;
+  onHistoryUseDraft?: (record: HistoryItem, destination?: 'planner' | 'studio') => boolean | void | Promise<boolean | void>;
   onHistoryClearSent: (source: HistorySource | 'all') => void;
   onHistoryClearDrafts?: (source: HistorySource | 'all') => Promise<boolean>;
   onHistoryCancelQueue?: (records: HistoryItem[]) => Promise<boolean>;
@@ -312,6 +312,7 @@ export function AppShell({
             onDelete={onHistoryDelete}
             onOpenDraft={onHistoryOpenDraft}
             onUseDraft={onHistoryUseDraft}
+            draftDestination={activeProductView}
             onClearSent={onHistoryClearSent}
             onClearDrafts={onHistoryClearDrafts}
             onCancelQueue={onHistoryCancelQueue}
