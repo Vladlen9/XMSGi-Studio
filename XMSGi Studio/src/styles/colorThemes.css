@@ -3042,6 +3042,71 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-category {
   }
 }
 
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-icon {
+  border-color: #d0dce2;
+  background: linear-gradient(155deg, #ffffff, #f0f4f6);
+  color: #496472;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button:not(:hover):not(:focus-visible):not([aria-expanded='true']) .history-detail-tool-icon,
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button:not(:hover):not(:focus-visible):not([aria-expanded='true']) .history-detail-tool-icon {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button.is-use-text .history-detail-tool-icon {
+  border-color: #9bcbd8;
+  background: linear-gradient(155deg, #f0fbfd, #dff2f6);
+  color: #276f83;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button:hover:not(:disabled) .history-detail-tool-icon,
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button:focus-visible .history-detail-tool-icon,
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button[aria-expanded='true'] .history-detail-tool-icon {
+  border-color: rgba(154, 183, 202, 0.49);
+  background: linear-gradient(155deg, rgba(40, 57, 70, 0.99), rgba(24, 39, 50, 0.99));
+  box-shadow: inset 0 1px 0 rgba(226, 239, 249, 0.06), 0 5px 13px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button:hover:not(:disabled) .history-detail-tool-icon,
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button:focus-visible .history-detail-tool-icon,
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button[aria-expanded='true'] .history-detail-tool-icon {
+  border-color: #b5cbd5;
+  background: linear-gradient(155deg, #ffffff, #e8f0f4);
+  box-shadow: 0 3px 10px rgba(37, 63, 77, 0.12);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button.is-use-text:hover:not(:disabled) .history-detail-tool-icon,
+html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button.is-use-text:focus-visible .history-detail-tool-icon {
+  border-color: rgba(104, 188, 216, 0.65);
+  background: linear-gradient(155deg, rgba(34, 78, 94, 0.98), rgba(22, 52, 66, 0.99));
+  color: #b8eafa;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button.is-use-text:hover:not(:disabled) .history-detail-tool-icon,
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button.is-use-text:focus-visible .history-detail-tool-icon {
+  border-color: #8ebdca;
+  background: linear-gradient(155deg, #f6feff, #d9eef3);
+  color: #1e687d;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-action-menu {
+  border-color: #d6e0e5;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(29, 48, 61, 0.18);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-menu-item {
+  color: #344d59;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-menu-item:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-detail-menu-item:focus-visible {
+  background: #edf5f7;
+}
+
 html[data-theme='light'] .history-drawer.is-page .history-post-bubble {
   border-color: #bfd3dc;
   background: #eef5f8;
@@ -3380,6 +3445,13 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
   background: rgba(166, 184, 192, 0.12);
   color: #c4cdd1;
   box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-detail-body .history-post-bubble {
+  border-color: rgba(126, 169, 191, 0.3);
+  border-radius: 16px 16px 6px 16px;
+  background: linear-gradient(145deg, rgba(39, 61, 73, 0.94), rgba(23, 36, 47, 0.98));
+  box-shadow: inset 0 1px 0 rgba(224, 240, 248, 0.06), 0 8px 22px rgba(0, 0, 0, 0.14);
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
@@ -3749,6 +3821,70 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-source-row .histor
   border-color: rgba(154, 173, 184, 0.14);
   background: rgba(154, 173, 184, 0.045);
   color: #d6e0e6;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:disabled,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:disabled {
+  border-color: transparent;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:not(:hover):not(:focus-visible):not([aria-expanded='true']),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:not(:hover):not(:focus-visible),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:not(:hover):not(:focus-visible):not([aria-expanded='true']),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:not(:hover):not(:focus-visible) {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before {
+  border-color: rgba(154, 183, 202, 0.49);
+  background: linear-gradient(155deg, rgba(40, 57, 70, 0.99), rgba(24, 39, 50, 0.99));
+  box-shadow: inset 0 1px 0 rgba(226, 239, 249, 0.06), 0 5px 13px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before {
+  border-color: #b5cbd5;
+  background: linear-gradient(155deg, #ffffff, #e8f0f4);
+  box-shadow: 0 3px 10px rgba(37, 63, 77, 0.12);
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true'],
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true'],
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible {
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-list-status-section {

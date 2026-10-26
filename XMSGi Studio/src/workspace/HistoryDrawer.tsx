@@ -1,11 +1,15 @@
 import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, CalendarDays, CalendarOff, CheckCircle2, ChevronDown, Clock, Download, Ellipsis, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, Clock, Copy, Download, Ellipsis, ExternalLink, Eye, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { InlineKeyboardPreview } from '@/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale } from '@/lib/i18n';
+import { telegramGetChatHistory } from '@/services/chatAppService';
+import type { PreviewChatHistory } from '@studio/types';
+import { ChatPreviewHistory } from '@studio/components/ChatPreviewHistory';
 import { getDraftStorageApi, SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
+import { groupHistory } from '@studio/components/chatPreviewHistoryUtils';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import type { HistoryItem, PlannerReminderType } from './historyModel';
 
@@ -454,6 +458,7 @@ export function HistoryDrawer({
   onReschedule,
   onSendNow,
   onDelete,
+  onOpenDraft,
   onUseDraft,
   draftDestination = 'studio',
   onClearSent,
@@ -503,6 +508,12 @@ export function HistoryDrawer({
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
+  const [detailActionMenuOpen, setDetailActionMenuOpen] = useState(false);
+  const [detailPreviewMode, setDetailPreviewMode] = useState<'details' | 'preview' | 'chat'>('details');
+  const [chatPreviewHistory, setChatPreviewHistory] = useState<PreviewChatHistory | null>(null);
+  const [chatPreviewLoading, setChatPreviewLoading] = useState(false);
+  const [chatPreviewError, setChatPreviewError] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState<'copied' | 'failed' | null>(null);
   const [previewImagePath, setPreviewImagePath] = useState<string | null>(null);
   const [previewImagePosition, setPreviewImagePosition] = useState<{ left: number; top: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
@@ -515,8 +526,11 @@ export function HistoryDrawer({
   const expandedRecordRef = useRef<HTMLElement | null>(null);
   const detailBackButtonRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const detailActionMenuRef = useRef<HTMLDivElement | null>(null);
+  const detailPreviewRef = useRef<HTMLDivElement | null>(null);
   const preExpansionScrollTopRef = useRef<number | null>(null);
   const imageHoverTimerRef = useRef<number | null>(null);
+  const chatPreviewRequestIdRef = useRef(0);
 
   useLayoutEffect(() => {
     if (isOpen && sourceFilterOnOpen && sourceFilterOnOpenMode === 'initial' && !initialSourceAppliedRef.current) {
@@ -815,6 +829,9 @@ export function HistoryDrawer({
         event.preventDefault();
         setIsSourceMenuOpen(false);
         sourceMenuButtonRef.current?.focus();
+      } else if (detailActionMenuOpen) {
+        event.preventDefault();
+        setDetailActionMenuOpen(false);
       } else if (actionMenuOpenId) {
         event.preventDefault();
         setActionMenuOpenId(null);
@@ -835,7 +852,18 @@ export function HistoryDrawer({
       if (!pageMode) document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, isExportMenuOpen, isOpen, isSourceMenuOpen, onClose, pageMode, previewImagePath, selectedRecord]);
+  }, [actionMenuOpenId, bulkDeleteBusy, bulkDeleteCategory, confirmAction, detailActionMenuOpen, isExportMenuOpen, isOpen, isSourceMenuOpen, onClose, pageMode, previewImagePath, selectedRecord]);
+
+  useEffect(() => {
+    if (!isOpen || !detailActionMenuOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!detailActionMenuRef.current?.contains(event.target as Node)) setDetailActionMenuOpen(false);
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [detailActionMenuOpen, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !isExportMenuOpen) return;
@@ -953,6 +981,75 @@ export function HistoryDrawer({
     ? filteredRecords.findIndex((record) => record.id === selectedRecord.id)
     : -1;
   const activeSelectedRecord = selectedRecordIndex >= 0 ? filteredRecords[selectedRecordIndex] : null;
+  useEffect(() => {
+    setDetailPreviewMode('details');
+    setChatPreviewHistory(null);
+    setChatPreviewLoading(false);
+    setChatPreviewError(false);
+    setDetailActionMenuOpen(false);
+    setCopyFeedback(null);
+    chatPreviewRequestIdRef.current += 1;
+  }, [activeSelectedRecord?.id, isOpen]);
+
+  useEffect(() => {
+    if (!copyFeedback) return;
+    const timeout = window.setTimeout(() => setCopyFeedback(null), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [copyFeedback]);
+
+  const openSelectedPreview = async () => {
+    const record = activeSelectedRecord;
+    if (!record) return;
+    setDetailPreviewMode('preview');
+    setChatPreviewHistory(null);
+    setChatPreviewError(false);
+
+    const message = record.original.kind === 'scheduled' ? record.original.message : null;
+    if (!message) return;
+
+    const requestId = ++chatPreviewRequestIdRef.current;
+    const parsedMessageId = message.telegramMessageId == null ? null : Number(message.telegramMessageId);
+    const offsetId = parsedMessageId !== null && Number.isSafeInteger(parsedMessageId) && parsedMessageId > 0
+      ? parsedMessageId
+      : undefined;
+    setChatPreviewLoading(true);
+    try {
+      const result = await telegramGetChatHistory({
+        chatId: message.chatId,
+        limit: 12,
+        ...(offsetId === undefined ? {} : { offsetId }),
+      });
+      if (requestId !== chatPreviewRequestIdRef.current) return;
+      if (!result.success || !result.history) {
+        setChatPreviewError(true);
+        return;
+      }
+      setChatPreviewHistory(result.history);
+      setDetailPreviewMode('chat');
+    } catch (error) {
+      console.error('Failed to load chat context for a Posts preview.', error);
+      if (requestId === chatPreviewRequestIdRef.current) setChatPreviewError(true);
+    } finally {
+      if (requestId === chatPreviewRequestIdRef.current) setChatPreviewLoading(false);
+    }
+  };
+
+  const copySelectedPost = async () => {
+    if (!activeSelectedRecord) return;
+    try {
+      await navigator.clipboard.writeText(activeSelectedRecord.text);
+      setCopyFeedback('copied');
+    } catch (error) {
+      console.error('Failed to copy post text from Posts.', error);
+      setCopyFeedback('failed');
+    }
+  };
+
+  const openChatPreviewPhoto = (photo: { src: string }) => {
+    setPreviewImagePath(photo.src);
+    setPreviewImagePosition({ left: window.innerWidth / 2, top: window.innerHeight / 2 });
+  };
+
   const queueCancellableRecords = filteredRecords.filter((record) => (
     isQueueCancellationCandidate(record)
   ));
@@ -1891,7 +1988,43 @@ export function HistoryDrawer({
                     </div>
                   </div>
                   {visibleError && <p className="history-detail-error" role="alert">{visibleError}</p>}
-                  <div className="history-detail-body">
+                  <div
+                    className={`history-detail-body is-${detailPreviewMode}`}
+                    ref={detailPreviewRef}
+                    tabIndex={-1}
+                  >
+                    {detailPreviewMode === 'preview' && (
+                      <div className="history-detail-preview-label">
+                        <Eye size={14} aria-hidden="true" />
+                        <span>{t('studio.livePreview')}</span>
+                      </div>
+                    )}
+                    {detailPreviewMode === 'chat' && chatPreviewHistory && (
+                      <div className="history-chat-preview" aria-label={t('history.chatPreview')}>
+                        <ChatPreviewHistory
+                          groups={groupHistory(chatPreviewHistory.messages)}
+                          selectedChatType={chatPreviewHistory.chat.type}
+                          onOpenPhoto={openChatPreviewPhoto}
+                          viewPhotoLabel={t('history.fullSize')}
+                        />
+                        {chatPreviewHistory.messages.length === 0 && (
+                          <p className="history-chat-preview-empty">{t('history.chatPreviewEmpty')}</p>
+                        )}
+                      </div>
+                    )}
+                    {chatPreviewLoading && (
+                      <p className="history-chat-preview-status" role="status">{t('history.chatPreviewLoading')}</p>
+                    )}
+                    {chatPreviewError && (
+                      <div className="history-chat-preview-status" role="alert">
+                        <span>{t('history.chatPreviewLoadFailed')}</span>
+                        <button type="button" onClick={() => void openSelectedPreview()}>
+                          {t('history.chatPreviewRetry')}
+                        </button>
+                      </div>
+                    )}
+                    <div className={detailPreviewMode === 'chat' ? 'history-chat-preview-current' : undefined}>
+                    <div className={detailPreviewMode === 'details' ? 'history-detail-plain-post' : undefined}>
                     <div className="history-post-bubble">
                       {activeSelectedRecord.attachments.length > 0 && (
                         <div className="history-post-attachments" aria-label={t('history.attachmentsLabel')}>
@@ -1921,9 +2054,13 @@ export function HistoryDrawer({
                       {activeSelectedRecord.text && (
                         <div
                           className="history-post-text"
-                          dangerouslySetInnerHTML={{
-                            __html: richTextToHtml(activeSelectedRecord.text, activeSelectedRecord.entities),
-                          }}
+                          {...(detailPreviewMode === 'details'
+                            ? { children: activeSelectedRecord.text }
+                            : {
+                              dangerouslySetInnerHTML: {
+                                __html: richTextToHtml(activeSelectedRecord.text, activeSelectedRecord.entities),
+                              },
+                            })}
                         />
                       )}
                       <InlineKeyboardPreview markup={scheduleMessage?.replyMarkup} />
@@ -1934,87 +2071,263 @@ export function HistoryDrawer({
                         </div>
                       )}
                     </div>
+                    </div>
+                    </div>
                   </div>
                   <div className="history-detail-actions" aria-label={t('history.actionsPanel')}>
-                    {activeSelectedRecord.status === 'failed' && (
+                    <div className="history-detail-toolbar" ref={detailActionMenuRef}>
                       <button
                         type="button"
-                        className="history-record-action is-primary"
-                        onClick={() => confirmSendNow(activeSelectedRecord)}
+                        className="history-detail-tool-button is-preview"
+                        onClick={() => void openSelectedPreview()}
+                        aria-label={t('history.preview')}
+                        title={t('history.preview')}
                       >
-                        {getRetryActionLabel(activeSelectedRecord, t)}
+                        <span className="history-detail-tool-icon">
+                          <Eye size={26} strokeWidth={1.8} aria-hidden="true" />
+                        </span>
+                        <span>{t('history.preview')}</span>
                       </button>
-                    )}
-                    {activeSelectedRecord.status === 'draft' && (
-                      <>
+                      {activeSelectedRecord.status !== 'scheduled' && (
                         <button
                           type="button"
-                          className="history-record-action is-primary"
-                          onClick={() => applyHistoryDraft(activeSelectedRecord)}
+                          className={`history-detail-tool-button${copyFeedback === 'failed' ? ' is-error' : ''}`}
+                          onClick={() => void copySelectedPost()}
+                          disabled={!activeSelectedRecord.text}
+                          aria-label={t(copyFeedback === 'copied'
+                            ? 'history.copied'
+                            : copyFeedback === 'failed'
+                              ? 'history.copyFailed'
+                              : 'history.copy')}
+                          title={t(copyFeedback === 'copied'
+                            ? 'history.copied'
+                            : copyFeedback === 'failed'
+                              ? 'history.copyFailed'
+                              : 'history.copy')}
                         >
-                          {t('history.useDraft')}
+                          <span className="history-detail-tool-icon">
+                            {copyFeedback === 'copied'
+                              ? <Check size={23} strokeWidth={2} aria-hidden="true" />
+                              : <Copy size={23} strokeWidth={1.8} aria-hidden="true" />}
+                          </span>
+                          <span>{t(copyFeedback === 'copied'
+                            ? 'history.copied'
+                            : copyFeedback === 'failed'
+                              ? 'history.copyFailed'
+                              : 'history.copy')}</span>
                         </button>
+                      )}
+                      {activeSelectedRecord.status === 'scheduled' && activeSelectedRecord.source === 'workspace' && (
                         <button
                           type="button"
-                          className="history-record-action is-delete"
+                          className="history-detail-tool-button"
                           onClick={() => {
-                            setBulkDeleteError('');
-                            setBulkDeleteCategory('drafts');
-                            setBulkDeleteRecordId(activeSelectedRecord.id);
+                            onReschedule(activeSelectedRecord);
+                            onClose();
                           }}
+                          aria-label={t('history.edit')}
+                          title={t('history.edit')}
                         >
-                          {t('history.delete')}
+                          <span className="history-detail-tool-icon">
+                            <CalendarDays size={23} strokeWidth={1.8} aria-hidden="true" />
+                          </span>
+                          <span>{t('history.edit')}</span>
                         </button>
-                      </>
-                    )}
-                    {activeSelectedRecord.status === 'scheduled' && (
-                      <>
-                        {activeSelectedRecord.source === 'workspace' && (
-                          <button
-                            type="button"
-                            className="history-record-action is-primary"
-                            onClick={() => {
-                              onReschedule(activeSelectedRecord);
-                              onClose();
-                            }}
-                          >
-                            {t('history.edit')}
-                          </button>
-                        )}
-                        {scheduleMessage && (
-                          <>
-                            <button
-                              type="button"
-                              className="history-record-action is-send-now"
-                              onClick={() => confirmSendNow(activeSelectedRecord)}
-                            >
-                              {t('history.sendNow')}
-                            </button>
-                            <button
-                              type="button"
-                              className="history-record-action is-delete"
-                              onClick={() => setConfirmAction({ type: 'cancel', recordId: activeSelectedRecord.id })}
-                            >
-                              {t('history.cancel')}
-                            </button>
-                          </>
-                        )}
-                      </>
-                    )}
-                    {canDeleteSentRecord && (
+                      )}
+                      {activeSelectedRecord.status === 'scheduled' && scheduleMessage && (
+                        <button
+                          type="button"
+                          className="history-detail-tool-button is-error"
+                          onClick={() => setConfirmAction({ type: 'cancel', recordId: activeSelectedRecord.id })}
+                          aria-label={t('history.cancel')}
+                          title={t('history.cancel')}
+                        >
+                          <span className="history-detail-tool-icon">
+                            <CalendarOff size={23} strokeWidth={1.8} aria-hidden="true" />
+                          </span>
+                          <span>{t('history.cancel')}</span>
+                        </button>
+                      )}
+                      {activeSelectedRecord.status === 'sent' && onUseDraft && (
+                        <button
+                          type="button"
+                          className="history-detail-tool-button is-use-text"
+                          onClick={() => applyHistoryDraft(activeSelectedRecord, 'studio')}
+                          disabled={!activeSelectedRecord.text && activeSelectedRecord.attachments.length === 0}
+                          aria-label={t('history.useText')}
+                          title={t('history.useText')}
+                        >
+                          <span className="history-detail-tool-icon">
+                            <ExternalLink size={23} strokeWidth={1.8} aria-hidden="true" />
+                          </span>
+                          <span>{t('history.useText')}</span>
+                        </button>
+                      )}
+                      {activeSelectedRecord.status === 'draft' && onUseDraft && (
+                        <button
+                          type="button"
+                          className="history-detail-tool-button is-use-text"
+                          onClick={() => applyHistoryDraft(activeSelectedRecord, 'studio')}
+                          disabled={!activeSelectedRecord.text && activeSelectedRecord.attachments.length === 0}
+                          aria-label={t('history.useText')}
+                          title={t('history.useText')}
+                        >
+                          <span className="history-detail-tool-icon">
+                            <ExternalLink size={23} strokeWidth={1.8} aria-hidden="true" />
+                          </span>
+                          <span>{t('history.useText')}</span>
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="history-record-action is-delete"
-                        onClick={() => setConfirmAction({ type: 'delete', recordId: activeSelectedRecord.id })}
+                        className="history-detail-tool-button is-more"
+                        onClick={() => setDetailActionMenuOpen((open) => !open)}
+                        aria-label={t('history.more')}
+                        title={t('history.more')}
+                        aria-expanded={detailActionMenuOpen}
+                        aria-haspopup="menu"
                       >
-                        {t('history.delete')}
+                        <span className="history-detail-tool-icon">
+                          <Ellipsis size={24} strokeWidth={2} aria-hidden="true" />
+                        </span>
+                        <span>{t('history.more')}</span>
                       </button>
-                    )}
-                    {activeSelectedRecord.status === 'sending' && (
-                      <button type="button" className="history-record-action is-send-now" disabled>
-                        {t('history.sending')}
-                      </button>
-                    )}
+                      {detailActionMenuOpen && (
+                        <div className="history-detail-action-menu" role="menu" aria-label={t('history.actionsPanel')}>
+                          {activeSelectedRecord.status === 'failed' && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="history-detail-menu-item"
+                              onClick={() => {
+                                confirmSendNow(activeSelectedRecord);
+                                setDetailActionMenuOpen(false);
+                              }}
+                            >
+                              {getRetryActionLabel(activeSelectedRecord, t)}
+                            </button>
+                          )}
+                          {onUseDraft && (
+                            <>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="history-detail-menu-item"
+                                onClick={() => {
+                                  applyHistoryDraft(activeSelectedRecord, 'planner');
+                                  setDetailActionMenuOpen(false);
+                                }}
+                              >
+                                {t('history.openInPlanner')}
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="history-detail-menu-item"
+                                onClick={() => {
+                                  applyHistoryDraft(activeSelectedRecord, 'studio');
+                                  setDetailActionMenuOpen(false);
+                                }}
+                              >
+                                {t('history.useInStudio')}
+                              </button>
+                            </>
+                          )}
+                          {activeSelectedRecord.status === 'draft' && (
+                            <>
+                              {onOpenDraft && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="history-detail-menu-item"
+                                  onClick={() => {
+                                    onOpenDraft(activeSelectedRecord);
+                                    setDetailActionMenuOpen(false);
+                                  }}
+                                >
+                                  {t('history.edit')}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="history-detail-menu-item is-danger"
+                                onClick={() => {
+                                  setBulkDeleteError('');
+                                  setBulkDeleteCategory('drafts');
+                                  setBulkDeleteRecordId(activeSelectedRecord.id);
+                                  setDetailActionMenuOpen(false);
+                                }}
+                              >
+                                {t('history.delete')}
+                              </button>
+                            </>
+                          )}
+                          {activeSelectedRecord.status === 'scheduled' && (
+                            <>
+                              {activeSelectedRecord.source === 'workspace' && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  className="history-detail-menu-item"
+                                  onClick={() => {
+                                    onReschedule(activeSelectedRecord);
+                                    onClose();
+                                    setDetailActionMenuOpen(false);
+                                  }}
+                                >
+                                  {t('history.edit')}
+                                </button>
+                              )}
+                              {scheduleMessage && (
+                                <>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="history-detail-menu-item"
+                                    onClick={() => {
+                                      confirmSendNow(activeSelectedRecord);
+                                      setDetailActionMenuOpen(false);
+                                    }}
+                                  >
+                                    {t('history.sendNow')}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="history-detail-menu-item is-danger"
+                                    onClick={() => {
+                                      setConfirmAction({ type: 'cancel', recordId: activeSelectedRecord.id });
+                                      setDetailActionMenuOpen(false);
+                                    }}
+                                  >
+                                    {t('history.cancel')}
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                          {canDeleteSentRecord && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="history-detail-menu-item is-danger"
+                              onClick={() => {
+                                setConfirmAction({ type: 'delete', recordId: activeSelectedRecord.id });
+                                setDetailActionMenuOpen(false);
+                              }}
+                            >
+                              {t('history.delete')}
+                            </button>
+                          )}
+                          {activeSelectedRecord.status === 'sending' && (
+                            <button type="button" role="menuitem" className="history-detail-menu-item" disabled>
+                              {t('history.sending')}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </>
               );
@@ -2076,7 +2389,7 @@ export function HistoryDrawer({
                     setBulkDeleteRecordId(isSameTarget ? null : recordId);
                   }}
                 >
-                  <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" />
+                  <Trash2 size={25} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               ) : (
                 <span className="history-delete-placeholder" aria-hidden="true" />
@@ -2099,7 +2412,7 @@ export function HistoryDrawer({
                   ? t('history.exportRecord', { title: selectedRecord.title })
                   : t(isGlobalSearch ? 'history.exportSearchCount' : 'history.exportCount', { count: formatHistoryCount(filteredRecords.length, locale) })}
               >
-                <Download size={15} strokeWidth={1.8} aria-hidden="true" />
+                <Download size={24} strokeWidth={1.8} aria-hidden="true" />
                 <span>{t('history.export')}</span>
               </button>
               {isExportMenuOpen && (

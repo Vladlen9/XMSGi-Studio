@@ -5,12 +5,21 @@ import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Chat, ScheduledMessage } from '@/types';
 import { LocaleProvider } from '@/lib/i18n';
-import { SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
+import { telegramGetChatHistory } from '@/services/chatAppService';
+import {
+  SAVED_STUDIO_DRAFTS_UPDATED_EVENT,
+  writeWorkspaceDraftStoreFallback,
+} from '@studio/lib/draftStore';
 import { HistoryDrawer } from './HistoryDrawer';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
 import { normalizePlannerDraft, normalizeSavedDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages, sortHistoryItems } from './historyModel';
 
+vi.mock('@/services/chatAppService', () => ({
+  telegramGetChatHistory: vi.fn(),
+}));
+
 const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
+const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../styles/colorThemes.css'), 'utf8');
 
 const scheduledMessage: ScheduledMessage = {
   id: 'scheduled-studio-1',
@@ -39,6 +48,13 @@ const workspaceSentRecord = normalizeScheduledMessages([{
   ...scheduledMessage,
   id: 'completed-studio-1',
   status: 'sent',
+}], 'workspace', 'sent', [channel])[0];
+
+const anchoredSentRecord = normalizeScheduledMessages([{
+  ...scheduledMessage,
+  id: 'anchored-sent-1',
+  status: 'sent',
+  telegramMessageId: 567,
 }], 'workspace', 'sent', [channel])[0];
 
 const personalUpcomingRecord = normalizeScheduledMessages([{
@@ -133,9 +149,10 @@ function renderHistory(
   return { ...view, onClose, onCancel, onDelete, onSendNow, onOpenDraft, onUseDraft, onReschedule, onClearSent, onClearDrafts, onCancelQueue };
 }
 
-function renderHistoryPage(records = [upcomingRecord]) {
+function renderHistoryPage(records = [upcomingRecord], onUseDraft = vi.fn()) {
   const onClose = vi.fn();
-  return render(
+  const onOpenDraft = vi.fn();
+  const view = render(
     <LocaleProvider>
       <HistoryDrawer
         isOpen
@@ -146,12 +163,14 @@ function renderHistoryPage(records = [upcomingRecord]) {
         onReschedule={vi.fn()}
         onSendNow={vi.fn()}
         onDelete={vi.fn()}
-        onOpenDraft={vi.fn()}
+        onOpenDraft={onOpenDraft}
+        onUseDraft={onUseDraft}
         onClearSent={vi.fn()}
         onCancelQueue={vi.fn()}
       />
     </LocaleProvider>,
   );
+  return { ...view, onClose, onOpenDraft, onUseDraft };
 }
 
 function searchHistory(query: string) {
@@ -208,12 +227,159 @@ describe('Posts page split view', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
   });
 
-  it('matches action button heights to search and removes the sticky date gutter', () => {
+  describe('Posts preview modes', () => {
+    beforeEach(() => {
+      vi.mocked(telegramGetChatHistory).mockReset();
+    });
+
+    it('shows plain text until Preview is explicitly opened', () => {
+      const draft = normalizePlannerDraft(
+        'Bold line\nsecond line',
+        null,
+        '2026-09-29T17:30:00.000Z',
+        [{ type: 'bold', offset: 0, length: 4 }],
+      );
+      expect(draft).not.toBeNull();
+      const { container } = renderHistoryPage([draft!]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+
+      expect(container.querySelector('.history-detail-body')).toHaveClass('is-details');
+      expect(container.querySelector('.history-detail-plain-post')).toBeInTheDocument();
+      expect(container.querySelector('.history-post-text')?.textContent).toBe('Bold line\nsecond line');
+      expect(container.querySelector('.history-post-text strong')).toBeNull();
+      expect(container.querySelector('.history-detail-preview-label')).toBeNull();
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+      expect(container.querySelector('.history-detail-body')).toHaveClass('is-preview');
+      expect(container.querySelector('.history-post-text strong')).toHaveTextContent('Bold');
+      expect(container.querySelector('.history-detail-preview-label')).toHaveTextContent('Live preview');
+    });
+
+    it('loads a limited anchored chat history when Preview is requested', async () => {
+      vi.mocked(telegramGetChatHistory).mockResolvedValueOnce({
+        success: true,
+        history: {
+          chat: { id: 'chat-1', title: 'XMSGi Updates', type: 'channel' },
+          messages: [{
+            id: '566',
+            text: 'Предыдущая реальная публикация',
+            date: '2026-09-29T16:30:00.000Z',
+            outgoing: false,
+          }],
+        },
+      });
+      const { container } = renderHistoryPage([anchoredSentRecord]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      await waitFor(() => expect(screen.getByText('Предыдущая реальная публикация')).toBeInTheDocument());
+      expect(telegramGetChatHistory).toHaveBeenCalledWith({
+        chatId: 'chat-1',
+        limit: 12,
+        offsetId: 567,
+      });
+      expect(container.querySelector('.history-detail-body')).toHaveClass('is-chat');
+      expect(container.querySelector('.history-chat-preview-current'))
+        .toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
+      expect(screen.getAllByText('Sent').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('shows schedule-specific actions instead of Copy and Use text', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+    const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+
+    expect(within(toolbar).getByRole('button', { name: 'Preview' })).toBeInTheDocument();
+    expect(within(toolbar).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(within(toolbar).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(within(toolbar).queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument();
+    expect(within(toolbar).queryByRole('button', { name: 'Use text' })).not.toBeInTheDocument();
+  });
+
+  it('restores Copy for drafts and keeps Edit available in More', () => {
+    const draft = normalizePlannerDraft(
+      'A planner draft',
+      null,
+      '2026-09-29T17:30:00.000Z',
+    );
+    expect(draft).not.toBeNull();
+    const { container, onOpenDraft } = renderHistoryPage([draft!], vi.fn());
+    fireEvent.click(container.querySelector('.history-record-open')!);
+    const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+
+    expect(within(toolbar).getByRole('button', { name: 'Preview' })).toBeInTheDocument();
+    expect(within(toolbar).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(within(toolbar).getByRole('button', { name: 'Use text' })).toBeInTheDocument();
+    expect(within(toolbar).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    fireEvent.click(within(toolbar).getByRole('button', { name: 'More' }));
+    expect(screen.queryByRole('menuitem', { name: 'Chat Preview' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Use draft' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Use in Studio' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
+    expect(onOpenDraft).toHaveBeenCalledWith(draft);
+  });
+
+  it('right-aligns the detail toolbar and restores a gradient preview card', () => {
     expect(globalStyles).toMatch(
-      /\.history-drawer\.is-page \.history-delete-button,[\s\S]*?\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*40px;[^}]*min-height:\s*40px;/,
+      /\.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*padding-top:\s*6px;[^}]*padding-bottom:\s*4px;[^}]*justify-content:\s*flex-end;/,
+    );
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder,\s*\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*6px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder\s*\{[^}]*width:\s*44px;[^}]*flex-basis:\s*44px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;[^}]*justify-content:\s*center;[^}]*padding:\s*0;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button > span\s*\{\s*display:\s*none;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button::before\s*\{\s*left:\s*50%;\s*transform:\s*translate\(-50%,\s*-50%\);/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button > svg,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-export-button > svg\s*\{\s*transform:\s*translateY\(-1px\);/);
+    expect(readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), './HistoryDrawer.tsx'), 'utf8'))
+      .toMatch(/<Trash2 size=\{25\}[\s\S]*?<Download size=\{24\}/);
+    expect(readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), './HistoryDrawer.tsx'), 'utf8'))
+      .toMatch(/<Eye size=\{26\}[\s\S]*?<Copy size=\{23\}[\s\S]*?<Ellipsis size=\{24\}/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-panel\s*\{[^}]*margin-bottom:\s*-76px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-toolbar\s*\{[^}]*transform:\s*translateY\(0\);/);
+    expect(globalStyles).toMatch(/\.history-detail-tool-button\s*\{[^}]*min-height:\s*64px;/);
+    expect(globalStyles).toMatch(/\.history-detail-tool-button > span:last-child\s*\{\s*transform:\s*translateY\(-3px\);/);
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*background:\s*linear-gradient\(145deg,\s*rgba\(39,\s*61,\s*73,\s*0\.94\),\s*rgba\(23,\s*36,\s*47,\s*0\.98\)\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-icon\s*\{[^}]*background:\s*linear-gradient\(155deg,\s*#ffffff,\s*#f0f4f6\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-tool-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\) \.history-detail-tool-icon,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\) \.history-detail-tool-icon\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-color:\s*#b5cbd5;[^}]*background:\s*linear-gradient\(/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*border-color:\s*#e3eaee;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-action-menu\s*\{[^}]*border-radius:\s*16px;[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.96\);[^}]*box-shadow:/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-menu-item:hover:not\(:disabled\),[\s\S]*?background:\s*#edf5f7;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:disabled\s*\{[^}]*border-color:\s*transparent;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\),[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:not\(:hover\):not\(:focus-visible\)\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
     );
     expect(globalStyles).toMatch(
-      /\.history-drawer\.is-page \.history-content\.is-page \.history-date-heading\s*\{[^}]*margin:\s*0 -10px 0 -8px;[^}]*padding:\s*12px 18px 7px;/,
+      /\.history-drawer\.is-page \.history-delete-button::before,\s*\.history-drawer\.is-page \.history-export-button::before\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*border-radius:\s*50%;[^}]*background:\s*transparent;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover::before,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible::before\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(155deg,/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
     );
   });
 
@@ -340,6 +506,9 @@ describe('Posts page split view', () => {
       expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(tools).toContainElement(searchDock);
       expect(searchDock.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*width:\s*calc\(45% - 17\.2px\);[^}]*margin-right:\s*0;[^}]*margin-left:\s*10px;[^}]*padding:\s*11px 8px;[^}]*transform:\s*translateY\(-18px\);/);
+      expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*margin-bottom:\s*12px;/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-search-dock\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
       expect(footer).not.toContainElement(statusFilters);
       expect(footer).toContainElement(container.querySelector('.history-export-button'));
       expect(footer).toContainElement(container.querySelector('.history-delete-button, .history-delete-placeholder'));
@@ -365,7 +534,7 @@ describe('Posts page split view', () => {
     }
   });
 
-  it('keeps the full list visible while showing the selected post details separately', () => {
+  it('keeps the full list visible while showing the selected post details separately', async () => {
     const secondRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'scheduled-studio-2',
@@ -386,11 +555,122 @@ describe('Posts page split view', () => {
     expect(container.querySelectorAll('.history-record')).toHaveLength(2);
     expect(screen.getAllByText('Релиз нового набора шаблонов для Telegram-канала').length).toBeGreaterThan(0);
     expect(screen.getByText('Вторая публикация остаётся в списке')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-preview-label')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'brief.pdf' }))
       .toHaveAttribute('download', 'brief.pdf');
     expect(screen.getByRole('button', { name: 'Back to posts' })).toBeInTheDocument();
     expect(container.querySelector('.history-detail-category')).toHaveTextContent('Category: Scheduled');
     expect(container.querySelector('.history-record-open')).toHaveAttribute('aria-pressed', 'true');
+
+    vi.mocked(telegramGetChatHistory).mockResolvedValueOnce({
+      success: true,
+      history: {
+        chat: { id: 'chat-1', title: 'XMSGi Updates', type: 'channel' },
+        messages: [],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(container.querySelector('.history-detail-body')).toHaveClass('is-chat'));
+    expect(container.querySelector('.history-chat-preview-current')).toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
+  });
+
+  it('shows the compact preview and copy toolbar without sharing and keeps record actions in its menu', async () => {
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    try {
+      const { container } = renderHistoryPage([completedRecord]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+
+      const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+      expect(within(toolbar).getByRole('button', { name: 'Preview' })).toBeInTheDocument();
+      expect(within(toolbar).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+      expect(within(toolbar).getByRole('button', { name: 'Use text' })).toBeInTheDocument();
+      expect(within(toolbar).getByRole('button', { name: 'More' })).toBeInTheDocument();
+      expect(within(toolbar).queryByRole('button', { name: /share/i })).not.toBeInTheDocument();
+
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Copy' }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(completedRecord.text));
+      expect(within(toolbar).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+
+      const scheduledView = renderHistoryPage([upcomingRecord]);
+      fireEvent.click(scheduledView.container.querySelector('.history-record-open')!);
+      const scheduledToolbar = scheduledView.container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+      fireEvent.click(within(scheduledToolbar).getByRole('button', { name: 'More' }));
+      const actionsMenu = within(scheduledToolbar).getByRole('menu');
+      expect(within(actionsMenu).getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
+      expect(within(actionsMenu).getByRole('menuitem', { name: 'Send now' })).toBeInTheDocument();
+      expect(within(actionsMenu).getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument();
+    } finally {
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
+  it('resets the copy button after its temporary confirmation', async () => {
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    vi.useFakeTimers();
+
+    try {
+      const { container } = renderHistoryPage([completedRecord]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+      const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Copy' }));
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(within(toolbar).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1600);
+      });
+      expect(within(toolbar).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
+  it('uses the selected post text with the active editor from the detail toolbar', async () => {
+    const onUseDraft = vi.fn().mockResolvedValue(true);
+    const { container, onClose } = renderHistoryPage([completedRecord], onUseDraft);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Use text' }));
+
+    await waitFor(() => {
+      expect(onUseDraft).toHaveBeenCalledWith(completedRecord, 'studio');
+      expect(onClose).toHaveBeenCalledWith(false);
+    });
+  });
+
+  it('uses the selected post in Studio from the detail actions menu', async () => {
+    const onUseDraft = vi.fn().mockResolvedValue(true);
+    const { container, onClose } = renderHistoryPage([upcomingRecord], onUseDraft);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
+
+    await waitFor(() => {
+      expect(onUseDraft).toHaveBeenCalledWith(upcomingRecord, 'studio');
+      expect(onClose).toHaveBeenCalledWith(false);
+    });
   });
 
   it('returns the post list to the top when source, category, or search changes', () => {
@@ -508,7 +788,7 @@ describe('history filter selected states', () => {
     expect(container.querySelector('.history-glass-indicator')).toBeNull();
 
     const sourceMenu = openSourceMenu();
-    const sourceMenuElement = document.querySelector('.history-source-menu')!;
+    const sourceMenuElement = document.querySelector<HTMLElement>('.history-source-menu')!;
     expect(sourceMenuElement.parentElement).toBe(document.body);
     expect(container.querySelector('.history-list-pane')).not.toContainElement(sourceMenuElement);
     fireEvent.click(sourceMenu.getByRole('menuitemradio', { name: 'Studio' }));
@@ -940,6 +1220,55 @@ describe('HistoryDrawer search', () => {
     delete (window as { draftStorage?: unknown }).draftStorage;
   });
 
+  it('loads saved Studio drafts from browser fallback storage when the desktop bridge is unavailable', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    try {
+      Reflect.deleteProperty(window, 'draftStorage');
+      expect(writeWorkspaceDraftStoreFallback({
+        schemaVersion: 3,
+        migrationVersion: 1,
+        savedDrafts: [{
+          id: 'browser-studio-draft',
+          name: 'Browser draft',
+          body: 'Draft available without the desktop bridge',
+          createdAt: '2026-09-28T10:00:00.000Z',
+          updatedAt: '2026-09-29T18:35:00.000Z',
+        }],
+        workspaceDraft: null,
+        documentHistories: {},
+      })).toBe(true);
+
+      renderHistory([]);
+      fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+
+      expect(await screen.findByText('Browser draft')).toBeInTheDocument();
+    } finally {
+      if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+      else Reflect.deleteProperty(window, 'draftStorage');
+      window.localStorage.removeItem('xmsgi-draft-store-fallback');
+      window.localStorage.removeItem('awaitmsg-draft-store-fallback');
+    }
+  });
+
+  it('shows a load error instead of claiming saved drafts are absent', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    try {
+      Object.defineProperty(window, 'draftStorage', {
+        configurable: true,
+        value: { load: vi.fn().mockResolvedValue({ success: false, error: 'storage unavailable' }) },
+      });
+
+      renderHistory([]);
+      fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+
+      expect(await screen.findByText('Черновики не загружены.')).toBeInTheDocument();
+      expect(screen.queryByText('В этой категории пока пусто')).not.toBeInTheDocument();
+    } finally {
+      if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+      else Reflect.deleteProperty(window, 'draftStorage');
+    }
+  });
+
   it('refreshes saved Studio drafts while Posts remains open', async () => {
     const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
     const draft = {
@@ -972,6 +1301,78 @@ describe('HistoryDrawer search', () => {
 
       expect(await screen.findByText('Newly saved draft')).toBeInTheDocument();
       expect(load).toHaveBeenCalledTimes(2);
+    } finally {
+      if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+      else Reflect.deleteProperty(window, 'draftStorage');
+    }
+  });
+
+  it('does not show stale Studio drafts while reloading Posts after closing and reopening', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    const oldDraft = {
+      id: 'old-draft',
+      name: 'Old draft',
+      body: 'Old content',
+      createdAt: '2026-09-28T10:00:00.000Z',
+      updatedAt: '2026-09-28T10:00:00.000Z',
+    };
+    const newDraft = {
+      id: 'new-draft',
+      name: 'New draft',
+      body: 'New content',
+      createdAt: '2026-09-29T10:00:00.000Z',
+      updatedAt: '2026-09-29T10:00:00.000Z',
+    };
+    const storeFor = (draft: typeof oldDraft) => ({
+      schemaVersion: 1,
+      migrationVersion: 1,
+      savedDrafts: [draft],
+      workspaceDraft: null,
+    });
+    let resolveReload!: (result: { success: boolean; store: ReturnType<typeof storeFor> }) => void;
+    const reload = new Promise<{ success: boolean; store: ReturnType<typeof storeFor> }>((resolve) => {
+      resolveReload = resolve;
+    });
+    const load = vi.fn()
+      .mockResolvedValueOnce({ success: true, store: storeFor(oldDraft) })
+      .mockReturnValueOnce(reload);
+    Object.defineProperty(window, 'draftStorage', {
+      configurable: true,
+      value: { load },
+    });
+
+    const drawer = (isOpen: boolean) => (
+      <LocaleProvider>
+        <HistoryDrawer
+          isOpen={isOpen}
+          onClose={vi.fn()}
+          records={[]}
+          onCancel={vi.fn()}
+          onReschedule={vi.fn()}
+          onSendNow={vi.fn()}
+          onDelete={vi.fn()}
+          onOpenDraft={vi.fn()}
+          onClearSent={vi.fn()}
+          onClearDrafts={vi.fn().mockResolvedValue(true)}
+        />
+      </LocaleProvider>
+    );
+
+    try {
+      const view = render(drawer(true));
+      fireEvent.click(screen.getByRole('tab', { name: 'Черновики' }));
+      expect(await screen.findByText('Old draft')).toBeInTheDocument();
+
+      view.rerender(drawer(false));
+      view.rerender(drawer(true));
+
+      expect(screen.queryByText('Old draft')).not.toBeInTheDocument();
+      expect(screen.getByText('Черновики загружаются.')).toBeInTheDocument();
+      await act(async () => {
+        resolveReload({ success: true, store: storeFor(newDraft) });
+        await reload;
+      });
+      expect(await screen.findByText('New draft')).toBeInTheDocument();
     } finally {
       if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
       else Reflect.deleteProperty(window, 'draftStorage');
@@ -1335,10 +1736,11 @@ describe('HistoryDrawer search', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
     fireEvent.click(screen.getByRole('button', { name: `Open post: ${plannerDraft.title}` }));
-    fireEvent.click(screen.getByRole('button', { name: 'Use draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
 
     await waitFor(() => {
-      expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, 'planner');
+      expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, 'studio');
       expect(onClose).toHaveBeenCalledWith(false);
     });
     expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
