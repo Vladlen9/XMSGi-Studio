@@ -306,6 +306,32 @@ export function getDraftStorageApi(): DraftStorageApi | null {
   return storage && typeof storage.load === 'function' ? storage : null;
 }
 
+export async function updateSavedStudioDrafts(
+  update: (drafts: SavedDraft[]) => SavedDraft[],
+): Promise<boolean> {
+  try {
+    const draftStorage = getDraftStorageApi();
+    const loaded = draftStorage
+      ? await draftStorage.load()
+      : { success: true, store: readWorkspaceDraftStoreFallback() };
+    if (!loaded.success) return false;
+    if (!loaded.store) return true;
+
+    const updatedStore = {
+      ...loaded.store,
+      savedDrafts: update(loaded.store.savedDrafts),
+    };
+    const saved = draftStorage
+      ? await draftStorage.save(updatedStore)
+      : { success: writeWorkspaceDraftStoreFallback(updatedStore) };
+    if (saved.success) window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
+    return saved.success;
+  } catch (error) {
+    console.error('Failed to update saved Studio drafts.', error);
+    return false;
+  }
+}
+
 export function isBrowserRuntimeFallback(): boolean {
   if (typeof window === 'undefined') return false;
   return window.location.protocol === 'http:' || window.location.protocol === 'https:';

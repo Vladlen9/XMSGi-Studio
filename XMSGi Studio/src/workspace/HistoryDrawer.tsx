@@ -1710,7 +1710,9 @@ export function HistoryDrawer({
                   type="button"
                   className="history-record-open"
                   data-history-record-id={pageMode ? record.id : undefined}
-                  onClick={() => pageMode ? setSelectedRecord(record) : toggleExpandedRecord(record, isExpanded)}
+                  onClick={() => pageMode
+                    ? setSelectedRecord((current) => current?.id === record.id ? null : record)
+                    : toggleExpandedRecord(record, isExpanded)}
                   aria-label={t('history.expandRecord', { action: t(isExpanded ? 'history.collapse' : 'history.open'), title: record.title })}
                   aria-expanded={!pageMode ? isExpanded : undefined}
                   aria-pressed={pageMode ? isSelected : undefined}
@@ -2208,46 +2210,20 @@ export function HistoryDrawer({
                             </button>
                           )}
                           {onUseDraft && (
-                            <>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="history-detail-menu-item"
-                                onClick={() => {
-                                  applyHistoryDraft(activeSelectedRecord, 'planner');
-                                  setDetailActionMenuOpen(false);
-                                }}
-                              >
-                                {t('history.openInPlanner')}
-                              </button>
-                              <button
-                                type="button"
-                                role="menuitem"
-                                className="history-detail-menu-item"
-                                onClick={() => {
-                                  applyHistoryDraft(activeSelectedRecord, 'studio');
-                                  setDetailActionMenuOpen(false);
-                                }}
-                              >
-                                {t('history.useInStudio')}
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="history-detail-menu-item"
+                              onClick={() => {
+                                applyHistoryDraft(activeSelectedRecord, 'planner');
+                                setDetailActionMenuOpen(false);
+                              }}
+                            >
+                              {t('history.openInPlanner')}
+                            </button>
                           )}
                           {activeSelectedRecord.status === 'draft' && (
                             <>
-                              {onOpenDraft && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="history-detail-menu-item"
-                                  onClick={() => {
-                                    onOpenDraft(activeSelectedRecord);
-                                    setDetailActionMenuOpen(false);
-                                  }}
-                                >
-                                  {t('history.edit')}
-                                </button>
-                              )}
                               <button
                                 type="button"
                                 role="menuitem"
@@ -2265,20 +2241,6 @@ export function HistoryDrawer({
                           )}
                           {activeSelectedRecord.status === 'scheduled' && (
                             <>
-                              {activeSelectedRecord.source === 'workspace' && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="history-detail-menu-item"
-                                  onClick={() => {
-                                    onReschedule(activeSelectedRecord);
-                                    onClose();
-                                    setDetailActionMenuOpen(false);
-                                  }}
-                                >
-                                  {t('history.edit')}
-                                </button>
-                              )}
                               {scheduleMessage && (
                                 <>
                                   <button
@@ -2370,13 +2332,15 @@ export function HistoryDrawer({
                       : statusFilter === 'sent' ? t('history.deleteSent') : statusFilter === 'notes' ? t('history.deleteNotes') : t('history.deleteDrafts')}
                   aria-haspopup="dialog"
                   aria-expanded={Boolean(bulkDeleteCategory)}
-                  title={selectedRecordMatchesDeleteCategory && selectedRecord
-                    ? statusFilter === 'scheduled'
-                      ? isLocalScheduleFailure(selectedRecord) ? t('history.deleteErrorFromHistoryTitle', { title: selectedRecord.title }) : t('history.cancelTelegramTitle', { title: selectedRecord.title })
-                      : t('history.deleteTitle', { title: selectedRecord.title })
-                    : statusFilter === 'scheduled'
-                      ? scheduleCleanupTitle
-                      : statusFilter === 'sent' ? t('history.deleteSent') : statusFilter === 'notes' ? t('history.deleteNotesTitle') : t('history.deleteDrafts')}
+                  title={!pageMode
+                    ? selectedRecordMatchesDeleteCategory && selectedRecord
+                      ? statusFilter === 'scheduled'
+                        ? isLocalScheduleFailure(selectedRecord) ? t('history.deleteErrorFromHistoryTitle', { title: selectedRecord.title }) : t('history.cancelTelegramTitle', { title: selectedRecord.title })
+                        : t('history.deleteTitle', { title: selectedRecord.title })
+                      : statusFilter === 'scheduled'
+                        ? scheduleCleanupTitle
+                        : statusFilter === 'sent' ? t('history.deleteSent') : statusFilter === 'notes' ? t('history.deleteNotesTitle') : t('history.deleteDrafts')
+                    : undefined}
                   onClick={() => {
                     const category = statusFilter;
                     const recordId = selectedRecordMatchesDeleteCategory && selectedRecord

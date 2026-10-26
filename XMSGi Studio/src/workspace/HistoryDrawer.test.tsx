@@ -300,7 +300,7 @@ describe('Posts page split view', () => {
     expect(within(toolbar).queryByRole('button', { name: 'Use text' })).not.toBeInTheDocument();
   });
 
-  it('restores Copy for drafts and keeps Edit available in More', () => {
+  it('restores Copy for drafts and hides Edit and Use in Studio from More', () => {
     const draft = normalizePlannerDraft(
       'A planner draft',
       null,
@@ -318,9 +318,10 @@ describe('Posts page split view', () => {
     fireEvent.click(within(toolbar).getByRole('button', { name: 'More' }));
     expect(screen.queryByRole('menuitem', { name: 'Chat Preview' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Use draft' })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Use in Studio' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
-    expect(onOpenDraft).toHaveBeenCalledWith(draft);
+    expect(screen.queryByRole('menuitem', { name: 'Use in Studio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Open in Planner' })).toBeInTheDocument();
+    expect(onOpenDraft).not.toHaveBeenCalled();
   });
 
   it('right-aligns the detail toolbar and restores a gradient preview card', () => {
@@ -328,8 +329,14 @@ describe('Posts page split view', () => {
       /\.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*padding-top:\s*6px;[^}]*padding-bottom:\s*4px;[^}]*justify-content:\s*flex-end;/,
     );
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder,\s*\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*6px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*36px;/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder\s*\{[^}]*width:\s*44px;[^}]*flex-basis:\s*44px;/);
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:focus-visible,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button\[aria-expanded='true'\]\s*\{\s*transform:\s*translateX\(10px\);/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover\s*\{\s*transform:\s*translateX\(10px\)\s*!important;/,
+    );
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;[^}]*justify-content:\s*center;[^}]*padding:\s*0;/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button > span\s*\{\s*display:\s*none;/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button::before\s*\{\s*left:\s*50%;\s*transform:\s*translate\(-50%,\s*-50%\);/);
@@ -342,6 +349,7 @@ describe('Posts page split view', () => {
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-toolbar\s*\{[^}]*transform:\s*translateY\(0\);/);
     expect(globalStyles).toMatch(/\.history-detail-tool-button\s*\{[^}]*min-height:\s*64px;/);
     expect(globalStyles).toMatch(/\.history-detail-tool-button > span:last-child\s*\{\s*transform:\s*translateY\(-3px\);/);
+    expect(globalStyles).toMatch(/\.history-detail-tool-icon\s*\{[^}]*border-radius:\s*10px;/);
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*background:\s*linear-gradient\(145deg,\s*rgba\(39,\s*61,\s*73,\s*0\.94\),\s*rgba\(23,\s*36,\s*47,\s*0\.98\)\);/,
     );
@@ -352,10 +360,10 @@ describe('Posts page split view', () => {
       /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-tool-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\) \.history-detail-tool-icon,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\) \.history-detail-tool-icon\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
     );
     expect(colorThemeStyles).toMatch(
-      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(/,
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-radius:\s*10px;[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(/,
     );
     expect(colorThemeStyles).toMatch(
-      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-color:\s*#b5cbd5;[^}]*background:\s*linear-gradient\(/,
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-radius:\s*10px;[^}]*border-color:\s*#b5cbd5;[^}]*background:\s*linear-gradient\(/,
     );
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*border-color:\s*#e3eaee;/,
@@ -373,7 +381,7 @@ describe('Posts page split view', () => {
       /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:not\(:hover\):not\(:focus-visible\):not\(\[aria-expanded='true'\]\),[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:not\(:hover\):not\(:focus-visible\)\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
     );
     expect(globalStyles).toMatch(
-      /\.history-drawer\.is-page \.history-delete-button::before,\s*\.history-drawer\.is-page \.history-export-button::before\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*border-radius:\s*50%;[^}]*background:\s*transparent;/,
+      /\.history-drawer\.is-page \.history-delete-button::before,\s*\.history-drawer\.is-page \.history-export-button::before\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*border-radius:\s*10px;[^}]*background:\s*transparent;/,
     );
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover::before,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible::before\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(155deg,/,
@@ -501,6 +509,23 @@ describe('Posts page split view', () => {
       expect(controls.querySelector('.history-status-filters')).toBeNull();
       expect(listPane).toContainElement(statusFilters);
       expect(statusSection).toContainElement(statusFilters);
+      expect(globalStyles).toMatch(
+        /@media \(min-width:\s*1121px\)\s*\{[\s\S]*?\.history-list-status-heading > \.history-status-filters\s*\{\s*flex:\s*1 1 auto;[\s\S]*?\.history-list-status-section \.history-status-filters\s*\{[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/,
+      );
+      expect(globalStyles).toMatch(
+        /\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto;[^}]*gap:\s*20px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /@media \(min-width:\s*761px\)\s*\{[\s\S]*?\.history-drawer\.is-page \.history-list-status-section\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+164px;[\s\S]*?\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{[^}]*width:\s*164px;[^}]*min-width:\s*164px;[^}]*flex:\s*0 0 164px;[^}]*justify-content:\s*flex-end;[^}]*padding-right:\s*10px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{[^}]*padding:\s*0 10px 0 12px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /@media \(min-width:\s*1121px\)\s*\{\s*\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{\s*justify-content:\s*space-between;\s*padding:\s*0 10px 0 12px;/,
+      );
+      expect(globalStyles).not.toMatch(/\.history-list-status-section \.history-status-tab::before/);
+      expect(colorThemeStyles).not.toMatch(/\.history-list-status-section \.history-status-tab(?::not\(\.is-active\))?:(?:hover|focus-visible)::before/);
       expect(statusSection.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -509,6 +534,7 @@ describe('Posts page split view', () => {
       expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*width:\s*calc\(45% - 17\.2px\);[^}]*margin-right:\s*0;[^}]*margin-left:\s*10px;[^}]*padding:\s*11px 8px;[^}]*transform:\s*translateY\(-18px\);/);
       expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*margin-bottom:\s*12px;/);
       expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-search-dock\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-result-count\s*\{[^}]*padding-left:\s*0;[^}]*text-align:\s*center;/);
       expect(footer).not.toContainElement(statusFilters);
       expect(footer).toContainElement(container.querySelector('.history-export-button'));
       expect(footer).toContainElement(container.querySelector('.history-delete-button, .history-delete-placeholder'));
@@ -527,7 +553,10 @@ describe('Posts page split view', () => {
       expect(statusHeading).toContainElement(statusFilters);
       fireEvent.click(screen.getByRole('tab', { name: 'Sent' }));
       expect(container.querySelector('.history-drawer-tools')).toBeInTheDocument();
-      expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
+      const deleteButton = container.querySelector<HTMLButtonElement>('.history-delete-button');
+      expect(deleteButton).toBeInTheDocument();
+      expect(deleteButton).not.toHaveAttribute('title');
+      expect(deleteButton).toHaveAttribute('aria-label');
       expect(container.querySelector('.history-export-button')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
@@ -574,6 +603,35 @@ describe('Posts page split view', () => {
     expect(container.querySelector('.history-chat-preview-current')).toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
   });
 
+  it('closes the selected post when its row is clicked again', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    const recordButton = container.querySelector<HTMLButtonElement>('.history-record-open')!;
+
+    fireEvent.click(recordButton);
+    expect(container.querySelector('.history-detail-panel')).toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
+    expect(recordButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(recordButton);
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Select a post');
+    expect(recordButton).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('closes the selected draft when its row is clicked again', () => {
+    const draft = normalizePlannerDraft('A draft to close', null, '2026-10-06T10:00:00.000Z');
+    expect(draft).not.toBeNull();
+    const { container } = renderHistoryPage([draft!]);
+    fireEvent.click(container.querySelector('[data-history-filter="drafts"]')!);
+    const recordButton = container.querySelector<HTMLButtonElement>('.history-record-open')!;
+
+    fireEvent.click(recordButton);
+    expect(container.querySelector('.history-detail-panel')).toHaveTextContent('A draft to close');
+    expect(recordButton).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(recordButton);
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Select a post');
+    expect(recordButton).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('shows the compact preview and copy toolbar without sharing and keeps record actions in its menu', async () => {
     const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     const writeText = vi.fn().mockResolvedValue(undefined);
@@ -602,7 +660,7 @@ describe('Posts page split view', () => {
       const scheduledToolbar = scheduledView.container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
       fireEvent.click(within(scheduledToolbar).getByRole('button', { name: 'More' }));
       const actionsMenu = within(scheduledToolbar).getByRole('menu');
-      expect(within(actionsMenu).getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument();
+      expect(within(actionsMenu).queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
       expect(within(actionsMenu).getByRole('menuitem', { name: 'Send now' })).toBeInTheDocument();
       expect(within(actionsMenu).getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument();
     } finally {
@@ -660,17 +718,13 @@ describe('Posts page split view', () => {
     });
   });
 
-  it('uses the selected post in Studio from the detail actions menu', async () => {
-    const onUseDraft = vi.fn().mockResolvedValue(true);
-    const { container, onClose } = renderHistoryPage([upcomingRecord], onUseDraft);
+  it('hides Edit and Use in Studio from the scheduled post detail actions menu', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
     fireEvent.click(container.querySelector('.history-record-open')!);
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
-
-    await waitFor(() => {
-      expect(onUseDraft).toHaveBeenCalledWith(upcomingRecord, 'studio');
-      expect(onClose).toHaveBeenCalledWith(false);
-    });
+    expect(screen.queryByRole('menuitem', { name: 'Use in Studio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Open in Planner' })).toBeInTheDocument();
   });
 
   it('returns the post list to the top when source, category, or search changes', () => {
@@ -1706,7 +1760,7 @@ describe('HistoryDrawer search', () => {
     expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
   });
 
-  it('uses the active editor directly from the draft detail panel', async () => {
+  it('uses the active editor from the draft detail toolbar', async () => {
     window.localStorage.setItem('awaitmsg_locale', 'en');
     const plannerDraft = normalizePlannerDraft(
       'An editable Quick Planner note',
@@ -1736,8 +1790,7 @@ describe('HistoryDrawer search', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
     fireEvent.click(screen.getByRole('button', { name: `Open post: ${plannerDraft.title}` }));
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use text' }));
 
     await waitFor(() => {
       expect(onUseDraft).toHaveBeenCalledWith(plannerDraft, 'studio');

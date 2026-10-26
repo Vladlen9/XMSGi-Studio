@@ -111,13 +111,17 @@ function createTelegramChatData({ Api, connectTelegram, getClient, telegramReque
     }
   }
 
-  async function getChatHistoryInternal(chatId, limit = 50) {
+  async function getChatHistoryInternal(chatId, limit = 50, offsetId) {
     if (!getClient()) await connectTelegram();
     const target = chatId === 'me' ? 'me' : chatId;
     const entity = await telegramRequest(() => withTimeout(getClient().getEntity(target), REQUEST_TIMEOUT, 'Resolving Telegram chat for history'));
     const currentUser = await telegramRequest(() => withTimeout(getClient().getMe(), REQUEST_TIMEOUT, 'Loading current Telegram account'));
     const currentUserId = currentUser?.id != null ? String(currentUser.id) : '';
-    const messages = await telegramRequest(() => withTimeout(getClient().getMessages(entity, { limit }), REQUEST_TIMEOUT, 'Loading Telegram chat history'));
+    const messages = await telegramRequest(() => withTimeout(
+      getClient().getMessages(entity, { limit, ...(offsetId ? { offsetId } : {}) }),
+      REQUEST_TIMEOUT,
+      'Loading Telegram chat history',
+    ));
     let avatarDataUrl = '';
     try {
       const avatar = await telegramRequest(() => withTimeout(getClient().downloadProfilePhoto(entity), REQUEST_TIMEOUT, 'Loading Telegram chat avatar'));
@@ -146,7 +150,13 @@ function createTelegramChatData({ Api, connectTelegram, getClient, telegramReque
           entities: (message.entities || []).flatMap((messageEntity) => {
             const type = getTelegramEntityType(messageEntity);
             return type && Number.isInteger(messageEntity.offset) && Number.isInteger(messageEntity.length)
-              ? [{ type, offset: messageEntity.offset, length: messageEntity.length, ...(type === 'text_url' && messageEntity.url ? { url: messageEntity.url } : {}) }]
+              ? [{
+                type,
+                offset: messageEntity.offset,
+                length: messageEntity.length,
+                ...(type === 'text_url' && messageEntity.url ? { url: messageEntity.url } : {}),
+                ...(type === 'pre' && messageEntity.language ? { language: messageEntity.language } : {}),
+              }]
               : [];
           }),
           mediaType: message.media?.className || '',

@@ -11,6 +11,9 @@ const ENTITY_TYPES: RichTextEntityType[] = [
   'underline',
   'strikethrough',
   'text_url',
+  'code',
+  'pre',
+  'blockquote',
 ];
 
 function isEntityType(value: unknown): value is RichTextEntityType {
@@ -51,6 +54,9 @@ export function normalizeRichTextEntities(value: unknown, textLength: number): R
         offset: start,
         length: end - start,
         ...(type === 'text_url' ? { url: entity.url } : {}),
+        ...(type === 'pre' && typeof entity.language === 'string' && /^[a-zA-Z0-9_+-]{1,32}$/.test(entity.language)
+          ? { language: entity.language }
+          : {}),
       } satisfies RichTextEntity;
     })
     .filter((entity): entity is RichTextEntity => entity !== null)
@@ -69,6 +75,7 @@ export function mergeRichTextEntities(entities: RichTextEntity[]): RichTextEntit
       previous &&
       previous.type === entity.type &&
       previous.url === entity.url &&
+      previous.language === entity.language &&
       previous.offset + previous.length >= entity.offset
     ) {
       previous.length = Math.max(
@@ -107,13 +114,16 @@ export function sliceRichText(
   };
 }
 
-export function entityTagName(type: RichTextEntityType): 'strong' | 'em' | 'u' | 's' {
+export function entityTagName(type: RichTextEntityType): 'strong' | 'em' | 'u' | 's' | 'code' | 'blockquote' {
   switch (type) {
     case 'bold': return 'strong';
     case 'italic': return 'em';
     case 'underline': return 'u';
     case 'strikethrough': return 's';
     case 'text_url': return 'u';
+    case 'code': return 'code';
+    case 'pre': return 'code';
+    case 'blockquote': return 'blockquote';
   }
 }
 
@@ -167,14 +177,22 @@ export function richTextToHtml(text: string, entities: RichTextEntity[]): string
   const points = [...boundaries].sort((left, right) => left - right);
   return points.slice(0, -1).map((start, index) => {
     const end = points[index + 1];
-    let html = escapeHtml(safeText.slice(start, end)).replace(/\n/g, '<br>');
+    const segment = safeText.slice(start, end);
     const active = normalized
       .filter((entity) => entity.offset <= start && entity.offset + entity.length >= end)
-      .sort((left, right) => left.length - right.length);
+      .sort((left, right) => left.length - right.length
+        || Number(left.type === 'blockquote') - Number(right.type === 'blockquote'));
+    let html = escapeHtml(segment);
+    if (!active.some((entity) => entity.type === 'pre')) html = html.replace(/\n/g, '<br>');
 
     for (const entity of active) {
       if (entity.type === 'text_url') {
         html = `<a href="${escapeAttribute(entity.url || '')}" data-rich-text-url="true">${html}</a>`;
+      } else if (entity.type === 'pre') {
+        const languageClass = entity.language
+          ? ` class="language-${escapeAttribute(entity.language)}"`
+          : '';
+        html = `<pre><code${languageClass}>${html}</code></pre>`;
       } else {
         html = `<${entityTagName(entity.type)}>${html}</${entityTagName(entity.type)}>`;
       }
@@ -205,7 +223,7 @@ export function editorHtmlToRichText(root: HTMLElement): {
 } {
   let text = '';
   const entities: RichTextEntity[] = [];
-  const entityStack: { type: RichTextEntityType; url?: string; offset: number }[] = [];
+  const entityStack: { type: RichTextEntityType; url?: string; language?: string; offset: number }[] = [];
 
   const appendText = (value: string) => {
     text += value;
@@ -228,7 +246,7 @@ export function editorHtmlToRichText(root: HTMLElement): {
       return;
     }
 
-    const additions: { type: RichTextEntityType; url?: string }[] = [];
+    const additions: { type: RichTextEntityType; url?: string; language?: string }[] = [];
     if (element.tagName === 'STRONG' || element.tagName === 'B') additions.push({ type: 'bold' });
     if (element.tagName === 'EM' || element.tagName === 'I') additions.push({ type: 'italic' });
     if (element.tagName === 'U') additions.push({ type: 'underline' });
@@ -238,6 +256,12 @@ export function editorHtmlToRichText(root: HTMLElement): {
     if (element.tagName === 'A' && isValidUrl(element.getAttribute('href'))) {
       additions.push({ type: 'text_url', url: element.getAttribute('href') || undefined });
     }
+    if (element.tagName === 'CODE' && element.parentElement?.tagName !== 'PRE') additions.push({ type: 'code' });
+    if (element.tagName === 'PRE') {
+      const language = element.querySelector('code')?.className.match(/(?:^|\s)language-([a-zA-Z0-9_+-]{1,32})(?:\s|$)/)?.[1];
+      additions.push({ type: 'pre', ...(language ? { language } : {}) });
+    }
+    if (element.tagName === 'BLOCKQUOTE') additions.push({ type: 'blockquote' });
 
     const offset = text.length;
     additions.forEach((addition) => entityStack.push({ ...addition, offset }));
@@ -246,18 +270,25 @@ export function editorHtmlToRichText(root: HTMLElement): {
 
     additions.reverse().forEach((addition) => {
       const stackIndex = entityStack.findIndex(
-        (entry) => entry.type === addition.type && entry.offset === offset && entry.url === addition.url,
+        (entry) => entry.type === addition.type && entry.offset === offset && entry.url === addition.url
+          && entry.language === addition.language,
       );
       if (stackIndex < 0) return;
       entityStack.splice(stackIndex, 1);
       if (end > offset) {
-        entities.push({ type: addition.type, offset, length: end - offset, ...(addition.url ? { url: addition.url } : {}) });
+        entities.push({
+          type: addition.type,
+          offset,
+          length: end - offset,
+          ...(addition.url ? { url: addition.url } : {}),
+          ...(addition.language ? { language: addition.language } : {}),
+        });
       }
     });
   };
 
   root.childNodes.forEach(visit);
-  if (!/[*~\\]/.test(text)) {
+  if (!/[*~`\\]/.test(text)) {
     return {
       text,
       entities: mergeRichTextEntities(entities),

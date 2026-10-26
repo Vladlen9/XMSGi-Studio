@@ -1054,9 +1054,9 @@ function getChatPermissions(chatId) {
   return trackTelegramOperation('getChatPermissions', () => getChatPermissionsInternal(chatId));
 }
 
-function getChatHistory(chatId, limit) {
+function getChatHistory(chatId, limit, offsetId) {
   return trackTelegramOperation('getChatHistory', () =>
-    getChatHistoryInternal(chatId, limit)
+    getChatHistoryInternal(chatId, limit, offsetId)
   );
 }
 

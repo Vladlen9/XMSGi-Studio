@@ -173,7 +173,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     if (!chat) return;
 
     const entities = Array.isArray(payload.entities)
-      ? payload.entities as Array<{ type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url'; offset: number; length: number; url?: string }>
+      ? payload.entities as Array<{ type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url' | 'code' | 'pre' | 'blockquote'; offset: number; length: number; url?: string; language?: string }>
       : [];
     const scheduledEntries = createScheduledEntries({
       chatId: chat.id,

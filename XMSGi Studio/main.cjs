@@ -1030,7 +1030,7 @@ ipcMain.handle('telegram-chat-history', async (event, data = {}) => {
   try {
     return {
       success: true,
-      history: await getChatHistory(validated.chatId, validated.limit)
+      history: await getChatHistory(validated.chatId, validated.limit, validated.offsetId)
     };
   } catch (error) {
     console.error('Telegram chat history error:', error?.code || error?.name || 'unknown');

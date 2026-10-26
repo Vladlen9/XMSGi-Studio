@@ -99,9 +99,9 @@ type QuickPlannerProps = {
   onSelectChat?: (chat: Chat | null) => void;
   onRemoveChat?: (chat: Chat) => void;
   onOpenInStudio?: (payload: StudioPlannerTextPayload) => void;
-  onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string) => Promise<boolean | 'sent-history-failed'>;
-  onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string }) => Promise<boolean | 'sent-history-failed'>;
-  onSaveDraft?: (draft: { message: string; attachments: string[] }) => boolean;
+  onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string, entities?: RichTextEntity[]) => Promise<boolean | 'sent-history-failed'>;
+  onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string; entities?: RichTextEntity[] }) => Promise<boolean | 'sent-history-failed'>;
+  onSaveDraft?: (draft: { message: string; attachments: string[]; entities: RichTextEntity[] }) => boolean;
   feedbackPreview?: QuickPlannerActionFeedback | null;
   connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
 };
@@ -112,6 +112,31 @@ function getChatInitial(name: string) {
 
 function getAttachmentName(path: string) {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+function retainUnchangedRichTextEntities(previousText: string, nextText: string, entities: RichTextEntity[]) {
+  let prefixLength = 0;
+  while (prefixLength < previousText.length
+    && prefixLength < nextText.length
+    && previousText[prefixLength] === nextText[prefixLength]) {
+    prefixLength += 1;
+  }
+
+  let suffixLength = 0;
+  while (suffixLength < previousText.length - prefixLength
+    && suffixLength < nextText.length - prefixLength
+    && previousText[previousText.length - suffixLength - 1] === nextText[nextText.length - suffixLength - 1]) {
+    suffixLength += 1;
+  }
+
+  const changedEnd = previousText.length - suffixLength;
+  const offsetDelta = nextText.length - previousText.length;
+  return entities.flatMap((entity) => {
+    const entityEnd = entity.offset + entity.length;
+    if (entityEnd <= prefixLength) return [entity];
+    if (entity.offset >= changedEnd) return [{ ...entity, offset: entity.offset + offsetDelta }];
+    return [];
+  });
 }
 
 function isFileDrag(dataTransfer: DataTransfer) {
@@ -219,6 +244,7 @@ export function QuickPlanner({
   const { locale, t } = useLocale();
   const [selectedMode, setSelectedMode] = useState('Send now');
   const [message, setMessage] = useState(readPlannerDraft);
+  const [messageEntities, setMessageEntities] = useState(readPlannerDraftEntities);
   const lastLoadedDraftRevisionRef = useRef<number | null>(null);
   const restoreDraftOnCompletionRef = useRef<{
     text: string;
@@ -311,14 +337,15 @@ export function QuickPlanner({
   const emojiSelectionWaitingForReleaseRef = useRef(false);
 
   useEffect(() => {
-    writePlannerDraft(message, readPlannerDraftEntities(), attachments.map(({ path }) => path));
-  }, [attachments, message]);
+    writePlannerDraft(message, messageEntities, attachments.map(({ path }) => path));
+  }, [attachments, message, messageEntities]);
 
   useEffect(() => {
     if (!draftLoadRequest || lastLoadedDraftRevisionRef.current === draftLoadRequest.revision) return;
     lastLoadedDraftRevisionRef.current = draftLoadRequest.revision;
     restoreDraftOnCompletionRef.current = draftLoadRequest.restoreDraft;
     setMessage(draftLoadRequest.text);
+    setMessageEntities(draftLoadRequest.entities);
     setAttachments(draftLoadRequest.attachments.map((path) => ({ name: getAttachmentName(path), path })));
   }, [draftLoadRequest]);
 
@@ -328,6 +355,7 @@ export function QuickPlanner({
     if (!restoreDraft || (!restoreDraft.text.trim() && restoreDraft.attachments.length === 0)) {
       writePlannerDraft('', [], []);
       setMessage('');
+      setMessageEntities([]);
       setAttachments([]);
       onRestoreDraft?.(null);
       return false;
@@ -335,6 +363,7 @@ export function QuickPlanner({
 
     writePlannerDraft(restoreDraft.text, restoreDraft.entities, restoreDraft.attachments);
     setMessage(restoreDraft.text);
+    setMessageEntities(restoreDraft.entities);
     setAttachments(restoreDraft.attachments.map((path) => ({ name: getAttachmentName(path), path })));
     onRestoreDraft?.(restoreDraft);
     return true;
@@ -348,6 +377,7 @@ export function QuickPlanner({
   const clearCompletedDraft = () => {
     writePlannerDraft('', [], []);
     setMessage('');
+    setMessageEntities([]);
     setAttachments([]);
   };
 
@@ -801,6 +831,7 @@ export function QuickPlanner({
     const start = emojiCommandRange?.start ?? textarea?.selectionStart ?? message.length;
     const end = emojiCommandRange?.end ?? textarea?.selectionEnd ?? message.length;
     const nextMessage = `${message.slice(0, start)}${emoji}${message.slice(end)}`.slice(0, 1023);
+    setMessageEntities((current) => retainUnchangedRichTextEntities(message, nextMessage, current));
     setMessage(nextMessage);
     setEmojiCommandRange(null);
     if (!keepPickerOpen) setEmojiSearchQuery('');
@@ -906,7 +937,7 @@ export function QuickPlanner({
     }
     if (isDraftMode) {
       if (onSaveDraft) {
-        if (!onSaveDraft({ message, attachments: attachments.map(({ path }) => path) })) {
+        if (!onSaveDraft({ message, attachments: attachments.map(({ path }) => path), entities: messageEntities })) {
           showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
           return;
         }
@@ -927,6 +958,7 @@ export function QuickPlanner({
             message,
             attachments.length > 0 ? attachments.map(({ path }) => path) : undefined,
             selectedEffectId ?? undefined,
+            messageEntities,
           );
           if (sent === 'sent-history-failed') {
             showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
@@ -959,6 +991,7 @@ export function QuickPlanner({
             time: selectedTime,
             ...(attachments.length > 0 ? { attachments: attachments.map(({ path }) => path) } : {}),
             ...(selectedEffectId ? { effect: selectedEffectId } : {}),
+            entities: messageEntities,
           });
           if (scheduled === 'sent-history-failed') {
             showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
@@ -990,7 +1023,7 @@ export function QuickPlanner({
       onOpenInStudio({
         text: message,
         attachments: attachments.map(({ path }) => path),
-        entities: [],
+        entities: messageEntities,
         ...(selectedEffectId ? { effect: selectedEffectId } : {}),
       });
       return;
@@ -1185,6 +1218,7 @@ export function QuickPlanner({
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => {
                         setMessage('');
+                        setMessageEntities([]);
                         clearActionFeedback();
                         messageInputRef.current?.focus();
                       }}
@@ -1225,6 +1259,7 @@ export function QuickPlanner({
                 }}
                 onChange={(event) => {
                   const nextMessage = event.target.value;
+                  setMessageEntities((current) => retainUnchangedRichTextEntities(message, nextMessage, current));
                   setMessage(nextMessage);
                   clearActionFeedback();
                   const caret = event.currentTarget.selectionStart;

@@ -135,6 +135,12 @@ describe('IPC security validation', () => {
       limit: 100,
     });
     expect(() => validateHistoryPayload({ chatId: '123456789', limit: 101 })).toThrow('limit');
+    expect(validateHistoryPayload({ chatId: '123456789', limit: 12, offsetId: 876 })).toEqual({
+      chatId: '123456789',
+      limit: 12,
+      offsetId: 876,
+    });
+    expect(() => validateHistoryPayload({ chatId: '123456789', offsetId: -1 })).toThrow('offset');
   });
 
   it('allows attachment-only sends but rejects fully empty sends', () => {

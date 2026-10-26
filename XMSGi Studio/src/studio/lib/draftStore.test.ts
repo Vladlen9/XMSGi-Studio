@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   readWorkspaceDraftStoreFallback,
+  SAVED_STUDIO_DRAFTS_UPDATED_EVENT,
+  updateSavedStudioDrafts,
   writeWorkspaceDraftStoreFallback,
 } from './draftStore';
 import type { PersistedDraftStore } from '@studio/types';
@@ -98,6 +100,33 @@ describe('browser draft-store fallback', () => {
     expect(writeWorkspaceDraftStoreFallback(store())).toBe(false);
     expect(localStorage.getItem(PRIMARY_KEY)).toBeNull();
     expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+  });
+
+  it('updates saved Studio drafts through browser fallback storage', async () => {
+    expect(writeWorkspaceDraftStoreFallback(store())).toBe(true);
+    const onUpdated = vi.fn();
+    window.addEventListener(SAVED_STUDIO_DRAFTS_UPDATED_EVENT, onUpdated);
+
+    try {
+      expect(await updateSavedStudioDrafts((drafts) => drafts.filter(({ id }) => id !== 'draft-1'))).toBe(true);
+      expect(readWorkspaceDraftStoreFallback()?.savedDrafts).toEqual([]);
+      expect(onUpdated).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(SAVED_STUDIO_DRAFTS_UPDATED_EVENT, onUpdated);
+    }
+  });
+
+  it('clears all saved Studio drafts through browser fallback storage', async () => {
+    expect(writeWorkspaceDraftStoreFallback({
+      ...store(),
+      savedDrafts: [
+        ...store().savedDrafts,
+        { ...store().savedDrafts[0], id: 'draft-2', name: 'Second draft' },
+      ],
+    })).toBe(true);
+
+    expect(await updateSavedStudioDrafts(() => [])).toBe(true);
+    expect(readWorkspaceDraftStoreFallback()?.savedDrafts).toEqual([]);
   });
 
   it('reports when access to the localStorage object itself is denied', () => {

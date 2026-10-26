@@ -1,4 +1,4 @@
-const ENTITY_TYPES = new Set(['bold', 'italic', 'underline', 'strikethrough', 'text_url']);
+const ENTITY_TYPES = new Set(['bold', 'italic', 'underline', 'strikethrough', 'text_url', 'code', 'pre', 'blockquote']);
 
 function isValidUrl(value) {
   if (typeof value !== 'string' || value.length > 2048) return false;
@@ -21,13 +21,14 @@ function mergeEntities(entities) {
       offset: entity.offset,
       length: entity.length,
       ...(entity.type === 'text_url' ? { url: entity.url } : {}),
+      ...(entity.type === 'pre' && typeof entity.language === 'string' ? { language: entity.language } : {}),
     }))
     .sort((left, right) => left.offset - right.offset || right.length - left.length || left.type.localeCompare(right.type));
   const merged = [];
 
   for (const entity of normalized) {
     const previous = merged[merged.length - 1];
-    if (previous && previous.type === entity.type && previous.url === entity.url
+    if (previous && previous.type === entity.type && previous.url === entity.url && previous.language === entity.language
       && previous.offset + previous.length >= entity.offset) {
       previous.length = Math.max(previous.length, entity.offset + entity.length - previous.offset);
     } else {
@@ -48,7 +49,7 @@ function markdownToRichText(source) {
       const start = index;
       while (source[index] === '\\') index += 1;
       const slashCount = index - start;
-      if (source[index] === '*' || source[index] === '~') {
+      if (source[index] === '*' || source[index] === '~' || source[index] === '`') {
         for (let pair = 0; pair < Math.floor(slashCount / 2); pair += 1) removed[start + pair * 2 + 1] = 1;
         if (slashCount % 2 === 1) {
           removed[index - 1] = 1;
@@ -59,7 +60,7 @@ function markdownToRichText(source) {
     }
 
     const character = source[index];
-    if (character !== '*' && character !== '~') {
+    if (character !== '*' && character !== '~' && character !== '`') {
       index += 1;
       continue;
     }
@@ -69,6 +70,42 @@ function markdownToRichText(source) {
     const runLength = runEnd - index;
     if (escaped[index] || (character === '~' && runLength < 2)) {
       index = runEnd;
+      continue;
+    }
+
+    if (character === '`') {
+      const marker = runLength >= 3 ? '```' : '`';
+      const closeStart = source.indexOf(marker, runEnd);
+      if (closeStart < 0) {
+        index = runEnd;
+        continue;
+      }
+      const closeRunEnd = closeStart + marker.length;
+      let contentStart = runEnd;
+      let language;
+      if (marker === '```') {
+        const newline = source.indexOf('\n', contentStart);
+        if (newline > contentStart) {
+          const candidate = source.slice(contentStart, newline);
+          if (/^[a-zA-Z0-9_+-]{1,32}$/.test(candidate)) {
+            language = candidate;
+            contentStart = newline + 1;
+          }
+        }
+      }
+      if (closeStart > contentStart) {
+        const opener = {
+          marker,
+          type: marker === '```' ? 'pre' : 'code',
+          language,
+          start: index,
+          end: contentStart,
+        };
+        pairs.push({ opener, closeStart, closeEnd: closeRunEnd });
+        index = closeRunEnd;
+      } else {
+        index = runEnd;
+      }
       continue;
     }
 
@@ -126,7 +163,9 @@ function markdownToRichText(source) {
   const entities = pairs.flatMap(({ opener, closeStart }) => {
     const offset = sourceOffsetMap[opener.end];
     const end = sourceOffsetMap[closeStart];
-    return end > offset ? [{ type: opener.type, offset, length: end - offset }] : [];
+    return end > offset
+      ? [{ type: opener.type, offset, length: end - offset, ...(opener.language ? { language: opener.language } : {}) }]
+      : [];
   });
 
   return { text, entities: mergeEntities(entities), sourceOffsetMap, changed: removed.some((marker) => marker === 1) };

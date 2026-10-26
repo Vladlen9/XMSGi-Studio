@@ -1,5 +1,5 @@
 import { createElement, useContext, useState } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
 import { persistPostsReturnView } from '@/lib/productView';
@@ -79,7 +79,7 @@ describe('product navigation', () => {
     expect(onViewChange).toHaveBeenCalledWith('planner');
   });
 
-  it.each(['studio', 'planner'] as const)('opens the selected %s destination from Posts', (destination) => {
+  it.each(['studio', 'planner'] as const)('uses a draft in Studio from Posts when opened from %s', (destination) => {
     const draft = normalizeSavedPlannerDraft({
       id: `destination-${destination}`,
       message: 'Planner draft to use',
@@ -123,14 +123,15 @@ describe('product navigation', () => {
     fireEvent.click(document.querySelector('.history-source-menu [data-history-filter="all"]') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
     fireEvent.click(container.querySelector('.history-record-open') as HTMLButtonElement);
-    fireEvent.click(screen.getByRole('button', { name: /Use draft/ }));
+    fireEvent.click(container.querySelector('.history-detail-toolbar .is-more') as HTMLButtonElement);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
 
-    expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, destination);
+    expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, 'studio');
     expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
     expect(container.querySelector('.history-detail-draft-menu')).toBeNull();
     expect(container.querySelector('.history-draft-destination-menu')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
-    expect(container.querySelector('.product-shell')).toHaveClass(destination === 'studio' ? 'studio-shell' : 'planner-shell');
+    expect(container.querySelector('.product-shell')).toHaveClass('studio-shell');
   });
 });
 

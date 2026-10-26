@@ -1,10 +1,11 @@
 export {};
 
 type TelegramFormattingEntity = {
-  type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url';
+  type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url' | 'code' | 'pre' | 'blockquote';
   offset: number;
   length: number;
   url?: string;
+  language?: string;
 };
 
 type TelegramErrorCategory = import('@shared/types').TelegramErrorCategory;
@@ -176,7 +177,7 @@ declare global {
         telegramMessageIds?: Array<string | number>;
         error?: string;
       }>;
-      getChatHistory: (data: { chatId: string; limit?: number }) => Promise<{
+      getChatHistory: (data: { chatId: string; limit?: number; offsetId?: number }) => Promise<{
         success: boolean;
         history?: {
           chat: {
@@ -193,7 +194,7 @@ declare global {
             date: string;
             outgoing: boolean;
             senderName?: string;
-            entities?: Array<{ type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url'; offset: number; length: number; url?: string }>;
+            entities?: Array<{ type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url' | 'code' | 'pre' | 'blockquote'; offset: number; length: number; url?: string; language?: string }>;
             mediaType?: string;
             mediaName?: string;
             replyMarkup?: { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> };

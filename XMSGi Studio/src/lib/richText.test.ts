@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mergeRichTextEntities, normalizeRichTextEntities, sliceRichText } from './richText';
+import { mergeRichTextEntities, normalizeRichTextEntities, richTextToHtml, sliceRichText } from './richText';
 
 describe('rich text entities', () => {
   it('normalizes supported entities and clamps their ranges', () => {
@@ -48,5 +48,15 @@ describe('rich text entities', () => {
       text: 'First\n',
       entities: [],
     });
+  });
+
+  it('renders Telegram code, language-tagged blocks, and quotes as safe HTML', () => {
+    expect(richTextToHtml('const x = 1;\nnext', [
+      { type: 'pre', offset: 0, length: 17, language: 'ts' },
+    ])).toBe('<pre><code class="language-ts">const x = 1;\nnext</code></pre>');
+    expect(richTextToHtml('<script>', [
+      { type: 'code', offset: 0, length: 8 },
+      { type: 'blockquote', offset: 0, length: 8 },
+    ])).toBe('<blockquote><code>&lt;script&gt;</code></blockquote>');
   });
 });

@@ -22,10 +22,11 @@ export const telegramCapabilities: ChannelCapabilities = {
 };
 
 type TelegramFormattingEntity = {
-  type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url';
+  type: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'text_url' | 'code' | 'pre' | 'blockquote';
   offset: number;
   length: number;
   url?: string;
+  language?: string;
 };
 
 type TelegramReplyMarkup = {
@@ -38,6 +39,9 @@ const formattingEntityTypes = new Set<TelegramFormattingEntity['type']>([
   'underline',
   'strikethrough',
   'text_url',
+  'code',
+  'pre',
+  'blockquote',
 ]);
 
 function getTelegramBridge(): Window['telegram'] | undefined {

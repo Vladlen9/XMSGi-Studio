@@ -95,13 +95,17 @@ export type RichTextEntityType =
   | 'italic'
   | 'underline'
   | 'strikethrough'
-  | 'text_url';
+  | 'text_url'
+  | 'code'
+  | 'pre'
+  | 'blockquote';
 
 export interface RichTextEntity {
   type: RichTextEntityType;
   offset: number;
   length: number;
   url?: string;
+  language?: string;
 }
 
 export interface InlineButton {

@@ -107,13 +107,22 @@ describe('QuickPlanner feedback', () => {
       entities: [{ type: 'bold' as const, offset: 0, length: 8 }],
       restoreDraft: { text: '', attachments: [], entities: [] },
     };
+    const onOpenInStudio = vi.fn();
     const view = render(<QuickPlanner />, 'Send now');
-    view.rerender(createElement(LocaleProvider, null, <QuickPlanner draftLoadRequest={request} />));
+    view.rerender(createElement(LocaleProvider, null, <QuickPlanner draftLoadRequest={request} onOpenInStudio={onOpenInStudio} />));
 
     expect(view.container.querySelector<HTMLTextAreaElement>('.quick-planner-message')?.value)
       .toBe('Continue editing this saved draft');
     expect(view.container.querySelector('.quick-planner-attachment-name')).toHaveTextContent('photo.png');
     expect(readPlannerDraftAttachments()).toEqual(['C:/drafts/photo.png']);
+    expect(readPlannerDraftEntities()).toEqual(request.entities);
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open in Studio' }));
+    expect(onOpenInStudio).toHaveBeenCalledWith({
+      text: request.text,
+      attachments: request.attachments,
+      entities: request.entities,
+    });
   });
 
   it('restores the previous Planner draft after successfully sending a selected Posts draft', async () => {
@@ -133,7 +142,7 @@ describe('QuickPlanner feedback', () => {
           revision: 1,
           text: 'Selected Posts draft',
           attachments: ['C:/posts/selected.png'],
-          entities: [],
+          entities: [{ type: 'bold' as const, offset: 0, length: 8 }],
           restoreDraft,
         }}
         onRestoreDraft={onRestoreDraft}
@@ -148,7 +157,13 @@ describe('QuickPlanner feedback', () => {
       await Promise.resolve();
     });
 
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', ['C:/posts/selected.png'], undefined);
+    expect(onSendNow).toHaveBeenCalledWith(
+      chat,
+      'Selected Posts draft',
+      ['C:/posts/selected.png'],
+      undefined,
+      [{ type: 'bold', offset: 0, length: 8 }],
+    );
     expect(editor).toHaveValue('');
     expect(container.querySelector('.quick-planner-attachment-name')).not.toBeInTheDocument();
     expect(readPlannerDraft()).toBe('');
@@ -202,7 +217,7 @@ describe('QuickPlanner feedback', () => {
       await Promise.resolve();
     });
 
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', undefined, undefined);
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Selected Posts draft', undefined, undefined, []);
     expect(editor).toHaveValue('');
     expect(onRestoreDraft).toHaveBeenCalledWith(null);
     expect(screen.getByRole('status')).toHaveTextContent('Message sent.');
@@ -1104,7 +1119,7 @@ describe('QuickPlanner feedback', () => {
       fireEvent.click(submit());
       await Promise.resolve();
     });
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Send from Planner', ['C:/photos/send.png'], '111');
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Send from Planner', ['C:/photos/send.png'], '111', []);
     expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('status')).toHaveClass('is-success');
@@ -1132,6 +1147,7 @@ describe('QuickPlanner feedback', () => {
       time: expect.any(String),
       attachments: ['C:/photos/schedule.png'],
       effect: '222',
+      entities: [],
     }));
     expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Message effects' })).toHaveAttribute('aria-pressed', 'false');
@@ -1145,7 +1161,7 @@ describe('QuickPlanner feedback', () => {
       fireEvent.click(submit());
       await Promise.resolve();
     });
-    expect(onSaveDraft).toHaveBeenCalledWith({ message: 'Save from Planner', attachments: [] });
+    expect(onSaveDraft).toHaveBeenCalledWith({ message: 'Save from Planner', attachments: [], entities: [] });
     expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent('Draft saved.');
     expect(screen.getByRole('status')).not.toHaveTextContent('Posts');
@@ -1181,7 +1197,7 @@ describe('QuickPlanner feedback', () => {
     addPhoto('failed-send.png');
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep this send', ['C:/photos/failed-send.png'], undefined);
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep this send', ['C:/photos/failed-send.png'], undefined, []);
     expect(editor).toHaveValue('Keep this send');
     expect(screen.getByText('failed-send.png')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Message was not sent.');
@@ -1215,7 +1231,7 @@ describe('QuickPlanner feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
 
-    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep confirmed message', undefined, undefined);
+    expect(onSendNow).toHaveBeenCalledWith(chat, 'Keep confirmed message', undefined, undefined, []);
     expect(editor).toHaveValue('Keep confirmed message');
     expect(screen.getByRole('status')).toHaveClass('is-warning');
     expect(screen.getByRole('status')).toHaveTextContent('Message history could not be saved.');
@@ -1561,6 +1577,7 @@ describe('QuickPlanner feedback', () => {
       message: 'Schedule one minute from now',
       date: '2026-10-19',
       time: '10:11',
+      entities: [],
     });
   });
 

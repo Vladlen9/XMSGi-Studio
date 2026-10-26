@@ -188,9 +188,15 @@ function validateHistoryPayload(value) {
     invalidInput('history limit has an invalid range');
   }
 
+  const offsetId = value.offsetId;
+  if (offsetId !== undefined && (!Number.isSafeInteger(offsetId) || offsetId < 1 || offsetId > 2147483647)) {
+    invalidInput('history offset has an invalid range');
+  }
+
   return {
     chatId: validateChatId(value.chatId),
-    limit
+    limit,
+    ...(offsetId === undefined ? {} : { offsetId })
   };
 }
 

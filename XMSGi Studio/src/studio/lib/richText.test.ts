@@ -48,6 +48,17 @@ describe('markdownToRichText', () => {
     });
   });
 
+  it('converts inline and language-tagged code Markdown into Telegram entities', () => {
+    expect(markdownToRichText('Use `value`.\n```ts\nconst value = 1;\n```')).toMatchObject({
+      text: 'Use value.\nconst value = 1;\n',
+      entities: [
+        { type: 'code', offset: 4, length: 5 },
+        { type: 'pre', offset: 11, length: 17, language: 'ts' },
+      ],
+      changed: true,
+    });
+  });
+
   it('preserves existing HTML entities while parsing Markdown', () => {
     const root = document.createElement('div');
     root.innerHTML = '<strong>HTML</strong> **Markdown** <em>курсив</em>';
@@ -80,5 +91,14 @@ describe('richTextToHtml message normalization', () => {
   it('removes invisible characters and keeps formatting aligned in previews', () => {
     expect(richTextToHtml('A\u200BB', [{ type: 'bold', offset: 2, length: 1 }]))
       .toBe('A<strong>B</strong>');
+  });
+
+  it('renders Telegram code blocks and quotes without exposing markup', () => {
+    expect(richTextToHtml('A < B\nC', [
+      { type: 'pre', offset: 0, length: 7, language: 'ts' },
+    ])).toBe('<pre><code class="language-ts">A &lt; B\nC</code></pre>');
+    expect(richTextToHtml('quoted', [
+      { type: 'blockquote', offset: 0, length: 6 },
+    ])).toBe('<blockquote>quoted</blockquote>');
   });
 });

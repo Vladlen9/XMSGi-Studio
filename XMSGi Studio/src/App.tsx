@@ -7,7 +7,7 @@ import type { StudioPlannerTextPayload } from '@shared/bridge';
 
 import { AppShell, StudioMount } from './workspace';
 import { useLocale } from '@/lib/i18n';
-import { hasPlannerPayloadContent } from './workspace/plannerText';
+import { getPlannerAttachmentPaths, hasPlannerPayloadContent } from './workspace/plannerText';
 import { getPlannerSurface } from './workspace/plannerSurface';
 import { normalizePlannerDraft, normalizeSavedPlannerDraft, normalizeScheduledMessages } from './workspace/historyModel';
 import type { HistoryItem, HistorySource } from './workspace/historyModel';
@@ -41,7 +41,7 @@ import {
   persistProductView,
   type ProductView,
 } from './lib/productView';
-import { getDraftStorageApi, SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
+import { updateSavedStudioDrafts } from '@studio/lib/draftStore';
 import { appStateReducer, createInitialAppState, createMessageSession, type AppRoute } from './appState';
 
 function getCurrentHashPath(): AppRoute {
@@ -537,29 +537,35 @@ function AppContent() {
     else handlePersonalClearSent();
   };
 
+  const clearActivePlannerDraft = () => {
+    writePlannerDraft('', [], []);
+    if (!flushPlannerDraftWrite()) return false;
+    setMessage('');
+    setMessageEntities([]);
+    setPlannerAttachments([]);
+    setPlannerDraftLoadRequest((current) => ({
+      revision: (current?.revision ?? 0) + 1,
+      text: '',
+      attachments: [],
+      entities: [],
+      restoreDraft: null,
+    }));
+    return true;
+  };
+
   const clearHistoryDrafts = async (source: HistorySource | 'all') => {
     if (source === 'all' || source === 'workspace') {
       const studioDraftClearer = studioDraftClearerRef.current;
       if (studioDraftClearer) {
         if (!await studioDraftClearer()) return false;
       } else {
-        const draftStorage = getDraftStorageApi();
-        if (!draftStorage) return false;
-        try {
-          const loaded = await draftStorage.load();
-          if (!loaded.success || !loaded.store) return false;
-          const saved = await draftStorage.save({ ...loaded.store, savedDrafts: [] });
-          if (!saved.success) return false;
-        } catch {
-          return false;
-        }
+        const cleared = await updateSavedStudioDrafts(() => []);
+        if (!cleared) return false;
       }
     }
     if (source === 'all' || source === 'personal') {
+      if (!clearActivePlannerDraft()) return false;
       if (!writeSavedPlannerDrafts([])) return false;
-      setMessage('');
-      setMessageEntities([]);
-      setPlannerAttachments([]);
     }
     return true;
   };
@@ -574,18 +580,21 @@ function AppContent() {
     return results.every(Boolean);
   };
 
+  const deleteSavedStudioDraft = async (draftId: string): Promise<boolean> => {
+    const registeredDelete = studioDraftDeleterRef.current;
+    if (registeredDelete) return registeredDelete(draftId);
+    return updateSavedStudioDrafts((drafts) => drafts.filter((draft) => draft.id !== draftId));
+  };
+
   const deleteHistoryRecord = (record: HistoryItem): void | Promise<boolean> => {
-    if (record.original.kind === 'saved-draft') return studioDraftDeleterRef.current?.(record.original.draft.id);
+    if (record.original.kind === 'saved-draft') return deleteSavedStudioDraft(record.original.draft.id);
     if (record.original.kind === 'saved-planner-draft') {
       const savedDraftId = record.original.draft.id;
       const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
       return Promise.resolve(writeSavedPlannerDrafts(remainingDrafts));
     }
     if (record.original.kind === 'planner-draft') {
-      setMessage('');
-      setMessageEntities([]);
-      setPlannerAttachments([]);
-      return Promise.resolve(true);
+      return Promise.resolve(clearActivePlannerDraft());
     }
     const message = record.original.message;
     const normalizedChatName = message.chatName.trim().toLocaleLowerCase();
@@ -667,12 +676,15 @@ function AppContent() {
         : record.original.kind === 'saved-draft'
           ? {
             text: record.original.draft.body,
-            attachments: (record.original.draft.attachments ?? []).flatMap((attachment) => {
-              const path = attachment.sourcePath ?? attachment.path;
-              return path ? [path] : [];
-            }),
+            attachments: getPlannerAttachmentPaths(record.original.draft.attachments ?? []),
             entities: record.original.draft.entities ?? [],
           }
+          : record.original.kind === 'scheduled'
+            ? {
+              text: record.original.message.text,
+              attachments: record.original.message.attachments ?? [],
+              entities: record.original.message.entities ?? [],
+            }
           : null;
     if (!plannerPayload) return false;
 
@@ -692,8 +704,11 @@ function AppContent() {
       });
     }
 
+    if (!flushPlannerDraftWrite()) {
+      showNotification(t('quickPlanner.couldNotSaveDraft'), 'error', 'Posts');
+      return false;
+    }
     setProductView('planner');
-    flushPlannerDraftWrite();
     const currentDraft = {
       text: readPlannerDraft(),
       attachments: readPlannerDraftAttachments(),
@@ -718,28 +733,7 @@ function AppContent() {
       const isStudioDraft = record.original.kind === 'saved-draft';
       const savedDraftId = record.original.draft.id;
       if (isStudioDraft) {
-        let removed = false;
-        const deleteDraft = studioDraftDeleterRef.current;
-        if (deleteDraft) {
-          removed = await deleteDraft(savedDraftId);
-        } else {
-          const draftStorage = getDraftStorageApi();
-          if (draftStorage) {
-            try {
-              const loaded = await draftStorage.load();
-              if (loaded.success && loaded.store) {
-                const saved = await draftStorage.save({
-                  ...loaded.store,
-                  savedDrafts: loaded.store.savedDrafts.filter((draft) => draft.id !== savedDraftId),
-                });
-                removed = saved.success;
-                if (removed) window.dispatchEvent(new Event(SAVED_STUDIO_DRAFTS_UPDATED_EVENT));
-              }
-            } catch (error) {
-              console.error('Failed to remove a used Studio draft from Posts.', error);
-            }
-          }
-        }
+        const removed = await deleteSavedStudioDraft(savedDraftId);
         if (!removed) showNotification(t('studio.draftsCouldNotSave'), 'error', 'Studio');
       } else {
         const remainingDrafts = readSavedPlannerDrafts().filter(({ id }) => id !== savedDraftId);
@@ -1063,11 +1057,11 @@ function AppContent() {
               connectionRecoveryStatus={connectionRecoveryStatus}
               onSelectChat={setSelectedChat}
               onRemoveChat={handleRemoveChat}
-              onSendNow={(chat, text, attachments, effect) => handlePersonalSendDraftNow(
+              onSendNow={(chat, text, attachments, effect, entities) => handlePersonalSendDraftNow(
                 chat,
                 text,
                 attachments ?? [],
-                [],
+                entities ?? [],
                 undefined,
                 false,
                 effect,
@@ -1080,13 +1074,13 @@ function AppContent() {
                   waitForConfirmation: true,
                 }) === true
               )}
-              onSaveDraft={({ message: draftMessage, attachments }) => writeSavedPlannerDrafts([
+              onSaveDraft={({ message: draftMessage, attachments, entities }) => writeSavedPlannerDrafts([
                 ...readSavedPlannerDrafts(),
                 {
                   id: crypto.randomUUID(),
                   message: draftMessage,
                   attachments,
-                  entities: [],
+                  entities,
                   reminderType: null,
                   savedAt: new Date().toISOString(),
                 },
