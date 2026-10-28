@@ -439,11 +439,16 @@ describe('Posts page split view', () => {
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*border-color:\s*rgba\(126, 169, 191, 0\.3\);[^}]*background:\s*linear-gradient\(145deg,\s*rgba\(39, 61, 73, 0\.94\),\s*rgba\(23, 36, 47, 0\.98\)\);[^}]*box-shadow:\s*inset 0 1px 0 rgba\(224, 240, 248, 0\.06\), 0 8px 22px rgba\(0, 0, 0, 0\.14\);/);
   });
 
-  it('matches selected Posts records to the muted draft-row style', () => {
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*transparent;\s*box-shadow:\s*none;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{\s*background:\s*#8b929a;\s*box-shadow:\s*none;\s*opacity:\s*0;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*transparent;\s*box-shadow:\s*none;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{\s*background:\s*#8b929a;\s*box-shadow:\s*none;\s*opacity:\s*0;/);
+  it('clearly marks the selected Posts record in both themes', () => {
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected\s*\{\s*border-color:\s*transparent;[\s\S]*?border-bottom-color:[^;]+;[\s\S]*?background:\s*linear-gradient/);
+    expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane \.history-record-list\s*\{\s*padding-right:\s*0;\s*padding-left:\s*0;\s*scrollbar-gutter:\s*auto;\s*scrollbar-width:\s*none;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-content\.is-page \.history-record,\s*\.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-draft\[data-draft-color\]\s*\{\s*padding:\s*3px 23px 3px 8px;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,[\s\S]*?border-color:\s*transparent;[\s\S]*?border-right-color:\s*rgba\(170, 184, 194, 0\.3\);[\s\S]*?border-left-color:\s*rgba\(170, 184, 194, 0\.3\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*linear-gradient\(90deg, rgba\(154, 168, 184, 0\.16\), rgba\(154, 168, 184, 0\.045\) 88%, transparent\);[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(170, 184, 194, 0\.1\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{[^}]*width:\s*3px;[^}]*background:\s*#aab8c2;[^}]*opacity:\s*1;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*linear-gradient\(90deg, rgba\(71, 124, 158, 0\.12\), rgba\(71, 124, 158, 0\.035\) 88%, transparent\);[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(71, 124, 158, 0\.1\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,[\s\S]*?border-color:\s*transparent;[\s\S]*?border-right-color:\s*rgba\(71, 124, 158, 0\.32\);[\s\S]*?border-left-color:\s*rgba\(71, 124, 158, 0\.32\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{[^}]*width:\s*3px;[^}]*background:\s*#477c9e;[^}]*opacity:\s*1;/);
   });
 
   it('does not apply hover gradients to Posts rows in either theme', () => {
@@ -528,6 +533,7 @@ describe('Posts page split view', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
   describe('Posts preview modes', () => {
     beforeEach(() => {
       vi.mocked(telegramGetChatHistory).mockReset();
@@ -552,6 +558,7 @@ describe('Posts page split view', () => {
       expect(telegramGetChatHistory).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
       expect(container.querySelector('.history-detail-body')).toHaveClass('is-preview');
       expect(container.querySelector('.history-post-text strong')).toHaveTextContent('Bold');
       expect(container.querySelector('.history-detail-header')).toHaveClass('is-preview-open');
@@ -641,6 +648,7 @@ describe('Posts page split view', () => {
         message: 'Saved Planner draft post',
         attachments: [],
         entities: [],
+        selectedChat: channel,
         reminderType: null,
         savedAt: '2026-09-29T16:30:00.000Z',
       });
@@ -695,36 +703,6 @@ describe('Posts page split view', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Decrease post text size' }));
       expect(detailBody.scrollTop).toBe(220);
       expect(detailBody).toHaveAttribute('data-text-size', 'small');
-    });
-
-    it('loads limited chat context for scheduled records with Telegram message anchors', async () => {
-      vi.mocked(telegramGetChatHistory).mockResolvedValueOnce({
-        success: true,
-        history: {
-          chat: { id: 'chat-1', title: 'XMSGi Updates', type: 'channel' },
-          messages: [{
-            id: '566',
-            text: 'Предыдущая реальная публикация',
-            date: '2026-09-29T16:30:00.000Z',
-            outgoing: false,
-          }],
-        },
-      });
-      const { container } = renderHistoryPage([anchoredSentRecord]);
-      fireEvent.click(container.querySelector('.history-record-open')!);
-
-      fireEvent.click(screen.getByRole('button', { name: 'More' }));
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Chat Preview' }));
-
-      await waitFor(() => expect(screen.getByText('Предыдущая реальная публикация')).toBeInTheDocument());
-      expect(telegramGetChatHistory).toHaveBeenCalledWith({
-        chatId: 'chat-1',
-        limit: 12,
-        offsetId: 567,
-      });
-      expect(container.querySelector('.history-detail-body')).toHaveClass('is-chat');
-      expect(container.querySelector('.history-chat-preview-current'))
-        .toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
     });
   });
 
@@ -814,6 +792,9 @@ describe('Posts page split view', () => {
       /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\) \.history-detail-tool-icon,[\s\S]*?\.history-detail-tool-button\[aria-expanded='true'\] \.history-detail-tool-icon\s*\{[^}]*border-radius:\s*10px;[^}]*border-color:\s*#b5cbd5;[^}]*background:\s*linear-gradient\(/,
     );
     expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:hover:not\(:disabled\),\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button:focus-visible,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-button\[aria-expanded='true'\]\s*\{\s*color:\s*#315a6b;/,
+    );
+    expect(colorThemeStyles).toMatch(
       /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*border-color:\s*#e3eaee;/,
     );
     expect(colorThemeStyles).toMatch(
@@ -832,10 +813,10 @@ describe('Posts page split view', () => {
       /\.history-drawer\.is-page \.history-delete-button::before,\s*\.history-drawer\.is-page \.history-export-button::before\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px;[^}]*border-radius:\s*10px;[^}]*background:\s*transparent;/,
     );
     expect(colorThemeStyles).toMatch(
-      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover::before,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible::before\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(155deg,/,
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover:not\(:disabled\)::before,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible::before\s*\{[^}]*border-color:\s*rgba\(154,\s*183,\s*202,\s*0\.49\);[^}]*background:\s*linear-gradient\(155deg,/,
     );
     expect(colorThemeStyles).toMatch(
-      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover,[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover:not\(:disabled\),[\s\S]*?html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-export-button:focus-visible\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/,
     );
   });
 
@@ -912,6 +893,26 @@ describe('Posts page split view', () => {
       expect(statusFilters.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByText('Nothing in this category yet')).toBeInTheDocument();
+    expect(container.querySelector('[data-history-filter="scheduled"] .history-filter-count')).toHaveClass('is-zero');
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Nothing to review yet');
+    expect(container.querySelector('.history-detail-empty p')).toHaveTextContent('Posts matching the selected category and source will appear here.');
+  });
+
+  it('keeps the Posts page full-height when switching between empty categories', () => {
+    const { container } = renderHistoryPage([]);
+    const statusFilters = container.querySelector<HTMLDivElement>('.history-status-filters')!;
+
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/,
+    );
+
+    for (const category of ['scheduled', 'sent', 'drafts']) {
+      const tab = statusFilters.querySelector<HTMLButtonElement>(`[data-history-filter="${category}"]`)!;
+      fireEvent.click(tab);
+      expect(tab).toHaveAttribute('aria-selected', 'true');
+      expect(container.querySelector('.history-drawer.is-page')).toBeInTheDocument();
+      expect(screen.getByText('Nothing in this category yet')).toBeInTheDocument();
+    }
   });
 
   it('anchors Posts below the topbar and preserves bottom dock alignment', () => {
@@ -981,7 +982,7 @@ describe('Posts page split view', () => {
     vi.setSystemTime(new Date('2026-09-28T12:00:00.000Z'));
     try {
       const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
-      const header = container.querySelector<HTMLDivElement>('.history-drawer-header')!;
+      const pageHeader = container.querySelector<HTMLDivElement>('.history-drawer-header')!;
       const listPane = container.querySelector<HTMLDivElement>('.history-list-pane')!;
       const statusFilters = listPane.querySelector<HTMLDivElement>('.history-status-filters')!;
       const statusSection = listPane.querySelector<HTMLDivElement>('.history-list-status-section')!;
@@ -995,12 +996,28 @@ describe('Posts page split view', () => {
       const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
       const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
 
-      expect(header).toContainElement(container.querySelector('.history-page-close'));
       expect(container.querySelector('.history-drawer-controls')).toBeNull();
+      expect(container.querySelector('.history-page-controls-close')).toBeNull();
+      expect(pageHeader.querySelectorAll('.history-drawer-close')).toHaveLength(1);
       expect(listPane).toContainElement(statusFilters);
       expect(statusSection).toContainElement(statusFilters);
-      expect(globalStyles).toMatch(
-        /@media \(min-width:\s*1121px\)\s*\{[\s\S]*?\.history-list-status-heading > \.history-status-filters\s*\{\s*flex:\s*1 1 auto;[\s\S]*?\.history-list-status-section \.history-status-filters\s*\{[^}]*justify-content:\s*space-between;[^}]*gap:\s*0;/,
+      expect(colorThemeStyles).toMatch(
+        /@media \(min-width:\s*1121px\)\s*\{[\s\S]*?\.history-drawer\.is-page \.history-list-status-heading > \.history-status-filters\s*\{\s*width:\s*max-content;[^}]*flex:\s*0 1 auto;[\s\S]*?\.history-drawer\.is-page \.history-list-status-section \.history-status-filters\s*\{\s*justify-content:\s*flex-start;[^}]*gap:\s*4px;[\s\S]*?\.history-drawer\.is-page \.history-list-status-section \.history-status-tab\s*\{\s*flex:\s*0 0 auto;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\s*\{[^}]*font-size:\s*12px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab \.history-filter-count\s*\{[^}]*font-size:\s*11px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab \.history-filter-count\s*\{[^}]*font-size:\s*11px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab \.history-filter-count\.is-zero\s*\{[^}]*color:\s*#687b82;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab \.history-filter-count\.is-zero\s*\{[^}]*color:\s*#87969d;/,
       );
       expect(globalStyles).toMatch(
         /\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto;[^}]*gap:\s*20px;/,
@@ -1030,6 +1047,7 @@ describe('Posts page split view', () => {
       expect(globalStyles).not.toMatch(/\.history-list-status-section \.history-status-tab::before/);
       expect(colorThemeStyles).not.toMatch(/\.history-list-status-section \.history-status-tab(?::not\(\.is-active\))?:(?:hover|focus-visible)::before/);
       expect(statusSection.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(pageHeader.compareDocumentPosition(statusSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(tools).toContainElement(searchDock);
       expect(searchDock.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1055,8 +1073,8 @@ describe('Posts page split view', () => {
       expect(sourceRow).toContainElement(sourceSection);
       expect(statusHeading.compareDocumentPosition(sourceRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(detailPanel).not.toContainElement(sourceFilters);
-      expect(header).toBeInTheDocument();
-      expect(sourceSection.querySelector('.history-list-source-label')).toHaveTextContent('Section');
+      expect(pageHeader).toBeInTheDocument();
+      expect(sourceSection.querySelector('.history-list-source-label')).toHaveTextContent('Source');
       expect(sourceSection.querySelector('.history-source-select')).toHaveTextContent('All');
       expect(statusHeading).toHaveTextContent('Category');
       expect(statusHeading).toContainElement(statusFilters);
@@ -1073,7 +1091,6 @@ describe('Posts page split view', () => {
   });
 
   it('keeps the full list visible while showing the selected post details separately', async () => {
-    vi.mocked(telegramGetChatHistory).mockClear();
     const secondRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'scheduled-studio-2',
@@ -1169,6 +1186,99 @@ describe('Posts page split view', () => {
       expect(within(actionsMenu).getByRole('menuitem', { name: 'Send now' })).toBeInTheDocument();
       expect(within(actionsMenu).getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument();
     } finally {
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
+  it('copies a single photo with the post text, but copies only text for multiple photos', async () => {
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const write = vi.fn().mockResolvedValue(undefined);
+    class MockClipboardItem {
+      constructor(public readonly items: Record<string, Blob>) {}
+    }
+    vi.stubGlobal('ClipboardItem', MockClipboardItem);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText, write },
+    });
+
+    try {
+      const singlePhoto = normalizePlannerDraft(
+        'Post with one photo',
+        null,
+        '2026-10-25T10:00:00.000Z',
+        [],
+        ['data:image/png;base64,aW1hZ2U='],
+      )!;
+      const singleView = renderHistoryPage([singlePhoto]);
+      fireEvent.click(singleView.container.querySelector('.history-record-open')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+
+      await waitFor(() => expect(write).toHaveBeenCalledOnce());
+      const clipboardItem = write.mock.calls[0][0][0] as MockClipboardItem;
+      expect(clipboardItem.items['image/png']).toBeInstanceOf(Blob);
+      expect(await clipboardItem.items['text/plain'].text()).toBe('Post with one photo');
+      expect(writeText).not.toHaveBeenCalled();
+
+      singleView.unmount();
+      const multiplePhotos = normalizePlannerDraft(
+        'Post with multiple photos',
+        null,
+        '2026-10-25T10:00:00.000Z',
+        [],
+        ['data:image/png;base64,aW1hZ2U=', 'data:image/png;base64,b3RoZXI='],
+      )!;
+      const multipleView = renderHistoryPage([multiplePhotos]);
+      fireEvent.click(multipleView.container.querySelector('.history-record-open')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('Post with multiple photos'));
+      expect(write).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+      if (clipboardDescriptor) {
+        Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
+      } else {
+        Reflect.deleteProperty(navigator, 'clipboard');
+      }
+    }
+  });
+
+  it('falls back to copying the post text when copying a single photo fails', async () => {
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const write = vi.fn().mockRejectedValue(new Error('Image clipboard is unavailable.'));
+    class MockClipboardItem {
+      constructor(public readonly items: Record<string, Blob>) {}
+    }
+    vi.stubGlobal('ClipboardItem', MockClipboardItem);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText, write },
+    });
+
+    try {
+      const draft = normalizePlannerDraft(
+        'Keep this text even if the image fails',
+        null,
+        '2026-10-25T10:00:00.000Z',
+        [],
+        ['data:image/png;base64,aW1hZ2U='],
+      )!;
+      const { container } = renderHistoryPage([draft]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+      const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+      fireEvent.click(within(toolbar).getByRole('button', { name: 'Copy' }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(draft.text));
+      expect(within(toolbar).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
       if (clipboardDescriptor) {
         Object.defineProperty(navigator, 'clipboard', clipboardDescriptor);
       } else {
@@ -1412,6 +1522,7 @@ describe('history filter selected states', () => {
       /html\[data-theme='light'\] \.history-drawer\.is-page \.history-record-error-preview\s*\{\s*color:\s*#8f211b;\s*font-size:\s*13px;\s*font-weight:\s*600;/,
     );
   });
+
   it('keeps the global search hint while changing categories', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     window.localStorage.setItem('awaitmsg_locale', 'ru');
@@ -2324,7 +2435,6 @@ describe('HistoryDrawer search', () => {
   });
 
   it('shows failed retry rows in the dedicated Errors category', () => {
-
     const failedRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-compact-row',
@@ -2596,7 +2706,7 @@ describe('HistoryDrawer search', () => {
     selectHistoryErrors();
     fireEvent.click(container.querySelector('.history-record-open')!);
 
-    const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+    const toolbar = container.querySelector<HTMLElement>('.history-detail-toolbar')!;
     expect(within(toolbar).getAllByRole('button')).toHaveLength(2);
     expect(within(toolbar).getByRole('button', { name: 'Открыть в редакторе' })).toBeInTheDocument();
     expect(within(toolbar).getByRole('button', { name: 'Ещё' })).toBeInTheDocument();
@@ -3165,7 +3275,26 @@ describe('HistoryDrawer search', () => {
     expect(screen.queryByRole('button', { name: 'Отменить все запланированные' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Удалить историю отправленных' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Удалить черновики' })).not.toBeInTheDocument();
-    expect(container.querySelector<HTMLButtonElement>('.history-delete-button')).toBeDisabled();
+    expect(container.querySelector('.history-delete-button')).toBeDisabled();
+    expect(container.querySelector('.history-export-button')).toBeEnabled();
+  });
+
+  it('keeps delete and export buttons visible but disabled when history is empty', () => {
+    const { container } = renderHistory([]);
+
+    expect(container.querySelector('.history-delete-button')).toBeInTheDocument();
+    expect(container.querySelector('.history-delete-button')).toBeDisabled();
+    expect(container.querySelector('.history-export-button')).toBeInTheDocument();
+    expect(container.querySelector('.history-export-button')).toBeDisabled();
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-delete-button:disabled\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*color:\s*#697984;[^}]*opacity:\s*0\.75;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-delete-button:disabled\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*color:\s*#8496a1;[^}]*opacity:\s*0\.75;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:disabled:hover::before,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:disabled:hover::before\s*\{\s*border-color:\s*transparent;\s*background:\s*rgba\(100,\s*112,\s*121,\s*0\.18\);\s*box-shadow:\s*none;/,
+    );
   });
 
   it('labels the Posts delete and export icons without changing other drawer actions', () => {
@@ -3667,6 +3796,41 @@ describe('HistoryDrawer search', () => {
     expect(bubble?.querySelector('.history-post-text')).toHaveTextContent('A caption below the photo');
   });
 
+  it('loads local JFIF attachments for the Posts list and details view', async () => {
+    const originalDraftStorage = Object.getOwnPropertyDescriptor(window, 'draftStorage');
+    const readImageDataUrl = vi.fn().mockResolvedValue({
+      success: true,
+      dataUrl: 'data:image/jpeg;base64,dGVzdA==',
+    });
+    Object.defineProperty(window, 'draftStorage', {
+      configurable: true,
+      value: { load: vi.fn(), readImageDataUrl },
+    });
+    const imagePath = 'file:///C:/Users/malod/AppData/Local/XMSGi-Workspace-Agent/drafts/OIP%20(1).jfif';
+    const imageRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      attachments: [imagePath],
+    }], 'workspace', 'upcoming', [channel])[0];
+
+    try {
+      const view = renderHistoryPage([imageRecord]);
+      await waitFor(() => expect(readImageDataUrl).toHaveBeenCalledWith(
+        'C:/Users/malod/AppData/Local/XMSGi-Workspace-Agent/drafts/OIP (1).jfif',
+      ));
+      await waitFor(() => expect(
+        view.container.querySelector('.history-record-attachment-image img'),
+      ).toHaveAttribute('src', 'data:image/jpeg;base64,dGVzdA=='));
+      fireEvent.click(view.container.querySelector('.history-record-open')!);
+      expect(view.container.querySelector('.history-post-attachments img')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,dGVzdA==',
+      );
+    } finally {
+      if (originalDraftStorage) Object.defineProperty(window, 'draftStorage', originalDraftStorage);
+      else Reflect.deleteProperty(window, 'draftStorage');
+    }
+  });
+
   it('does not repeat a chat name below an identical message title', () => {
     const savedMessagesRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
@@ -3703,7 +3867,7 @@ describe('HistoryDrawer search', () => {
       const fullSizeImage = screen.getByRole('img', { name: 'launch-image.png' });
       fireEvent.pointerEnter(fullSizeImage);
       act(() => vi.advanceTimersByTime(600));
-      expect(document.body.querySelector('.message-attachment-preview img')).toHaveAttribute('src', 'file:///C:/files/launch-image.png');
+      expect(document.body.querySelector('.message-attachment-preview')).toBeNull();
     } finally {
       vi.useRealTimers();
     }

@@ -8,3 +8,4 @@ XMSGi Studio/release-working-*/
 *.tsbuildinfo
 Studio/Studio module/node_modules/
 Studio/Studio module/dist/
+/Stands/

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.3.6 - 2026-10-28
+
+### Improvements
+
+- Highlight the selected post while its full details are open in Posts.
+- Use a version-free Windows download name: `XMSGi Studio.exe`.
+- Refresh the website gallery and repository screenshots.
+
 ## 1.3.0 - 2026-10-24
 
 ### Highlights

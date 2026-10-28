@@ -1,7 +1,7 @@
 # Архитектура XMSGi Studio
 
 Техническое описание приложения для разработчиков.
-Соответствует версии **1.3.5**.
+Соответствует версии **1.3.6**.
 
 ---
 
@@ -158,7 +158,7 @@ Quick Planner использует personal scope планировщика. Stud
 `StudioMount` host-owned scheduler с workspace scope. `HistoryDrawer` показывает
 запланированные и отправленные записи обоих scope вместе с текущими и сохранёнными
 Planner-черновиками и сохранёнными Studio-документами. Planner-черновик можно
-восстановить в Planner или передать в Studio.
+передать в Studio.
 
 ### 4.2 Studio (`src/studio/`)
 

@@ -640,6 +640,43 @@ describe('ChatPreviewStand wallpaper picker', () => {
     }
   });
 
+  it('keeps the latest draft text visible as it grows in the live preview', () => {
+    const { previewFeedRef, rerender, unmount } = renderChatPreviewStand([], 'First line');
+    const feed = previewFeedRef.current as HTMLDivElement;
+    const draftBubble = feed.querySelector('.chat-preview-draft-bubble') as HTMLElement;
+    Object.defineProperty(feed, 'scrollHeight', { configurable: true, value: 1200 });
+    Object.defineProperty(feed, 'clientHeight', { configurable: true, value: 300 });
+    vi.spyOn(feed, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 100,
+      width: 320,
+      height: 300,
+      top: 100,
+      right: 320,
+      bottom: 400,
+      left: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    vi.spyOn(draftBubble, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 150,
+      width: 200,
+      height: 450,
+      top: 150,
+      right: 200,
+      bottom: 600,
+      left: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    try {
+      rerender('First line\n'.repeat(40));
+      expect(feed.scrollTop).toBe(50);
+    } finally {
+      unmount();
+    }
+  });
+
   it('keeps the external scrollbar active beside the phone preview', () => {
     const { container, previewFeedRef, unmount } = renderChatPreviewStand();
     const feed = previewFeedRef.current as HTMLDivElement;

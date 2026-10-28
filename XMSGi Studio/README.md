@@ -39,7 +39,7 @@ A desktop workspace for **writing, scheduling, and reviewing Telegram messages**
 - **Reschedule/cancel**: Easily adjust or cancel messages in the queue.
 
 ### ⚡ Studio first, Quick Planner for speed
-Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; Planner drafts can be continued in Studio and revisited in Posts/History.
+Studio is the main workspace for composing and organizing posts. Quick Planner handles fast sends, schedules, and drafts; Planner drafts can be continued in Studio and reviewed in Posts/History.
 
 ### 🌗 Themes & activity
 - Choose a light or dark theme for the entire app in Settings.
@@ -99,8 +99,8 @@ Full control over every post in the queue — right up to the moment it's sent.
 ## 🖼️ Screenshots
 
 <p align="center">
-  <img src="../screenshots/03.png" alt="Quick Planner composer" width="32%" />
-  <img src="../screenshots/02.png" alt="Telegram chat selection" width="32%" />
+  <img src="../screenshots/02.png" alt="Posts history and saved messages" width="32%" />
+  <img src="../screenshots/03.png" alt="Quick Planner composer and activity chart" width="32%" />
   <img src="../screenshots/05.png" alt="XMSGi Studio brand artwork" width="32%" />
 </p>
 
@@ -110,13 +110,13 @@ Full control over every post in the queue — right up to the moment it's sent.
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.3.5.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio.1.3.5.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.3.5.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.3.5_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/xmsgi-studio_1.3.5_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.5.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.5-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi Studio.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi%20Studio.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.3.6.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio-1.3.6.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.3.6_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/xmsgi-studio_1.3.6_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.6.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio-1.3.6.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.6-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio-1.3.6-arm64.dmg) |
 
-The v1.3.5 download links will work after the release and its platform packages are published.
+The v1.3.6 download links will work after the release and its platform packages are published.
 
 ### First launch on macOS
 
@@ -194,7 +194,7 @@ Full documentation lives in the [`docs/`](docs/README.md) directory:
 
 ## 🧪 Automated tests
 
-The v1.3.5 release-candidate run is verified with the project test suite before publication.
+The v1.3.6 release-candidate run is verified with the project test suite before publication.
 
 Validated with `npm test`, `npm run typecheck`, and `git diff --check`.
 

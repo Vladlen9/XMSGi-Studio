@@ -424,6 +424,43 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
       };
     },
 
+    readImageDataUrl(filePath) {
+      if (typeof filePath !== 'string' || !filePath.trim()) {
+        return { success: false, error: 'Image path is missing.' };
+      }
+
+      const mimeTypes = {
+        '.avif': 'image/avif',
+        '.gif': 'image/gif',
+        '.jpeg': 'image/jpeg',
+        '.jfif': 'image/jpeg',
+        '.jpg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+      };
+      const mimeType = mimeTypes[path.extname(filePath).toLowerCase()];
+      if (!mimeType) return { success: false, error: 'Image format is not supported for preview.' };
+
+      try {
+        const resolvedStore = fileSystem.realpathSync(storeDirectory);
+        const resolvedFile = fileSystem.realpathSync(path.resolve(filePath));
+        const relativePath = path.relative(resolvedStore, resolvedFile);
+        if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+          return { success: false, error: 'Image is outside the app attachment store.' };
+        }
+
+        const stats = fileSystem.statSync(resolvedFile);
+        if (!stats.isFile() || stats.size === 0 || stats.size > 50 * 1024 * 1024) {
+          return { success: false, error: 'Image size is not supported for preview.' };
+        }
+
+        const data = fileSystem.readFileSync(resolvedFile);
+        return { success: true, dataUrl: `data:${mimeType};base64,${data.toString('base64')}` };
+      } catch {
+        return { success: false, error: 'Image could not be read from the app attachment store.' };
+      }
+    },
+
     writeAttachment(name, data) {
       if (typeof name !== 'string' || !name.trim() || name.includes('\0')) {
         return { success: false, error: 'Attachment name is invalid.' };

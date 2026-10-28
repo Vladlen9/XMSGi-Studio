@@ -147,13 +147,13 @@ describe('QuickPlannerActivity', () => {
 
   it('uses a neutral selected state for Activity controls in dark theme', () => {
     expect(activityStyles).toMatch(
-      /\.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*rgba\(35, 157, 251, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
+      /\.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*rgba\(var\(--planner-accent-rgb, 71, 124, 158\), 0\.24\);[^}]*background:\s*rgba\(var\(--planner-accent-rgb, 71, 124, 158\), 0\.06\);[^}]*color:\s*var\(--planner-accent, #477c9e\);/,
     );
     expect(activityStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*#74828b;[^}]*background:\s*#354047;[^}]*color:\s*#f0f4f6;/,
     );
     expect(activityStyles).toMatch(
-      /\.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline:\s*1px solid rgba\(22, 118, 187, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
+      /\.quick-planner-activity-period-option\.is-active\s*\{[^}]*border:\s*1px solid rgba\(var\(--planner-accent-rgb, 71, 124, 158\), 0\.24\);[^}]*background:\s*rgba\(var\(--planner-accent-rgb, 71, 124, 158\), 0\.06\);[^}]*box-shadow:\s*0 1px 2px rgba\(35, 52, 66, 0\.06\);[^}]*color:\s*var\(--planner-accent, #477c9e\);/,
     );
     expect(activityStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner-activity-period-option\.is-active\s*\{[^}]*border-color:\s*#74828b;[^}]*background:\s*#354047;[^}]*color:\s*#f0f4f6;/,
@@ -171,6 +171,9 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*var\(--planner-accent,\s*#477c9e\);/,
     );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*var\(--planner-accent,\s*#477c9e\);/,
+    );
     expect(activityStyles).not.toMatch(
       /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*#78aec4;/,
     );
@@ -184,6 +187,7 @@ describe('QuickPlannerActivity', () => {
       /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-line\s*\{[^}]*rgba\(var\(--planner-accent-rgb,\s*71, 124, 158\), 0\.16\)/,
     );
   });
+
   it('shows seven weekly scale levels and keeps one level of headroom above the peak', () => {
     const sentAt = new Date(Date.now() - 60_000).toISOString();
     renderActivity(

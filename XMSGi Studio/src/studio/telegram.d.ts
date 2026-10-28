@@ -55,6 +55,7 @@ declare global {
       importText: () => Promise<DraftStorageResult>;
       copyAttachment: (file: File) => Promise<DraftStorageResult>;
       copyAttachmentPath: (path: string) => Promise<DraftStorageResult>;
+      readImageDataUrl: (path: string) => Promise<{ success: boolean; dataUrl?: string; error?: string }>;
     };
     telegram: {
       getConfig: () => Promise<{ success: boolean; config?: { hasCredentials?: boolean; apiId?: string; hasSession?: boolean; connected?: boolean }; error?: string }>;

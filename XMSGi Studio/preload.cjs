@@ -185,4 +185,5 @@ contextBridge.exposeInMainWorld('draftStorage', {
     });
   },
   copyAttachmentPath: (sourcePath) => ipcRenderer.invoke('draft-store:copy-attachment', sourcePath),
+  readImageDataUrl: (filePath) => ipcRenderer.invoke('draft-store:read-image', filePath),
 });

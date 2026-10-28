@@ -1893,6 +1893,28 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
+  it('selects a rich-editor line on a triple click and all text on a fourth click', () => {
+    const { editor, unmount } = renderRichTextEditor({ text: 'First line\nSecond line\nThird line' });
+    editor.textContent = 'First line\nSecond line\nThird line';
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(editor.firstChild!, 14);
+    range.setEnd(editor.firstChild!, 20);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    fireEvent.click(editor, { detail: 3 });
+
+    expect(selection?.toString()).toBe('Second line');
+    expect(selection?.rangeCount).toBe(1);
+
+    fireEvent.click(editor, { detail: 4 });
+    expect(selection?.toString()).toBe(editor.textContent);
+    expect(editor).toHaveAttribute('data-selection-start', '0');
+    expect(editor).toHaveAttribute('data-selection-end', String(editor.textContent?.length));
+    unmount();
+  });
+
   it('keeps ordinary plain-text paste working', () => {
     const onChange = vi.fn();
     const { editor, unmount } = renderRichTextEditor({ onChange });

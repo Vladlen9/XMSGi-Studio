@@ -171,6 +171,11 @@ export interface DraftStorageApi {
     attachment?: { name: string; path: string; size: number };
     error?: string;
   }>;
+  readImageDataUrl?: (path: string) => Promise<{
+    success: boolean;
+    dataUrl?: string;
+    error?: string;
+  }>;
   importText: () => Promise<{ success: boolean; cancelled?: boolean; text?: string; error?: string }>;
   exportText: (text: string, format?: 'txt' | 'json') => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
 }

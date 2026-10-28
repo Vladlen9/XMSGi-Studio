@@ -585,6 +585,32 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
             onOpenVersionHistory?.();
           }}
           onPaste={handlePaste}
+          onClick={(event) => {
+            const editor = editorRef.current;
+            const selection = window.getSelection();
+            if (!editor || !selection || event.detail < 3) return;
+            if (event.detail >= 4) {
+              const range = document.createRange();
+              range.selectNodeContents(editor);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            } else {
+              const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+              if (!currentRange) return;
+              const start = getNormalizedEditorTextOffset(editor, currentRange.startContainer, currentRange.startOffset);
+              const end = getNormalizedEditorTextOffset(editor, currentRange.endContainer, currentRange.endOffset);
+              if (start === null || end === null) return;
+
+              const editorText = editorHtmlToRichText(editor).text;
+              const position = Math.floor((start + end) / 2);
+              const lineStart = editorText.lastIndexOf('\n', Math.max(0, position - 1)) + 1;
+              const nextLineBreak = editorText.indexOf('\n', position);
+              const lineEnd = nextLineBreak === -1 ? editorText.length : nextLineBreak;
+              restoreTextSelection(lineStart, lineEnd);
+            }
+            saveSelection();
+            syncToolbarStateFromSelection();
+          }}
           onInput={() => {
             if (!isApplyingFormatRef.current) emitChange();
             scheduleToolbarStateSync();

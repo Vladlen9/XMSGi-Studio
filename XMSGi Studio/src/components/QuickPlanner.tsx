@@ -1,4 +1,4 @@
-import { type ChangeEvent, type CSSProperties, type DragEvent, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, type DragEvent, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Chat, RichTextEntity, ScheduledMessage } from '@/types';
 import { useLocale } from '@/lib/i18n';
 import { EmojiPickerPanel } from './EmojiPickerPanel';
@@ -34,12 +34,14 @@ import {
 import type { StudioPlannerTextPayload } from '@shared/bridge';
 import { createPortal } from 'react-dom';
 import { telegramGetFilePath } from '@/services/telegramAppService';
+import { getDraftStorageApi } from '@studio/lib/draftStore';
 import { loadFreeTelegramMessageEffects, type TelegramMessageEffect } from '@/lib/telegramMessageEffects';
 import { ChatAvatar } from '../studio/components/ChatAvatar';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 import { QuickPlannerActivity } from './QuickPlannerActivity';
 import {
   flushPlannerDraftWrite,
+  MAX_PLANNER_ATTACHMENTS,
   readPlannerDraft,
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
@@ -101,7 +103,7 @@ type QuickPlannerProps = {
   onOpenInStudio?: (payload: StudioPlannerTextPayload) => void;
   onSendNow?: (chat: Chat, message: string, attachments?: string[], effect?: string, entities?: RichTextEntity[]) => Promise<boolean | 'sent-history-failed'>;
   onSchedule?: (request: { chatId: string; message: string; date: string; time: string; attachments?: string[]; effect?: string; entities?: RichTextEntity[] }) => Promise<boolean | 'sent-history-failed'>;
-  onSaveDraft?: (draft: { message: string; attachments: string[]; entities: RichTextEntity[] }) => boolean;
+  onSaveDraft?: (draft: { message: string; attachments: string[]; entities: RichTextEntity[]; selectedChat: Chat | null }) => boolean;
   feedbackPreview?: QuickPlannerActionFeedback | null;
   connectionRecoveryStatus?: 'reconnecting' | 'offline' | null;
 };
@@ -146,7 +148,6 @@ function isFileDrag(dataTransfer: DataTransfer) {
 const scheduleTimeOptions = Array.from({ length: 96 }, (_, index) => (
   `${String(Math.floor(index / 4)).padStart(2, '0')}:${String((index % 4) * 15).padStart(2, '0')}`
 ));
-const maxQuickPlannerAttachments = 10;
 const feedbackDurationMs = {
   error: 8000,
   warning: 5000,
@@ -246,6 +247,7 @@ export function QuickPlanner({
   const [message, setMessage] = useState(readPlannerDraft);
   const [messageEntities, setMessageEntities] = useState(readPlannerDraftEntities);
   const lastLoadedDraftRevisionRef = useRef<number | null>(null);
+  const initialAttachmentLimitRef = useRef(false);
   const restoreDraftOnCompletionRef = useRef<{
     text: string;
     attachments: string[];
@@ -272,9 +274,11 @@ export function QuickPlanner({
   const [effectPickerOpen, setEffectPickerOpen] = useState(false);
   const [availableEffects, setAvailableEffects] = useState<TelegramMessageEffect[]>([]);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<PlannerAttachment[]>(() => (
-    readPlannerDraftAttachments().map((path) => ({ name: getAttachmentName(path), path }))
-  ));
+  const [attachments, setAttachments] = useState<PlannerAttachment[]>(() => {
+    const paths = readPlannerDraftAttachments();
+    initialAttachmentLimitRef.current = paths.length > MAX_PLANNER_ATTACHMENTS;
+    return paths.slice(0, MAX_PLANNER_ATTACHMENTS).map((path) => ({ name: getAttachmentName(path), path }));
+  });
   const [isFileDragOver, setIsFileDragOver] = useState(false);
   const [attachmentScroll, setAttachmentScroll] = useState({ max: 0, position: 0, contentWidth: 0 });
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
@@ -339,15 +343,6 @@ export function QuickPlanner({
   useEffect(() => {
     writePlannerDraft(message, messageEntities, attachments.map(({ path }) => path));
   }, [attachments, message, messageEntities]);
-
-  useEffect(() => {
-    if (!draftLoadRequest || lastLoadedDraftRevisionRef.current === draftLoadRequest.revision) return;
-    lastLoadedDraftRevisionRef.current = draftLoadRequest.revision;
-    restoreDraftOnCompletionRef.current = draftLoadRequest.restoreDraft;
-    setMessage(draftLoadRequest.text);
-    setMessageEntities(draftLoadRequest.entities);
-    setAttachments(draftLoadRequest.attachments.map((path) => ({ name: getAttachmentName(path), path })));
-  }, [draftLoadRequest]);
 
   const clearOrRestoreDraftAfterCompletion = () => {
     const restoreDraft = restoreDraftOnCompletionRef.current;
@@ -545,7 +540,7 @@ export function QuickPlanner({
     };
   }, []);
 
-  const showActionFeedback = (
+  const showActionFeedback = useCallback((
     message: string,
     tone: QuickPlannerActionFeedback['tone'],
     nextFeedback?: Pick<QuickPlannerActionFeedback, 'message' | 'tone'> & { durationMs?: number },
@@ -575,7 +570,35 @@ export function QuickPlanner({
       setActionFeedbackRetriggered(false);
       actionFeedbackTimeoutRef.current = null;
     }, feedbackDurationMs[tone]);
-  };
+  }, [actionFeedback]);
+
+  useEffect(() => {
+    if (!draftLoadRequest || lastLoadedDraftRevisionRef.current === draftLoadRequest.revision) return;
+    lastLoadedDraftRevisionRef.current = draftLoadRequest.revision;
+    restoreDraftOnCompletionRef.current = draftLoadRequest.restoreDraft
+      ? {
+        ...draftLoadRequest.restoreDraft,
+        attachments: draftLoadRequest.restoreDraft.attachments.slice(0, MAX_PLANNER_ATTACHMENTS),
+      }
+      : null;
+    setMessage(draftLoadRequest.text);
+    setMessageEntities(draftLoadRequest.entities);
+    setAttachments(draftLoadRequest.attachments
+      .slice(0, MAX_PLANNER_ATTACHMENTS)
+      .map((path) => ({ name: getAttachmentName(path), path })));
+    if (draftLoadRequest.attachments.length > MAX_PLANNER_ATTACHMENTS
+      || (draftLoadRequest.restoreDraft?.attachments.length ?? 0) > MAX_PLANNER_ATTACHMENTS) {
+      showActionFeedback(t('quickPlanner.attachmentLimit', { count: MAX_PLANNER_ATTACHMENTS }), 'warning');
+    }
+  }, [draftLoadRequest, showActionFeedback, t]);
+
+  useEffect(() => {
+    if (!initialAttachmentLimitRef.current) return;
+    initialAttachmentLimitRef.current = false;
+    if (!draftLoadRequest) {
+      showActionFeedback(t('quickPlanner.attachmentLimit', { count: MAX_PLANNER_ATTACHMENTS }), 'warning');
+    }
+  }, [draftLoadRequest, showActionFeedback, t]);
 
   const clearActionFeedback = () => {
     if (actionFeedbackTimeoutRef.current !== null) {
@@ -967,7 +990,12 @@ export function QuickPlanner({
     }
     if (isDraftMode) {
       if (onSaveDraft) {
-        if (!onSaveDraft({ message, attachments: attachments.map(({ path }) => path), entities: messageEntities })) {
+        if (!onSaveDraft({
+          message,
+          attachments: attachments.map(({ path }) => path),
+          entities: messageEntities,
+          selectedChat: selectedPickerChat?.sourceChat ?? null,
+        })) {
           showActionFeedback(t('quickPlanner.couldNotSaveDraft'), 'error');
           return;
         }
@@ -1073,16 +1101,16 @@ export function QuickPlanner({
           return [];
         }
       });
-      const remainingSlots = Math.max(0, maxQuickPlannerAttachments - attachments.length);
+      const remainingSlots = Math.max(0, MAX_PLANNER_ATTACHMENTS - attachments.length);
       const acceptedFiles = resolvedFiles.slice(0, remainingSlots);
       if (acceptedFiles.length > 0) {
-        setAttachments((current) => [...current, ...acceptedFiles].slice(0, maxQuickPlannerAttachments));
+        setAttachments((current) => [...current, ...acceptedFiles].slice(0, MAX_PLANNER_ATTACHMENTS));
       }
       const limitReached = resolvedFiles.length > remainingSlots;
       const someFilesUnavailable = resolvedFiles.length !== selectedFiles.length;
       showActionFeedback(
         limitReached
-          ? t('quickPlanner.attachmentLimit', { count: maxQuickPlannerAttachments })
+          ? t('quickPlanner.attachmentLimit', { count: MAX_PLANNER_ATTACHMENTS })
           : someFilesUnavailable
             ? t('quickPlanner.someFilesUnavailable')
             : acceptedFiles.length === 1
@@ -1091,6 +1119,63 @@ export function QuickPlanner({
         limitReached || someFilesUnavailable ? 'warning' : 'success',
       );
     }
+  };
+
+  const handleClipboardImages = async (files: File[]) => {
+    const remainingSlots = Math.max(0, MAX_PLANNER_ATTACHMENTS - attachments.length);
+    const acceptedFiles = files.slice(0, remainingSlots);
+    const storage = getDraftStorageApi();
+
+    const storedAttachments = storage && typeof storage.copyAttachment === 'function'
+      ? await Promise.all(acceptedFiles.map(async (file) => {
+        try {
+          const result = await storage.copyAttachment(file);
+          return result.success && result.attachment
+            ? { name: result.attachment.name, path: result.attachment.path }
+            : null;
+        } catch {
+          return null;
+        }
+      }))
+      : [];
+    const resolvedAttachments = storedAttachments.filter((attachment): attachment is PlannerAttachment => attachment !== null);
+
+    if (resolvedAttachments.length > 0) {
+      setAttachments((current) => [...current, ...resolvedAttachments].slice(0, MAX_PLANNER_ATTACHMENTS));
+    }
+
+    const hasUnavailableFiles = resolvedAttachments.length !== acceptedFiles.length;
+    showActionFeedback(
+      files.length > remainingSlots
+        ? t('quickPlanner.attachmentLimit', { count: MAX_PLANNER_ATTACHMENTS })
+        : hasUnavailableFiles
+          ? t('quickPlanner.someFilesUnavailable')
+          : resolvedAttachments.length === 1
+            ? t('quickPlanner.fileAdded')
+            : t('quickPlanner.filesAdded'),
+      files.length > remainingSlots || hasUnavailableFiles ? 'warning' : 'success',
+    );
+  };
+
+  const handleMessagePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboardItems = Array.from(event.clipboardData.items)
+      .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => file !== null);
+    const clipboardImages = clipboardItems.length > 0
+      ? clipboardItems
+      : Array.from(event.clipboardData.files).filter((file) => file.type.startsWith('image/'));
+    if (clipboardImages.length === 0) return;
+
+    const preparedImages = clipboardImages.map((file, index) => {
+      if (file.name) return file;
+      const extension = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+      return new File([file], `pasted-image-${Date.now()}-${index + 1}.${extension}`, {
+        type: file.type,
+        lastModified: file.lastModified,
+      });
+    });
+    void handleClipboardImages(preparedImages);
   };
 
   const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -1238,6 +1323,15 @@ export function QuickPlanner({
                     <span>{t(getAttachmentCountTranslationKey(locale, attachments.length), { count: attachments.length })}</span>
                   )}
                   <span className="quick-planner-counter-controls">
+                    {selectedEffect && (
+                      <span
+                        className="quick-planner-selected-effect"
+                        aria-label={`${t('quickPlanner.messageEffects')}: ${selectedEffect.emoticon}`}
+                        title={`${t('quickPlanner.messageEffects')}: ${selectedEffect.emoticon}`}
+                      >
+                        {selectedEffect.emoticon}
+                      </span>
+                    )}
                     <span className="quick-planner-character-count">{String(message.length).padStart(2, '0')} <i>/</i> 1023</span>
                     <button
                       className={`quick-planner-clear-message${message ? '' : ' is-hidden'}`}
@@ -1268,6 +1362,24 @@ export function QuickPlanner({
                 aria-describedby="quick-planner-counter"
                 maxLength={1023}
                 value={message}
+                onClick={(event) => {
+                  const textarea = event.currentTarget;
+                  if (event.detail >= 4) {
+                    textarea.select();
+                    return;
+                  }
+                  if (event.detail !== 3) return;
+
+                  const text = textarea.value;
+                  const selectionStart = textarea.selectionStart;
+                  const selectionEnd = textarea.selectionEnd;
+                  const position = Math.floor((selectionStart + selectionEnd) / 2);
+                  const lineStart = text.lastIndexOf('\n', Math.max(0, position - 1)) + 1;
+                  const nextLineBreak = text.indexOf('\n', position);
+                  const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
+                  textarea.setSelectionRange(lineStart, lineEnd);
+                }}
+                onPaste={handleMessagePaste}
                 onDragEnter={(event: DragEvent<HTMLTextAreaElement>) => {
                   if (!isFileDrag(event.dataTransfer)) return;
                   event.preventDefault();
@@ -1411,7 +1523,11 @@ export function QuickPlanner({
                   )}
                 </div>
                 {attachments.length > 0 && (
-                  <div className="quick-planner-attachments" role="group" aria-label={t('quickPlanner.attachments', { count: attachments.length })}>
+                  <div
+                    className={`quick-planner-attachments${attachmentScroll.max > 0 ? ' has-overflow' : ''}`}
+                    role="group"
+                    aria-label={t('quickPlanner.attachments', { count: attachments.length })}
+                  >
                     <div
                       className="quick-planner-attachments-scrollbar"
                       ref={attachmentScrollbarRef}

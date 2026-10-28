@@ -3,10 +3,6 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, Bell, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, Clock, Copy, Download, Ellipsis, ExternalLink, Eye, FileText, Lightbulb, Maximize2, Minimize2, Paperclip, Plus, Search, Send, Trash2, X } from 'lucide-react';
 import { richTextToHtml } from '@/lib/richText';
 import { useLocale, type Locale, type TranslationKey } from '@/lib/i18n';
-import { telegramGetChatHistory } from '@/services/chatAppService';
-import type { PreviewChatHistory } from '@studio/types';
-import { ChatPreviewHistory } from '@studio/components/ChatPreviewHistory';
-import { groupHistory } from '@studio/components/chatPreviewHistoryUtils';
 import { getDraftStorageApi, readWorkspaceDraftStoreFallback, SAVED_STUDIO_DRAFTS_UPDATED_EVENT } from '@studio/lib/draftStore';
 import { normalizePersistedStudioDrafts, sortHistoryItems } from './historyModel';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
@@ -76,8 +72,52 @@ function toAttachmentUrl(filePath: string) {
   return `file:///${encodedPath}`;
 }
 
+function getLocalAttachmentPath(filePath: string) {
+  if (!/^file:/i.test(filePath)) return filePath;
+
+  try {
+    const url = new URL(filePath);
+    const decodedPath = decodeURIComponent(url.pathname);
+    return decodedPath.replace(/^\/([a-z]:\/)/i, '$1');
+  } catch {
+    return filePath;
+  }
+}
+
 function isImageAttachment(filePath: string) {
-  return /^data:image\//i.test(filePath) || /\.(?:avif|gif|jpe?g|png|webp)$/i.test(filePath);
+  return /^data:image\//i.test(filePath) || /\.(?:avif|gif|jpe?g|jfif|png|webp)$/i.test(filePath);
+}
+
+function getImageBlob(dataUrl: string) {
+  const [metadata, content] = dataUrl.split(',', 2);
+  const mimeType = /^data:([^;,]+)/i.exec(metadata)?.[1];
+  if (!mimeType || !content) throw new Error('The attachment is not a valid image data URL.');
+
+  const bytes = /^data:[^,]*;base64/i.test(metadata)
+    ? Uint8Array.from(atob(content), (character) => character.charCodeAt(0))
+    : new TextEncoder().encode(decodeURIComponent(content));
+  return new Blob([bytes], { type: mimeType });
+}
+
+async function getImagePngBlob(sourceBlob: Blob) {
+  if (sourceBlob.type.toLowerCase() === 'image/png') return sourceBlob;
+  const bitmap = await createImageBitmap(sourceBlob);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to prepare the image for the clipboard.');
+    context.drawImage(bitmap, 0, 0);
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Unable to encode the image for the clipboard.'));
+      }, 'image/png');
+    });
+  } finally {
+    bitmap.close();
+  }
 }
 
 function getAttachmentName(filePath: string, t: HistoryTranslate) {
@@ -376,7 +416,7 @@ function scrollHistoryRecordIntoView(list: HTMLDivElement, record: HTMLElement) 
   const scaleY = list.offsetHeight > 0 && listBounds.height > 0
     ? listBounds.height / list.offsetHeight
     : 1;
-  const stickyDateHeading = list.querySelector<HTMLElement>('.history-date-heading');
+  const stickyDateHeading = list.querySelector<HTMLElement>('.history-date-sticky, .history-date-heading');
   const stickyDateHeight = stickyDateHeading?.getBoundingClientRect().height ?? 0;
   const visibleTop = listBounds.top + list.clientTop * scaleY + stickyDateHeight;
   const visibleBottom = listBounds.top + (list.clientTop + list.clientHeight) * scaleY;
@@ -616,7 +656,6 @@ export function HistoryDrawer({
   onReschedule,
   onSendNow,
   onDelete,
-  onOpenDraft: _onOpenDraft,
   onUseDraft,
   draftDestination = 'studio',
   onClearSent,
@@ -669,17 +708,15 @@ export function HistoryDrawer({
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
   const [detailActionMenuOpen, setDetailActionMenuOpen] = useState(false);
-  const [detailPreviewMode, setDetailPreviewMode] = useState<'details' | 'preview' | 'chat'>('details');
-  const [chatPreviewHistory, setChatPreviewHistory] = useState<PreviewChatHistory | null>(null);
-  const [chatPreviewLoading, setChatPreviewLoading] = useState(false);
-  const [chatPreviewError, setChatPreviewError] = useState(false);
+  const [detailPreviewMode, setDetailPreviewMode] = useState<'details' | 'preview'>('details');
   const [detailTextSize, setDetailTextSize] = useState<HistoryDetailTextSize>(loadSavedDetailTextSize);
   const [copyFeedback, setCopyFeedback] = useState<'copied' | 'failed' | null>(null);
   const [previewImagePath, setPreviewImagePath] = useState<string | null>(null);
   const [previewImagePosition, setPreviewImagePosition] = useState<{ left: number; top: number } | null>(null);
+  const [imagePreviewSources, setImagePreviewSources] = useState<Record<string, string>>({});
+  const imagePreviewAttemptsRef = useRef(new Set<string>());
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
-  const chatPreviewRequestIdRef = useRef(0);
   const sourceMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const sourceMenuItemsRef = useRef<HTMLDivElement | null>(null);
   const statusFiltersRef = useRef<HTMLDivElement | null>(null);
@@ -700,6 +737,41 @@ export function HistoryDrawer({
       console.error('Failed to save the Posts text size preference.', error);
     }
   }, [detailTextSize]);
+
+  useEffect(() => {
+    const readImageDataUrl = getDraftStorageApi()?.readImageDataUrl;
+    if (!isOpen || !readImageDataUrl) return;
+
+    const imagePaths = [...records, ...draftItems]
+      .flatMap((record) => record.attachments)
+      .filter(isImageAttachment)
+      .filter((attachment) => !/^(?:data:|https?:)/i.test(attachment))
+      .filter((attachment) => !imagePreviewSources[attachment])
+      .filter((attachment) => !imagePreviewAttemptsRef.current.has(attachment));
+    imagePaths.forEach((attachment) => imagePreviewAttemptsRef.current.add(attachment));
+    if (imagePaths.length === 0) return;
+
+    void Promise.all(imagePaths.map(async (attachment) => {
+      try {
+        const result = await readImageDataUrl(getLocalAttachmentPath(attachment));
+        return result.success && result.dataUrl ? { attachment, dataUrl: result.dataUrl } : null;
+      } catch {
+        return null;
+      }
+    })).then((results) => {
+      const resolved = Object.fromEntries(
+        results.flatMap((result) => result ? [[result.attachment, result.dataUrl]] : []),
+      );
+      if (Object.keys(resolved).length > 0) {
+        setImagePreviewSources((current) => ({ ...current, ...resolved }));
+      }
+    });
+
+  }, [draftItems, imagePreviewSources, isOpen, records]);
+
+  const getDisplayedAttachmentUrl = (filePath: string) => (
+    imagePreviewSources[filePath] ?? toAttachmentUrl(filePath)
+  );
 
   useLayoutEffect(() => {
     if (isOpen && sourceFilterOnOpen && sourceFilterOnOpenMode === 'initial' && !initialSourceAppliedRef.current) {
@@ -1160,10 +1232,6 @@ export function HistoryDrawer({
   }, [activeSelectedRecord?.id, detailPreviewMode, detailTextSize]);
   useEffect(() => {
     setDetailPreviewMode('details');
-    setChatPreviewHistory(null);
-    setChatPreviewLoading(false);
-    setChatPreviewError(false);
-    chatPreviewRequestIdRef.current += 1;
     setDetailActionMenuOpen(false);
     setCopyFeedback(null);
   }, [activeSelectedRecord?.id, isOpen]);
@@ -1175,68 +1243,63 @@ export function HistoryDrawer({
   }, [copyFeedback]);
 
   const openSelectedPreview = () => {
+    const record = activeSelectedRecord;
+    if (!record) return;
     if (detailPreviewMode !== 'details') {
       setDetailPreviewMode('details');
       return;
     }
 
     setDetailPreviewMode('preview');
-    setChatPreviewHistory(null);
-    setChatPreviewLoading(false);
-    setChatPreviewError(false);
-    chatPreviewRequestIdRef.current += 1;
-  };
-
-  const openSelectedChatPreview = async () => {
-    const record = activeSelectedRecord;
-    if (!record) return;
-    const message = record.original.kind === 'scheduled' ? record.original.message : null;
-    if (!message) return;
-
-    setDetailPreviewMode('chat');
-    setChatPreviewHistory(null);
-    setChatPreviewError(false);
-    const requestId = ++chatPreviewRequestIdRef.current;
-    const parsedMessageId = message.telegramMessageId == null ? null : Number(message.telegramMessageId);
-    const offsetId = parsedMessageId !== null && Number.isSafeInteger(parsedMessageId) && parsedMessageId > 0
-      ? parsedMessageId
-      : undefined;
-    setChatPreviewLoading(true);
-    try {
-      const result = await telegramGetChatHistory({
-        chatId: message.chatId,
-        limit: 12,
-        ...(offsetId === undefined ? {} : { offsetId }),
-      });
-      if (requestId !== chatPreviewRequestIdRef.current) return;
-      if (!result.success || !result.history) {
-        setChatPreviewError(true);
-        return;
-      }
-      setChatPreviewHistory(result.history);
-      setDetailPreviewMode('chat');
-    } catch (error) {
-      console.error('Failed to load chat context for a Posts preview.', error);
-      if (requestId === chatPreviewRequestIdRef.current) setChatPreviewError(true);
-    } finally {
-      if (requestId === chatPreviewRequestIdRef.current) setChatPreviewLoading(false);
-    }
   };
 
   const copySelectedPost = async () => {
-    if (!activeSelectedRecord) return;
+    const record = activeSelectedRecord;
+    if (!record) return;
     try {
-      await navigator.clipboard.writeText(activeSelectedRecord.text);
+      const imageAttachments = record.attachments.filter(isImageAttachment);
+      if (imageAttachments.length === 1) {
+        try {
+          const attachment = imageAttachments[0];
+          let dataUrl = imagePreviewSources[attachment];
+          let sourceBlob: Blob | null = null;
+          if (!dataUrl && /^data:image\//i.test(attachment)) dataUrl = attachment;
+          if (!dataUrl && /^(?:https?:)/i.test(attachment)) {
+            const response = await fetch(attachment);
+            if (!response.ok) throw new Error(`Unable to load image attachment (${response.status}).`);
+            sourceBlob = await response.blob();
+            if (!sourceBlob.type.startsWith('image/')) throw new Error('The attachment is not an image.');
+          }
+          if (!dataUrl && !sourceBlob) {
+            const readImageDataUrl = getDraftStorageApi()?.readImageDataUrl;
+            if (!readImageDataUrl) throw new Error('Image clipboard access is unavailable.');
+            const result = await readImageDataUrl(getLocalAttachmentPath(attachment));
+            if (!result.success || !result.dataUrl) {
+              throw new Error(result.error || 'Unable to read image attachment.');
+            }
+            dataUrl = result.dataUrl;
+          }
+          if (typeof ClipboardItem === 'undefined' || !navigator.clipboard.write) {
+            throw new Error('Image clipboard writing is unavailable.');
+          }
+
+          const imageBlob = await getImagePngBlob(sourceBlob ?? getImageBlob(dataUrl));
+          await navigator.clipboard.write([new ClipboardItem({
+            'image/png': imageBlob,
+            'text/plain': new Blob([record.text], { type: 'text/plain' }),
+          })]);
+        } catch (error) {
+          console.error('Failed to copy post image from Posts; falling back to text.', error);
+          await navigator.clipboard.writeText(record.text);
+        }
+      } else {
+        await navigator.clipboard.writeText(record.text);
+      }
       setCopyFeedback('copied');
     } catch (error) {
-      console.error('Failed to copy post text from Posts.', error);
+      console.error('Failed to copy post from Posts.', error);
       setCopyFeedback('failed');
     }
-  };
-
-  const openChatPreviewPhoto = (photo: { src: string }) => {
-    setPreviewImagePath(photo.src);
-    setPreviewImagePosition({ left: window.innerWidth / 2, top: window.innerHeight / 2 });
   };
 
   const queueCancellableRecords = filteredRecords.filter((record) => (
@@ -1908,22 +1971,22 @@ export function HistoryDrawer({
         aria-label={t('history.title')}
       >
         <header className={`history-drawer-header${pageMode ? ' is-page-header' : ''}`}>
-            <div className="history-drawer-heading">
-              {!pageMode && (
-                <span className="history-drawer-header-icon" aria-hidden="true">
-                  <Send size={20} strokeWidth={1.8} />
-                </span>
-              )}
-              <h2 aria-label={t('history.title')}>{t('history.title')}</h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => onClose()}
-              aria-label={t('history.close')}
-              className={`history-drawer-close${pageMode ? ' history-page-close' : ''}`}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
+          <div className="history-drawer-heading">
+            {!pageMode && (
+              <span className="history-drawer-header-icon" aria-hidden="true">
+                <Send size={20} strokeWidth={1.8} />
+              </span>
+            )}
+            <h2 aria-label={t('history.title')}>{t('history.title')}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => onClose()}
+            aria-label={t('history.close')}
+            className={`history-drawer-close${pageMode ? ' history-page-close' : ''}`}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </header>
 
         {!pageMode && (
@@ -2114,7 +2177,7 @@ export function HistoryDrawer({
                               ? (
                                 <span className="history-record-attachment-image" key={attachment}>
                                   <img
-                                    src={toAttachmentUrl(attachment)}
+                                    src={getDisplayedAttachmentUrl(attachment)}
                                     alt=""
                                     onPointerEnter={(event) => openImagePreview(event.currentTarget, attachment)}
                                     onPointerLeave={closeImagePreview}
@@ -2178,10 +2241,8 @@ export function HistoryDrawer({
                             isImageAttachment(attachment) ? (
                               <img
                                 key={attachment}
-                                src={toAttachmentUrl(attachment)}
+                                src={getDisplayedAttachmentUrl(attachment)}
                                 alt={getAttachmentName(attachment, t)}
-                                onPointerEnter={(event) => openImagePreview(event.currentTarget, attachment)}
-                                onPointerLeave={closeImagePreview}
                                 onLoad={() => {
                                   const list = historyRecordListRef.current;
                                   const expandedRecord = expandedRecordRef.current;
@@ -2298,7 +2359,7 @@ export function HistoryDrawer({
             data-selected={Boolean(activeSelectedRecord)}
             aria-label={activeSelectedRecord
               ? t('history.detailsPanel')
-              : t('history.detailEmptyTitle')}
+              : detailEmptyTitle}
           >
             {activeSelectedRecord ? (() => {
               const timestamp = getHistoryTimestamp(activeSelectedRecord);
@@ -2425,31 +2486,6 @@ export function HistoryDrawer({
                     ref={detailPreviewRef}
                     tabIndex={-1}
                   >
-                    {detailPreviewMode === 'chat' && chatPreviewHistory && (
-                      <div className="history-chat-preview" aria-label={t('history.chatPreview')}>
-                        <ChatPreviewHistory
-                          groups={groupHistory(chatPreviewHistory.messages)}
-                          selectedChatType={chatPreviewHistory.chat.type}
-                          onOpenPhoto={openChatPreviewPhoto}
-                          viewPhotoLabel={t('history.fullSize')}
-                        />
-                        {chatPreviewHistory.messages.length === 0 && (
-                          <p className="history-chat-preview-empty">{t('history.chatPreviewEmpty')}</p>
-                        )}
-                      </div>
-                    )}
-                    {chatPreviewLoading && (
-                      <p className="history-chat-preview-status" role="status">{t('history.chatPreviewLoading')}</p>
-                    )}
-                    {chatPreviewError && (
-                      <div className="history-chat-preview-status" role="alert">
-                        <span>{t('history.chatPreviewLoadFailed')}</span>
-                        <button type="button" onClick={() => void openSelectedChatPreview()}>
-                          {t('history.chatPreviewRetry')}
-                        </button>
-                      </div>
-                    )}
-                    <div className={detailPreviewMode === 'chat' ? 'history-chat-preview-current' : undefined}>
                     <div className={detailPreviewMode === 'preview' ? 'history-detail-preview-current' : undefined}>
                     <div className={detailPreviewMode === 'details'
                           ? 'history-detail-plain-post'
@@ -2463,10 +2499,8 @@ export function HistoryDrawer({
                             return isImageAttachment(attachment) ? (
                               <img
                                 key={`${attachment}-${attachmentIndex}`}
-                                src={toAttachmentUrl(attachment)}
+                                src={getDisplayedAttachmentUrl(attachment)}
                                 alt={attachmentName}
-                                onPointerEnter={(event) => openImagePreview(event.currentTarget, attachment)}
-                                onPointerLeave={closeImagePreview}
                               />
                             ) : (
                               <a
@@ -2502,7 +2536,6 @@ export function HistoryDrawer({
                     </div>
                     </div>
                     </div>
-                  </div>
                   </div>
                   <div
                     className={`history-detail-actions${detailPreviewMode === 'preview' ? ' is-preview-open' : ''}`}
@@ -2649,21 +2682,10 @@ export function HistoryDrawer({
                               </button>
                             </>
                           )}
-                          {activeSelectedRecord.original.kind === 'scheduled' && (
+                          {activeSelectedRecord.status === 'scheduled' && (
                             <>
                               {scheduleMessage && (
                                 <>
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="history-detail-menu-item"
-                                    onClick={() => {
-                                      void openSelectedChatPreview();
-                                      setDetailActionMenuOpen(false);
-                                    }}
-                                  >
-                                    {t('history.chatPreview')}
-                                  </button>
                                   <button
                                     type="button"
                                     role="menuitem"
@@ -2979,7 +3001,7 @@ export function HistoryDrawer({
             aria-label={t('history.increasedImage', { name: getAttachmentName(previewImagePath, t) })}
           >
             <img
-              src={toAttachmentUrl(previewImagePath)}
+              src={getDisplayedAttachmentUrl(previewImagePath)}
               alt={getAttachmentName(previewImagePath, t)}
               draggable={false}
             />

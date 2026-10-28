@@ -67,6 +67,48 @@ describe('draft attachment storage', () => {
     expect(readFileSync(result.attachment.path)).toEqual(bytes);
   });
 
+  it('returns a data URL for an image stored inside the attachment directory', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
+    temporaryDirectories.push(directory);
+    const storeDirectory = path.join(directory, 'drafts');
+    const bytes = Buffer.from('webp image bytes');
+    const result = createDraftStore({ directory: storeDirectory }).writeAttachment('photo.webp', bytes);
+
+    const preview = createDraftStore({ directory: storeDirectory }).readImageDataUrl(result.attachment.path);
+
+    expect(preview).toEqual({
+      success: true,
+      dataUrl: `data:image/webp;base64,${bytes.toString('base64')}`,
+    });
+  });
+
+  it('uses the JPEG MIME type for JFIF image previews', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
+    temporaryDirectories.push(directory);
+    const storeDirectory = path.join(directory, 'drafts');
+    const bytes = Buffer.from('jfif image bytes');
+    const result = createDraftStore({ directory: storeDirectory }).writeAttachment('photo.jfif', bytes);
+
+    const preview = createDraftStore({ directory: storeDirectory }).readImageDataUrl(result.attachment.path);
+
+    expect(preview).toEqual({
+      success: true,
+      dataUrl: `data:image/jpeg;base64,${bytes.toString('base64')}`,
+    });
+  });
+
+  it('does not expose files outside the attachment directory as image previews', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
+    temporaryDirectories.push(directory);
+    const storeDirectory = path.join(directory, 'drafts');
+    const outsideFile = path.join(directory, 'private.png');
+    writeFileSync(outsideFile, 'private image bytes');
+
+    const preview = createDraftStore({ directory: storeDirectory }).readImageDataUrl(outsideFile);
+
+    expect(preview).toEqual({ success: false, error: 'Image is outside the app attachment store.' });
+  });
+
   it('reports missing source files without an attachment result', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
     temporaryDirectories.push(directory);

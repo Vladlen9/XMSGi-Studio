@@ -243,6 +243,21 @@ describe('Planner draft persistence', () => {
     expect(readSavedPlannerDrafts()).toEqual(drafts.map((draft) => ({ ...draft, pinned: false })));
   });
 
+  it('preserves the selected chat for saved drafts', () => {
+    const draft = {
+      id: 'chat-bound',
+      message: 'Post for selected chat',
+      attachments: [],
+      entities: [],
+      selectedChat: { id: '-100123', name: 'Updates', username: 'updates', type: 'channel' as const },
+      reminderType: null,
+      savedAt: '2026-10-26T10:00:00.000Z',
+    };
+
+    expect(writeSavedPlannerDrafts([draft])).toBe(true);
+    expect(readSavedPlannerDrafts()).toEqual([{ ...draft, pinned: false }]);
+  });
+
   it('persists whether a planner draft is pinned', () => {
     const drafts = [
       { id: 'important', message: 'Important idea', attachments: [], entities: [], reminderType: null, savedAt: '', pinned: true },

@@ -708,6 +708,11 @@ ipcMain.handle('draft-store:copy-attachment', (event, sourcePath) => {
   return draftStore.copyAttachment(sourcePath);
 });
 
+ipcMain.handle('draft-store:read-image', (event, filePath) => {
+  assertDraftStorageRenderer(event);
+  return draftStore.readImageDataUrl(filePath);
+});
+
 ipcMain.handle('draft-store:write-attachment', (event, payload) => {
   assertDraftStorageRenderer(event);
   return draftStore.writeAttachment(payload?.name, payload?.bytes);

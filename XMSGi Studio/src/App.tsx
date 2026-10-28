@@ -17,6 +17,7 @@ import { LoginPage } from './pages/LoginPage';
 import { SettingsPage } from './pages/SettingsPage';
 import {
   flushPlannerDraftWrite,
+  MAX_PLANNER_ATTACHMENTS,
   readPlannerDraft,
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
@@ -73,7 +74,7 @@ function AppContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const initialMessageSession = createMessageSession({
     text: readPlannerDraft(),
-    attachments: readPlannerDraftAttachments(),
+    attachments: readPlannerDraftAttachments().slice(0, MAX_PLANNER_ATTACHMENTS),
     entities: readPlannerDraftEntities(),
   });
   const [appState, dispatch] = useReducer(
@@ -150,12 +151,13 @@ function AppContent() {
     });
   }, [dispatch]);
   const setPlannerAttachments = useCallback((nextAttachments: string[]) => {
-    plannerAttachmentsRef.current = nextAttachments;
-    writePlannerDraft(messageRef.current, messageEntitiesRef.current, nextAttachments);
+    const limitedAttachments = nextAttachments.slice(0, MAX_PLANNER_ATTACHMENTS);
+    plannerAttachmentsRef.current = limitedAttachments;
+    writePlannerDraft(messageRef.current, messageEntitiesRef.current, limitedAttachments);
     dispatch({
       type: 'SET_MESSAGE_DRAFT',
       text: messageRef.current,
-      attachments: nextAttachments,
+      attachments: limitedAttachments,
       entities: messageEntitiesRef.current,
       chatId: selectedChatIdRef.current,
     });
@@ -1073,13 +1075,19 @@ function AppContent() {
                   waitForConfirmation: true,
                 }) === true
               )}
-              onSaveDraft={({ message: draftMessage, attachments, entities }) => writeSavedPlannerDrafts([
+              onSaveDraft={({ message: draftMessage, attachments, entities, selectedChat: draftChat }) => writeSavedPlannerDrafts([
                 ...readSavedPlannerDrafts(),
                 {
                   id: crypto.randomUUID(),
                   message: draftMessage,
                   attachments,
                   entities,
+                  selectedChat: draftChat ? {
+                    id: draftChat.id,
+                    name: draftChat.name,
+                    ...(draftChat.username ? { username: draftChat.username } : {}),
+                    ...(draftChat.type ? { type: draftChat.type } : {}),
+                  } : null,
                   reminderType: null,
                   savedAt: new Date().toISOString(),
                 },

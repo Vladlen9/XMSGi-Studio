@@ -9,6 +9,7 @@ import { LocaleProvider } from '@/lib/i18n';
 import { DEFAULT_EDITOR_APPEARANCE, writeEditorAppearancePreferences } from '@shared/editorAppearance';
 import {
   flushPlannerDraftWrite,
+  MAX_PLANNER_ATTACHMENTS,
   readPlannerDraft,
   readPlannerDraftAttachments,
   readPlannerDraftEntities,
@@ -64,6 +65,7 @@ describe('QuickPlanner feedback', () => {
     flushPlannerDraftWrite();
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, 'telegram');
+    Reflect.deleteProperty(window, 'draftStorage');
     localStorage.removeItem('xmsgi-quick-planner-recent-emojis');
     localStorage.removeItem('awaitmsg_locale');
     for (const key of [
@@ -145,6 +147,62 @@ describe('QuickPlanner feedback', () => {
       attachments: request.attachments,
       entities: request.entities,
     });
+  });
+
+  it('limits imported Planner drafts to ten attachments before sending', async () => {
+    const chat: Chat = { id: 'chat-imported-draft', name: 'Imported draft chat' };
+    const attachments = Array.from({ length: MAX_PLANNER_ATTACHMENTS + 2 }, (_, index) => (
+      `C:/drafts/photo-${index}.png`
+    ));
+    const request = {
+      revision: 1,
+      text: 'Imported draft',
+      attachments,
+      entities: [],
+      restoreDraft: { text: '', attachments: [], entities: [] },
+    };
+    const onSendNow = vi.fn().mockResolvedValue(true);
+    const view = render(
+      <QuickPlanner chats={[chat]} selectedChat={chat} onSendNow={onSendNow} />,
+      'Send now',
+    );
+    view.rerender(createElement(LocaleProvider, null, <QuickPlanner
+      chats={[chat]}
+      selectedChat={chat}
+      draftLoadRequest={request}
+      onSendNow={onSendNow}
+    />));
+
+    expect(view.container.querySelectorAll('.quick-planner-attachment')).toHaveLength(MAX_PLANNER_ATTACHMENTS);
+    expect(screen.getByRole('status')).toHaveTextContent('Max 10 files per message.');
+    expect(readPlannerDraftAttachments()).toEqual(attachments.slice(0, MAX_PLANNER_ATTACHMENTS));
+
+    await act(async () => {
+      fireEvent.click(view.container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!);
+      await Promise.resolve();
+    });
+
+    expect(onSendNow).toHaveBeenCalledWith(
+      chat,
+      'Imported draft',
+      attachments.slice(0, MAX_PLANNER_ATTACHMENTS),
+      undefined,
+      [],
+    );
+  });
+
+  it('limits an oversized persisted Planner draft and reports the limit', () => {
+    const attachments = Array.from({ length: MAX_PLANNER_ATTACHMENTS + 1 }, (_, index) => (
+      `C:/drafts/photo-${index}.png`
+    ));
+    writePlannerDraft('Saved Planner draft', [], attachments);
+    flushPlannerDraftWrite();
+
+    const { container } = render(<QuickPlanner />);
+
+    expect(container.querySelectorAll('.quick-planner-attachment')).toHaveLength(MAX_PLANNER_ATTACHMENTS);
+    expect(screen.getByRole('status')).toHaveTextContent('Max 10 files per message.');
+    expect(readPlannerDraftAttachments()).toEqual(attachments.slice(0, MAX_PLANNER_ATTACHMENTS));
   });
 
   it('restores the previous Planner draft after successfully sending a selected Posts draft', async () => {
@@ -308,13 +366,13 @@ describe('QuickPlanner feedback', () => {
 
   it('makes the selected action mode easy to distinguish in dark theme', () => {
     expect(quickPlannerStyles).toMatch(
-      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active\s*\{\s*color:\s*var\(--planner-accent\);\s*border:\s*1px solid #239dfb;\s*background:\s*#ffffff;/,
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active\s*\{\s*color:\s*var\(--planner-accent\);\s*border:\s*1px solid rgba\(var\(--planner-accent-rgb\), 0\.24\);\s*background:\s*rgba\(var\(--planner-accent-rgb\), 0\.06\);\s*box-shadow:\s*0 1px 2px rgba\(35, 52, 66, 0\.06\);/,
     );
     expect(quickPlannerStyles).toMatch(
-      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:hover\s*\{\s*background:\s*#ffffff;/,
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:hover\s*\{\s*background:\s*rgba\(var\(--planner-accent-rgb\), 0\.06\);/,
     );
     expect(quickPlannerStyles).toMatch(
-      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:active\s*\{\s*background:\s*#ffffff;/,
+      /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:active\s*\{\s*background:\s*rgba\(var\(--planner-accent-rgb\), 0\.06\);/,
     );
     expect(quickPlannerStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner \.quick-planner-mode-switch button\.is-active,[\s\S]*?button\.is-active:active\s*\{\s*color:\s*#f0f4f6;\s*border-color:\s*#74828b;\s*background:\s*#354047;/,
@@ -389,7 +447,7 @@ describe('QuickPlanner feedback', () => {
 
   it('uses the Planner accent for time-option hover and focus highlights', () => {
     expect(quickPlannerStyles).toMatch(
-      /\.quick-planner-time-list button:hover:not\(:disabled\),\s*\.quick-planner-time-list button:focus-visible:not\(:disabled\)\s*\{\s*color:\s*#ffffff;\s*background:\s*#239dfb;/,
+      /\.quick-planner-time-list button:hover:not\(:disabled\),\s*\.quick-planner-time-list button:focus-visible:not\(:disabled\)\s*\{\s*color:\s*#ffffff;\s*background:\s*var\(--planner-accent\);/,
     );
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner-time-list button:hover:not\(:disabled\),\s*html\[data-theme='dark'\] \.quick-planner-time-list button:focus-visible:not\(:disabled\),[\s\S]*?\{\s*background:\s*#239dfb !important;\s*color:\s*#ffffff !important;/,
@@ -453,10 +511,10 @@ describe('QuickPlanner feedback', () => {
       /\.quick-planner-message\s*\{[^}]*transition:\s*background-color 180ms ease,\s*transform 180ms ease;/,
     );
     expect(quickPlannerStyles).toMatch(
-      /\.quick-planner \.quick-planner-message:not\(:focus\),\s*\.quick-planner \.quick-planner-message:not\(:focus\):hover\s*\{[^}]*border-color:\s*#28b8f4;[^}]*box-shadow:\s*0 0 0 1px rgba\(40, 184, 244, 0\.42\), 0 0 8px rgba\(40, 184, 244, 0\.24\);/,
+      /html\[data-theme='light'\] \.quick-planner \.quick-planner-message:not\(:focus\),\s*html\[data-theme='light'\] \.quick-planner \.quick-planner-message:not\(:focus\):hover\s*\{[^}]*border-color:\s*rgba\(var\(--planner-accent-rgb\), 0\.52\);[^}]*box-shadow:\s*0 0 0 1px rgba\(var\(--planner-accent-rgb\), 0\.13\),\s*0 0 6px rgba\(var\(--planner-accent-rgb\), 0\.1\);/,
     );
     expect(quickPlannerStyles).toMatch(
-      /\.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*var\(--planner-line\);[^}]*box-shadow:\s*none;/,
+      /html\[data-theme='light'\] \.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*var\(--planner-accent\);[^}]*box-shadow:\s*0 0 0 2px rgba\(var\(--planner-accent-rgb\), 0\.18\);/,
     );
     expect(quickPlannerStyles).toMatch(
       /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:not\(:focus\):not\(:hover\)\s*\{\s*border-color:\s*#59636b;\s*box-shadow:\s*none;/,
@@ -489,6 +547,7 @@ describe('QuickPlanner feedback', () => {
       /html\[data-theme='light'\] \.quick-planner-workbench::before\s*\{\s*display:\s*none;/,
     );
   });
+
   it('reserves enough width for the enlarged date and time labels with their icons', () => {
     expect(quickPlannerStyles).toMatch(
       /\.quick-planner-schedule-row > \.quick-planner-schedule-field\s*\{\s*width:\s*144px;\s*flex:\s*0 0 144px;/,
@@ -877,7 +936,7 @@ describe('QuickPlanner feedback', () => {
     expect(container.querySelector('.quick-planner-timezone')?.textContent).toBe('GMT+5:45');
   });
 
-  it('keeps the default blue accent when custom colors are written or action modes change', () => {
+  it('uses the default appearance accent in each theme when colors or action modes change', () => {
     const { container } = render(<QuickPlanner />);
     const planner = container.querySelector<HTMLElement>('.quick-planner')!;
     const modeGroup = screen.getByRole('group', { name: 'Planner actions' });
@@ -991,11 +1050,17 @@ describe('QuickPlanner feedback', () => {
     fireEvent.click(effectOption);
     expect(effectsButton).toHaveAttribute('aria-pressed', 'true');
     expect(effectsButton).toHaveAttribute('title', 'Message effects: 🎉');
+    const selectedEffect = container.querySelector('.quick-planner-selected-effect');
+    expect(selectedEffect).toHaveTextContent('🎉');
+    expect(selectedEffect).toHaveAttribute('aria-label', 'Message effects: 🎉');
+    expect(selectedEffect?.compareDocumentPosition(container.querySelector('.quick-planner-character-count')!))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     fireEvent.click(effectsButton);
     const noEffectButton = screen.getByRole('button', { name: 'No effect' });
     expect(noEffectButton).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(noEffectButton);
     expect(effectsButton).toHaveAttribute('aria-pressed', 'false');
+    expect(container.querySelector('.quick-planner-selected-effect')).not.toBeInTheDocument();
   });
 
   it('shows categorized emojis and inserts the chosen emoji at the cursor', () => {
@@ -1291,7 +1356,12 @@ describe('QuickPlanner feedback', () => {
       fireEvent.click(submit());
       await Promise.resolve();
     });
-    expect(onSaveDraft).toHaveBeenCalledWith({ message: 'Save from Planner', attachments: [], entities: [] });
+    expect(onSaveDraft).toHaveBeenCalledWith({
+      message: 'Save from Planner',
+      attachments: [],
+      entities: [],
+      selectedChat: chat,
+    });
     expect(openPosts).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent('Draft saved.');
     expect(screen.getByRole('status')).not.toHaveTextContent('Posts');
@@ -1552,6 +1622,53 @@ describe('QuickPlanner feedback', () => {
     expect(onOpenInStudio).not.toHaveBeenCalled();
   });
 
+  it('adds a pasted clipboard image as a Planner attachment and leaves text paste enabled', async () => {
+    const copyAttachment = vi.fn(async (file: File) => ({
+      success: true,
+      attachment: { name: 'clipboard-photo.png', path: 'C:/drafts/clipboard-photo.png', size: file.size },
+    }));
+    Object.defineProperty(window, 'draftStorage', {
+      configurable: true,
+      value: { load: vi.fn(), copyAttachment },
+    });
+    const { container } = render(<QuickPlanner />);
+    const editor = container.querySelector<HTMLTextAreaElement>('.quick-planner-message')!;
+    const image = new File(['image-bytes'], 'clipboard-photo.png', { type: 'image/png' });
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, 'clipboardData', {
+      value: {
+        items: [{ kind: 'file', type: 'image/png', getAsFile: () => image }],
+        files: [image],
+        getData: (type: string) => type === 'text/plain' ? 'copied caption' : '',
+      },
+    });
+
+    await act(async () => {
+      editor.dispatchEvent(paste);
+      await Promise.resolve();
+    });
+
+    expect(paste.defaultPrevented).toBe(false);
+    expect(copyAttachment).toHaveBeenCalledWith(image);
+    expect(screen.getByRole('button', { name: 'Remove clipboard-photo.png' })).toBeInTheDocument();
+    expect(readPlannerDraftAttachments()).toEqual(['C:/drafts/clipboard-photo.png']);
+  });
+
+  it('selects a Planner line on a triple click and all text on a fourth click', () => {
+    const { container } = render(<QuickPlanner />);
+    const editor = container.querySelector<HTMLTextAreaElement>('.quick-planner-message')!;
+    const message = 'First line\nSecond line\nThird line';
+    fireEvent.change(editor, { target: { value: message } });
+
+    editor.setSelectionRange(14, 20);
+    fireEvent.click(editor, { detail: 3 });
+    expect(editor.value.slice(editor.selectionStart, editor.selectionEnd)).toBe('Second line');
+
+    fireEvent.click(editor, { detail: 4 });
+    expect(editor.selectionStart).toBe(0);
+    expect(editor.selectionEnd).toBe(message.length);
+  });
+
   it('accepts file drops on the text field and highlights it while dragging', () => {
     const getFilePath = vi.fn((file: File) => `C:/photos/${file.name}`);
     Object.defineProperty(window, 'telegram', {
@@ -1598,7 +1715,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('status')).toHaveClass('is-warning');
   });
 
-  it('keeps attachment chips in a single scrollable row without an extra scrollbar pad', () => {
+  it('shows the attachment scrollbar only when the chips overflow', () => {
     Object.defineProperty(window, 'telegram', {
       configurable: true,
       value: { getFilePath: vi.fn((file: File) => `C:/photos/${file.name}`) },
@@ -1614,16 +1731,20 @@ describe('QuickPlanner feedback', () => {
     const list = panel.querySelector('.quick-planner-attachment-list') as HTMLDivElement;
 
     const scrollbar = panel.querySelector('.quick-planner-attachments-scrollbar') as HTMLDivElement;
-    expect(scrollbar).toBeInTheDocument();
     expect(list).toBeInTheDocument();
+    expect(panel).not.toHaveClass('has-overflow');
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-attachments:not\(\.has-overflow\)\s+\.quick-planner-attachments-scrollbar\s*\{\s*display:\s*none;/);
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-attachment\s*\{[^}]*border:\s*1px solid #c5d0d9;/);
 
     Object.defineProperty(list, 'scrollWidth', { configurable: true, value: 600 });
     Object.defineProperty(list, 'clientWidth', { configurable: true, value: 250 });
     Object.defineProperty(list, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    fireEvent.resize(window);
 
+    expect(panel).toHaveClass('has-overflow');
+    expect(scrollbar).toHaveAttribute('role', 'scrollbar');
     fireEvent.keyDown(list, { key: 'ArrowRight', code: 'ArrowRight' });
     expect(list.scrollLeft).toBeGreaterThan(0);
-    expect(scrollbar).toHaveAttribute('role', 'scrollbar');
   });
 
   it('passes the selected Telegram effect when opening Studio from Planner', async () => {

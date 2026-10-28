@@ -7,6 +7,27 @@ import { createActiveDraftSnapshot, readActiveDraftState, writeActiveDraft } fro
 
 export type SavedPlannerDraft = SavedPlannerDraftModel;
 export const SAVED_PLANNER_DRAFTS_UPDATED_EVENT = 'xmsgi-saved-planner-drafts-updated';
+export const MAX_PLANNER_ATTACHMENTS = 10;
+
+function normalizeDraftChat(value: unknown): SavedPlannerDraft['selectedChat'] {
+  if (!value || typeof value !== 'object' || !('id' in value) || !('name' in value)
+    || typeof value.id !== 'string' || typeof value.name !== 'string') {
+    return null;
+  }
+
+  const type = 'type' in value
+    && (value.type === 'private' || value.type === 'group' || value.type === 'supergroup'
+      || value.type === 'channel' || value.type === 'unknown')
+    ? value.type
+    : undefined;
+
+  return {
+    id: value.id,
+    name: value.name,
+    ...('username' in value && typeof value.username === 'string' ? { username: value.username } : {}),
+    ...(type ? { type } : {}),
+  };
+}
 
 const PLANNER_DRAFT_STORAGE_KEY = 'xmsgi-planner-draft-text';
 const PLANNER_DRAFT_UPDATED_AT_KEY = 'xmsgi-planner-draft-updated-at';
@@ -146,12 +167,14 @@ export function readSavedPlannerDraft(): SavedPlannerDraft | null {
   const value = stored as Partial<SavedPlannerDraft>;
   if (typeof value.message !== 'string' || !Array.isArray(value.attachments)) return null;
   const reminderTypes: PlannerReminderType[] = ['task', 'meeting', 'reminder', 'event', 'idea'];
+  const selectedChat = normalizeDraftChat(value.selectedChat);
 
   return {
     id: typeof value.id === 'string' ? value.id : 'legacy-draft',
     message: value.message,
     attachments: value.attachments.filter((attachment): attachment is string => typeof attachment === 'string'),
     entities: normalizeRichTextEntities(value.entities, value.message.length),
+    ...(selectedChat ? { selectedChat } : {}),
     reminderType: reminderTypes.includes(value.reminderType as PlannerReminderType)
       ? value.reminderType as PlannerReminderType
       : null,
@@ -169,6 +192,7 @@ export function readSavedPlannerDrafts(): SavedPlannerDraft[] {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
     const value = item as Partial<SavedPlannerDraft>;
     if (typeof value.message !== 'string' || !Array.isArray(value.attachments)) return [];
+    const selectedChat = normalizeDraftChat(value.selectedChat);
 
     return [{
       id: typeof value.id === 'string' && value.id
@@ -177,6 +201,7 @@ export function readSavedPlannerDrafts(): SavedPlannerDraft[] {
       message: value.message,
       attachments: value.attachments.filter((attachment): attachment is string => typeof attachment === 'string'),
       entities: normalizeRichTextEntities(value.entities, value.message.length),
+      ...(selectedChat ? { selectedChat } : {}),
       reminderType: reminderTypes.includes(value.reminderType as PlannerReminderType)
         ? value.reminderType as PlannerReminderType
         : null,

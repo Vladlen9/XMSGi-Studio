@@ -640,18 +640,18 @@ export function QuickPlannerActivity({
             >
               <defs>
                 <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#239dfb" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#239dfb" stopOpacity="0.015" />
+                  <stop offset="0%" stopColor="var(--activity-chart-color)" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="var(--activity-chart-color)" stopOpacity="0.015" />
                 </linearGradient>
                 <linearGradient id={lineGradientId} x1="0" x2="1" y1="0" y2="0">
-                  <stop offset="0%" stopColor="#65c5ff" />
-                  <stop offset="50%" stopColor="#168ff2" />
-                  <stop offset="100%" stopColor="#54baff" />
+                  <stop offset="0%" stopColor="var(--activity-chart-color-bright)" />
+                  <stop offset="50%" stopColor="var(--activity-chart-color)" />
+                  <stop offset="100%" stopColor="var(--activity-chart-color-bright)" />
                 </linearGradient>
                 <linearGradient id={monthBarGradientId} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#75d0ff" />
-                  <stop offset="45%" stopColor="#299ff4" />
-                  <stop offset="100%" stopColor="#0874d1" />
+                  <stop offset="0%" stopColor="var(--activity-chart-color-bright)" />
+                  <stop offset="45%" stopColor="var(--activity-chart-color)" />
+                  <stop offset="100%" stopColor="var(--activity-chart-color-deep)" />
                 </linearGradient>
                 <linearGradient
                   id={`${edgeFadeId}-gradient`}

@@ -467,6 +467,7 @@ const BUILT_IN_TEMPLATES_SEEDED_KEY = 'xmsgi-built-in-templates-seeded-v1';
 const MAX_ALBUMS = 3;
 const MAX_PHOTOS_PER_ALBUM = 10;
 const MAX_ATTACHMENTS = MAX_ALBUMS * MAX_PHOTOS_PER_ALBUM;
+const MAX_STANDALONE_ATTACHMENTS = 10;
 const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024;
 const MAX_ATTACHMENTS_TOTAL_SIZE = 200 * 1024 * 1024;
 const PREVIEW_HISTORY_LIMIT = 50;
@@ -699,6 +700,7 @@ export function WorkspacePage({
   const albumAttachmentPositionRef = useRef(0);
   const albumAttachmentTargetIdRef = useRef<string | null>(null);
   const attachmentPreviewUrlsRef = useRef(new Set<string>());
+  const attachmentPreviewAttemptsRef = useRef(new Set<string>());
   const attachmentItemsRef = useRef<HTMLDivElement | null>(null);
   const bodyInputRef = useRef<HTMLDivElement | null>(null);
   const focusRescheduledEditorAtEndRef = useRef(false);
@@ -755,16 +757,18 @@ export function WorkspacePage({
   );
   const attachmentUsageRef = useRef({
     count: attachments.length,
+    standaloneCount: attachments.filter((attachment) => !attachment.albumId).length,
     size: attachments.reduce((total, attachment) => total + (attachment.size ?? 0), 0),
     albumIds: new Set(attachments.flatMap((attachment) => attachment.albumId ? [attachment.albumId] : [])),
   });
-  const pendingAttachmentUsageRef = useRef(new Map<number, { count: number; size: number }>());
+  const pendingAttachmentUsageRef = useRef(new Map<number, { count: number; standaloneCount: number; size: number }>());
   const pendingAlbumIdsRef = useRef(new Set<string>());
   const pendingAlbumPhotoCountsRef = useRef(new Map<string, number>());
   const attachmentSelectionGenerationRef = useRef(0);
   const replaceAttachments = (nextAttachments: WorkspaceAttachment[]) => {
     attachmentUsageRef.current = {
       count: nextAttachments.length,
+      standaloneCount: nextAttachments.filter((attachment) => !attachment.albumId).length,
       size: nextAttachments.reduce((total, attachment) => total + (attachment.size ?? 0), 0),
       albumIds: new Set(nextAttachments.flatMap((attachment) => attachment.albumId ? [attachment.albumId] : [])),
     };
@@ -1207,6 +1211,64 @@ export function WorkspacePage({
       }
     }, durationMs ?? (kind === 'warning' ? FOOTER_STATUS_DURATION_MS.publishWarning : FOOTER_STATUS_DURATION_MS.publishSuccess));
   }, []);
+
+  useEffect(() => {
+    const readImageDataUrl = getDraftStorageApi()?.readImageDataUrl;
+    if (!readImageDataUrl) return;
+
+    let cancelled = false;
+    const missingPreviews = attachments.filter((attachment) => (
+      isImageAttachment(attachment)
+      && !attachment.previewUrl
+      && !attachment.unavailable
+      && attachment.path
+      && !/^(?:blob:|data:|https?:|file:)/i.test(attachment.path)
+    ));
+    const pending = missingPreviews.filter((attachment) => {
+      const key = `${attachment.id}:${attachment.path}`;
+      if (attachmentPreviewAttemptsRef.current.has(key)) return false;
+      attachmentPreviewAttemptsRef.current.add(key);
+      return true;
+    });
+    if (pending.length === 0) return;
+
+    void Promise.all(pending.map(async (attachment) => {
+      try {
+        const result = await readImageDataUrl(attachment.path);
+        return { attachment, result };
+      } catch (error) {
+        return {
+          attachment,
+          result: {
+            success: false,
+            error: error instanceof Error ? error.message : 'Image preview could not be loaded.',
+          },
+        };
+      }
+    })).then((results) => {
+      if (cancelled) return;
+      const loadedPreviews = new Map<string, { path: string; dataUrl: string }>();
+      results.forEach(({ attachment, result }) => {
+        if (result.success && result.dataUrl) {
+          loadedPreviews.set(attachment.id, { path: attachment.path, dataUrl: result.dataUrl });
+        } else {
+          showPublishFeedback(t('studio.attachmentPreviewFailed', { name: attachment.name }));
+        }
+      });
+      if (loadedPreviews.size > 0) {
+        setAttachments((current) => current.map((attachment) => {
+          const loaded = loadedPreviews.get(attachment.id);
+          return loaded && loaded.path === attachment.path && !attachment.previewUrl
+            ? { ...attachment, previewUrl: loaded.dataUrl }
+            : attachment;
+        }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachments, showPublishFeedback, t]);
 
   const flushBeforeLeaveStudio = useCallback(async () => {
     try {
@@ -2575,6 +2637,7 @@ export function WorkspacePage({
     setMessageEffectId(payload.effect ?? null);
     attachmentUsageRef.current = {
       count: incomingAttachments.length,
+      standaloneCount: incomingAttachments.filter((attachment) => !attachment.albumId).length,
       size: incomingAttachments.reduce((total, attachment) => total + attachment.size, 0),
       albumIds: new Set(incomingAttachments.flatMap((attachment) => attachment.albumId ? [attachment.albumId] : [])),
     };
@@ -2791,16 +2854,24 @@ export function WorkspacePage({
     const selectionGeneration = attachmentSelectionGenerationRef.current;
     setAttachmentError('');
 
-    const currentPendingUsage = pendingAttachmentUsageRef.current.get(selectionGeneration) ?? { count: 0, size: 0 };
+    const currentPendingUsage = pendingAttachmentUsageRef.current.get(selectionGeneration)
+      ?? { count: 0, standaloneCount: 0, size: 0 };
     const currentCount = attachmentUsageRef.current.count + currentPendingUsage.count;
+    const currentStandaloneCount = attachmentUsageRef.current.standaloneCount + currentPendingUsage.standaloneCount;
     const currentSize = attachmentUsageRef.current.size + currentPendingUsage.size;
     const acceptedFiles: File[] = [];
+    let acceptedStandaloneCount = 0;
     let nextSize = currentSize;
     let nextError = '';
 
     for (const file of files) {
       if (currentCount + acceptedFiles.length >= MAX_ATTACHMENTS) {
         nextError = t('studio.fileCountLimit', { count: MAX_ATTACHMENTS });
+        break;
+      }
+
+      if (!albumId && currentStandaloneCount + acceptedStandaloneCount >= MAX_STANDALONE_ATTACHMENTS) {
+        nextError = t('studio.fileCountLimit', { count: MAX_STANDALONE_ATTACHMENTS });
         break;
       }
 
@@ -2815,11 +2886,13 @@ export function WorkspacePage({
       }
 
       acceptedFiles.push(file);
+      if (!albumId) acceptedStandaloneCount += 1;
       nextSize += file.size;
     }
 
     const reservedSize = acceptedFiles.reduce((total, file) => total + file.size, 0);
     currentPendingUsage.count += acceptedFiles.length;
+    currentPendingUsage.standaloneCount += acceptedStandaloneCount;
     currentPendingUsage.size += reservedSize;
     pendingAttachmentUsageRef.current.set(selectionGeneration, currentPendingUsage);
 
@@ -2855,13 +2928,17 @@ export function WorkspacePage({
     const pendingUsage = pendingAttachmentUsageRef.current.get(selectionGeneration);
     if (pendingUsage) {
       pendingUsage.count -= acceptedFiles.length;
+      pendingUsage.standaloneCount -= acceptedStandaloneCount;
       pendingUsage.size -= reservedSize;
-      if (pendingUsage.count === 0 && pendingUsage.size === 0) {
+      if (pendingUsage.count === 0 && pendingUsage.standaloneCount === 0 && pendingUsage.size === 0) {
         pendingAttachmentUsageRef.current.delete(selectionGeneration);
       }
     }
     if (selectionGeneration !== attachmentSelectionGenerationRef.current) return;
     attachmentUsageRef.current.count += storedAttachments.length;
+    attachmentUsageRef.current.standaloneCount += storedAttachments
+      .filter((attachment) => !attachment.albumId)
+      .length;
     attachmentUsageRef.current.size += storedAttachments.reduce((total, attachment) => total + attachment.size, 0);
     storedAttachments.forEach((attachment) => {
       if (attachment.albumId) attachmentUsageRef.current.albumIds.add(attachment.albumId);

@@ -10,16 +10,19 @@ export type SavedPlannerDraft = {
   message: string;
   attachments: string[];
   entities: RichTextEntity[];
+  selectedChat?: Pick<Chat, 'id' | 'name' | 'username' | 'type'> | null;
   reminderType: PlannerReminderType | null;
   savedAt: string;
   pinned?: boolean;
 };
 
+type PlannerDraftChat = Pick<Chat, 'id' | 'name' | 'username' | 'type'>;
+
 export type HistoryOriginal =
   | { kind: 'scheduled'; message: ScheduledMessage }
   | { kind: 'saved-draft'; draft: SavedDraft }
   | { kind: 'saved-planner-draft'; draft: SavedPlannerDraft }
-  | { kind: 'planner-draft'; text: string; entities: RichTextEntity[]; attachments: string[]; reminderType: PlannerReminderType | null };
+  | { kind: 'planner-draft'; text: string; entities: RichTextEntity[]; attachments: string[]; chat: PlannerDraftChat | null; reminderType: PlannerReminderType | null };
 
 export interface HistoryItem {
   id: string;
@@ -164,7 +167,19 @@ export function normalizePlannerDraft(
     attachments: normalizedAttachments,
     entities: normalized.entities,
     draftColor: 'teal',
-    original: { kind: 'planner-draft', text, entities: normalized.entities, attachments: normalizedAttachments, reminderType },
+    original: {
+      kind: 'planner-draft',
+      text,
+      entities: normalized.entities,
+      attachments: normalizedAttachments,
+      chat: chat ? {
+        id: chat.id,
+        name: chat.name,
+        ...(chat.username ? { username: chat.username } : {}),
+        ...(chat.type ? { type: chat.type } : {}),
+      } : null,
+      reminderType,
+    },
   };
 }
 
@@ -179,8 +194,8 @@ export function normalizeSavedPlannerDraft(draft: SavedPlannerDraft): HistoryIte
     status: 'draft',
     title: 'Saved Quick Planner draft',
     text: normalized.message,
-    channelName: '',
-    channelLabel: '',
+    channelName: draft.selectedChat?.name ?? '',
+    channelLabel: draft.selectedChat?.username ? `@${draft.selectedChat.username}` : '',
     updatedAt,
     attachments: draft.attachments,
     entities: normalized.entities,

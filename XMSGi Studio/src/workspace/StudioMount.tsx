@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { StudioBridgeProps, StudioSchedulerActions, StudioSchedulerRuntime } from '@shared/bridge';
-import type { NotificationType } from '@shared/types';
-import type { NotificationState } from '@/types';
+import type { NotificationState, NotificationType } from '@shared/types';
 
 const StudioApp = lazy(() => import('@studio/App'));
 
@@ -25,7 +24,8 @@ type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAc
     | 'onRegisterHistoryDraftClearHandler'
     | 'onRegisterHistoryDraftDeleteHandler'
     | 'onRegisterHistoryRescheduleHandler'
-  > & { notification?: NotificationState };
+  >
+  & { notification?: NotificationState };
 
 type StudioSchedulerHandlers = Pick<StudioSchedulerActions,
   | 'handleSchedule'

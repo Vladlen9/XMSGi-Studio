@@ -222,6 +222,7 @@ describe('WorkspacePage publish action colors', () => {
     expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item > button:first-child > \.workspace-page-draft-attachment-summary\s*\{/);
   });
 });
+
 describe('WorkspacePage feedback layout', () => {
   it('uses shared semantic feedback colors in Studio and Planner', () => {
     expect(themeTokenStyles).toMatch(/--feedback-error:\s*#b42318;/);
@@ -481,6 +482,43 @@ describe('WorkspacePage main-screen flows', () => {
     }));
 
     expect(readInitialWorkspaceDraft()).toEqual({});
+  });
+
+  it('loads stored image attachments through the draft preview bridge', async () => {
+    inMemoryDraftStore.migrationVersion = 1;
+    inMemoryDraftStore.workspaceDraft = {
+      documentId: 'image-preview-test',
+      body: 'Draft with an image',
+      entities: [],
+      attachments: [{
+        id: 'stored-photo',
+        name: 'OIP.webp',
+        type: 'image',
+        mimeType: 'image/webp',
+        path: '/stored/OIP.webp',
+        size: 1024,
+        position: 0,
+      }],
+      savedAt: '12:00',
+    };
+    vi.mocked(window.draftStorage.readImageDataUrl!).mockResolvedValue({
+      success: true,
+      dataUrl: 'data:image/webp;base64,dGVzdA==',
+    });
+
+    const { unmount } = await renderWorkspacePage();
+
+    try {
+      await waitFor(() => {
+        expect(window.draftStorage.readImageDataUrl).toHaveBeenCalledWith('/stored/OIP.webp');
+        expect(document.querySelector('.workspace-page-attachment-thumbnail')).toHaveAttribute(
+          'src',
+          'data:image/webp;base64,dGVzdA==',
+        );
+      });
+    } finally {
+      unmount();
+    }
   });
 
   it('preserves photo album identity when normalizing draft attachments', () => {
@@ -3191,7 +3229,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(handleSendDraftNow.mock.calls[0][5]).toHaveLength(2);
     const remainingAlbumCards = Array.from(document.querySelectorAll('.workspace-page-photo-album-card'));
     expect(remainingAlbumCards).toHaveLength(1);
-    expect(remainingAlbumCards[0].querySelector('img')?.getAttribute('src')).toContain('failed-album.png');
+    expect(remainingAlbumCards[0].querySelector('img')?.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
     expect(document.querySelector('.workspace-page-photo-album-card img[src*="sent-album.png"]')).toBeNull();
     expect(document.querySelector('.workspace-page-rich-text-input')?.textContent).not.toContain('Hello world');
     unmount();
@@ -4026,7 +4064,7 @@ describe('WorkspacePage main-screen flows', () => {
         previewThumbnail.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
         await vi.advanceTimersByTimeAsync(1000);
       });
-      expect(document.querySelector('.workspace-page-attachment-preview img')?.getAttribute('src')).toContain('album-one-a.png');
+      expect(document.querySelector('.workspace-page-attachment-preview img')?.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
     } finally {
       vi.useRealTimers();
       unmount();
@@ -4101,6 +4139,42 @@ describe('WorkspacePage main-screen flows', () => {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
     expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(2);
+    unmount();
+  });
+
+  it('limits standalone attachments to ten while still allowing photo albums', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const fileInput = document.querySelector<HTMLInputElement>('.workspace-page-hidden-file-input')!;
+    const standaloneFiles = Array.from({ length: 11 }, (_, index) => new File(
+      [`file-${index}`],
+      `file-${index}.png`,
+      { type: 'image/png' },
+    ));
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', { value: standaloneFiles, configurable: true });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(document.querySelectorAll('.workspace-page-attachment-card')).toHaveLength(10);
+    expect(window.draftStorage.copyAttachment).toHaveBeenCalledTimes(10);
+    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-error')?.textContent)
+      .toContain('File limit: 10.');
+
+    const albumInput = document.querySelector<HTMLInputElement>('input[accept*="image/png"][multiple]')!;
+    await act(async () => {
+      Object.defineProperty(albumInput, 'files', {
+        value: [new File(['photo'], 'album-photo.png', { type: 'image/png' })],
+        configurable: true,
+      });
+      albumInput.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(document.querySelectorAll('.workspace-page-attachment-card')).toHaveLength(11);
+    expect(document.querySelectorAll('.workspace-page-photo-album-card')).toHaveLength(1);
+    expect(window.draftStorage.copyAttachment).toHaveBeenCalledTimes(11);
     unmount();
   });
 
@@ -5004,6 +5078,10 @@ describe('WorkspacePage main-screen flows', () => {
         copyAttachment: vi.fn(async (file: File) => ({
           success: true,
           attachment: { name: file.name, path: `/stored/${file.name}`, size: file.size },
+        })),
+        readImageDataUrl: vi.fn(async () => ({
+          success: true,
+          dataUrl: 'data:image/png;base64,dGVzdA==',
         })),
           copyAttachmentPath: vi.fn(async (sourcePath: string) => {
             const name = sourcePath.split(/[\\/]/).pop() || sourcePath;

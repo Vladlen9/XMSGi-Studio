@@ -798,7 +798,14 @@ export function ChatPreviewStand({
                             aria-label={t('studio.viewPhotoFullSize')}
                             title={t('studio.viewPhotoFullSize')}
                           >
-                            <img src={src} alt={attachment.name} />
+                            <img
+                              src={src}
+                              alt={attachment.name}
+                              onLoad={() => {
+                                const feed = previewFeedRef.current;
+                                if (!collapsed && !previewHistoryLoading && feed) scrollPreviewFeedToDraft(feed);
+                              }}
+                            />
                           </button>
                         );
                       })}

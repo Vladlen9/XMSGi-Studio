@@ -431,8 +431,8 @@ html[data-theme='light'] .quick-planner-date-picker-grid button:disabled {
 
 html[data-theme='light'] .quick-planner-date-picker-grid button.is-today {
   border-color: var(--planner-accent) !important;
-  background: #e8f4fd !important;
-  color: #176da9 !important;
+  background: rgba(35, 157, 251, 0.1) !important;
+  color: #087acb !important;
   font-weight: 700;
 }
 
@@ -1043,6 +1043,18 @@ html[data-theme='light'] .history-drawer .history-status-tab.is-active .history-
   color: #172a34;
 }
 
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab {
+  font-size: 12px;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count {
+  font-size: 11px;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count.is-zero {
+  color: #687b82;
+}
+
 html[data-theme='light'] .history-drawer .history-source-filters .history-filter {
   border-color: #dce5ea;
   color: #65717c;
@@ -1159,6 +1171,18 @@ html[data-theme='dark'] .history-drawer.is-page .history-status-filters {
   background: #1a2127;
 }
 
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab {
+  font-size: 12px;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count {
+  font-size: 11px;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count.is-zero {
+  color: #87969d;
+}
+
 html[data-theme='dark'] .history-page-filter-label {
   color: #8f9da7;
 }
@@ -1263,6 +1287,7 @@ html[data-theme='dark'] .history-record-action.is-delete:focus-visible {
 }
 
 html[data-theme='light'] .history-date-heading,
+html[data-theme='light'] .history-date-sticky,
 html[data-theme='light'] .history-date-heading::before {
   background: #f4f6f8;
   color: #737d88;
@@ -1588,8 +1613,8 @@ html[data-theme='light'] .history-drawer .history-delete-button {
   color: #a5362c;
 }
 
-html[data-theme='light'] .history-drawer .history-delete-button:hover,
-html[data-theme='light'] .history-drawer .history-delete-button:focus-visible {
+html[data-theme='light'] .history-drawer .history-delete-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer .history-delete-button:focus-visible:not(:disabled) {
   border-color: #dbada7;
   background: #f8e6e3;
   color: #8f1c13;
@@ -3030,8 +3055,8 @@ html[data-theme='light'] .history-drawer.is-page .history-delete-button {
   box-shadow: 0 1px 2px rgba(105, 43, 36, 0.08);
 }
 
-html[data-theme='light'] .history-drawer.is-page .history-delete-button:hover,
-html[data-theme='light'] .history-drawer.is-page .history-delete-button:focus-visible {
+html[data-theme='light'] .history-drawer.is-page .history-delete-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-delete-button:focus-visible:not(:disabled) {
   border-color: #c98279;
   background: #f2d8d4;
   color: #7e211b;
@@ -3057,8 +3082,22 @@ html[data-theme='light'] .history-drawer.is-page .history-export-button:disabled
   border-color: #d6dfe4;
   background: #edf1f3;
   color: #697984;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-delete-button:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: #697984;
   box-shadow: none;
-  opacity: 1;
+  opacity: 0.75;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-delete-button:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: #8496a1;
+  box-shadow: none;
+  opacity: 0.75;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools {
@@ -3307,6 +3346,7 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .histo
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-date-heading,
+html[data-theme='light'] .history-drawer.is-page .history-date-sticky,
 html[data-theme='light'] .history-drawer.is-page .history-date-heading::before {
   background: #f2f5f7;
   color: #526570;
@@ -3392,20 +3432,25 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-panel {
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-header {
   border-color: #dce5e7;
-  background: linear-gradient(180deg, #fbfcfc, #f6f9f9);
+  background: linear-gradient(110deg, #f0f7f8, #fbfcfc 62%);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-header h2 {
   color: #1b3039;
-  font-size: 23px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-weight: 720;
 }
 
-html[data-theme='light'] .history-drawer.is-page .history-detail-meta,
-html[data-theme='light'] .history-drawer.is-page .history-detail-status {
-  color: #405761;
-  font-size: 14px;
+html[data-theme='light'] .history-drawer.is-page .history-detail-time {
+  color: #657984;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-time svg {
+  color: #7b939e;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-meta {
+  color: #526a75;
+  font-size: 12px;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-detail-heading .history-record-source {
@@ -3417,7 +3462,37 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-category {
   border-color: #c5dfe2;
   background: #e8f3f3;
   color: #285f68;
-  font-size: 12px;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-status {
+  border-color: #dce4e7;
+  background: #eef2f4;
+  color: #53636c;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-status.is-draft,
+html[data-theme='light'] .history-drawer.is-page .history-detail-status.is-scheduled {
+  border-color: #ead8b5;
+  background: #fff5df;
+  color: #806024;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-status.is-sending {
+  border-color: #c7e1ee;
+  background: #edf8fc;
+  color: #32677e;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-status.is-sent {
+  border-color: #c6e2d0;
+  background: #eff9f2;
+  color: #356a49;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-status.is-failed {
+  border-color: #f0cfca;
+  background: #fff2f0;
+  color: #9b453c;
 }
 
 @media (min-width: 761px) {
@@ -3431,6 +3506,17 @@ html[data-theme='light'] .history-drawer.is-page .history-detail-tool-icon {
   border-color: #d0dce2;
   background: linear-gradient(155deg, #ffffff, #f0f4f6);
   color: #496472;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button[aria-expanded='true'] {
+  color: #315a6b;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button.is-error:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-detail-tool-button.is-error:focus-visible {
+  color: #8f2d25;
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-detail-tool-button:not(:hover):not(:focus-visible):not([aria-expanded='true']) .history-detail-tool-icon,
@@ -4099,7 +4185,7 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
   }
 
   .history-drawer.is-page .history-list-source-row .history-source-select {
-    min-height: 30px;
+    min-height: 34px;
   }
 }
 
@@ -4143,7 +4229,7 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
   }
 
   .history-drawer.is-page .history-list-source-row .history-source-select {
-    min-height: 30px;
+    min-height: 34px;
   }
 }
 
@@ -4173,7 +4259,7 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
   border-color: transparent;
   background: transparent;
   color: #a9b6bf;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 550;
 }
 
@@ -4182,8 +4268,9 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
   height: auto;
   padding: 0;
   background: transparent;
-  color: #8697a1;
+  color: #b6c5cb;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active,
@@ -4198,6 +4285,14 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .hi
 html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
   background: transparent;
   color: #d1d8dc;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count.is-zero {
+  color: #87969d;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count.is-zero {
+  color: #9bb9be;
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section {
@@ -4218,15 +4313,15 @@ html[data-theme='dark'] .history-drawer.is-page .history-list-source-row .histor
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button,
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled),
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button,
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:disabled,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled),
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
@@ -4242,13 +4337,14 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-
   box-shadow: none;
 }
 
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled)::before,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled)::before,
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled)::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled)::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:disabled:hover::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before {
@@ -4257,8 +4353,8 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-
   box-shadow: inset 0 1px 0 rgba(226, 239, 249, 0.06), 0 5px 13px rgba(0, 0, 0, 0.18);
 }
 
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover::before,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled)::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled)::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true']::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled)::before,
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible::before {
@@ -4267,13 +4363,20 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-
   box-shadow: 0 3px 10px rgba(37, 63, 77, 0.12);
 }
 
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
-html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:disabled:hover::before,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:disabled:hover::before {
+  border-color: transparent;
+  background: rgba(100, 112, 121, 0.18);
+  box-shadow: none;
+}
+
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled),
+html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled),
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true'],
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
 html[data-theme='dark'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover,
-html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible,
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:hover:not(:disabled),
+html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button:focus-visible:not(:disabled),
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-delete-button[aria-expanded='true'],
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:hover:not(:disabled),
 html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-export-button:focus-visible {
@@ -4282,6 +4385,21 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-tools .history-
 }
 
 @media (min-width: 1121px) {
+  .history-drawer.is-page .history-list-status-heading > .history-status-filters {
+    width: max-content;
+    max-width: 100%;
+    flex: 0 1 auto;
+  }
+
+  .history-drawer.is-page .history-list-status-section .history-status-filters {
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .history-drawer.is-page .history-list-status-section .history-status-tab {
+    flex: 0 0 auto;
+  }
+
   .history-drawer.is-page .history-list-source-row .history-page-filter-section.is-source-section {
     justify-content: space-between;
     padding: 0 10px 0 12px;
@@ -4316,8 +4434,9 @@ html[data-theme='light'] .history-drawer.is-page .history-list-status-section .h
   height: auto;
   padding: 0;
   background: transparent;
-  color: #687e87;
-  font-size: 12px;
+  color: #546b73;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active,
@@ -4332,6 +4451,14 @@ html[data-theme='light'] .history-drawer.is-page .history-list-status-section .h
 html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count {
   background: transparent;
   color: #3c716b;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab .history-filter-count.is-zero {
+  color: #687b82;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active .history-filter-count.is-zero {
+  color: #5b827b;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab:not(.is-active):hover,
@@ -4569,6 +4696,26 @@ html[data-theme='light'] .history-drawer.is-page .history-drawer-controls .histo
   color: #285a78;
 }
 
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active,
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:hover,
+html[data-theme='light'] .history-drawer.is-page .history-list-status-section .history-status-tab.is-active:focus-visible {
+  border-color: #6795aa;
+  background: #eaf3f7;
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 5px rgba(49, 93, 113, 0.2);
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-search {
+  border-color: transparent;
+  background: #f7f8fa;
+  box-shadow: none;
+}
+
+html[data-theme='light'] .history-drawer.is-page .history-search:focus-within {
+  border-color: #6795aa;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(71, 124, 158, 0.14);
+}
+
 html[data-theme='light'] .history-drawer.is-page .history-list-source-row .history-source-select[aria-expanded='true'],
 html[data-theme='light'] .history-drawer.is-page .history-list-source-row .history-source-select[aria-expanded='true']:hover,
 html[data-theme='light'] .history-drawer.is-page .history-list-source-row .history-source-select[aria-expanded='true']:focus-visible {
@@ -4581,6 +4728,7 @@ html[data-theme='light'] .history-drawer.is-page .history-page-filter-label::bef
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-date-heading,
+html[data-theme='light'] .history-drawer.is-page .history-date-sticky,
 html[data-theme='light'] .history-drawer.is-page .history-date-heading::before {
   background: #f2f6f8;
 }
@@ -4775,34 +4923,46 @@ html[data-theme='dark'] .history-drawer.is-page .history-content.is-page .histor
 html[data-theme='dark'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:hover,
 html[data-theme='dark'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:focus-within,
 html[data-theme='dark'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:not(:hover):not(:focus-within) {
-  --history-record-accent: #8b929a;
+  --history-record-accent: #aab8c2;
   border-color: transparent;
-  border-bottom-color: rgba(154, 168, 184, 0.12);
-  background: transparent;
-  box-shadow: none;
+  border-right-color: rgba(170, 184, 194, 0.3);
+  border-left-color: rgba(170, 184, 194, 0.3);
+  border-bottom-color: rgba(170, 184, 194, 0.28);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(154, 168, 184, 0.16), rgba(154, 168, 184, 0.045) 88%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(170, 184, 194, 0.1);
 }
 
 html[data-theme='dark'] .history-drawer.is-page .history-content.is-page .history-record.is-selected::before {
-  background: #8b929a;
-  box-shadow: none;
-  opacity: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background: #aab8c2;
+  box-shadow: 0 0 8px rgba(170, 184, 194, 0.18);
+  opacity: 1;
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-content.is-page .history-record.is-selected,
 html[data-theme='light'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:hover,
 html[data-theme='light'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:focus-within,
 html[data-theme='light'] .history-drawer.is-page .history-content.is-page .history-record.is-selected:not(:hover):not(:focus-within) {
-  --history-record-accent: #8b929a;
+  --history-record-accent: #477c9e;
   border-color: transparent;
-  border-bottom-color: #dce4e8;
-  background: transparent;
-  box-shadow: none;
+  border-right-color: rgba(71, 124, 158, 0.32);
+  border-left-color: rgba(71, 124, 158, 0.32);
+  border-bottom-color: rgba(71, 124, 158, 0.26);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(71, 124, 158, 0.12), rgba(71, 124, 158, 0.035) 88%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(71, 124, 158, 0.1);
 }
 
 html[data-theme='light'] .history-drawer.is-page .history-content.is-page .history-record.is-selected::before {
-  background: #8b929a;
-  box-shadow: none;
-  opacity: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background: #477c9e;
+  box-shadow: 0 0 7px rgba(71, 124, 158, 0.16);
+  opacity: 1;
 }
 
 html[data-theme='light'] .workspace-page .workspace-page-rich-text-template-stage > .workspace-page-template-stage-footer .workspace-page-stage-secondary,
