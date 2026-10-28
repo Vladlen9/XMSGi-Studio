@@ -56,7 +56,7 @@ For setup and workflow details, see the [user guide](XMSGi%20Studio/docs/ru/user
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi Studio.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi%20Studio.exe) — no installation required |
+| Windows | Portable `.exe` | [XMSGi Studio.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio.exe) — no installation required |
 | Linux | AppImage (x64) | [XMSGi.Studio-1.3.6.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio-1.3.6.AppImage) |
 | Linux | `.deb` (x64) | [xmsgi-studio_1.3.6_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/xmsgi-studio_1.3.6_amd64.deb) |
 | macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.6.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.6/XMSGi.Studio-1.3.6.dmg) |
