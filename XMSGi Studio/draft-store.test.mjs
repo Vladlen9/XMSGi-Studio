@@ -16,6 +16,18 @@ afterEach(() => {
 });
 
 describe('draft attachment storage', () => {
+  it('returns imported text in the result shape expected by the Studio renderer', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
+    temporaryDirectories.push(directory);
+    const textPath = path.join(directory, 'message.txt');
+    const text = 'Заголовок\nТекст сообщения';
+    writeFileSync(textPath, text, 'utf8');
+
+    const result = createDraftStore({ directory: path.join(directory, 'drafts') }).importTextFrom(textPath);
+
+    expect(result).toEqual({ success: true, text });
+  });
+
   it('returns the attachment metadata expected by the Studio renderer', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'xmsgi-draft-store-'));
     temporaryDirectories.push(directory);

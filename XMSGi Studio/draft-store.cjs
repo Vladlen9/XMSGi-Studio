@@ -506,7 +506,7 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
     },
 
     importTextFrom(filePath) {
-      return fs.readFileSync(filePath, 'utf8');
+      return { success: true, text: fs.readFileSync(filePath, 'utf8') };
     },
   };
 }

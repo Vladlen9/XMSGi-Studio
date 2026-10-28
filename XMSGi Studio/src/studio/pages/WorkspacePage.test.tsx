@@ -3487,10 +3487,12 @@ describe('WorkspacePage main-screen flows', () => {
     const exportButton = Array.from(footer?.querySelectorAll('button') ?? [])
       .find((button) => button.getAttribute('aria-label') === 'Export all drafts') as HTMLButtonElement;
     const importButton = Array.from(footer?.querySelectorAll('button') ?? [])
-      .find((button) => button.getAttribute('aria-label') === 'Import drafts') as HTMLButtonElement;
+      .find((button) => button.getAttribute('aria-label') === 'Import a saved-drafts backup (.json); merge or replace the current library') as HTMLButtonElement;
 
     expect(exportButton).toBeUndefined();
     expect(importButton).toBeTruthy();
+    expect(importButton.textContent).toContain('Import backup');
+    expect(importButton.title).toBe('Import a saved-drafts backup (.json); merge or replace the current library');
     expect(footer?.querySelector('[title="Export .txt"]')).toBeNull();
 
     vi.mocked(window.draftStorage.importBackup).mockResolvedValueOnce({

@@ -1741,7 +1741,7 @@ describe('useScheduler native history', () => {
     const { result } = renderWorkspaceHistory([], [], { send }, showNotification, 'workspace', chat);
     const groups = [['one.png', 'two.png'], ['three.png'], ['four.png']];
 
-    await waitFor(() => expect(result.current.upcoming).toEqual([]));
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
     let sent: boolean | 'sent-history-failed' = true;
     await act(async () => {
       sent = await result.current.handleSendDraftNow(

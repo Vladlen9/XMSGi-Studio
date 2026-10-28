@@ -128,9 +128,9 @@ export function DraftsStage({
             const savedCountLabel = t('studio.savedCount', { count: savedDrafts.length });
             const statusLabel = draftStoreSaving
               ? t('studio.saving')
-              : draftStoreReady
-                ? t('studio.savedLocally')
-                : t('studio.loading');
+              : !draftStoreReady
+                ? t('studio.loading')
+                : '';
             return statusLabel ? `${savedCountLabel} · ${statusLabel}` : savedCountLabel;
           })()}</span>
         </div>
