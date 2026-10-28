@@ -174,15 +174,6 @@ function normalizeEntities(entities: PublishRequest['entities']): TelegramFormat
   return normalized;
 }
 
-function buildReplyMarkup(payload: PublishRequest): { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> } | undefined {
-  if (payload.replyMarkup !== undefined) return payload.replyMarkup as { inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>> } | undefined;
-  if (!payload.inlineButtons) return undefined;
-
-  return {
-    inline_keyboard: payload.inlineButtons as Array<Array<{ text: string; url?: string; callback_data?: string }>>,
-  };
-}
-
 export async function sendNow(payload: PublishRequest): Promise<SchedulerBridgeResult> {
   const bridge = getBridge();
   if (!bridge || typeof bridge.send !== 'function') {
@@ -190,14 +181,12 @@ export async function sendNow(payload: PublishRequest): Promise<SchedulerBridgeR
   }
 
   const entities = normalizeEntities(payload.entities);
-  const replyMarkup = buildReplyMarkup(payload);
 
   const result = await bridge.send(
     payload.chatId,
     payload.text,
     normalizeAttachments(payload.attachments),
     entities,
-    replyMarkup,
     payload.silent ?? false,
     payload.effect,
     payload.accountId,
@@ -314,7 +303,6 @@ export async function scheduleMessage(payload: PublishRequest): Promise<Schedule
   }
 
   const entities = normalizeEntities(payload.entities);
-  const replyMarkup = buildReplyMarkup(payload);
 
   return (await bridge.schedule({
     chatId: payload.chatId,
@@ -322,7 +310,6 @@ export async function scheduleMessage(payload: PublishRequest): Promise<Schedule
     targetTimestamp,
     attachments: normalizeAttachments(payload.attachments),
     entities,
-    replyMarkup,
     silent: payload.silent,
     effect: payload.effect,
     accountId: payload.accountId,

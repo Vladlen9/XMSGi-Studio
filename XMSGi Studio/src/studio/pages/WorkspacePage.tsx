@@ -27,10 +27,8 @@ import { normalizeRichTextEntities, richTextToHtml } from '../lib/richText';
 import { sliceRichText } from '../lib/richText';
 import { getMessageMaxLength } from '../lib/messageLimits';
 import { appendPreviewMessage } from '../lib/preview';
-import { toInlineKeyboardMarkup } from '../lib/inlineKeyboard';
 import { useLocale } from '@studio/lib/i18n';
 import { hasChatHistoryBridge, telegramGetChatHistory } from '@/services/chatAppService';
-import type { InlineButtonRow } from '../lib/inlineKeyboard';
 import { loadTemplates, saveTemplates } from '../lib/storage';
 import { uid } from '@shared/utils';
 import {
@@ -40,7 +38,7 @@ import {
 } from '@shared/editorAppearance';
 import type { PersistedWorkspaceDocumentVersion } from '@shared/types';
 import { areWorkspaceSnapshotsEqual, hasWorkspaceDocumentContent } from '../lib/documentHistory';
-import { formatScheduleSummary, getScheduleDateTimeAfter, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, type ScheduleRepeatOptions } from '../lib/scheduling';
+import { formatScheduleSummary, isFutureSchedule, MAX_SCHEDULE_OCCURRENCES, refreshScheduleDateTime, type ScheduleRepeatOptions } from '../lib/scheduling';
 import type {
   Chat,
   DraftAttachment,
@@ -106,13 +104,12 @@ type WorkspacePageProps = {
     attachments?: string[];
     attachmentGroups?: string[][];
     entities?: RichTextEntity[];
-    replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>;
     effect?: string;
     replaceMessage?: ScheduledMessage;
   }, repeat?: ScheduleRepeatOptions) => void | Promise<void | boolean | 'sent-history-failed'>;
   handleCancelMessage: (message: ScheduledMessage) => void;
   handleCancelMessages?: (messages: ScheduledMessage[]) => Promise<boolean>;
-  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], replyMarkup?: ReturnType<typeof toInlineKeyboardMarkup>, attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string, suppressNotifications?: boolean) => Promise<boolean | 'sent-history-failed'>;
+  handleSendDraftNow: (chat: Chat, text: string, attachments?: string[], entities?: RichTextEntity[], attachmentGroups?: string[][], onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void, effect?: string, suppressNotifications?: boolean) => Promise<boolean | 'sent-history-failed'>;
   publishingDraft: boolean;
   showNotification?: (
     message: string,
@@ -121,6 +118,7 @@ type WorkspacePageProps = {
     errorDetails?: BridgeErrorDetails,
     durationMs?: number,
   ) => void;
+  inlineNotification?: StudioInlineNotification | null;
   onRegisterPlannerTextOpener?: (opener: ((payload: StudioPlannerTextPayload) => Promise<boolean>) | null) => void;
   onRegisterBeforeLeaveStudio?: (flush: (() => Promise<boolean>) | null) => void;
   onRegisterHistoryDraftOpener?: (opener: ((draft: SavedDraft) => void) | null) => void;
@@ -138,6 +136,13 @@ type PublishFooterStatus = {
   kind: 'error' | 'progress' | 'warning' | 'success' | 'notice';
   transient: boolean;
   duration: number | null;
+};
+export type StudioInlineNotification = {
+  message: string;
+  title: string;
+  type: NotificationType;
+  durationMs: number;
+  revision: number;
 };
 type PendingDraftReplacement = {
   previousSnapshot: WorkspaceDraft;
@@ -164,7 +169,6 @@ function savedDraftToWorkspaceSnapshot(draft: SavedDraft): WorkspaceDraft {
     entities: draft.entities ?? [],
     attachments: normalizeAttachments(draft.attachments),
     selectedChat: draft.selectedChat ?? null,
-    inlineButtons: draft.inlineButtons ?? [],
     date: draft.date ?? '',
     time: draft.time ?? '',
     repeatMode: draft.repeatMode ?? 'none',
@@ -659,6 +663,7 @@ function toFileUrl(filePath: string) {
 export function WorkspacePage({
   connected,
   connectionRecoveryStatus = null,
+  inlineNotification = null,
   chats,
   selectedChat,
   setSelectedChat,
@@ -776,13 +781,10 @@ export function WorkspacePage({
   const attachmentPreviewTimerRef = useRef<number | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [textFileError, setTextFileError] = useState('');
-  const [inlineButtons, setInlineButtons] = useState<InlineButtonRow[]>(
-    () => initialDraftRef.current?.inlineButtons ?? [],
-  );
   const [initialTemplateState] = useState(loadTemplatesWithDefault);
   const [templates, setTemplates] = useState<Template[]>(initialTemplateState.templates);
   const [templateStorageError, setTemplateStorageError] = useState(initialTemplateState.storageError);
-  const [stageMode, setStageMode] = useState<'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons'>(() => {
+  const [stageMode, setStageMode] = useState<'editor' | 'schedule' | 'template' | 'draft' | 'chat'>(() => {
     return isLivePreviewSurface() ? 'schedule' : 'editor';
   });
   const [scheduleFocus, setScheduleFocus] = useState<'repeat' | 'time' | null>(() => {
@@ -790,9 +792,9 @@ export function WorkspacePage({
   });
   const [followCurrentTime, setFollowCurrentTime] = useState(true);
   const [scheduleClockNow, setScheduleClockNow] = useState(() => Date.now());
+  const [previewClockNow, setPreviewClockNow] = useState(() => Date.now());
   const publishFeedbackTimerRef = useRef<number | null>(null);
   const [scheduleSelectionConfirmed, setScheduleSelectionConfirmed] = useState(false);
-  const [, setStageTab] = useState<'editor' | 'templates' | 'drafts' | 'buttons'>('editor');
   const [workspaceSelectedChats, setWorkspaceSelectedChats] = useState<Chat[]>([]);
   const workspaceChatOriginRef = useRef<Chat | null>(null);
   const [repeatMode, setRepeatMode] = useState<ScheduleRepeatOptions['mode']>('none');
@@ -841,13 +843,26 @@ export function WorkspacePage({
   const [versionRestoreError, setVersionRestoreError] = useState('');
 
   useEffect(() => {
-    if (stageMode !== 'schedule' || scheduleFocus === 'repeat') return undefined;
+    let timeoutId = 0;
+    const refreshPreviewClock = () => {
+      const now = Date.now();
+      setPreviewClockNow(now);
+      timeoutId = window.setTimeout(refreshPreviewClock, 60_000 - (now % 60_000) + 25);
+    };
+
+    timeoutId = window.setTimeout(refreshPreviewClock, 60_000 - (Date.now() % 60_000) + 25);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (stageMode !== 'schedule') return undefined;
 
     let timeoutId = 0;
     const refreshScheduleClock = () => {
-      setScheduleClockNow(Date.now());
-      if (followCurrentTime) {
-        const nextSchedule = getScheduleDateTimeAfter(0);
+      const now = new Date();
+      setScheduleClockNow(now.getTime());
+      const nextSchedule = refreshScheduleDateTime(date, time, followCurrentTime, now);
+      if (nextSchedule) {
         setDate((current) => current === nextSchedule.date ? current : nextSchedule.date);
         setTime((current) => current === nextSchedule.time ? current : nextSchedule.time);
       }
@@ -856,7 +871,7 @@ export function WorkspacePage({
 
     refreshScheduleClock();
     return () => window.clearTimeout(timeoutId);
-  }, [followCurrentTime, scheduleFocus, setDate, setTime, stageMode]);
+  }, [date, followCurrentTime, setDate, setTime, stageMode, time]);
   const sendInFlightRef = useRef(false);
   const [publishAction, setPublishAction] = useState<PublishAction>('send');
   const [editorAppearance, setEditorAppearance] = useState(readEditorAppearancePreferences);
@@ -949,7 +964,11 @@ export function WorkspacePage({
       const editorGap = previewBounds.left - editorBounds.right;
       const viewportGap = workspaceBounds.right - previewBounds.right
         + (previewWindow.offsetWidth - alignedPreviewWidth) * previewScale;
-      const nextOffset = offset - (editorGap - viewportGap) / 2;
+      const rawOffset = offset - (editorGap - viewportGap) / 2;
+      const alignmentLimitPx = 12;
+      const nextOffset = Number.isFinite(rawOffset)
+        ? Math.max(-alignmentLimitPx, Math.min(alignmentLimitPx, rawOffset))
+        : 0;
       if (Math.abs(nextOffset - offset) > 0.25) {
         previewPanel.style.setProperty(offsetProperty, `${nextOffset}px`);
       }
@@ -987,7 +1006,6 @@ export function WorkspacePage({
       attachments: normalizeAttachments(workspaceDraft?.attachments),
       selectedChat: workspaceDraft?.selectedChat ?? selectedChat,
       savedAt: workspaceDraft?.savedAt ?? '',
-      inlineButtons: workspaceDraft?.inlineButtons ?? [],
       date: workspaceDraft?.date || date,
       time: workspaceDraft?.time || time,
       repeatMode: workspaceDraft?.repeatMode || repeatMode,
@@ -999,7 +1017,6 @@ export function WorkspacePage({
       setDraftBody(workspaceDraft.body ?? '');
       setDraftEntities(normalizeRichTextEntities(workspaceDraft.entities, workspaceDraft.body?.length ?? 0));
       replaceAttachments(normalizeAttachments(workspaceDraft.attachments));
-      setInlineButtons(workspaceDraft.inlineButtons ?? []);
       if (workspaceDraft.date || workspaceDraft.time) setFollowCurrentTime(false);
       if (workspaceDraft.date) setDate(workspaceDraft.date);
       if (workspaceDraft.time) setTime(workspaceDraft.time);
@@ -1010,7 +1027,6 @@ export function WorkspacePage({
       setDraftBody('');
       setDraftEntities([]);
       replaceAttachments([]);
-      setInlineButtons([]);
     }
   };
 
@@ -1023,7 +1039,6 @@ export function WorkspacePage({
       entities: draftEntities,
       attachments,
       selectedChat,
-      inlineButtons,
       date,
       time,
       repeatMode,
@@ -1058,7 +1073,6 @@ export function WorkspacePage({
     prepareWorkspaceVersionSnapshot,
     recordWorkspaceVersion,
     handleRestoreDraftBackup: restoreDraftBackup,
-    handleExportDrafts: exportDrafts,
     handleImportDrafts: importDrafts,
   } = draftLifecycle;
   const recordWorkspaceVersionRef = useRef(recordWorkspaceVersion);
@@ -1101,13 +1115,13 @@ export function WorkspacePage({
 
   useEffect(() => {
     if (!scheduleSubmissionPendingRef.current) return;
-    if (stageMode !== 'schedule') {
-      scheduleSubmissionPendingRef.current = false;
-      scheduleSubmissionStartedRef.current = false;
-      return;
-    }
     if (scheduling) {
       scheduleSubmissionStartedRef.current = true;
+      return;
+    }
+    if (stageMode !== 'schedule' && !scheduleSubmissionStartedRef.current) {
+      scheduleSubmissionPendingRef.current = false;
+      scheduleSubmissionStartedRef.current = false;
       return;
     }
     if (!scheduleSubmissionStartedRef.current) return;
@@ -1117,6 +1131,9 @@ export function WorkspacePage({
     scheduleSubmissionStartedRef.current = false;
     if (!scheduledSuccessfully) return;
 
+    setRepeatMode('none');
+    setRepeatDays([]);
+    setRepeatOccurrences(1);
     setScheduleFocus(null);
     setStageMode('editor');
   }, [lastAction, scheduling, stageMode]);
@@ -1268,7 +1285,6 @@ export function WorkspacePage({
         }
         focusEditorAfterStageEscapeRef.current = true;
         setStageMode('editor');
-        setStageTab('editor');
         setTemplateEditingId(null);
         setTemplateDraftName('');
         setTemplateDraftBody('');
@@ -1356,7 +1372,6 @@ export function WorkspacePage({
       setDraftBody('');
       setDraftEntities([]);
       replaceAttachments([]);
-      setInlineButtons([]);
       setWorkspaceDocumentId(uid());
     })();
   }, [showPublishFeedback, successPulse, t]);
@@ -1505,13 +1520,12 @@ export function WorkspacePage({
     deferredPreviewText,
     deferredPreviewEntities.length,
     attachments.length,
-    inlineButtons.length,
     chatListOpen,
     previewCollapsed,
     selectedChat?.id,
   ]);
 
-  const previewTime = new Date().toLocaleTimeString([], {
+  const previewTime = new Date(previewClockNow).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -1595,9 +1609,23 @@ export function WorkspacePage({
             ? t('studio.sendToSavedSummary')
             : t('studio.sendToChatSummary', { chat: localizeChatName(selectedChat.name) })
           : t('studio.sendChooseChatSummary');
-  const publishFooterStatus: PublishFooterStatus | null = sendError
-    ? { message: sendError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
-    : connectionRecoveryStatus === 'offline'
+  const publishFooterStatus: PublishFooterStatus | null = inlineNotification
+    ? {
+        message: inlineNotification.message,
+        detail: inlineNotification.title === 'Studio' ? undefined : inlineNotification.title,
+        kind: inlineNotification.type === 'error'
+          ? 'error'
+          : inlineNotification.type === 'warning'
+            ? 'warning'
+            : inlineNotification.type === 'success'
+              ? 'success'
+              : 'notice',
+        transient: true,
+        duration: inlineNotification.durationMs,
+      }
+    : sendError
+      ? { message: sendError, kind: 'error', transient: false, duration: FOOTER_STATUS_DURATION_MS.sendError }
+      : connectionRecoveryStatus === 'offline'
       ? { message: t('telegramStatus.offlineMessage'), kind: 'error', transient: false, duration: null }
       : connectionRecoveryStatus === 'reconnecting'
         ? { message: t('telegramStatus.networkMessage'), kind: 'progress', transient: false, duration: null }
@@ -1646,7 +1674,6 @@ export function WorkspacePage({
     const isDraftReplacementSend = pendingDraftReplacementRef.current !== null;
     const chat = selectedChat;
     const text = draftBody;
-    const replyMarkup = toInlineKeyboardMarkup(inlineButtons);
     const attachmentTransportItems = getAttachmentTransportItems(attachments);
     const attachmentGroups = attachmentTransportItems.map((item) => item.paths);
     const failedAttachmentIds = new Set<string>();
@@ -1663,7 +1690,6 @@ export function WorkspacePage({
         text,
         attachmentGroups.flat(),
         draftEntities,
-        replyMarkup,
         attachmentGroups,
         (groupIndex, sentGroup) => {
           if (groupIndex === 0) firstGroupSent = sentGroup;
@@ -1699,12 +1725,11 @@ export function WorkspacePage({
             }
             setDraftBody('');
             setDraftEntities([]);
-            setInlineButtons([]);
             setWorkspaceDocumentId(uid());
             if (text.trim()) {
               setPreviewHistory((current) => {
                 if (!current || current.chat.id !== chat.id) return current;
-                const nextHistory = appendPreviewMessage(current, chat.id, text, replyMarkup);
+                const nextHistory = appendPreviewMessage(current, chat.id, text);
                 const cache = previewHistoryCacheRef.current;
                 if (cache.has(chat.id)) {
                   cache.delete(chat.id);
@@ -1751,7 +1776,7 @@ export function WorkspacePage({
       setPreviewHistory((current) => {
         if (!current || current.chat.id !== chat.id) return current;
 
-        const nextHistory = appendPreviewMessage(current, chat.id, text, replyMarkup);
+        const nextHistory = appendPreviewMessage(current, chat.id, text);
         const cache = previewHistoryCacheRef.current;
         if (cache.has(chat.id)) {
           cache.delete(chat.id);
@@ -1815,7 +1840,6 @@ export function WorkspacePage({
       attachments: attachments.map((attachment) => attachment.path || attachment.previewUrl || attachment.name).filter(Boolean),
       attachmentGroups: getAttachmentTransportGroups(attachments),
       entities: draftEntities,
-      replyMarkup: toInlineKeyboardMarkup(inlineButtons),
       effect: messageEffectId ?? undefined,
       ...(rescheduleSource ? { replaceMessage: rescheduleSource } : {}),
     }, {
@@ -1865,7 +1889,6 @@ export function WorkspacePage({
     setDraftBody('');
     setDraftEntities([]);
     replaceAttachments([]);
-    setInlineButtons([]);
     setWorkspaceDocumentId(uid());
   };
 
@@ -1888,6 +1911,7 @@ export function WorkspacePage({
     if (publishAction === 'schedule') {
       if (!hasDraftContentState) {
         showPublishFeedback(t('studio.enterMessage'));
+        restoreEditorFocusForEmptyMessageWarning();
         return;
       }
       if (!hasSelectedTarget) {
@@ -1915,6 +1939,9 @@ export function WorkspacePage({
 
     if (publishActionBlocker) {
       showPublishFeedback(publishActionBlocker);
+      if (publishActionBlocker === t('studio.enterMessage')) {
+        restoreEditorFocusForEmptyMessageWarning();
+      }
       return;
     }
 
@@ -2022,7 +2049,6 @@ export function WorkspacePage({
     setDraftName(draft?.name ?? '');
     setDraftBodyText(draft?.body ?? '');
     setDraftBodyEntities(draft?.entities ?? []);
-    setStageTab('drafts');
     setStageMode('draft');
   };
 
@@ -2043,7 +2069,6 @@ export function WorkspacePage({
       entities: draft.entities ?? [],
       attachments: normalizeAttachments(draft.attachments),
       selectedChat: draftChat ?? draft.selectedChat ?? null,
-      inlineButtons: draft.inlineButtons ?? [],
       date: draft.date ?? '',
       time: draft.time ?? '',
       repeatMode: draft.repeatMode ?? 'none',
@@ -2063,7 +2088,6 @@ export function WorkspacePage({
     setDraftBody(draft.body);
     setDraftEntities(draft.entities ?? []);
     replaceAttachments(normalizeAttachments(draft.attachments));
-    setInlineButtons(draft.inlineButtons ?? []);
     if (draft.date || draft.time) setFollowCurrentTime(false);
     if (draft.date) setDate(draft.date);
     if (draft.time) setTime(draft.time);
@@ -2074,7 +2098,6 @@ export function WorkspacePage({
     setRescheduleSource(null);
     setScheduleSelectionConfirmed(false);
     setPublishAction('send');
-    setStageTab('editor');
     focusRescheduledEditorAtEndRef.current = true;
     changeStageMode('editor');
     pendingDraftReplacementRef.current = hasWorkspaceDocumentContent(previousSnapshot)
@@ -2095,7 +2118,6 @@ export function WorkspacePage({
       ...previousSnapshot,
       entities: restoredEntities,
       attachments: restoredAttachments,
-      inlineButtons: previousSnapshot.inlineButtons ?? [],
       savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     const persisted = await persistDraftStore(savedDraftsRef.current, restoredSnapshot);
@@ -2114,7 +2136,6 @@ export function WorkspacePage({
     setDraftBody(restoredSnapshot.body);
     setDraftEntities(restoredEntities);
     replaceAttachments(restoredAttachments);
-    setInlineButtons(restoredSnapshot.inlineButtons);
     setSelectedChat(restoredSnapshot.selectedChat ?? null);
     setDate(restoredSnapshot.date ?? '');
     setTime(restoredSnapshot.time ?? '');
@@ -2126,7 +2147,6 @@ export function WorkspacePage({
     setRescheduleSource(null);
     setScheduleSelectionConfirmed(false);
     setPublishAction('send');
-    setStageTab('editor');
     focusRescheduledEditorAtEndRef.current = true;
     changeStageMode('editor');
     showPublishFeedback(t('studio.previousTextRestored'), 'success');
@@ -2171,13 +2191,6 @@ export function WorkspacePage({
     setDraftBody(message.text);
     setDraftEntities(message.entities ?? []);
     replaceAttachments(normalizeAttachments(message.attachments ?? []));
-    setInlineButtons((message.replyMarkup?.inline_keyboard ?? []).map((row) => row.map((button) => ({
-      id: crypto.randomUUID(),
-      label: button.text,
-      action: button.url !== undefined
-        ? { type: 'url' as const, value: button.url }
-        : { type: 'callback' as const, value: button.callback_data ?? '' },
-    }))));
     setDate(nextDate);
     setTime(nextTime);
     setFollowCurrentTime(false);
@@ -2261,26 +2274,6 @@ export function WorkspacePage({
     if (deleted) showPublishFeedback(checkpoint.error || t('studio.draftDeleted'), checkpoint.error ? 'warning' : 'success');
   };
 
-  const handleRenameDraft = async (draft: SavedDraft, name: string) => {
-    const trimmedName = name.trim();
-    if (!trimmedName) return false;
-    const currentSavedDrafts = savedDraftsRef.current;
-    const currentDraft = currentSavedDrafts.find((item) => item.id === draft.id);
-    if (!currentDraft) return false;
-    if (currentDraft.name === trimmedName) return true;
-
-    const nextSavedDrafts = currentSavedDrafts.map((item) => (
-      item.id === draft.id
-        ? { ...item, name: trimmedName, updatedAt: new Date().toISOString() }
-        : item
-    ));
-    const saved = await persistDraftStore(nextSavedDrafts, createWorkspaceDraftSnapshot(), () => {
-      replaceSavedDrafts(nextSavedDrafts);
-    });
-    if (saved) showPublishFeedback(t('studio.draftRenamed'), 'success');
-    return saved;
-  };
-
   historyDraftClearerRef.current = async () => {
     cancelPendingAutosave();
     let historyWarning = '';
@@ -2333,7 +2326,6 @@ export function WorkspacePage({
       entities: draftBodyEntities,
       attachments: existingDraft?.attachments ?? [],
       selectedChat: existingDraft?.selectedChat ?? null,
-      inlineButtons: existingDraft?.inlineButtons ?? [],
       date: existingDraft?.date ?? '',
       time: existingDraft?.time ?? '',
       repeatMode: existingDraft?.repeatMode ?? 'none',
@@ -2351,7 +2343,6 @@ export function WorkspacePage({
           entities: existingDraft.entities ?? [],
           attachments: normalizeAttachments(existingDraft.attachments),
           selectedChat: existingDraft.selectedChat ?? null,
-          inlineButtons: existingDraft.inlineButtons ?? [],
           date: existingDraft.date ?? '',
           time: existingDraft.time ?? '',
           repeatMode: existingDraft.repeatMode ?? 'none',
@@ -2392,7 +2383,6 @@ export function WorkspacePage({
     setDraftBody(draft.body);
     setDraftEntities(draft.entities ?? []);
     replaceAttachments(normalizeAttachments(draft.attachments));
-    setInlineButtons(draft.inlineButtons ?? []);
     if (draft.selectedChat) setSelectedChat(draft.selectedChat);
     if (draft.date || draft.time) setFollowCurrentTime(false);
     if (draft.date) setDate(draft.date);
@@ -2419,7 +2409,6 @@ export function WorkspacePage({
     workspaceChatOriginRef.current = null;
     setWorkspaceSelectedChats([]);
     setStageMode('editor');
-    setStageTab('editor');
   };
 
   const completeChatSelection = (chosenChat?: Chat) => {
@@ -2431,7 +2420,7 @@ export function WorkspacePage({
     setStageMode('editor');
   };
 
-  const changeStageMode = useCallback((nextMode: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons') => {
+  const changeStageMode = useCallback((nextMode: 'editor' | 'schedule' | 'template' | 'draft' | 'chat') => {
     if (nextMode !== 'schedule') setScheduleFocus(null);
     if (stageMode === 'chat' && nextMode !== 'chat') {
       setSelectedChat(workspaceChatOriginRef.current);
@@ -2440,9 +2429,39 @@ export function WorkspacePage({
     }
     if (nextMode !== 'template') closeTemplateEditor();
     if (nextMode !== 'draft') closeDraftEditor();
-    setStageTab(nextMode === 'template' ? 'templates' : nextMode === 'draft' ? 'drafts' : nextMode === 'buttons' ? 'buttons' : 'editor');
     setStageMode(nextMode);
   }, [closeDraftEditor, closeTemplateEditor, setSelectedChat, stageMode]);
+
+  const restoreEditorFocusForEmptyMessageWarning = useCallback(() => {
+    const focusEditor = () => {
+      const editor = bodyInputRef.current;
+      if (!editor) return;
+
+      editor.focus({ preventScroll: true });
+      const selection = editor.ownerDocument.getSelection();
+      if (!selection) return;
+
+      const range = editor.ownerDocument.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      editor.dataset.selectionStart = String(draftBody.length);
+      editor.dataset.selectionEnd = String(draftBody.length);
+    };
+
+    if (stageMode !== 'editor') {
+      changeStageMode('editor');
+    }
+
+    focusEditor();
+
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(focusEditor);
+    } else {
+      focusEditor();
+    }
+  }, [changeStageMode, draftBody.length, stageMode]);
 
   const openPlannerTextInEditor = useCallback(async (payload: StudioPlannerTextPayload) => {
     const text = payload.text;
@@ -2458,7 +2477,7 @@ export function WorkspacePage({
     if (draftBody === text && sameAttachments) {
       setDraftEntities(normalizeRichTextEntities(payload.entities, text.length));
       setMessageEffectId(payload.effect ?? null);
-      if (hasDraftContent(draftBody, attachments) || inlineButtons.length > 0) {
+      if (hasDraftContent(draftBody, attachments)) {
         plannerRestoreRef.current ??= {
           draft: createSavedDraft({
             name: 'Studio document before Planner',
@@ -2468,7 +2487,6 @@ export function WorkspacePage({
             entities: draftEntities,
             attachments,
             selectedChat,
-            inlineButtons,
             date,
             time,
             repeatMode,
@@ -2513,7 +2531,6 @@ export function WorkspacePage({
       entities: draftEntities,
       attachments,
       selectedChat,
-      inlineButtons,
       date,
       time,
       repeatMode,
@@ -2522,7 +2539,7 @@ export function WorkspacePage({
       savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     } satisfies WorkspaceDraft;
     let previousSnapshot: WorkspaceDraft = currentSnapshot;
-    if (hasDraftContent(draftBody, attachments) || inlineButtons.length > 0) {
+    if (hasDraftContent(draftBody, attachments)) {
       const checkpoint = await recordWorkspaceVersion(currentSnapshot, 'before-replacement');
       if (!checkpoint.success) {
         showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
@@ -2539,7 +2556,6 @@ export function WorkspacePage({
       entities: previousSnapshot.entities,
       attachments: previousSnapshot.attachments,
       selectedChat: previousSnapshot.selectedChat,
-      inlineButtons: previousSnapshot.inlineButtons,
       date: previousSnapshot.date,
       time: previousSnapshot.time,
       repeatMode: previousSnapshot.repeatMode,
@@ -2548,7 +2564,6 @@ export function WorkspacePage({
     });
     plannerRestoreRef.current = {
       draft: hasDraftContent(previousDocument.body, normalizeAttachments(previousDocument.attachments))
-        || (previousDocument.inlineButtons?.length ?? 0) > 0
         ? previousDocument
         : null,
     };
@@ -2564,7 +2579,6 @@ export function WorkspacePage({
       albumIds: new Set(incomingAttachments.flatMap((attachment) => attachment.albumId ? [attachment.albumId] : [])),
     };
     setAttachments(incomingAttachments);
-    setInlineButtons([]);
     setPublishAction('send');
     focusPlannerEditorAtEndRef.current = true;
     changeStageMode('editor');
@@ -2581,7 +2595,6 @@ export function WorkspacePage({
     draftEntities,
     draftStateHydrated,
     draftStoreReady,
-    inlineButtons,
     repeatDays,
     repeatMode,
     repeatOccurrences,
@@ -2613,14 +2626,12 @@ export function WorkspacePage({
     if (draftStoreReady) {
       const restoredAttachments = normalizeAttachments(draft.attachments);
       const restoredSnapshot: WorkspaceDraft | null = hasDraftContent(draft.body, restoredAttachments)
-        || (draft.inlineButtons?.length ?? 0) > 0
         ? {
           documentId: draft.documentId ?? workspaceDocumentId,
             body: draft.body,
             entities: draft.entities,
             attachments: restoredAttachments,
             selectedChat: draftChat ?? draft.selectedChat ?? null,
-            inlineButtons: draft.inlineButtons ?? [],
             date: draft.date,
             time: draft.time,
             repeatMode: draft.repeatMode,
@@ -2645,7 +2656,6 @@ export function WorkspacePage({
     setDraftBody(draft.body);
     setDraftEntities(restoredEntities);
     replaceAttachments(normalizeAttachments(draft.attachments));
-    setInlineButtons(draft.inlineButtons ?? []);
     if (draft.date || draft.time) setFollowCurrentTime(false);
     if (draft.date) setDate(draft.date);
     if (draft.time) setTime(draft.time);
@@ -2656,7 +2666,6 @@ export function WorkspacePage({
     setRescheduleSource(null);
     setScheduleSelectionConfirmed(false);
     setPublishAction('send');
-    setStageTab('editor');
     setStageMode('editor');
     showPublishFeedback(t('studio.previousTextRestored'), 'success');
     return true;
@@ -2717,7 +2726,6 @@ export function WorkspacePage({
         documentId: openCopy ? uid() : version.documentId,
         entities: normalizeRichTextEntities(prepared.snapshot.entities, prepared.snapshot.body.length),
         attachments: normalizeAttachments(prepared.snapshot.attachments),
-        inlineButtons: prepared.snapshot.inlineButtons ?? [],
         savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       const persisted = await persistDraftStore(
@@ -2737,7 +2745,6 @@ export function WorkspacePage({
       setDraftBody(restoredSnapshot.body);
       setDraftEntities(restoredSnapshot.entities ?? []);
       replaceAttachments(restoredSnapshot.attachments);
-      setInlineButtons(restoredSnapshot.inlineButtons ?? []);
       setSelectedChat(restoredSnapshot.selectedChat ?? null);
       setDate(restoredSnapshot.date ?? '');
       setTime(restoredSnapshot.time ?? '');
@@ -2749,7 +2756,6 @@ export function WorkspacePage({
       rescheduleSourceRef.current = null;
       setScheduleSelectionConfirmed(false);
       setPublishAction('send');
-      setStageTab('editor');
       setStageMode('editor');
       if (openCopy) showPublishFeedback(t('studio.versionCopyOpened'), 'success');
       setVersionHistoryOpen(false);
@@ -2956,7 +2962,6 @@ export function WorkspacePage({
       showPublishFeedback(t('studio.historyCouldNotSave'), 'warning');
       return false;
     }
-    if (!attachments.length && !inlineButtons.length) setWorkspaceDocumentId(uid());
     return true;
   };
 
@@ -3257,7 +3262,6 @@ export function WorkspacePage({
                             entities,
                             attachments: attachmentGroups.flat(),
                             attachmentGroups,
-                            replyMarkup: toInlineKeyboardMarkup(inlineButtons),
                             ...(rescheduleSource ? { replaceMessage: rescheduleSource } : {}),
                           }, repeat);
                           setStageMode('editor');
@@ -3271,7 +3275,6 @@ export function WorkspacePage({
                         templates={templates}
                         savedDrafts={savedDrafts}
                         onInsertDraft={useSavedDraft}
-                        onRenameDraft={handleRenameDraft}
                         draftEditingId={draftEditingId}
                         draftColor={draftEditorColor}
                         setDraftColor={setDraftEditorColor}
@@ -3288,7 +3291,6 @@ export function WorkspacePage({
                         saveDraftStage={saveDraftStage}
                         draftStoreReady={draftStoreReady}
                         draftStoreSaving={draftStoreSaving}
-                        onExportDrafts={() => { void exportDrafts(showPublishFeedback); }}
                         onImportDrafts={() => { void importDrafts(showPublishFeedback); }}
                         onImportEditorText={() => void handleImportEditorText()}
                         onInsertTemplate={insertTextAtCursor}
@@ -3301,8 +3303,6 @@ export function WorkspacePage({
                         onDeleteTemplate={handleDeleteTemplate}
                         closeTemplateEditor={closeTemplateEditor}
                         saveTemplateStage={saveTemplateStage}
-                        inlineButtons={inlineButtons}
-                        setInlineButtons={setInlineButtons}
                       />
                     )}
                   />
@@ -3533,7 +3533,6 @@ export function WorkspacePage({
                     onClick={() => {
                       if (stageMode === 'template') {
                         closeTemplateEditor();
-                        setStageTab('editor');
                         setStageMode('editor');
                       } else {
                         changeStageMode('template');
@@ -3588,7 +3587,7 @@ export function WorkspacePage({
                     onPointerLeave={clearIconRimPointer}
                     disabled={sendInFlight || publishingDraft || scheduling || (publishAction === 'draft' && draftStoreSaving)}
                   >
-                    <span className="workspace-page-publish-trigger-main">
+                    <span className={`workspace-page-publish-trigger-main ${locale === 'en' ? 'is-english' : ''}`}>
                       {publishAction === 'schedule'
                         ? (scheduling ? t('studio.scheduling') : successPulse && lastAction === 'scheduled' ? t('studio.scheduled') : t('studio.schedule'))
                         : publishAction === 'draft'
@@ -3691,8 +3690,8 @@ export function WorkspacePage({
                 </div>
                 {publishFooterStatus && (
                   <div
-                    key={`${publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
-                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.kind === 'warning' && publishFooterStatus.message === t('schedule.massWarningTitle') ? ' is-mass-warning' : ''}${publishFooterStatus.detail ? ' has-detail' : ''}${retriggeredPublishFeedback?.message === publishFooterStatus.message && retriggeredPublishFeedback.kind === publishFooterStatus.kind ? ' is-retriggered' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
+                    key={`${inlineNotification?.revision ?? publishFeedbackInstance}-${publishFooterStatus.kind}-${publishFooterStatus.message}`}
+                    className={`workspace-page-publish-transient-feedback is-${publishFooterStatus.kind}${publishFooterStatus.transient ? ' is-notice' : ''}${publishFooterStatus.kind === 'warning' && publishFooterStatus.message === t('schedule.massWarningTitle') ? ' is-mass-warning' : ''}${retriggeredPublishFeedback?.message === publishFooterStatus.message && retriggeredPublishFeedback.kind === publishFooterStatus.kind ? ' is-retriggered' : ''}${connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') ? ' is-connection-recovering' : ''}${connectionRecoveryStatus === 'offline' && publishFooterStatus.message === t('telegramStatus.offlineMessage') ? ' is-connection-offline' : ''}`}
                     style={publishFooterStatus.duration === null
                       ? undefined
                       : { '--status-duration': `${publishFooterStatus.duration}ms` } as React.CSSProperties}
@@ -3701,18 +3700,15 @@ export function WorkspacePage({
                   >
                     <span
                       className="workspace-page-publish-transient-feedback-status"
-                      title={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
-                      aria-label={[publishFooterStatus.message, publishFooterStatus.detail].filter(Boolean).join(' ')}
+                      title={publishFooterStatus.message}
+                      aria-label={publishFooterStatus.message}
                     >
                       {connectionRecoveryStatus === 'reconnecting' && publishFooterStatus.message === t('telegramStatus.networkMessage') && (
                         <span className="workspace-page-connection-spinner" aria-hidden="true" />
                       )}
                       {publishFooterStatus.message}
                     </span>
-                    {publishFooterStatus.detail && (
-                      <span className="workspace-page-publish-transient-feedback-detail">{publishFooterStatus.detail}</span>
-                    )}
-                    {sendError && (
+                    {sendError && publishFooterStatus.message === sendError && (
                       <button type="button" className="workspace-page-send-retry" onClick={() => void sendDraftNow()} disabled={sendInFlight}>
                         {t('studio.retry')}
                       </button>
@@ -3752,7 +3748,6 @@ export function WorkspacePage({
               previewFeedRef={previewFeedRef}
               draftText={deferredPreviewText}
               draftEntities={deferredPreviewEntities}
-              inlineButtons={inlineButtons}
               attachments={attachments}
               previewTime={previewTime}
               collapsed={previewCollapsed}

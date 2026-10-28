@@ -368,4 +368,72 @@ describe('draft store reliability', () => {
     expect(imported.store.documentHistories.second.map(({ id }) => id)).toEqual(['second-1']);
     expect(imported.store.documentHistories.third.map(({ id }) => id)).toEqual(['third-1']);
   });
+
+  it('marks imported attachments outside the app store as unavailable', () => {
+    const root = createDirectory();
+    const storeDirectory = path.join(root, 'drafts');
+    const sourcePath = path.join(root, 'private.txt');
+    const backupPath = path.join(root, 'backup.json');
+    fs.writeFileSync(sourcePath, 'private content');
+    fs.writeFileSync(backupPath, JSON.stringify({
+      schemaVersion: 3,
+      savedDrafts: [{
+        id: 'imported',
+        name: 'Imported draft',
+        body: '',
+        createdAt: '2026-10-01T10:00:00.000Z',
+        updatedAt: '2026-10-01T10:00:00.000Z',
+        attachments: [
+          { name: 'private.txt', path: sourcePath },
+          'data:image/png;base64,ZmFrZQ==',
+        ],
+      }],
+      workspaceDraft: null,
+      documentHistories: {},
+    }));
+
+    const imported = createDraftStore({ directory: storeDirectory }).importFrom(backupPath, 'replace');
+
+    expect(imported.store.savedDrafts[0].attachments[0]).toMatchObject({
+      name: 'private.txt',
+      path: '',
+      unavailable: true,
+    });
+    expect(imported.store.savedDrafts[0].attachments[1]).toMatchObject({
+      path: '',
+      unavailable: true,
+    });
+    expect(fs.readdirSync(storeDirectory)).toEqual(['drafts.json', 'drafts.json.bak']);
+    expect(fs.readFileSync(sourcePath, 'utf8')).toBe('private content');
+  });
+
+  it('preserves imported attachment paths that resolve inside the app store', () => {
+    const root = createDirectory();
+    const storeDirectory = path.join(root, 'drafts');
+    fs.mkdirSync(storeDirectory);
+    const sourcePath = path.join(storeDirectory, 'photo.png');
+    const backupPath = path.join(root, 'backup.json');
+    fs.writeFileSync(sourcePath, 'image bytes');
+    fs.writeFileSync(backupPath, JSON.stringify({
+      schemaVersion: 3,
+      savedDrafts: [{
+        id: 'imported',
+        name: 'Imported draft',
+        body: '',
+        createdAt: '2026-10-01T10:00:00.000Z',
+        updatedAt: '2026-10-01T10:00:00.000Z',
+        attachments: [{ name: 'photo.png', path: sourcePath }],
+      }],
+      workspaceDraft: null,
+      documentHistories: {},
+    }));
+
+    const imported = createDraftStore({ directory: storeDirectory }).importFrom(backupPath, 'replace');
+
+    expect(imported.store.savedDrafts[0].attachments[0]).toMatchObject({
+      name: 'photo.png',
+      path: fs.realpathSync(sourcePath),
+    });
+    expect(imported.store.savedDrafts[0].attachments[0]).not.toHaveProperty('unavailable');
+  });
 });

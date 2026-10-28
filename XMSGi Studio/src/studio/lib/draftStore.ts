@@ -1,4 +1,4 @@
-import type { Chat, InlineButtonRow, PersistedDraftStore, RichTextEntity, SavedDraft } from '@studio/types';
+import type { Chat, PersistedDraftStore, RichTextEntity, SavedDraft } from '@studio/types';
 import type { DraftAttachment } from '../domain/types';
 import { DRAFT_STORE_SCHEMA_VERSION } from './draftStoreVersion';
 import { normalizeAttachments } from './draftAttachments';
@@ -32,7 +32,6 @@ export type WorkspaceDraft = {
   attachments: DraftAttachment[];
   selectedChat?: Chat | null;
   savedAt: string;
-  inlineButtons?: InlineButtonRow[];
   date?: string;
   time?: string;
   repeatMode?: ScheduleRepeatOptions['mode'];
@@ -73,7 +72,6 @@ export function readInitialWorkspaceDraft(): Partial<WorkspaceDraft> {
       selectedChat: unifiedDraft.selectedChatId ? { id: unifiedDraft.selectedChatId, name: '', username: '', type: 'unknown' } as Chat : null,
       date: typeof unifiedDraft.date === 'string' ? unifiedDraft.date : '',
       time: typeof unifiedDraft.time === 'string' ? unifiedDraft.time : '',
-      inlineButtons: Array.isArray(unifiedDraft.inlineButtons) ? (unifiedDraft.inlineButtons as unknown as InlineButtonRow[]) : [],
       repeatMode: ['none', 'daily', 'weekly', 'biweekly', 'monthly'].includes(unifiedDraft.repeatMode ?? 'none') ? (unifiedDraft.repeatMode ?? 'none') : 'none',
       repeatDays: Array.isArray(unifiedDraft.repeatDays) ? unifiedDraft.repeatDays as string[] : [],
       repeatOccurrences: typeof unifiedDraft.repeatOccurrences === 'number' ? unifiedDraft.repeatOccurrences : 1,
@@ -362,7 +360,6 @@ export function seedDefaultDraft(store: PersistedDraftStore): { store: Persisted
     entities: [],
     attachments: [],
     selectedChat: null,
-    inlineButtons: [],
     date: '',
     time: '',
     repeatMode: 'none',

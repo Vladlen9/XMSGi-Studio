@@ -18,7 +18,6 @@ export const telegramCapabilities: ChannelCapabilities = {
   supportsScheduleCancellation: true,
   supportsEditing: false,
   supportsDeletion: false,
-  supportsInlineKeyboard: true,
 };
 
 type TelegramFormattingEntity = {
@@ -27,10 +26,6 @@ type TelegramFormattingEntity = {
   length: number;
   url?: string;
   language?: string;
-};
-
-type TelegramReplyMarkup = {
-  inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>>;
 };
 
 const formattingEntityTypes = new Set<TelegramFormattingEntity['type']>([
@@ -57,22 +52,6 @@ function getFormattingEntities(entities: NormalizedMessage['entities']): Telegra
     && entity.length >= 0
     && (entity.type !== 'text_url' || typeof entity.url === 'string')
   ));
-}
-
-function getReplyMarkup(value: unknown): TelegramReplyMarkup | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const markup = value as Partial<TelegramReplyMarkup>;
-  if (!Array.isArray(markup.inline_keyboard)) return undefined;
-
-  const isButton = (button: unknown) => Boolean(
-    button
-    && typeof button === 'object'
-    && typeof (button as { text?: unknown }).text === 'string'
-    && ((button as { url?: unknown }).url === undefined || typeof (button as { url?: unknown }).url === 'string')
-    && ((button as { callback_data?: unknown }).callback_data === undefined || typeof (button as { callback_data?: unknown }).callback_data === 'string'),
-  );
-  const validMarkup = markup.inline_keyboard.every((row) => Array.isArray(row) && row.every(isButton));
-  return validMarkup ? value as TelegramReplyMarkup : undefined;
 }
 
 function failedResult(source: unknown, operation: TelegramOperationName, fallbackMessage: string): PublishResult {
@@ -135,7 +114,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       text: post.body,
       entities: post.entities ?? [],
       mediaIds: post.mediaIds ?? [],
-      replyMarkup: post.replyMarkup,
     };
   }
 
@@ -150,7 +128,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
         message.text,
         message.mediaIds,
         getFormattingEntities(message.entities),
-        getReplyMarkup(message.replyMarkup),
         false,
         post.effect,
         post.accountId,
@@ -166,7 +143,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
             message.text,
             message.mediaIds,
             getFormattingEntities(message.entities),
-            getReplyMarkup(message.replyMarkup),
             false,
             post.effect,
           )
@@ -175,7 +151,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           message.text,
           message.mediaIds,
           getFormattingEntities(message.entities),
-          getReplyMarkup(message.replyMarkup),
         );
       return toPublishResult(result, 'publish');
     } catch (error) {
@@ -198,7 +173,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
         targetTimestamp,
         attachments: message.mediaIds,
         entities: getFormattingEntities(message.entities),
-        replyMarkup: getReplyMarkup(message.replyMarkup),
         ...(post.effect ? { effect: post.effect } : {}),
       }), 'publish');
     } catch (error) {

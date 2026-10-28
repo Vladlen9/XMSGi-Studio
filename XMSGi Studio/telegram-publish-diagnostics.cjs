@@ -1,12 +1,9 @@
 const { applyTelegramIdempotency } = require('./telegram-idempotency.cjs');
 
-function logTelegramOperation(label, message, attachments = [], replyMarkup) {
-  const rows = Array.isArray(replyMarkup?.inline_keyboard) ? replyMarkup.inline_keyboard : [];
+function logTelegramOperation(label, message, attachments = []) {
   console.info(`[Telegram ${label}] started`, {
     messageLength: typeof message === 'string' ? message.length : 0,
     attachmentCount: attachments.length,
-    buttonRowCount: rows.length,
-    buttonCount: rows.reduce((count, row) => count + (Array.isArray(row) ? row.length : 0), 0),
   });
 }
 
@@ -19,7 +16,6 @@ async function withTelegramInvokeDiagnostics(clientAtStart, label, operation, id
     console.info(`[Telegram ${label}] request`, {
       requestType: request?.className || request?.constructor?.name || 'unknown',
       mediaType: request?.media?.className || request?.media?.constructor?.name || null,
-      buttonRowCount: request?.replyMarkup?.rows?.length || 0,
       scheduleDate: request?.scheduleDate ?? null,
       mediaCount: Array.isArray(request?.multiMedia) ? request.multiMedia.length : null,
     });

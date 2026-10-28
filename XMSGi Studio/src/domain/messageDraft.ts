@@ -23,7 +23,6 @@ export type DraftRecord = {
   repeatMode?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
   repeatDays?: string[];
   repeatOccurrences?: number;
-  inlineButtons?: unknown[];
   updatedAt: string;
 };
 
@@ -40,8 +39,6 @@ export type PublishRequest = {
   text: string;
   entities?: DraftMessageEntity[];
   attachments?: Array<DraftAttachment | string>;
-  inlineButtons?: unknown[];
-  replyMarkup?: unknown;
   scheduledAt?: string;
   targetTimestamp?: number;
   accountId?: string;
@@ -67,7 +64,6 @@ export function createDraftRecord(input: Partial<DraftRecord> & Pick<DraftRecord
     repeatMode: input.repeatMode ?? 'none',
     repeatDays: Array.isArray(input.repeatDays) ? input.repeatDays : [],
     repeatOccurrences: typeof input.repeatOccurrences === 'number' ? input.repeatOccurrences : 1,
-    inlineButtons: Array.isArray(input.inlineButtons) ? input.inlineButtons : [],
     updatedAt: input.updatedAt ?? timestamp,
   };
 }

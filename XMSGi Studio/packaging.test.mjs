@@ -9,11 +9,13 @@ const packageJson = JSON.parse(
 );
 
 describe('production packaging', () => {
-  it('publishes the XMSGi Studio 1.3.1 portable package metadata', () => {
-    expect(packageJson.version).toBe('1.3.1');
+  it('publishes the XMSGi Studio 1.3.5 portable package metadata', () => {
+    expect(packageJson.version).toBe('1.3.5');
     expect(packageJson.build.productName).toBe('XMSGi Studio');
     expect(packageJson.build.icon).toBe('build/icon.ico');
     expect(packageJson.build.files).toContain('src/studio/assets/logo.png');
+    expect(packageJson.build.files).toContain('src/studio/assets/fonts/LICENSE-Exo-2.txt');
+    expect(packageJson.build.files).toContain('src/studio/assets/fonts/LICENSE-Orbitron.txt');
     expect(packageJson.build.win.target).toEqual(['portable']);
     expect(packageJson.build.linux.maintainer).toBe('XMSGi Studio');
     expect(packageJson.build.asar).toBe(true);
@@ -37,7 +39,6 @@ describe('production packaging', () => {
       'telegram-message-entities.cjs',
       'telegram-dialogs.cjs',
       'telegram-media-preview.cjs',
-      'telegram-inline-keyboard.cjs',
       'telegram-errors.cjs',
       'telegram-account-storage.cjs',
       'telegram-lifecycle.cjs',
@@ -55,7 +56,6 @@ describe('production packaging', () => {
       expect(fs.existsSync(path.join(projectRoot, file))).toBe(true);
     }
 
-    expect(productionFiles.has('telegram-inline-keyboard.cjs')).toBe(true);
     expect(productionFiles.has('telegram-dialogs.cjs')).toBe(true);
   });
 

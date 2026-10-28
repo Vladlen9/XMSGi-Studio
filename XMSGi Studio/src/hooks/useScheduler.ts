@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Chat, NotificationType, RichTextEntity, ScheduledMessage } from '@/types';
 import type { BridgeErrorDetails } from '@shared/bridge';
 import { createBridgeValidationError, normalizeTelegramBridgeError } from '@shared/bridge';
-import type { InlineKeyboardMarkup } from '@/lib/inlineKeyboard';
 import {
   applyScheduleResult,
   createPendingSchedule,
@@ -123,6 +122,12 @@ export function useScheduler({
   const [time, setTime] = useState(getCurrentTimeStr());
   const dateEditedRef = useRef(false);
   const timeEditedRef = useRef(false);
+  const resetScheduleDateTime = () => {
+    dateEditedRef.current = false;
+    timeEditedRef.current = false;
+    setDate(getTodayStr());
+    setTime(getCurrentTimeStr());
+  };
   const [upcoming, setUpcoming] = useState<ScheduledMessage[]>([]);
   const [sent, setSent] = useState<ScheduledMessage[]>([]);
   const upcomingStateRef = useRef(upcoming);
@@ -306,7 +311,6 @@ export function useScheduler({
             targetTimestamp: Math.floor(pendingTimestamp / 1000),
             attachments: pendingMessage.attachments ?? [],
             entities: pendingMessage.entities ?? [],
-            replyMarkup: pendingMessage.replyMarkup,
             silent: pendingMessage.silent,
             effect: pendingMessage.effect,
             telegramMessageIds: pendingMessage.telegramMessageIds
@@ -359,7 +363,6 @@ export function useScheduler({
           ),
           attachments: pendingMessage.attachments ?? [],
           entities: pendingMessage.entities ?? [],
-          replyMarkup: pendingMessage.replyMarkup,
           silent: pendingMessage.silent,
           effect: pendingMessage.effect,
         });
@@ -434,7 +437,6 @@ export function useScheduler({
     attachments?: string[];
     attachmentGroups?: string[][];
     entities?: RichTextEntity[];
-    replyMarkup?: InlineKeyboardMarkup;
     silent?: boolean;
     effect?: string;
     clearMessageOnSuccess?: boolean;
@@ -539,7 +541,6 @@ export function useScheduler({
         scheduleMessage,
         scheduleAttachments,
         scheduleEntities,
-        scheduleRequest?.replyMarkup,
         scheduleRequest?.silent === true,
         scheduleRequest?.effect,
         undefined,
@@ -568,7 +569,6 @@ export function useScheduler({
     const chatName = scheduleChat.name;
     const text = scheduleMessage;
     const entities = scheduleEntities;
-    const replyMarkup = scheduleRequest?.replyMarkup;
     const silent = scheduleRequest?.silent === true;
     const effect = scheduleRequest?.effect;
     const occurrenceDates = getScheduleOccurrences(whenDate, repeatOptions);
@@ -600,7 +600,6 @@ export function useScheduler({
           targetTimestamp: Math.floor(occurrenceDate.getTime() / 1000),
           attachments: groupAttachments,
           entities: isPrimaryGroup ? entities : [],
-          replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
           silent,
           effect: isPrimaryGroup ? effect : undefined,
         };
@@ -638,7 +637,6 @@ export function useScheduler({
         targetTimestamp: Math.floor(new Date(scheduledMessage.when).getTime() / 1000),
         attachments: scheduledMessage.attachments ?? [],
         entities: scheduledMessage.entities ?? [],
-        replyMarkup: scheduledMessage.replyMarkup,
         silent: scheduledMessage.silent,
         effect: scheduledMessage.effect,
       })),
@@ -738,7 +736,6 @@ export function useScheduler({
       when: new Date(operation.targetTimestamp * 1000).toISOString(),
       createdAt: new Date().toISOString(),
       entities: operation.entities,
-      replyMarkup: operation.replyMarkup,
       silent: operation.silent,
       effect: operation.effect,
     })).map((pendingMessage) => replaceMessage
@@ -765,7 +762,6 @@ export function useScheduler({
             targetTimestamp: Math.floor(new Date(pendingMessage.when).getTime() / 1000),
             attachments: pendingMessage.attachments ?? [],
             entities: pendingMessage.entities ?? [],
-            replyMarkup: pendingMessage.replyMarkup,
             silent: pendingMessage.silent,
             effect: pendingMessage.effect,
           });
@@ -896,6 +892,7 @@ export function useScheduler({
         if (errorDetails) showNotification(notificationMessage, notificationType, notificationTitle, errorDetails);
         else showNotification(notificationMessage, notificationType, notificationTitle);
         if (fullyConfirmed && historyPersisted && !replacementCancellationFailed) {
+          resetScheduleDateTime();
           setLastAction('scheduled');
           setSuccessPulse(true);
           scheduleTimeout(() => setSuccessPulse(false), 1500);
@@ -1216,6 +1213,7 @@ export function useScheduler({
           sentStateRef.current = nextSent;
           setUpcoming(nextUpcoming);
           setSent(nextSent);
+          resetScheduleDateTime();
           await persistScheduleHistoryAndWait(historyScope, 'snapshot', { upcoming: nextUpcoming, sent: nextSent });
           showNotification('Telegram had already sent this scheduled message.', 'info', t('schedule.sent'));
           return;
@@ -1238,7 +1236,6 @@ export function useScheduler({
         text: sendingMessage.text,
         entities: sendingMessage.entities ?? [],
         attachments: sendingMessage.attachments ?? [],
-        replyMarkup: sendingMessage.replyMarkup,
         silent: sendingMessage.silent,
         effect: sendingMessage.effect,
         accountId,
@@ -1249,6 +1246,7 @@ export function useScheduler({
         throw new Error(failureDetails.message);
       }
 
+      resetScheduleDateTime();
       const sentMessage: ScheduledMessage = {
         ...sendingMessage,
         status: 'sent',
@@ -1339,7 +1337,6 @@ export function useScheduler({
         text: attempt.text,
         entities: attempt.entities ?? [],
         attachments: attempt.attachments ?? [],
-        replyMarkup: attempt.replyMarkup,
         silent: attempt.silent,
         effect: attempt.effect,
         accountId,
@@ -1416,7 +1413,6 @@ export function useScheduler({
     text: string,
     attachments: string[] = [],
     entities: RichTextEntity[] = [],
-    replyMarkup?: InlineKeyboardMarkup,
     silent: boolean | string[][] = false,
     effect?: string,
     options: {
@@ -1449,7 +1445,6 @@ export function useScheduler({
               isPrimaryGroup ? text : '',
               group,
               isPrimaryGroup ? entities : [],
-              isPrimaryGroup ? replyMarkup : undefined,
               false,
               isPrimaryGroup ? effect : undefined,
               { isNestedBatchGroup: true, suppressNotifications: options.suppressNotifications },
@@ -1470,6 +1465,7 @@ export function useScheduler({
             allSent &&= sent;
           }
 
+          if (sentGroupCount > 0) resetScheduleDateTime();
           if (allSent) {
             if (historyWriteFailed) {
               if (!options.suppressNotifications) {
@@ -1514,7 +1510,7 @@ export function useScheduler({
 
     publishingDraftLockRef.current = true;
     setPublishingDraft(true);
-    const fingerprint = JSON.stringify([chat.id, text, attachments, entities, replyMarkup, sendSilently, effect]);
+    const fingerprint = JSON.stringify([chat.id, text, attachments, entities, sendSilently, effect]);
     const unresolvedAttempt = upcomingStateRef.current.find((item) => (
       item.status === 'unknown'
       && JSON.stringify([
@@ -1522,7 +1518,6 @@ export function useScheduler({
         item.text,
         item.attachments ?? [],
         item.entities ?? [],
-        item.replyMarkup,
         item.silent ?? false,
         item.effect,
       ]) === fingerprint
@@ -1544,7 +1539,6 @@ export function useScheduler({
         item.text,
         item.attachments ?? [],
         item.entities ?? [],
-        item.replyMarkup,
         item.silent ?? false,
         item.effect,
       ]) === fingerprint
@@ -1577,7 +1571,6 @@ export function useScheduler({
       retryAction: 'send',
       sendAttemptId,
       entities,
-      replyMarkup,
       silent: sendSilently,
       effect,
     };
@@ -1601,7 +1594,6 @@ export function useScheduler({
         text,
         attachments,
         entities,
-        replyMarkup,
         silent: sendSilently,
         effect,
         accountId,
@@ -1613,6 +1605,7 @@ export function useScheduler({
         throw Object.assign(new Error(errorDetails.message), { sendErrorDetails: errorDetails });
       }
 
+      if (!isNestedBatchGroup) resetScheduleDateTime();
       const sentMessage: ScheduledMessage = {
         ...sendingMessage,
         status: 'sent',

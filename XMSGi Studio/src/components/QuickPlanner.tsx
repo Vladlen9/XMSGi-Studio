@@ -312,7 +312,7 @@ export function QuickPlanner({
   const todayScheduleDateValue = toDateInputValue(new Date());
   const SubmitIcon = selectedMode === 'Send now' ? Send : selectedMode === 'Draft' ? FileText : CalendarDays;
   const submitLabel = selectedMode === 'Send now' ? t('studio.sendNow') : selectedMode === 'Draft' ? t('quickPlanner.saveDraftAction') : t('quickPlanner.schedulePost');
-  const { openStudio } = useContext(QuickPlannerNavigationContext);
+  const { currentSection, openStudio } = useContext(QuickPlannerNavigationContext);
   const chatPickerRef = useRef<HTMLDivElement>(null);
   const toolsRowRef = useRef<HTMLDivElement>(null);
   const effectsToolRef = useRef<HTMLDivElement>(null);
@@ -511,6 +511,17 @@ export function QuickPlanner({
     }
     setSelectedDate(dateValue);
     setSelectedTime(timeValue);
+  };
+
+  const resetScheduleDateTime = () => {
+    const now = new Date();
+    const nextAvailable = getNextScheduleDateTime(now);
+    setCurrentTime(now);
+    setSelectedDate(nextAvailable.date);
+    setSelectedTime(nextAvailable.time);
+    setScheduleTimeTouched(false);
+    scheduleNowConfirmationRef.current = null;
+    setCalendarCursor(now);
   };
 
   useEffect(() => {
@@ -780,6 +791,25 @@ export function QuickPlanner({
     };
   }, [activeSchedulePicker]);
 
+  useEffect(() => {
+    const handlePlannerEscape = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape'
+        || currentSection !== 'quick-plan'
+        || chatPickerOpen
+        || emojiPickerOpen
+        || effectPickerOpen
+        || activeSchedulePicker
+      ) return;
+
+      event.preventDefault();
+      openStudio();
+    };
+
+    document.addEventListener('keydown', handlePlannerEscape);
+    return () => document.removeEventListener('keydown', handlePlannerEscape);
+  }, [activeSchedulePicker, chatPickerOpen, currentSection, effectPickerOpen, emojiPickerOpen, openStudio]);
+
   useLayoutEffect(() => {
     if (!activeSchedulePicker) return undefined;
 
@@ -961,6 +991,7 @@ export function QuickPlanner({
             messageEntities,
           );
           if (sent === 'sent-history-failed') {
+            resetScheduleDateTime();
             showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
             return;
           }
@@ -969,6 +1000,7 @@ export function QuickPlanner({
             return;
           }
           showCompletionFeedback(t('quickPlanner.messageSent'));
+          resetScheduleDateTime();
           setSelectedEffectId(null);
         } catch {
           showActionFeedback(t('quickPlanner.messageCouldNotSend'), 'error');
@@ -994,6 +1026,7 @@ export function QuickPlanner({
             entities: messageEntities,
           });
           if (scheduled === 'sent-history-failed') {
+            resetScheduleDateTime();
             showActionFeedback(t('schedule.historyWriteFailed'), 'warning');
             return;
           }
@@ -1002,9 +1035,8 @@ export function QuickPlanner({
             return;
           }
           showCompletionFeedback(t('quickPlanner.scheduleRequestSent'));
+          resetScheduleDateTime();
           setSelectedEffectId(null);
-          setScheduleTimeTouched(false);
-          scheduleNowConfirmationRef.current = null;
         } catch {
           showActionFeedback(t('quickPlanner.messageCouldNotSchedule'), 'error');
         }

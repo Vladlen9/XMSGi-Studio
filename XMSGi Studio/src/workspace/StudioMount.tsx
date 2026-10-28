@@ -1,7 +1,17 @@
-import { lazy, Suspense, useMemo, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { StudioBridgeProps, StudioSchedulerActions, StudioSchedulerRuntime } from '@shared/bridge';
+import type { NotificationType } from '@shared/types';
+import type { NotificationState } from '@/types';
 
 const StudioApp = lazy(() => import('@studio/App'));
+
+type StudioInlineNotification = {
+  message: string;
+  title: string;
+  type: NotificationType;
+  durationMs: number;
+  revision: number;
+};
 
 type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAccountId' | 'chats' | 'scheduler'>>
   & Pick<StudioBridgeProps,
@@ -15,7 +25,7 @@ type StudioMountProps = Required<Pick<StudioBridgeProps, 'connected' | 'activeAc
     | 'onRegisterHistoryDraftClearHandler'
     | 'onRegisterHistoryDraftDeleteHandler'
     | 'onRegisterHistoryRescheduleHandler'
-  >;
+  > & { notification?: NotificationState };
 
 type StudioSchedulerHandlers = Pick<StudioSchedulerActions,
   | 'handleSchedule'
@@ -27,7 +37,10 @@ type StudioSchedulerHandlers = Pick<StudioSchedulerActions,
   | 'handleCancelMessages'
 > & Pick<StudioSchedulerRuntime, 'showNotification'>;
 
-function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSchedulerRuntime {
+function useStableSchedulerRuntime(
+  scheduler: StudioSchedulerRuntime,
+  showNotification: StudioSchedulerRuntime['showNotification'],
+): StudioSchedulerRuntime {
   const schedulerRef = useRef(scheduler);
   schedulerRef.current = scheduler;
   const actions = useMemo<StudioSchedulerHandlers>(() => ({
@@ -38,8 +51,8 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
     handleClearSent: (...args) => schedulerRef.current.handleClearSent(...args),
     handleCancelMessage: (...args) => schedulerRef.current.handleCancelMessage(...args),
     handleCancelMessages: (...args) => schedulerRef.current.handleCancelMessages(...args),
-    showNotification: (...args) => schedulerRef.current.showNotification(...args),
-  }), []);
+    showNotification,
+  }), [showNotification]);
 
   return useMemo(() => ({
     protocolVersion: scheduler.protocolVersion,
@@ -68,8 +81,36 @@ function useStableSchedulerRuntime(scheduler: StudioSchedulerRuntime): StudioSch
   ]);
 }
 
-export function StudioMount({ connected, connectionRecoveryStatus, activeAccountId, chats, selectedChat, onSelectChat, scheduler, onRegisterPlannerTextOpener, onRegisterBeforeLeaveStudio, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
-  const stableScheduler = useStableSchedulerRuntime(scheduler);
+export function StudioMount({ connected, connectionRecoveryStatus, activeAccountId, chats, selectedChat, onSelectChat, notification, scheduler, onRegisterPlannerTextOpener, onRegisterBeforeLeaveStudio, onRegisterHistoryDraftOpener, onRegisterHistoryDraftUseHandler, onRegisterHistoryDraftClearHandler, onRegisterHistoryDraftDeleteHandler, onRegisterHistoryRescheduleHandler }: StudioMountProps) {
+  const [inlineNotification, setInlineNotification] = useState<StudioInlineNotification | null>(null);
+  const notificationTimeoutRef = useRef<number | null>(null);
+  const notificationRevisionRef = useRef(0);
+  const showInlineNotification = useCallback<StudioSchedulerRuntime['showNotification']>(
+    (message, type, title, _errorDetails, durationMs = 4500) => {
+      if (notificationTimeoutRef.current !== null) window.clearTimeout(notificationTimeoutRef.current);
+      const revision = ++notificationRevisionRef.current;
+      setInlineNotification({ message, type, title, durationMs, revision });
+      notificationTimeoutRef.current = window.setTimeout(() => {
+        notificationTimeoutRef.current = null;
+        setInlineNotification((current) => current?.revision === revision ? null : current);
+      }, durationMs);
+    },
+    [],
+  );
+  useLayoutEffect(() => {
+    if (!notification?.visible) return;
+    showInlineNotification(
+      notification.message,
+      notification.type,
+      notification.title,
+      notification.errorDetails,
+    );
+  }, [notification?.errorDetails, notification?.message, notification?.revision, notification?.title, notification?.type, notification?.visible, showInlineNotification]);
+  useEffect(() => () => {
+    if (notificationTimeoutRef.current !== null) window.clearTimeout(notificationTimeoutRef.current);
+  }, []);
+
+  const stableScheduler = useStableSchedulerRuntime(scheduler, showInlineNotification);
 
   return (
     <Suspense fallback={null}>
@@ -81,6 +122,7 @@ export function StudioMount({ connected, connectionRecoveryStatus, activeAccount
         selectedChat={selectedChat}
         onSelectChat={onSelectChat}
         scheduler={stableScheduler}
+        inlineNotification={inlineNotification}
         onRegisterPlannerTextOpener={onRegisterPlannerTextOpener}
         onRegisterBeforeLeaveStudio={onRegisterBeforeLeaveStudio}
         onRegisterHistoryDraftOpener={onRegisterHistoryDraftOpener}

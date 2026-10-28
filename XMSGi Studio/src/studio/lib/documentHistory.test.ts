@@ -15,7 +15,6 @@ function snapshot(documentId: string, body: string, savedAt = '12:00'): Workspac
     entities: [],
     attachments: [],
     savedAt,
-    inlineButtons: [],
     date: '',
     time: '',
     repeatMode: 'none',

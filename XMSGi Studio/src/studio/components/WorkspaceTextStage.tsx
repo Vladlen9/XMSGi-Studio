@@ -1,12 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { Chat, DraftColor, RichTextEntity, SavedDraft, Template } from '@studio/types';
 import type { ScheduleRepeatOptions } from '@studio/lib/scheduling';
-import { ButtonsStage } from '@studio/components/stages/ButtonsStage';
 import { ChatSelectionStage } from '@studio/components/stages/ChatSelectionStage';
 import { DraftsStage } from '@studio/components/stages/DraftsStage';
 import { ScheduleStage } from '@studio/components/stages/ScheduleStage';
 import { TemplatesStage } from '@studio/components/stages/TemplatesStage';
-import type { InlineButtonRow } from '@studio/lib/inlineKeyboard';
 import type { StageMode } from '@studio/components/stages/types';
 
 interface Props {
@@ -53,7 +51,6 @@ interface Props {
   saveTemplateStage: () => void;
   savedDrafts: SavedDraft[];
   onInsertDraft: (draft: SavedDraft) => void;
-  onRenameDraft: (draft: SavedDraft, name: string) => Promise<boolean>;
   draftEditingId: string | null;
   draftColor: DraftColor;
   setDraftColor: Dispatch<SetStateAction<DraftColor>>;
@@ -67,11 +64,8 @@ interface Props {
   saveDraftStage: () => void;
   draftStoreReady: boolean;
   draftStoreSaving: boolean;
-  onExportDrafts: () => void;
   onImportDrafts: () => void;
   onImportEditorText: () => void;
-  inlineButtons: InlineButtonRow[];
-  setInlineButtons: (rows: InlineButtonRow[]) => void;
 }
 
 export function WorkspaceTextStage({
@@ -112,7 +106,6 @@ export function WorkspaceTextStage({
   saveTemplateStage,
   savedDrafts,
   onInsertDraft,
-  onRenameDraft,
   draftEditingId,
   draftColor,
   setDraftColor,
@@ -126,11 +119,8 @@ export function WorkspaceTextStage({
   saveDraftStage,
   draftStoreReady,
   draftStoreSaving,
-  onExportDrafts,
   onImportDrafts,
   onImportEditorText,
-  inlineButtons,
-  setInlineButtons,
 }: Props) {
   if (mode === 'editor') return null;
 
@@ -176,7 +166,6 @@ export function WorkspaceTextStage({
         onModeChange={onModeChange}
         savedDrafts={savedDrafts}
         onInsertDraft={onInsertDraft}
-        onRenameDraft={onRenameDraft}
         draftEditingId={draftEditingId}
         draftColor={draftColor}
         setDraftColor={setDraftColor}
@@ -190,12 +179,9 @@ export function WorkspaceTextStage({
         saveDraftStage={saveDraftStage}
         draftStoreReady={draftStoreReady}
         draftStoreSaving={draftStoreSaving}
-        onExportDrafts={onExportDrafts}
         onImportDrafts={onImportDrafts}
         onImportEditorText={onImportEditorText}
       />
-
-      <ButtonsStage mode={mode} inlineButtons={inlineButtons} setInlineButtons={setInlineButtons} onModeChange={onModeChange} />
 
       <ChatSelectionStage
         mode={mode}

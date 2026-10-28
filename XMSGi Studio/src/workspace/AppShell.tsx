@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PropsWithChildren } from 'react';
-import { CircleUserRound, LogOut, X } from 'lucide-react';
+import { LogOut, UserRound, X } from 'lucide-react';
 import { Notification } from '@/components/Notification';
 import { useLocale } from '@/lib/i18n';
 import type { NotificationState } from '@/types';
@@ -108,7 +108,8 @@ export function AppShell({
   const nextProductView = activeProductView === 'planner' ? 'studio' : 'planner';
   const nextViewLabel = nextProductView === 'planner' ? t('product.planner') : t('product.studio');
   const [accountAvatarDataUrl, setAccountAvatarDataUrl] = useState(readCachedAccountAvatar);
-  const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'personal' | 'workspace' | undefined>();
+  const logoutPhotoButtonRef = useRef<HTMLButtonElement>(null);
+  const [historySourceFilterOnOpen, setHistorySourceFilterOnOpen] = useState<'all' | 'personal' | 'workspace' | undefined>();
   const [historySourceFilterOnOpenMode, setHistorySourceFilterOnOpenMode] = useState<'initial' | 'temporary'>('temporary');
   const [historyStatusFilterOnOpen, setHistoryStatusFilterOnOpen] = useState<QuickPlannerPostsFilter | undefined>();
 
@@ -129,6 +130,9 @@ export function AppShell({
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (document.activeElement === logoutPhotoButtonRef.current) {
+        logoutPhotoButtonRef.current?.blur();
+      }
       setIsConfirmingLogout(false);
     };
     document.addEventListener('keydown', closeOnEscape);
@@ -156,18 +160,22 @@ export function AppShell({
   }, [connected]);
 
   const isPostsVisible = view === 'posts' || postsOpen;
+  const isStudioSurfaceActive = view === 'studio' && !postsOpen && !settingsOpen;
+
+  useEffect(() => {
+    if (isStudioSurfaceActive && notification?.visible) closeNotification?.();
+  }, [closeNotification, isStudioSurfaceActive, notification?.visible]);
 
   const openPosts = (statusFilter?: QuickPlannerPostsFilter) => {
-    const sourceProductView = view === 'posts' ? previousProductViewRef.current : view;
     const isInitialPostsOpen = !hasOpenedPostsRef.current;
     hasOpenedPostsRef.current = true;
     if (view !== 'posts') {
       previousProductViewRef.current = view;
       persistPostsReturnView(view);
     }
-    setHistorySourceFilterOnOpen(isInitialPostsOpen ? (sourceProductView === 'planner' ? 'personal' : 'workspace') : undefined);
+    setHistorySourceFilterOnOpen(isInitialPostsOpen ? 'all' : undefined);
     setHistorySourceFilterOnOpenMode(isInitialPostsOpen ? 'initial' : 'temporary');
-    setHistoryStatusFilterOnOpen(statusFilter);
+    setHistoryStatusFilterOnOpen(isInitialPostsOpen ? 'scheduled' : statusFilter);
     setPostsOpen(true);
     onViewChange('posts');
   };
@@ -189,7 +197,8 @@ export function AppShell({
     setHistorySourceFilterOnOpenMode('temporary');
     setHistoryStatusFilterOnOpen(undefined);
     if (isPostsVisible) {
-      closePosts();
+      setPostsOpen(false);
+      onViewChange(nextView);
       return;
     }
     onViewChange(nextView);
@@ -257,6 +266,7 @@ export function AppShell({
             </button>
 
             <button
+              ref={logoutPhotoButtonRef}
               type="button"
               className="topbar-logout-photo"
               aria-haspopup="dialog"
@@ -265,12 +275,12 @@ export function AppShell({
               onClick={() => setIsConfirmingLogout(true)}
               disabled={authBusy}
             >
-              {accountAvatarDataUrl ? (
-                <img className="topbar-logout-photo-image" src={accountAvatarDataUrl} alt="" />
-              ) : (
+              {!accountAvatarDataUrl ? (
                 <span className="topbar-logout-photo-fallback" aria-hidden="true">
-                  <CircleUserRound size={38} strokeWidth={1.5} />
+                  <UserRound size={28} strokeWidth={1.7} />
                 </span>
+              ) : (
+                <img className="topbar-logout-photo-image" src={accountAvatarDataUrl} alt="" />
               )}
               <span className="topbar-logout-photo-ring" aria-hidden="true" />
               <span
@@ -384,7 +394,7 @@ export function AppShell({
           </div>
         </div>
       )}
-      {!isPlannerSurfaceActive && notification && closeNotification && (
+      {!isPlannerSurfaceActive && !isStudioSurfaceActive && notification && closeNotification && (
         <Notification
           message={notification.message}
           type={notification.type}

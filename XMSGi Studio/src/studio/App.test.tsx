@@ -206,6 +206,62 @@ describe('App media publishing', () => {
     unmount();
   });
 
+  it('resets the displayed schedule after the bridged scheduler confirms success', async () => {
+    const handleSchedule = vi.fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const scheduler: NonNullable<StudioBridgeProps['scheduler']> = {
+      protocolVersion: 1,
+      upcoming: [],
+      sent: [],
+      scheduling: false,
+      successPulse: false,
+      lastAction: null,
+      revealingId: null,
+      cancelingIds: new Set(),
+      sendingIds: new Set(),
+      publishingDraft: false,
+      handleSchedule,
+      handleSendDraftNow: vi.fn().mockResolvedValue(true),
+      handleSendNow: vi.fn(),
+      handleDeleteMessage: vi.fn(),
+      handleClearSent: vi.fn(),
+      handleCancelMessage: vi.fn(),
+      handleCancelMessages: vi.fn().mockResolvedValue(true),
+      showNotification: vi.fn(),
+    };
+    const { unmount } = await renderApp({ scheduler });
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-menu-toggle') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-option.is-scheduled') as HTMLButtonElement).click();
+    });
+    const timeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
+      .find((button) => button.textContent?.trim() === 'Time') as HTMLButtonElement;
+    await act(async () => timeButton.click());
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector('.workspace-page-mode-summary strong')?.textContent).toContain('18:30');
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(handleSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      date: getTomorrowLocalDate(),
+      time: '18:30',
+      waitForConfirmation: true,
+    }), expect.anything());
+    expect(handleSchedule).toHaveBeenCalledTimes(2);
+    expect(document.querySelector('.workspace-page-mode-summary strong')?.textContent).not.toContain('18:30');
+    unmount();
+  });
+
   it('blocks scheduling when the selected date is in the past', async () => {
     localStorage.setItem('awaitmsg-workspace-draft', JSON.stringify({
       body: 'Media post',
@@ -269,6 +325,42 @@ describe('App media publishing', () => {
     }
   });
 
+  it('keeps cached chats available in the live preview while disconnected', async () => {
+    const cachedChat = {
+      id: 'cached-chat',
+      name: 'Cached chat',
+      type: 'group' as const,
+      avatarDataUrl: '',
+    };
+    const { unmount } = await renderApp({
+      connected: false,
+      chats: [cachedChat],
+      selectedChat: cachedChat,
+      onSelectChat: vi.fn(),
+    });
+
+    try {
+      const preview = document.querySelector('.chat-preview-stand') as HTMLElement;
+      await act(async () => {
+        (preview.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
+      });
+      await act(async () => {
+        (preview.querySelector('[aria-label="Switch to Web preview"]') as HTMLButtonElement).click();
+      });
+      await act(async () => {
+        (preview.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
+      });
+      await act(async () => {
+        (preview.querySelector('[aria-label="Show chats"]') as HTMLButtonElement).click();
+      });
+
+      expect(preview.querySelector('.chat-preview-chat-list')).not.toBeNull();
+      expect(preview.querySelector('.chat-preview-chat-list')?.textContent).toContain('Cached chat');
+    } finally {
+      unmount();
+    }
+  });
+
   it('passes text, rich-text entities and attachments separately to Telegram when sending', async () => {
     localStorage.setItem('awaitmsg-workspace-draft', JSON.stringify({
       body: 'Media post',
@@ -295,7 +387,6 @@ describe('App media publishing', () => {
       'Media post',
       ['/managed/photo.png'],
       [{ type: 'bold', offset: 6, length: 4 }],
-      undefined,
       false,
       undefined,
       'account-1',

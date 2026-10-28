@@ -79,7 +79,6 @@ describe('browser draft storage error handling', () => {
       repeatMode: 'weekly',
       repeatDays: ['Sat'],
       repeatOccurrences: 3,
-      inlineButtons: [[{ text: 'Open', url: 'https://example.com' }]],
       id: 'active-meta-test',
     });
 
@@ -92,7 +91,6 @@ describe('browser draft storage error handling', () => {
       repeatMode: 'weekly',
       repeatDays: ['Sat'],
       repeatOccurrences: 3,
-      inlineButtons: [[{ text: 'Open', url: 'https://example.com' }]],
     });
   });
 });

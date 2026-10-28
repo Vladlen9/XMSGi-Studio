@@ -1,5 +1,5 @@
 import type { Chat, RichTextEntity, ScheduledMessage } from '@/types';
-import type { DraftColor, PersistedDraftStore, SavedDraft } from '@shared/types';
+import type { BridgeErrorDetails, DraftColor, PersistedDraftStore, SavedDraft } from '@shared/types';
 import { normalizeTelegramMessage } from '@shared/telegramText.cjs';
 
 export type HistorySource = 'personal' | 'workspace';
@@ -33,6 +33,7 @@ export interface HistoryItem {
   sentAt?: string;
   updatedAt?: string;
   lastError?: string;
+  lastErrorDetails?: BridgeErrorDetails;
   retryAction?: 'schedule' | 'send' | 'cancel';
   attachments: string[];
   entities: RichTextEntity[];
@@ -78,6 +79,7 @@ export function normalizeScheduledMessages(
       sentAt: status === 'sent' ? message.sentAt || message.when : undefined,
       updatedAt: message.lastAttemptAt || message.createdAt,
       lastError: message.lastError,
+      lastErrorDetails: message.lastErrorDetails,
       retryAction: message.retryAction,
       attachments: message.attachments ?? [],
       entities: normalized.entities,
@@ -112,14 +114,14 @@ export function normalizePersistedStudioDrafts(store: PersistedDraftStore | null
   return store?.savedDrafts.map(normalizeSavedDraft) ?? [];
 }
 
-export function sortHistoryItems(items: HistoryItem[], category: 'scheduled' | 'sending' | 'sent' | 'failed' | 'drafts') {
+export function sortHistoryItems(items: HistoryItem[], category: 'scheduled' | 'sending' | 'sent' | 'failed' | 'drafts' | 'errors') {
   const getTimestamp = (item: HistoryItem) => {
     if (category === 'scheduled') {
       return item.status === 'scheduled'
         ? item.scheduledAt ?? item.updatedAt ?? 0
         : item.updatedAt ?? item.scheduledAt ?? 0;
     }
-    return category === 'sent' ? item.sentAt ?? item.updatedAt ?? 0 : item.updatedAt ?? 0;
+    return category === 'sent' ? item.sentAt ?? item.updatedAt ?? 0 : item.updatedAt ?? item.scheduledAt ?? 0;
   };
 
   return [...items].sort((left, right) => {

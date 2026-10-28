@@ -16,6 +16,7 @@ const {
   validateSendPayload,
   validateSendAttemptReconciliationPayload,
   validateTimestamp,
+  isTrustedRendererUrl,
   assertTrustedRenderer
 } = security;
 
@@ -52,6 +53,21 @@ describe('IPC security validation', () => {
       webContents,
       fileUrl
     )).toThrow('Untrusted renderer');
+  });
+
+  it('accepts only the configured renderer URL and its hash routes', () => {
+    const developmentUrl = 'http://localhost:5173/';
+
+    expect(isTrustedRendererUrl('http://localhost:5173/#/settings', developmentUrl)).toBe(true);
+    expect(isTrustedRendererUrl('http://localhost:5173/other', developmentUrl)).toBe(false);
+    expect(() => assertTrustedRenderer({
+      sender: webContents,
+      senderFrame: { url: 'http://localhost:5173/#/settings' }
+    }, webContents, fileUrl)).toThrow('Untrusted renderer');
+    expect(() => assertTrustedRenderer({
+      sender: webContents,
+      senderFrame: { url: 'http://localhost:5173/other' }
+    }, webContents, developmentUrl)).toThrow('Untrusted renderer');
   });
 
   it('rejects invalid chat IDs, message types, and oversized messages', () => {

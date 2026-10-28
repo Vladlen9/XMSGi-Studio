@@ -124,14 +124,13 @@ contextBridge.exposeInMainWorld('telegram', {
   getAvailableEffects: () =>
     ipcRenderer.invoke('telegram-effects'),
 
-  send: (chatId, message, attachments = [], entities = [], replyMarkup, silent = false, effect, accountId, idempotencyKey) =>
+  send: (chatId, message, attachments = [], entities = [], silent = false, effect, accountId, idempotencyKey) =>
     ipcRenderer.invoke('telegram-send', {
       accountId,
       chatId,
       message,
       attachments,
       entities,
-      replyMarkup,
       silent,
       effect,
       idempotencyKey

@@ -19,13 +19,6 @@ async function createCoreHarness(coreOptions = {}) {
   vi.resetModules();
   const clientReference = { value: null };
 
-  class FakeInlineKeyboard {
-    url() { return this; }
-    callback() { return this; }
-    row() { return this; }
-    build() { return undefined; }
-  }
-
   class FakeSendMessage {
     constructor(payload) {
       Object.assign(this, payload);
@@ -85,7 +78,6 @@ async function createCoreHarness(coreOptions = {}) {
           message: '',
         })) : undefined,
         entities: options.formattingEntities,
-        replyMarkup: options.buttons,
         silent: options.silent === true,
         effect: options.effect,
         media: { className: 'InputMediaUploadedDocument', file: options.file },
@@ -126,7 +118,6 @@ async function createCoreHarness(coreOptions = {}) {
         message: request.message,
         date: new Date(request.scheduleDate * 1000),
         entities: request.entities,
-        replyMarkup: request.replyMarkup,
         silent: request.silent,
         effect: request.effect,
         media: request.media,
@@ -138,7 +129,7 @@ async function createCoreHarness(coreOptions = {}) {
         return { updates: [{ className: 'UpdateNewScheduledMessage', message: { id } }] };
       }
       if (this.returnImmediateMessage) {
-        this.scheduled.pop();
+        if (!this.leaveScheduledOnImmediate) this.scheduled.pop();
         return { updates: [{ className: 'UpdateNewMessage', message: { id } }] };
       }
       return { id };
@@ -149,7 +140,6 @@ async function createCoreHarness(coreOptions = {}) {
     if (request === 'teleproto') {
       return {
         TelegramClient: FakeTelegramClient,
-        InlineKeyboard: FakeInlineKeyboard,
         Api: {
           InputPeerSelf: class FakeInputPeerSelf {},
           messages: { SendMessage: FakeSendMessage },
@@ -188,7 +178,7 @@ function createAttachment(name, content) {
 
 async function schedule(core, { message = 'Same text', targetTimestamp, attachments = [] }) {
   return core.scheduleMessage(
-    'me', message, undefined, undefined, targetTimestamp, attachments, [], undefined, false, undefined,
+    'me', message, undefined, undefined, targetTimestamp, attachments, [], false, undefined,
   );
 }
 
@@ -426,7 +416,24 @@ describe('Telegram scheduled operation deduplication', () => {
     client.returnImmediateMessage = true;
 
     await expect(schedule(core, { targetTimestamp, message: '', attachments: [attachment] }))
-      .rejects.toThrow('Telegram sent the message immediately instead of scheduling it.');
+      .rejects.toMatchObject({
+        message: 'Telegram sent the message immediately instead of scheduling it.',
+        code: 'TELEGRAM_SCHEDULE_SENT_IMMEDIATELY',
+      });
+  });
+
+  it('accepts a media schedule confirmed by Telegram after an immediate-looking update', async () => {
+    const { core, client } = await createCoreHarness();
+    const targetTimestamp = Math.floor(Date.now() / 1000) + 7200;
+    const attachment = createAttachment('confirmed-after-update.png', 'image bytes');
+    client.returnImmediateMessage = true;
+    client.leaveScheduledOnImmediate = true;
+
+    const result = await schedule(core, { targetTimestamp, message: '', attachments: [attachment] });
+
+    expect(result).toMatchObject({ confirmed: true, telegramMessageId: 1 });
+    expect(client.scheduledListCalls).toBe(1);
+    expect(client.scheduled).toHaveLength(1);
   });
 
   it('does not create a duplicate when retrying the same media operation', async () => {
@@ -442,7 +449,7 @@ describe('Telegram scheduled operation deduplication', () => {
     expect(client.sendCalls).toBe(2);
   });
 
-  it('includes formatting, silent, markup, and effect in schedule identity', async () => {
+  it('includes formatting, silent, and effect in schedule identity', async () => {
     const { core } = await createCoreHarness();
     const base = {
       chatId: 'me',
@@ -455,15 +462,14 @@ describe('Telegram scheduled operation deduplication', () => {
     const variants = [
       { ...base, entities: [{ type: 'bold', offset: 0, length: 4 }] },
       { ...base, silent: true },
-      { ...base, replyMarkup: { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] } },
       { ...base, effect: '123' },
     ];
 
     const identities = await core.getScheduleOperationIdentities([base, ...variants]);
 
-    expect(identities).toHaveLength(5);
+    expect(identities).toHaveLength(4);
     expect(identities.every(Boolean)).toBe(true);
-    expect(new Set(identities).size).toBe(5);
+    expect(new Set(identities).size).toBe(4);
   });
 
   it('treats identical attachment bytes at different paths as the same operation', async () => {

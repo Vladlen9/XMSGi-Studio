@@ -11,7 +11,6 @@ export const telegramCapabilities: ChannelCapabilities = {
   supportsRichText: true,
   supportsMedia: true,
   supportsScheduling: true,
-  supportsInlineKeyboard: true,
 };
 
 export class TelegramChannelAdapter implements ChannelAdapter {
@@ -26,7 +25,6 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       text: post.body,
       entities: post.entities ?? [],
       mediaIds: post.mediaIds ?? [],
-      replyMarkup: undefined,
     };
   }
 

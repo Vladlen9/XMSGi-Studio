@@ -9,6 +9,7 @@ import { LocaleProvider } from '@/lib/i18n';
 import { QuickPlannerActivity } from './QuickPlannerActivity';
 
 const activityStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlannerActivity.css'), 'utf8');
+const plannerStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlanner.css'), 'utf8');
 
 function renderActivity(ui: ReactNode) {
   return renderTestingLibrary(createElement(LocaleProvider, null, ui));
@@ -48,6 +49,7 @@ describe('QuickPlannerActivity', () => {
 
   it('uses one continuous glass surface for the complete activity card in both themes', () => {
     expect(activityStyles).toMatch(/\.quick-planner-activity-section\s*\{[^}]*overflow:\s*visible;/);
+    expect(activityStyles).toMatch(/\.quick-planner-activity-section\s*\{[^}]*min-height:\s*510px;[^}]*flex:\s*1 0 auto;/);
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-section\s*\{[^}]*background:\s*radial-gradient\([^;]+,\s*linear-gradient\([^;]+;/,
     );
@@ -57,6 +59,35 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-header h2\s*\{[^}]*top:\s*-33px;[^}]*left:\s*0;/,
     );
+  });
+
+  it('prevents the activity chart and highlights from shrinking or escaping the card', () => {
+    expect(plannerStyles).toMatch(
+      /html\.electron-runtime:has\(\.product-view\.is-active \.quick-planner\) \.quick-planner\s*\{[^}]*overflow-y:\s*auto;/,
+    );
+    expect(plannerStyles).toMatch(
+      /html\.electron-runtime:has\(\.product-view\.is-active \.quick-planner\) \.quick-planner-workbench\s*\{[^}]*min-height:\s*510px;/,
+    );
+    expect(plannerStyles).toMatch(
+      /html\.electron-runtime:has\(\.product-view\.is-active \.quick-planner\) \.quick-planner-workbench\s*\{[^}]*height:\s*510px;[^}]*min-height:\s*510px;/,
+    );
+    expect(plannerStyles).toMatch(
+      /html\.electron-runtime:has\(\.product-view\.is-active \.quick-planner\) \.quick-planner-activity\s*\{[^}]*height:\s*510px;[^}]*min-height:\s*510px;[^}]*align-self:\s*flex-start;[^}]*transform:\s*none;/,
+    );
+    expect(plannerStyles).toMatch(
+      /html\.electron-runtime:has\(\.product-view\.is-active \.quick-planner\) \.quick-planner-activity-section\s*\{[^}]*flex:\s*0 0 510px;[^}]*margin-top:\s*0;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\s*\{[^}]*flex:\s*0 0 auto;/,
+    );
+    expect(activityStyles).toMatch(/\.quick-planner-activity-chart-svg\s*\{[^}]*overflow:\s*hidden;/);
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\[data-period='7'\]\s*\{[^}]*margin-right:\s*-12px;[^}]*margin-left:\s*-12px;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-lower\s*\{[^}]*flex:\s*0 0 auto;/,
+    );
+    expect(activityStyles).toMatch(/\.quick-planner-activity-tooltip\s*\{[^}]*top:\s*-14px;/);
   });
 
   it('keeps the activity switcher at the same vertical position for both chart periods', () => {
@@ -114,18 +145,18 @@ describe('QuickPlannerActivity', () => {
     );
   });
 
-  it('uses a consistent muted dark fill for selected Activity options and outlines the light selected options', () => {
+  it('uses a neutral selected state for Activity controls in dark theme', () => {
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*rgba\(35, 157, 251, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
     );
     expect(activityStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*#587181;[^}]*background:\s*#304652;[^}]*color:\s*#d7e3ea;/,
+      /html\[data-theme='dark'\] \.quick-planner-activity-view\.is-active\s*\{[^}]*border-color:\s*#74828b;[^}]*background:\s*#354047;[^}]*color:\s*#f0f4f6;/,
     );
     expect(activityStyles).toMatch(
       /\.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline:\s*1px solid rgba\(22, 118, 187, 0\.56\);[^}]*background:\s*#fff;[^}]*color:\s*#1676bb;/,
     );
     expect(activityStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner-activity-period-option\.is-active\s*\{[^}]*outline-color:\s*#587181;[^}]*background:\s*#304652;[^}]*color:\s*#d7e3ea;/,
+      /html\[data-theme='dark'\] \.quick-planner-activity-period-option\.is-active\s*\{[^}]*border-color:\s*#74828b;[^}]*background:\s*#354047;[^}]*color:\s*#f0f4f6;/,
     );
   });
 
@@ -136,6 +167,23 @@ describe('QuickPlannerActivity', () => {
     expect(activityStyles).not.toMatch(/\.quick-planner-activity-point-(?:halo|ring)\s*\{/);
   });
 
+  it('derives chart colors from the Planner accent', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*var\(--planner-accent,\s*#477c9e\);/,
+    );
+    expect(activityStyles).not.toMatch(
+      /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*#78aec4;/,
+    );
+    expect(activityStyles).toMatch(
+      /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-plot-depth\s*\{[^}]*rgba\(var\(--planner-accent-rgb,\s*71, 124, 158\), 0\.025\)/,
+    );
+    expect(activityStyles).toMatch(
+      /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-line-glow\s*\{\s*opacity:\s*0\.14;/,
+    );
+    expect(activityStyles).toMatch(
+      /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-line\s*\{[^}]*rgba\(var\(--planner-accent-rgb,\s*71, 124, 158\), 0\.16\)/,
+    );
+  });
   it('shows seven weekly scale levels and keeps one level of headroom above the peak', () => {
     const sentAt = new Date(Date.now() - 60_000).toISOString();
     renderActivity(
@@ -157,14 +205,26 @@ describe('QuickPlannerActivity', () => {
   });
 
   it('uses the Planner editor track fill for inactive Activity switcher options', () => {
-    const darkTrackFill = /linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\)/;
+    const darkTrackFill = /linear-gradient\(180deg, rgba\(32, 40, 46, 0\.32\), rgba\(28, 36, 42, 0\.38\)\)/;
     expect(activityStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner-activity-period\s*\{[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\);/,
+      /\.quick-planner-activity-views\s*\{[^}]*background:\s*linear-gradient\(180deg, rgba\(247, 250, 252, 0\.7\), rgba\(238, 244, 247, 0\.72\)\);/,
     );
     expect(activityStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner-activity-views\s*\{[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.76\), rgba\(28, 36, 42, 0\.8\)\);/,
+      /html\[data-theme='dark'\] \.quick-planner-activity-period\s*\{[^}]*border-color:\s*rgba\(110, 166, 202, 0\.1\);[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.32\), rgba\(28, 36, 42, 0\.38\)\);/,
+    );
+    expect(activityStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-activity-views\s*\{[^}]*border-color:\s*rgba\(110, 166, 202, 0\.1\);[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.32\), rgba\(28, 36, 42, 0\.38\)\);/,
     );
     expect(activityStyles).toMatch(darkTrackFill);
+  });
+
+  it('aligns the lower Activity switcher width with the summary cards above it', () => {
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-views\s*\{[^}]*width:\s*calc\(100% \+ 16px\);[^}]*margin:\s*8px -8px 63px;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-highlights\s*\{[^}]*width:\s*calc\(100% \+ 16px\);[^}]*margin:\s*20px -8px 8px;/,
+    );
   });
 
   it('keeps activity labels on one line while large counts stay intact', () => {

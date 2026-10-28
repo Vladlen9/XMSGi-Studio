@@ -1,5 +1,4 @@
 import type { RichTextEntity, ScheduledMessage } from '@studio/types';
-import type { InlineKeyboardMarkup } from './inlineKeyboard';
 
 export type PendingScheduleInput = Pick<
   ScheduledMessage,
@@ -8,7 +7,6 @@ export type PendingScheduleInput = Pick<
   operationId: string;
   attachments?: string[];
   entities?: RichTextEntity[];
-  replyMarkup?: InlineKeyboardMarkup;
 };
 
 export type TelegramScheduledMessage = {
@@ -69,6 +67,16 @@ export function isFutureSchedule(date: string, time: string, now = new Date()): 
   }
 
   return scheduledAt.getTime() > now.getTime();
+}
+
+export function refreshScheduleDateTime(
+  date: string,
+  time: string,
+  followCurrentTime: boolean,
+  now = new Date(),
+): { date: string; time: string } | null {
+  if (!followCurrentTime && isFutureSchedule(date, time, now)) return null;
+  return getScheduleDateTimeAfter(0, now);
 }
 
 const russianWeekdays: Record<string, string> = {

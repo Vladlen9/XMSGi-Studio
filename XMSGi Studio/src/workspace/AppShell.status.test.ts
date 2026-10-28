@@ -2,7 +2,7 @@ import { createElement, useContext, useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '@/lib/i18n';
-import { persistPostsReturnView } from '@/lib/productView';
+import { persistPostsReturnView, type ProductView } from '@/lib/productView';
 import { LocalDateTimeClock } from '@/components/LocalDateTimeClock';
 import { AppShell, getTelegramStatusPresentation } from './AppShell';
 import { QuickPlannerNavigationContext } from './QuickPlannerNavigationContext';
@@ -73,6 +73,8 @@ describe('product navigation', () => {
 
     expect(screen.getByText('XMSGi')).toBeInTheDocument();
     expect(document.querySelector('.topbar-identity .brand-mark')).toBeNull();
+    expect(document.querySelector('.topbar-logout-photo-fallback')).toBeInTheDocument();
+    expect(document.querySelector('.topbar-logout-photo-image')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Planner' }));
 
@@ -123,8 +125,7 @@ describe('product navigation', () => {
     fireEvent.click(document.querySelector('.history-source-menu [data-history-filter="all"]') as HTMLButtonElement);
     fireEvent.click(screen.getByRole('tab', { name: 'Drafts' }));
     fireEvent.click(container.querySelector('.history-record-open') as HTMLButtonElement);
-    fireEvent.click(container.querySelector('.history-detail-toolbar .is-more') as HTMLButtonElement);
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Use in Studio' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use text' }));
 
     expect(onHistoryUseDraft).toHaveBeenCalledWith(draft, 'studio');
     expect(screen.queryByText(/Where would you like to open/)).not.toBeInTheDocument();
@@ -203,6 +204,11 @@ describe('shared History Drawer entry point', () => {
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, browserDraftMode: true }, createElement('div', null, 'Local planner'))));
     expect(screen.queryByLabelText('Current local date and time')).not.toBeInTheDocument();
 
+    closeNotification.mockClear();
+    rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'studio' }, createElement('div', null, 'Studio'))));
+    expect(document.querySelector('.shell-notification')).not.toBeInTheDocument();
+    expect(closeNotification).toHaveBeenCalledOnce();
+
     rerender(createElement(LocaleProvider, null, createElement(AppShell, { ...shellProps, view: 'posts' }, createElement('div', null, 'Posts'))));
     expect(document.querySelector('.shell-notification')).toHaveTextContent('Planner is ready.');
   });
@@ -213,25 +219,35 @@ describe('shared History Drawer entry point', () => {
     const onViewChange = vi.fn();
     const plannerNavigation = createElement(QuickPlannerNavigationTestButtons);
 
-    render(createElement(LocaleProvider, null, createElement(AppShell, {
-      view,
-      onViewChange,
-      connected: true,
-      authBusy: false,
-      isConfirmingLogout: false,
-      setIsConfirmingLogout: vi.fn(),
-      setShowAuthForm: vi.fn(),
-      handleDisconnect: async () => undefined,
-      handleForgetAccount: async () => undefined,
-      onOpenSettings,
-      historyRecords: [],
-      onHistoryCancel: vi.fn(),
-      onHistoryReschedule: vi.fn(),
-      onHistorySendNow: vi.fn(),
-      onHistoryDelete: vi.fn(),
-      onHistoryOpenDraft: vi.fn(),
-      onHistoryClearSent: vi.fn(),
-    }, plannerNavigation)));
+    function AppShellHarness() {
+      const [currentView, setCurrentView] = useState<ProductView>(view);
+      const handleViewChange = (nextView: ProductView) => {
+        onViewChange(nextView);
+        setCurrentView(nextView);
+      };
+
+      return createElement(AppShell, {
+        view: currentView,
+        onViewChange: handleViewChange,
+        connected: true,
+        authBusy: false,
+        isConfirmingLogout: false,
+        setIsConfirmingLogout: vi.fn(),
+        setShowAuthForm: vi.fn(),
+        handleDisconnect: async () => undefined,
+        handleForgetAccount: async () => undefined,
+        onOpenSettings,
+        historyRecords: [],
+        onHistoryCancel: vi.fn(),
+        onHistoryReschedule: vi.fn(),
+        onHistorySendNow: vi.fn(),
+        onHistoryDelete: vi.fn(),
+        onHistoryOpenDraft: vi.fn(),
+        onHistoryClearSent: vi.fn(),
+      }, plannerNavigation);
+    }
+
+    render(createElement(LocaleProvider, null, createElement(AppShellHarness)));
 
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent(view === 'planner' ? 'quick-plan' : 'studio');
     fireEvent.click(screen.getByRole('button', { name: 'Studio from Quick Plan' }));
@@ -244,17 +260,21 @@ describe('shared History Drawer entry point', () => {
     expect(document.querySelector('.history-drawer-backdrop')).not.toBeInTheDocument();
     expect(document.querySelector('.product-shell-content')).toHaveClass('is-posts');
     openHistorySourceMenu();
-    const activeSource = getHistorySourceOption(view === 'planner' ? 'personal' : 'workspace');
+    const activeSource = getHistorySourceOption('all');
     expect(activeSource).toHaveAttribute('aria-checked', 'true');
+    expect(document.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
     fireEvent.click(activeSource);
     expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
-    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
+    expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('quick-plan');
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
+    expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
+    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('posts');
+    fireEvent.click(screen.getByRole('button', { name: 'Posts' }));
     expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
-    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent(view === 'planner' ? 'quick-plan' : 'studio');
+    expect(screen.getByTestId('quickplanner-current-section')).toHaveTextContent('quick-plan');
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Settings from Quick Plan' }));
@@ -342,7 +362,7 @@ describe('shared History Drawer entry point', () => {
     });
   });
 
-  it('uses the active product on the first Posts open, then keeps the manually selected source', () => {
+  it('opens Posts on All and Scheduled, then keeps the manually selected source', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     const onViewChange = vi.fn();
     const plannerNavigation = createElement(QuickPlannerNavigationTestButtons);
@@ -369,7 +389,8 @@ describe('shared History Drawer entry point', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Posts from Quick Plan' }));
     openHistorySourceMenu();
-    expect(getHistorySourceOption('personal')).toHaveAttribute('aria-checked', 'true');
+    expect(getHistorySourceOption('all')).toHaveAttribute('aria-checked', 'true');
+    expect(document.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
     fireEvent.click(getHistorySourceOption('workspace'));
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(screen.getByRole('button', { name: 'Studio from Quick Plan' }));
@@ -381,7 +402,7 @@ describe('shared History Drawer entry point', () => {
     fireEvent.click(selectedWorkspace);
   });
 
-  it('renders Posts as a standalone page and does not close it on Escape', () => {
+  it('renders Posts as a standalone page and requests the previous view on Escape', () => {
     persistPostsReturnView('planner');
     const onViewChange = vi.fn();
     const { container } = render(createElement(LocaleProvider, null, createElement(AppShell, {
@@ -411,7 +432,7 @@ describe('shared History Drawer entry point', () => {
     expect(container.querySelector('.history-drawer')?.parentElement).toBe(container.querySelector('.product-shell-content'));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('region', { name: 'Posts' })).toBeInTheDocument();
-    expect(onViewChange).not.toHaveBeenCalledWith('planner');
+    expect(onViewChange).toHaveBeenCalledWith('planner');
   });
 
   it('closes Posts before topbar Studio and Settings navigation', () => {
@@ -453,7 +474,7 @@ describe('shared History Drawer entry point', () => {
     expect(screen.queryByRole('region', { name: 'Posts' })).not.toBeInTheDocument();
   });
 
-  it('shows the current Telegram profile photo in the topbar', async () => {
+  it('shows the real profile photo after refreshing it from Telegram', async () => {
     window.localStorage.removeItem(accountAvatarCacheKey);
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     let resolveAvatar: ((value: { success: boolean; avatarDataUrl: string }) => void) | undefined;
@@ -487,15 +508,17 @@ describe('shared History Drawer entry point', () => {
     }, createElement('div', null, 'Current screen'))));
 
     try {
-      const loadingIcon = view.container.querySelector('.topbar-logout-photo-fallback svg');
-      expect(loadingIcon).toHaveAttribute('width', '38');
-      expect(loadingIcon).toHaveAttribute('height', '38');
+      expect(view.container.querySelector('.topbar-logout-photo-fallback')).toBeInTheDocument();
       resolveAvatar?.({ success: true, avatarDataUrl: 'data:image/jpeg;base64,account-photo' });
       await waitFor(() => {
-        expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', 'data:image/jpeg;base64,account-photo');
+        expect(window.localStorage.getItem(accountAvatarCacheKey)).toBe('data:image/jpeg;base64,account-photo');
       });
       expect(getAccountAvatar).toHaveBeenCalledOnce();
-      expect(window.localStorage.getItem(accountAvatarCacheKey)).toBe('data:image/jpeg;base64,account-photo');
+      expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute(
+        'src',
+        'data:image/jpeg;base64,account-photo',
+      );
+      expect(view.container.querySelector('.topbar-logout-photo-fallback')).toBeNull();
 
       const labels = Array.from(view.container.querySelectorAll('.topbar-actions .action-label'))
         .map((label) => label.textContent);
@@ -588,7 +611,7 @@ describe('shared History Drawer entry point', () => {
     expect(view.container.querySelector('.topbar-logout-photo-status')).not.toHaveClass('has-error');
   });
 
-  it('shows the cached Telegram photo immediately while refreshing it', () => {
+  it('shows the cached account photo while refreshing it from Telegram', () => {
     const previousTelegram = Object.getOwnPropertyDescriptor(window, 'telegram');
     const cachedAvatar = 'data:image/jpeg;base64,cached-account-photo';
     const getAccountAvatar = vi.fn(() => new Promise<{ success: boolean; avatarDataUrl: string }>(() => undefined));
@@ -620,6 +643,8 @@ describe('shared History Drawer entry point', () => {
 
     try {
       expect(view.container.querySelector('.topbar-logout-photo-image')).toHaveAttribute('src', cachedAvatar);
+      expect(view.container.querySelector('.topbar-logout-photo-fallback')).toBeNull();
+      expect(window.localStorage.getItem(accountAvatarCacheKey)).toBe(cachedAvatar);
       expect(getAccountAvatar).toHaveBeenCalledOnce();
     } finally {
       view.unmount();
@@ -664,8 +689,12 @@ describe('shared History Drawer entry point', () => {
       .map((button) => button.textContent?.trim()))
       .toEqual(['Forget me', 'Remember me']);
 
+    const logoutPhotoButton = view.container.querySelector('.topbar-logout-photo') as HTMLButtonElement;
+    logoutPhotoButton.focus();
+    expect(document.activeElement).toBe(logoutPhotoButton);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledWith(false);
+    expect(document.activeElement).not.toBe(logoutPhotoButton);
 
     fireEvent.click(screen.getByRole('button', { name: 'Remember me' }));
     expect(setShowAuthForm).toHaveBeenCalledWith(false);

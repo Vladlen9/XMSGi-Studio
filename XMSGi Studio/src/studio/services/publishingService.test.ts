@@ -24,7 +24,6 @@ describe('publishingService', () => {
   it('publishes normalized text and media through the Telegram bridge', async () => {
     const send = vi.fn().mockResolvedValue({ success: true });
     vi.stubGlobal('telegram', { send });
-    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
 
     const result = await publishToChannel({
       accountId: 'account-1',
@@ -32,7 +31,6 @@ describe('publishingService', () => {
       body: 'Send me',
       entities: [{ type: 'bold', offset: 0, length: 4 }],
       mediaIds: ['/tmp/image.png'],
-      replyMarkup,
     });
 
     expect(result.normalized.text).toBe('Send me');
@@ -43,7 +41,6 @@ describe('publishingService', () => {
       'Send me',
       ['/tmp/image.png'],
       [{ type: 'bold', offset: 0, length: 4 }],
-      replyMarkup,
     );
   });
 
@@ -69,7 +66,6 @@ describe('publishingService', () => {
       'Correlated Studio send',
       [],
       [],
-      undefined,
       false,
       undefined,
       'account-1',
@@ -115,7 +111,6 @@ describe('publishingService', () => {
       targetTimestamp: 1767261600,
       attachments: [],
       entities: [],
-      replyMarkup: undefined,
     });
     expect(result.publishResult).toMatchObject({
       ok: true,
@@ -144,7 +139,7 @@ describe('publishingService', () => {
       effect: '987654321',
     });
 
-    expect(send).toHaveBeenCalledWith('channel-1', 'Effect post', [], [], undefined, false, '123456789');
+    expect(send).toHaveBeenCalledWith('channel-1', 'Effect post', [], [], false, '123456789');
     expect(schedule).toHaveBeenCalledWith(expect.objectContaining({
       chatId: 'channel-1',
       message: 'Effect schedule',
@@ -293,7 +288,6 @@ describe('publishingService', () => {
       supportsScheduleCancellation: true,
       supportsEditing: false,
       supportsDeletion: false,
-      supportsInlineKeyboard: true,
     });
   });
 });

@@ -5,13 +5,14 @@ const {
   getEntityDisplayName,
 } = require('./telegram-dialogs.cjs');
 const { deriveChatPermissions, isPermissionError } = require('./telegram-permissions.cjs');
-const { getPreviewMedia, toPreviewNumber } = require('./telegram-media-preview.cjs');
+const { getPreviewMedia, getPreviewMediaDataBytes, toPreviewNumber } = require('./telegram-media-preview.cjs');
 const { getTelegramEntityType } = require('./telegram-message-entities.cjs');
-const { fromTelegramInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
 const { normalizeHistoryMessage, resolveMessageDirection } = require('./telegram-message-direction.cjs');
 
 const REQUEST_TIMEOUT = 15000;
-const MAX_PREVIEW_ORIGINAL_PHOTO_BYTES = 12 * 1024 * 1024;
+const MAX_HISTORY_PREVIEW_MEDIA_BYTES = 8 * 1024 * 1024;
+const MAX_PREVIEW_MEDIA_ITEM_BYTES = 4 * 1024 * 1024;
+const PREVIEW_MEDIA_CONCURRENCY = 3;
 
 function createTelegramChatData({ Api, connectTelegram, getClient, telegramRequest, withTimeout }) {
   async function getChatAvatarDataUrl(entity) {
@@ -113,12 +114,15 @@ function createTelegramChatData({ Api, connectTelegram, getClient, telegramReque
 
   async function getChatHistoryInternal(chatId, limit = 50, offsetId) {
     if (!getClient()) await connectTelegram();
-    const target = chatId === 'me' ? 'me' : chatId;
-    const entity = await telegramRequest(() => withTimeout(getClient().getEntity(target), REQUEST_TIMEOUT, 'Resolving Telegram chat for history'));
     const currentUser = await telegramRequest(() => withTimeout(getClient().getMe(), REQUEST_TIMEOUT, 'Loading current Telegram account'));
     const currentUserId = currentUser?.id != null ? String(currentUser.id) : '';
+    const isSavedMessages = chatId === 'me' || String(chatId) === currentUserId;
+    const entity = isSavedMessages
+      ? currentUser
+      : await telegramRequest(() => withTimeout(getClient().getEntity(chatId), REQUEST_TIMEOUT, 'Resolving Telegram chat for history'));
+    const historyPeer = isSavedMessages ? 'me' : entity;
     const messages = await telegramRequest(() => withTimeout(
-      getClient().getMessages(entity, { limit, ...(offsetId ? { offsetId } : {}) }),
+      getClient().getMessages(historyPeer, { limit, ...(offsetId ? { offsetId } : {}) }),
       REQUEST_TIMEOUT,
       'Loading Telegram chat history',
     ));
@@ -132,15 +136,26 @@ function createTelegramChatData({ Api, connectTelegram, getClient, telegramReque
       console.error('Telegram chat avatar unavailable:', error?.code || error?.name || 'unknown');
     }
 
-    let originalPhotoBytesRemaining = MAX_PREVIEW_ORIGINAL_PHOTO_BYTES;
-    const normalizedMessages = (await Promise.all([...(messages || [])]
-      .filter((message) => message && message.id !== undefined)
-      .map(async (message) => {
+    const historyMessages = [...(messages || [])].filter((message) => message && message.id !== undefined);
+    const normalizedMessages = [];
+    let remainingPreviewMediaBytes = MAX_HISTORY_PREVIEW_MEDIA_BYTES;
+    for (let index = 0; index < historyMessages.length; index += PREVIEW_MEDIA_CONCURRENCY) {
+      const batch = historyMessages.slice(index, index + PREVIEW_MEDIA_CONCURRENCY);
+      const previewBytesPerMessage = Math.min(
+        MAX_PREVIEW_MEDIA_ITEM_BYTES,
+        Math.floor(remainingPreviewMediaBytes / batch.length),
+      );
+      const normalizedBatch = await Promise.all(batch.map(async (message) => {
         const normalizedMessage = normalizeHistoryMessage(message, currentUserId);
         const photoSize = toPreviewNumber(message.file?.size);
         const includeOriginalPhoto = Boolean(message.photo && photoSize !== undefined && photoSize > 0
-          && photoSize <= 8 * 1024 * 1024 && photoSize <= originalPhotoBytesRemaining);
-        if (includeOriginalPhoto) originalPhotoBytesRemaining -= photoSize;
+          && photoSize <= 8 * 1024 * 1024 && photoSize <= previewBytesPerMessage);
+        const media = await getPreviewMedia(
+          message,
+          includeOriginalPhoto,
+          previewBytesPerMessage,
+          (request) => telegramRequest(() => withTimeout(request, REQUEST_TIMEOUT, 'Loading Telegram media preview')),
+        );
         return {
           id: String(normalizedMessage.id),
           text: String(normalizedMessage.text || ''),
@@ -161,11 +176,17 @@ function createTelegramChatData({ Api, connectTelegram, getClient, telegramReque
           }),
           mediaType: message.media?.className || '',
           mediaName: message.file?.name || '',
-          media: await getPreviewMedia(message, includeOriginalPhoto),
-          replyMarkup: fromTelegramInlineKeyboard(message.replyMarkup),
+          media,
           groupId: message.groupedId ? String(message.groupedId) : '',
         };
-      }))).sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
+      }));
+      remainingPreviewMediaBytes = Math.max(
+        0,
+        remainingPreviewMediaBytes - normalizedBatch.reduce((total, message) => total + getPreviewMediaDataBytes(message.media), 0),
+      );
+      normalizedMessages.push(...normalizedBatch);
+    }
+    normalizedMessages.sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
 
     return {
       chat: {

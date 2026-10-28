@@ -63,11 +63,6 @@ function normalizeEntityValues(entities?: unknown[]): DraftRecord['entities'] {
   });
 }
 
-function normalizeInlineButtonValues(value: unknown): unknown[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((row) => (Array.isArray(row) ? row : []));
-}
-
 export function readDraftStore(): DraftStoreSnapshot {
   const activeDraft = readLocalStorage<DraftRecord | null>(ACTIVE_DRAFT_KEY, null);
   const savedDrafts = readLocalStorage<DraftRecord[]>(SAVED_DRAFTS_KEY, []);
@@ -97,9 +92,6 @@ export function readDraftStore(): DraftStoreSnapshot {
     }
     if (activeDraft.repeatOccurrences !== undefined && typeof activeDraft.repeatOccurrences !== 'number') {
       throw new Error('Active draft repeat occurrences are invalid.');
-    }
-    if (activeDraft.inlineButtons !== undefined && !Array.isArray(activeDraft.inlineButtons)) {
-      throw new Error('Active draft inline buttons are invalid.');
     }
   }
 
@@ -212,7 +204,6 @@ export function createActiveDraftSnapshot(input: {
   repeatMode?: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
   repeatDays?: string[];
   repeatOccurrences?: number;
-  inlineButtons?: unknown[];
   id?: string;
   updatedAt?: string;
 }): DraftRecord {
@@ -227,7 +218,6 @@ export function createActiveDraftSnapshot(input: {
     repeatMode: input.repeatMode ?? 'none',
     repeatDays: Array.isArray(input.repeatDays) ? input.repeatDays : [],
     repeatOccurrences: typeof input.repeatOccurrences === 'number' ? input.repeatOccurrences : 1,
-    inlineButtons: normalizeInlineButtonValues(input.inlineButtons),
     updatedAt: input.updatedAt ?? new Date().toISOString(),
   });
 }

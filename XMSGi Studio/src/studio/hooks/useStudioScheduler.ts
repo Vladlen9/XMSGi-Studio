@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Chat, NotificationState, RichTextEntity, ScheduledMessage } from '@studio/types';
-import type { InlineKeyboardMarkup } from '@studio/lib/inlineKeyboard';
-import { isFutureSchedule, type ScheduleRepeatOptions } from '@studio/lib/scheduling';
+import { getScheduleDateTimeAfter, isFutureSchedule, type ScheduleRepeatOptions } from '@studio/lib/scheduling';
 import { createScheduledEntries } from '@studio/services/scheduleDomainService';
 import { publishToChannel, scheduleToChannel } from '@studio/services/publishingService';
 import { telegramChannelAdapter } from '@studio/services/telegramChannelAdapter';
@@ -16,8 +15,8 @@ type SchedulePayload = {
   attachments?: string[];
   attachmentGroups?: string[][];
   entities?: unknown;
-  replyMarkup?: InlineKeyboardMarkup;
   effect?: string;
+  waitForConfirmation?: boolean;
   replaceMessage?: ScheduledMessage;
 };
 
@@ -104,6 +103,12 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const hasLocalHistoryChangesRef = useRef(false);
 
+  const resetScheduleDateTime = () => {
+    const nextSchedule = getScheduleDateTimeAfter(0);
+    setDate(nextSchedule.date);
+    setTime(nextSchedule.time);
+  };
+
   useEffect(() => {
     let cancelled = false;
     const loadHistory = async () => {
@@ -183,7 +188,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
       time: payload.time,
       attachments: payload.attachments,
       entities,
-      replyMarkup: payload.replyMarkup,
       effect: payload.effect,
       repeat,
     });
@@ -201,14 +205,12 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           const isPrimaryGroup = groupIndex === 0;
           const groupText = isPrimaryGroup ? entry.text : '';
           const groupEntities = isPrimaryGroup ? entry.entities : [];
-          const groupReplyMarkup = isPrimaryGroup ? entry.replyMarkup : undefined;
           const { publishResult } = await scheduleToChannel({
             accountId,
             channelId: chat.id,
             body: groupText,
             entities: groupEntities,
             mediaIds: attachmentGroup,
-            replyMarkup: groupReplyMarkup,
             effect: isPrimaryGroup ? entry.effect : undefined,
             scheduleAt: new Date(entry.when).toISOString(),
           });
@@ -224,7 +226,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
             createdAt: entry.createdAt,
             status: publishResult.confirmed ? 'confirmed' : 'scheduled',
             telegramMessageId: publishResult.messageId,
-            replyMarkup: groupReplyMarkup,
             entities: groupEntities,
             effect: isPrimaryGroup ? entry.effect : undefined,
           });
@@ -238,6 +239,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
 
     if (scheduledMessages.length > 0) {
       setUpcoming((current) => [...scheduledMessages, ...current]);
+      resetScheduleDateTime();
       setLastAction('scheduled');
       setSuccessPulse(true);
       showNotification(
@@ -264,7 +266,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
     text: string,
     attachments?: string[],
     entities?: unknown,
-    replyMarkup?: InlineKeyboardMarkup,
     suppliedAttachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,
@@ -294,7 +295,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
           lastAttemptAt: attemptTime,
           retryAction: 'send',
           entities: isPrimaryGroup ? formattedEntities : [],
-          replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
           effect: isPrimaryGroup ? effect : undefined,
         };
 
@@ -325,7 +325,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
             body: isPrimaryGroup ? text : '',
             entities: isPrimaryGroup ? formattedEntities : [],
             mediaIds,
-            replyMarkup: isPrimaryGroup ? replyMarkup : undefined,
             effect: isPrimaryGroup ? effect : undefined,
           }));
         } catch (error) {
@@ -387,6 +386,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
         };
         const historyPersisted = publishResult.historyPersisted === true;
         if (!historyPersisted) historyPersistenceFailed = true;
+        resetScheduleDateTime();
         setUpcoming((current) => current.filter((message) => message.sendAttemptId !== sendAttemptId));
         setSent((current) => [sentMessage, ...current.filter((message) => message.sendAttemptId !== sendAttemptId)]);
         onAttachmentGroupResult?.(groupIndex, true);
@@ -441,7 +441,6 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
         body: message.text,
         entities: message.entities,
         mediaIds: message.attachments,
-        replyMarkup: message.replyMarkup,
         effect: message.effect,
       });
       if (!publishResult.ok) {
@@ -451,6 +450,7 @@ export function useStudioScheduler({ accountId, chats, selectedChat, showNotific
 
       setUpcoming((current) => current.filter((item) => item.id !== message.id));
       setSent((current) => [{ ...message, status: 'sent', sentAt: new Date().toISOString() }, ...current]);
+      resetScheduleDateTime();
     } catch (error) {
       const errorDetails = failureDetails ?? normalizeTelegramBridgeError(
         error,

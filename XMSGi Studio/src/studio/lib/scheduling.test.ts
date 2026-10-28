@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScheduledMessage } from '@studio/types';
-import { applyScheduleResult, formatScheduleSummary, getScheduleDateTimeAfter, getScheduleOccurrences, isFutureSchedule } from './scheduling';
+import { applyScheduleResult, formatScheduleSummary, getScheduleDateTimeAfter, getScheduleOccurrences, isFutureSchedule, refreshScheduleDateTime } from './scheduling';
 
 describe('schedule lifecycle', () => {
   it('accepts only valid schedule times strictly in the future', () => {
@@ -25,6 +25,20 @@ describe('schedule lifecycle', () => {
     expect(getScheduleDateTimeAfter(15, new Date(2026, 9, 3, 23, 50, 30))).toEqual({
       date: '2026-10-04',
       time: '00:06',
+    });
+  });
+
+  it('keeps schedule time current while following and advances a manually selected time only after it expires', () => {
+    const now = new Date(2026, 9, 3, 15, 47, 30);
+
+    expect(refreshScheduleDateTime('2026-10-03', '15:48', true, now)).toEqual({
+      date: '2026-10-03',
+      time: '15:48',
+    });
+    expect(refreshScheduleDateTime('2026-10-03', '15:48', false, now)).toBeNull();
+    expect(refreshScheduleDateTime('2026-10-03', '15:47', false, now)).toEqual({
+      date: '2026-10-03',
+      time: '15:48',
     });
   });
 

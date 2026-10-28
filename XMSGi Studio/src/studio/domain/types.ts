@@ -50,7 +50,6 @@ export interface Post {
   body: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
-  replyMarkup?: unknown;
   effect?: string;
   scheduleId?: string;
   createdAt: string;
@@ -127,7 +126,6 @@ export interface NormalizedMessage {
   text: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
-  replyMarkup?: unknown;
 }
 
 export interface ChannelCapabilities {
@@ -138,7 +136,6 @@ export interface ChannelCapabilities {
   supportsScheduleCancellation: boolean;
   supportsEditing: boolean;
   supportsDeletion: boolean;
-  supportsInlineKeyboard: boolean;
 }
 
 export interface ChannelAdapter {

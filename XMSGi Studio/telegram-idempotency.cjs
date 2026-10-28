@@ -1,6 +1,5 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const { fromTelegramInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
 const { getTelegramEntityIdentity } = require('./telegram-message-entities.cjs');
 
 function createTelegramRandomId(idempotencyKey, part = 0) {
@@ -56,10 +55,6 @@ function matchesScheduledOperation(scheduledMessage, operation) {
     ? Math.floor(scheduledMessage.date.getTime() / 1000)
     : Number(scheduledMessage.date);
   const mediaClassName = scheduledMessage.media?.className;
-  const expectedMarkup = operation.replyMarkup?.inline_keyboard?.length
-    ? operation.replyMarkup
-    : null;
-  const actualMarkup = fromTelegramInlineKeyboard(scheduledMessage.replyMarkup) ?? null;
 
   return scheduledMessage.message === operation.message
     && messageTimestamp === operation.targetTimestamp
@@ -67,7 +62,6 @@ function matchesScheduledOperation(scheduledMessage, operation) {
     && mediaClassName !== 'MessageMediaDocument'
     && JSON.stringify(getTelegramEntityIdentity(scheduledMessage.entities || []))
       === JSON.stringify(operation.entities)
-    && JSON.stringify(actualMarkup) === JSON.stringify(expectedMarkup)
     && (scheduledMessage.silent === true) === operation.silent
     && getEffectIdentity(scheduledMessage.effect) === getEffectIdentity(operation.effect);
 }
@@ -94,7 +88,6 @@ async function createScheduleIdempotencyKey(target, operation, hashCache) {
     targetTimestamp: operation.targetTimestamp,
     attachmentHashes,
     entities: operation.entities,
-    replyMarkup: operation.replyMarkup ?? null,
     silent: operation.silent,
     effect: getEffectIdentity(operation.effect),
   })).digest('hex');

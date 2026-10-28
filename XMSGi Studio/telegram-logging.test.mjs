@@ -39,31 +39,6 @@ function installTelegramMocks({ sendMessageDelayMs = 0 } = {}) {
   const sendCalls = [];
   const invokeCalls = [];
 
-  class FakeInlineKeyboard {
-    constructor() {
-      this.rows = [[]];
-    }
-
-    url(text, url) {
-      this.rows.at(-1).push({ text, url });
-      return this;
-    }
-
-    callback(text, callbackData) {
-      this.rows.at(-1).push({ text, callback_data: callbackData });
-      return this;
-    }
-
-    row() {
-      this.rows.push([]);
-      return this;
-    }
-
-    build() {
-      return { className: 'ReplyInlineMarkup', rows: this.rows.map((buttons) => ({ buttons })) };
-    }
-  }
-
   class FakeTelegramClient {
     constructor() {
       this.connected = false;
@@ -136,7 +111,6 @@ function installTelegramMocks({ sendMessageDelayMs = 0 } = {}) {
           MessageEntityBold: FakeMessageEntityBold,
           messages: { SendMessage: FakeSendMessage },
         },
-        InlineKeyboard: FakeInlineKeyboard,
       };
     }
     if (request === 'teleproto/sessions') {
@@ -183,19 +157,13 @@ describe('Telegram operation log privacy', () => {
     }
   });
 
-  it('omits message text, button data, and file paths from send, schedule, and error logs', async () => {
+  it('omits message text and file paths from send, schedule, and error logs', async () => {
     vi.resetModules();
     const { sendCalls } = installTelegramMocks();
     captureConsole();
 
     const { createTelegramCore } = await import('./telegram.cjs');
     const core = createTelegramCore({ apiId: 1, apiHash: 'hash', sessionString: 'session' });
-    const privateMarkup = {
-      inline_keyboard: [[
-        { text: 'PRIVATE_BUTTON_TEXT', url: 'https://example.com/PRIVATE_BUTTON_URL' },
-        { text: 'Callback label', callback_data: 'PRIVATE_CALLBACK_DATA' },
-      ]],
-    };
     const attachmentDirectory = mkdtempSync(join(tmpdir(), 'xmsgi-telegram-log-'));
     const attachmentPath = join(attachmentDirectory, 'private-scheduled-secret.png');
     writeFileSync(attachmentPath, 'private attachment');
@@ -210,7 +178,6 @@ describe('Telegram operation log privacy', () => {
         'PRIVATE_SEND_TEXT',
         [attachmentPath],
         [],
-        privateMarkup,
       );
       expect(sendCalls.at(-1).message).toBe('PRIVATE_SEND_TEXT');
 
@@ -223,7 +190,6 @@ describe('Telegram operation log privacy', () => {
         scheduleTimestamp,
         [attachmentPath],
         [],
-        privateMarkup,
       );
       expect(scheduled.confirmed).toBe(true);
 
@@ -232,7 +198,6 @@ describe('Telegram operation log privacy', () => {
         'PRIVATE_FAILURE_TEXT',
         [attachmentPath],
         [],
-        privateMarkup,
       )).rejects.toMatchObject({ code: 'FAKE_SEND_FAILED' });
 
       const output = capturedOutput();
@@ -240,9 +205,6 @@ describe('Telegram operation log privacy', () => {
         'PRIVATE_SEND_TEXT',
         'PRIVATE_SCHEDULE_TEXT',
         'PRIVATE_FAILURE_TEXT',
-        'PRIVATE_BUTTON_TEXT',
-        'PRIVATE_BUTTON_URL',
-        'PRIVATE_CALLBACK_DATA',
         attachmentPath,
       ]) {
         expect(output).not.toContain(secret);

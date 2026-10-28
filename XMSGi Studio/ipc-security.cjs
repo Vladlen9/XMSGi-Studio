@@ -9,10 +9,6 @@ const MAX_ATTACHMENT_PATH_LENGTH = 4096;
 const MAX_ATTACHMENTS = 30;
 const MAX_ATTACHMENTS_PER_GROUP = 10;
 const MAX_FORMATTING_ENTITIES = 100;
-const MAX_INLINE_BUTTON_ROWS = 20;
-const MAX_INLINE_BUTTONS_PER_ROW = 8;
-const MAX_INLINE_BUTTON_LABEL_LENGTH = 128;
-const MAX_CALLBACK_DATA_BYTES = 64;
 const MIN_TIMESTAMP = 946684800;
 const MAX_TIMESTAMP = 4102444800;
 
@@ -100,33 +96,6 @@ function validateEffect(value) {
   return value;
 }
 
-function validateReplyMarkup(value) {
-  if (value === undefined) return undefined;
-  if (!isPlainObject(value) || !Array.isArray(value.inline_keyboard) || value.inline_keyboard.length > MAX_INLINE_BUTTON_ROWS) {
-    invalidInput('replyMarkup has an invalid structure');
-  }
-
-  return {
-    inline_keyboard: value.inline_keyboard.map((row, rowIndex) => {
-
-      if (!Array.isArray(row) || row.length > MAX_INLINE_BUTTONS_PER_ROW) {
-        invalidInput(`replyMarkup row ${rowIndex + 1} is invalid`);
-      }
-      return row.map((button, buttonIndex) => {
-        if (!isPlainObject(button)) invalidInput(`replyMarkup button ${buttonIndex + 1} is invalid`);
-        const text = validateString(button.text, `replyMarkup button ${buttonIndex + 1} text`, { max: MAX_INLINE_BUTTON_LABEL_LENGTH });
-        if (button.url !== undefined) {
-          if (!/^https:\/\/\S+$/i.test(button.url)) invalidInput('replyMarkup URL is invalid');
-          return { text, url: button.url };
-        }
-        if (typeof button.callback_data !== 'string' || Buffer.byteLength(button.callback_data, 'utf8') > MAX_CALLBACK_DATA_BYTES || !button.callback_data.trim()) {
-          invalidInput('replyMarkup callback is invalid');
-        }
-        return { text, callback_data: button.callback_data };
-      });
-    })
-  };
-}
 
 function validateQuery(value) {
   return validateString(value, 'query', { max: MAX_QUERY_LENGTH });
@@ -150,7 +119,6 @@ function validateSchedulePayload(value) {
     targetTimestamp: validateTimestamp(value.targetTimestamp),
     attachments,
     ...(attachmentGroups ? { attachmentGroups } : {}),
-    replyMarkup: validateReplyMarkup(value.replyMarkup),
     silent: value.silent === true,
     effect: validateEffect(value.effect)
   };
@@ -325,7 +293,6 @@ function validateSendPayload(value) {
     entities: validateFormattingEntities(value.entities, message.length),
     attachments,
     ...(attachmentGroups ? { attachmentGroups } : {}),
-    replyMarkup: validateReplyMarkup(value.replyMarkup),
     silent: value.silent === true,
     effect: validateEffect(value.effect),
     idempotencyKey
@@ -406,16 +373,16 @@ function validateTelegramCredentialsPayload(value) {
   };
 }
 
-function assertTrustedRenderer(event, expectedWebContents, allowedFileUrl) {
-  const senderUrl = event?.senderFrame?.url || '';
-  const sender = event?.sender;
-  const trustedUrl =
-    senderUrl === allowedFileUrl ||
-    senderUrl.startsWith(`${allowedFileUrl}#`) ||
-    senderUrl.startsWith('http://localhost:5173/') ||
-    senderUrl.startsWith('http://127.0.0.1:5173/');
+function isTrustedRendererUrl(url, allowedUrl) {
+  return typeof url === 'string'
+    && (url === allowedUrl || url.startsWith(`${allowedUrl}#`));
+}
 
-  if (!expectedWebContents || sender !== expectedWebContents || !trustedUrl) {
+function assertTrustedRenderer(event, expectedWebContents, allowedUrl) {
+  const sender = event?.sender;
+
+  if (!expectedWebContents || sender !== expectedWebContents
+    || !isTrustedRendererUrl(event?.senderFrame?.url || '', allowedUrl)) {
     throw new Error('Untrusted renderer.');
   }
 }
@@ -435,5 +402,6 @@ module.exports = {
   validateSendAttemptReconciliationPayload,
   validateLoginPayload,
   validateTelegramCredentialsPayload,
+  isTrustedRendererUrl,
   assertTrustedRenderer
 };

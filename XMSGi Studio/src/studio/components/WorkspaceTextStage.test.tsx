@@ -92,7 +92,6 @@ function renderStage(overrides: Partial<React.ComponentProps<typeof WorkspaceTex
     saveTemplateStage: vi.fn(),
     savedDrafts: [savedDraftA],
     onInsertDraft: vi.fn(),
-    onRenameDraft: vi.fn().mockResolvedValue(true),
     draftEditingId: null,
     draftColor: 'gray',
     setDraftColor: vi.fn(),
@@ -106,11 +105,8 @@ function renderStage(overrides: Partial<React.ComponentProps<typeof WorkspaceTex
     saveDraftStage: vi.fn(),
     draftStoreReady: true,
     draftStoreSaving: false,
-    onExportDrafts: vi.fn(),
     onImportDrafts: vi.fn(),
     onImportEditorText: vi.fn(),
-    inlineButtons: [],
-    setInlineButtons: vi.fn(),
   };
 
   act(() => {
@@ -236,6 +232,26 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
+  it('searches templates by name and body and shows an empty search state', () => {
+    const secondTemplate = { ...templateA, id: 'tpl-2', name: 'Announcement', body: 'Team update for Monday' };
+    const { unmount } = renderStage({
+      mode: 'template',
+      templates: [templateA, secondTemplate],
+    });
+
+    const searchInput = screen.getByRole('searchbox', { name: 'Search templates' });
+    expect(searchInput.closest('.workspace-page-template-stage-header')).not.toBeNull();
+    fireEvent.change(searchInput, { target: { value: '  TEAM UPDATE  ' } });
+    const templateStage = document.querySelector('.workspace-page-rich-text-template-stage:not(.workspace-page-rich-text-draft-stage)');
+    expect(templateStage?.querySelectorAll('.workspace-page-template-stage-item')).toHaveLength(1);
+    expect(templateStage?.querySelector('.workspace-page-template-stage-item strong')?.textContent).toBe('Announcement');
+
+    fireEvent.change(searchInput, { target: { value: 'missing phrase' } });
+    expect(templateStage?.querySelector('.workspace-page-template-stage-empty')?.textContent).toBe('No matching templates.');
+
+    unmount();
+  });
+
   it('opens the template editor and saves a new template from the stage form', () => {
     const setTemplateDraftName = vi.fn();
     const setTemplateDraftBody = vi.fn();
@@ -271,6 +287,30 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
+  it('keeps template Save enabled and focuses the name field when the name is missing', () => {
+    const saveTemplateStage = vi.fn();
+    const { unmount } = renderStage({
+      mode: 'template',
+      templateEditingId: 'new',
+      templateDraftName: '',
+      templateDraftBody: 'Body text',
+      saveTemplateStage,
+    });
+
+    const nameInput = screen.getByRole('textbox', { name: 'Template name' }) as HTMLInputElement;
+    const scrollIntoView = vi.fn();
+    nameInput.scrollIntoView = scrollIntoView;
+    const saveButton = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+
+    expect(saveButton).toBeEnabled();
+    act(() => saveButton.click());
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(nameInput).toHaveFocus();
+    expect(saveTemplateStage).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('shows saved drafts in the template-style list and loads the selected draft', () => {
     const onInsertDraft = vi.fn();
     const { unmount } = renderStage({ mode: 'draft', onInsertDraft, savedDrafts: [savedDraftA] });
@@ -282,6 +322,7 @@ describe('WorkspaceTextStage editor flows', () => {
     expect(draftView?.querySelector('header strong')?.textContent).toBe('Saved drafts');
     expect(savedDraftButton).toBeTruthy();
     expect(savedDraftButton?.querySelector('.workspace-page-draft-color-dot')?.getAttribute('data-color')).toBe('gray');
+    expect(savedDraftButton?.querySelector('.workspace-page-draft-color-indicator')?.getAttribute('data-color-label')).toBe('Gray');
 
     act(() => {
       savedDraftButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -291,7 +332,74 @@ describe('WorkspaceTextStage editor flows', () => {
     unmount();
   });
 
-  it('shows the attachment count after the character count only when needed', () => {
+  it('hides the saved-on-device label in Russian draft headers', () => {
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    const { unmount } = renderStage({ mode: 'draft', savedDrafts: [savedDraftA], draftStoreReady: true, draftStoreSaving: false });
+    const status = document.querySelector('.workspace-page-draft-header-info span');
+
+    expect(status?.textContent).toContain('Сохранено: 1');
+    expect(status?.textContent).not.toContain('Сохранено на устройстве');
+    unmount();
+  });
+
+  it('filters saved drafts by color and restores all drafts when the selected color is pressed again', () => {
+    const savedDrafts = [
+      { ...savedDraftA, id: 'gray-draft', name: 'Gray draft', color: 'gray' as const },
+      { ...savedDraftA, id: 'coral-draft', name: 'Coral draft', color: 'coral' as const },
+      { ...savedDraftA, id: 'blue-draft', name: 'Blue draft', color: 'blue' as const },
+    ];
+    const { unmount } = renderStage({ mode: 'draft', savedDrafts });
+    const draftView = document.querySelector('.workspace-page-rich-text-draft-stage.is-active')!;
+    const getRows = () => draftView.querySelectorAll('.workspace-page-template-stage-item');
+    const filterGroup = draftView.querySelector('.workspace-page-draft-color-filters')!;
+    const coralFilter = screen.getByRole('button', { name: 'Coral draft color' });
+
+    expect(filterGroup.parentElement).toBe(draftView.querySelector('.workspace-page-stage-header'));
+    expect(draftView.querySelector('.workspace-page-draft-list-area .workspace-page-draft-color-filters')).toBeNull();
+    expect(draftView.querySelector('.workspace-page-draft-selected-color')).toBeNull();
+    expect(getRows()).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Gray draft color' })).toHaveTextContent('1');
+    expect(coralFilter).toHaveTextContent('1');
+    expect(screen.getByRole('button', { name: 'Blue draft color' })).toHaveTextContent('1');
+
+    const emptyColorFilter = screen.getByRole('button', { name: 'Green draft color' });
+    expect(emptyColorFilter).toBeEnabled();
+    act(() => emptyColorFilter.click());
+    expect(emptyColorFilter).toHaveAttribute('aria-pressed', 'false');
+    expect(getRows()).toHaveLength(3);
+
+    act(() => fireEvent.mouseEnter(coralFilter));
+    expect(draftView.querySelector('.workspace-page-draft-selected-color')).toHaveTextContent('Coral');
+    expect(draftView.querySelector('.workspace-page-draft-selected-color')).toHaveAttribute('data-color', 'coral');
+    act(() => fireEvent.mouseLeave(coralFilter));
+    expect(draftView.querySelector('.workspace-page-draft-selected-color')).toBeNull();
+
+    act(() => coralFilter.click());
+    expect(getRows()).toHaveLength(1);
+    expect(getRows()[0]?.querySelector('.workspace-page-draft-name')?.textContent).toBe('Coral draft');
+    expect(coralFilter).toHaveAttribute('aria-pressed', 'true');
+    expect(draftView.querySelector('.workspace-page-draft-selected-color')).toHaveTextContent('Coral');
+    expect(window.localStorage.getItem('xmsgi_saved_draft_color_filter')).toBe('coral');
+
+    unmount();
+    const reopened = renderStage({ mode: 'draft', savedDrafts });
+    const reopenedView = document.querySelector('.workspace-page-rich-text-draft-stage.is-active')!;
+    const reopenedCoralFilter = screen.getByRole('button', { name: 'Coral draft color' });
+
+    expect(reopenedCoralFilter).toHaveAttribute('aria-pressed', 'true');
+    expect(reopenedView.querySelectorAll('.workspace-page-template-stage-item')).toHaveLength(1);
+    expect(reopenedView.querySelector('.workspace-page-draft-name')?.textContent).toBe('Coral draft');
+
+    act(() => reopenedCoralFilter.click());
+    expect(reopenedView.querySelectorAll('.workspace-page-template-stage-item')).toHaveLength(3);
+    expect(reopenedCoralFilter).toHaveAttribute('aria-pressed', 'false');
+    expect(reopenedView.querySelector('.workspace-page-draft-selected-color')).toBeNull();
+    expect(window.localStorage.getItem('xmsgi_saved_draft_color_filter')).toBeNull();
+
+    reopened.unmount();
+  });
+
+  it('keeps the attachment count beside the draft name and the character count on the right', () => {
     const draftWithOneAttachment = {
       ...savedDraftA,
       id: 'draft-one-attachment',
@@ -315,33 +423,23 @@ describe('WorkspaceTextStage editor flows', () => {
 
     expect(getDraftButton('Follow-up')?.textContent).toContain('19 characters');
     expect(getDraftButton('Follow-up')?.textContent).not.toContain('attachment');
-    expect(getDraftButton('One attachment')?.textContent).toContain('19 characters · 1 attachment');
-    expect(getDraftButton('Two attachments')?.textContent).toContain('19 characters · 2 attachments');
+    const oneAttachmentButton = getDraftButton('One attachment');
+    const twoAttachmentsButton = getDraftButton('Two attachments');
+    expect(oneAttachmentButton?.textContent).toContain('One attachment1 attachment');
+    expect(oneAttachmentButton?.textContent).toContain('19 characters');
+    expect(twoAttachmentsButton?.textContent).toContain('Two attachments2 attachments');
+    expect(twoAttachmentsButton?.textContent).toContain('19 characters');
+    expect(oneAttachmentButton?.querySelector('.workspace-page-draft-name')?.nextElementSibling?.classList.contains('workspace-page-draft-attachment-summary')).toBe(true);
+    expect(oneAttachmentButton?.querySelector('.workspace-page-draft-row-summary')?.textContent).toBe('19 characters');
     unmount();
   });
 
-  it('renames a saved draft inline and supports Escape to cancel', async () => {
-    const onRenameDraft = vi.fn().mockResolvedValue(true);
-    const { unmount } = renderStage({ mode: 'draft', onRenameDraft });
+  it('does not show inline rename controls for saved drafts', () => {
+    const { unmount } = renderStage({ mode: 'draft' });
 
-    act(() => {
-      (screen.getByRole('button', { name: 'Rename draft “Follow-up”' }) as HTMLButtonElement).click();
-    });
-    const nameInput = screen.getByRole('textbox', { name: 'New draft name' });
-    expect(nameInput).toHaveValue('Follow-up');
-
-    await act(async () => {
-      fireEvent.change(nameInput, { target: { value: 'Renamed draft' } });
-      fireEvent.keyDown(nameInput, { key: 'Enter' });
-    });
-
-    expect(onRenameDraft).toHaveBeenCalledWith(savedDraftA, 'Renamed draft');
-    expect(screen.queryByRole('textbox', { name: 'New draft name' })).not.toBeInTheDocument();
-
-    act(() => {
-      (screen.getByRole('button', { name: 'Rename draft “Follow-up”' }) as HTMLButtonElement).click();
-    });
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'New draft name' }), { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: /Rename draft/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'New draft name' })).not.toBeInTheDocument();
     unmount();
   });
@@ -361,6 +459,7 @@ describe('WorkspaceTextStage editor flows', () => {
     expect((draftEditor.querySelector('[aria-label="Draft name"]') as HTMLInputElement).value).toBe('New note');
     expect((draftEditor.querySelector('[aria-label="Draft text"]') as HTMLTextAreaElement).value).toBe('Draft body');
     expect(draftEditor.querySelector('[aria-label="Coral draft color"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(draftEditor.querySelector('.draft-color-selected-label')?.getAttribute('data-color')).toBe('coral');
 
     act(() => {
       (document.querySelector('[form="workspace-draft-editor-form"]') as HTMLButtonElement).click();
@@ -368,6 +467,86 @@ describe('WorkspaceTextStage editor flows', () => {
 
     expect(saveDraftStage).toHaveBeenCalledTimes(1);
     unmount();
+  });
+
+  it('previews the hovered draft color name and restores the selected color name', () => {
+    const { unmount } = renderStage({
+      mode: 'draft',
+      draftEditingId: 'new',
+      draftColor: 'coral',
+    });
+    const colorLabel = document.querySelector('.draft-color-selected-label');
+    const blueSwatch = screen.getByRole('radio', { name: 'Blue draft color' });
+
+    expect(colorLabel).toHaveTextContent('Coral');
+    fireEvent.mouseEnter(blueSwatch);
+    expect(colorLabel).toHaveTextContent('Blue');
+    expect(colorLabel).toHaveAttribute('data-color', 'blue');
+
+    fireEvent.mouseLeave(blueSwatch);
+    expect(colorLabel).toHaveTextContent('Coral');
+    expect(colorLabel).toHaveAttribute('data-color', 'coral');
+    unmount();
+  });
+
+  it('keeps draft Save enabled when fields are missing and flashes the first missing field', () => {
+    const saveDraftStage = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    const { unmount } = renderStage({
+      mode: 'draft',
+      draftEditingId: 'new',
+      draftName: '',
+      draftBodyText: 'Draft body',
+      saveDraftStage,
+    });
+
+    const nameInput = screen.getByRole('textbox', { name: 'Draft name' }) as HTMLInputElement;
+    const scrollIntoView = vi.fn();
+    nameInput.scrollIntoView = scrollIntoView;
+    const saveButton = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+
+    expect(saveButton).toBeEnabled();
+    act(() => saveButton.click());
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(nameInput).toHaveFocus();
+    expect(nameInput.closest('label')).toHaveClass('workspace-page-draft-field-attention');
+    expect(saveDraftStage).not.toHaveBeenCalled();
+    unmount();
+    vi.restoreAllMocks();
+  });
+
+  it('focuses and flashes the draft text field when its content is missing', () => {
+    const saveDraftStage = vi.fn();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 0;
+    });
+    const { unmount } = renderStage({
+      mode: 'draft',
+      draftEditingId: 'new',
+      draftName: 'New note',
+      draftBodyText: '',
+      saveDraftStage,
+    });
+
+    const bodyInput = screen.getByRole('textbox', { name: 'Draft text' }) as HTMLTextAreaElement;
+    const scrollIntoView = vi.fn();
+    bodyInput.scrollIntoView = scrollIntoView;
+    const saveButton = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
+
+    expect(saveButton).toBeEnabled();
+    act(() => saveButton.click());
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(bodyInput).toHaveFocus();
+    expect(bodyInput.closest('label')).toHaveClass('workspace-page-draft-field-attention');
+    expect(saveDraftStage).not.toHaveBeenCalled();
+    unmount();
+    vi.restoreAllMocks();
   });
 
   it('renders the time selection panel with the schedule header, navigation and timezone', () => {
@@ -1022,14 +1201,20 @@ describe('WorkspaceTextStage editor flows', () => {
     expect(popover.querySelectorAll('button')).toHaveLength(2);
     expect(popover.querySelector('.workspace-page-rich-text-link-popover__cancel')?.textContent).toBe('Cancel');
     expect((popover.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(linkButton).toHaveAttribute('aria-expanded', 'true');
+    act(() => linkButton.click());
+    expect(container.querySelector('[role="dialog"][aria-label="Insert link"]')).toBeNull();
+    expect(linkButton).toHaveAttribute('aria-expanded', 'false');
+    act(() => linkButton.click());
 
-    const input = popover.querySelector('input') as HTMLInputElement;
+    const reopenedPopover = container.querySelector('[role="dialog"][aria-label="Insert link"]') as HTMLFormElement;
+    const input = reopenedPopover.querySelector('input') as HTMLInputElement;
     const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     act(() => {
       valueSetter?.call(input, 'https://example.com');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    const confirmButton = popover.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const confirmButton = reopenedPopover.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(confirmButton.disabled).toBe(false);
     act(() => confirmButton.click());
 

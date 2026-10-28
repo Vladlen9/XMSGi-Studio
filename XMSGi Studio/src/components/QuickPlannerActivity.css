@@ -3,6 +3,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  min-height: 510px;
+  flex: 1 0 auto;
   min-width: 0;
   margin-inline: -35px;
   padding: 14px 12px 8px;
@@ -74,8 +76,8 @@ html[data-theme='dark'] .quick-planner-activity-section {
   transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
 }
 
-.quick-planner-activity-period-option:hover {
-  color: #239dfb;
+.quick-planner-activity-period-option:hover:not(.is-active) {
+  color: var(--planner-accent, #477c9e);
 }
 
 .quick-planner-activity-period-option:focus-visible {
@@ -92,27 +94,29 @@ html[data-theme='dark'] .quick-planner-activity-section {
 }
 
 html[data-theme='dark'] .quick-planner-activity-period {
-  border-color: rgba(110, 166, 202, 0.18);
-  background: linear-gradient(180deg, rgba(32, 40, 46, 0.76), rgba(28, 36, 42, 0.8));
+  border-color: rgba(110, 166, 202, 0.1);
+  background: linear-gradient(180deg, rgba(32, 40, 46, 0.32), rgba(28, 36, 42, 0.38));
 }
 
 html[data-theme='dark'] .quick-planner-activity-period-option {
-  color: #91a3b0;
+  color: #b0bec7;
 }
 
 html[data-theme='dark'] .quick-planner-activity-period-option:hover {
-  color: #62c7ff;
+  color: #e0e6ea;
 }
 
 html[data-theme='dark'] .quick-planner-activity-period-option.is-active {
   outline-color: #587181;
-  background: #304652;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-  color: #d7e3ea;
+  border-color: #74828b;
+  background: #354047;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.18);
+  color: #f0f4f6;
 }
 
 .quick-planner-activity-total {
   display: flex;
+  flex: 0 0 auto;
   min-width: 0;
   min-height: 43px;
   align-items: center;
@@ -202,10 +206,13 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
 }
 
 .quick-planner-activity-chart {
-  --activity-chart-color: #239dfb;
+  --activity-chart-color: var(--planner-accent, #477c9e);
+  --activity-chart-color-bright: color-mix(in srgb, var(--activity-chart-color) 66%, #ffffff);
+  --activity-chart-color-deep: color-mix(in srgb, var(--activity-chart-color) 78%, #163d55);
 
   position: relative;
   height: 158px;
+  flex: 0 0 auto;
   margin: 4px -12px 0;
   isolation: isolate;
   transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
@@ -250,8 +257,8 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
 
 .quick-planner-activity-chart[data-period='7'] {
   height: 168px;
-  margin-right: -33px;
-  margin-left: -33px;
+  margin-right: -12px;
+  margin-left: -12px;
 }
 
 .quick-planner-activity-chart[data-period='7'] .quick-planner-activity-plot-depth {
@@ -266,7 +273,6 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   height: 168px;
   margin-right: -12px;
   margin-left: -12px;
-  overflow: visible;
 }
 
 .quick-planner-activity-chart[data-period='30'] .quick-planner-activity-plot-depth {
@@ -308,7 +314,7 @@ html[data-theme='dark'] .quick-planner-activity-empty-copy {
   display: block;
   width: 100%;
   height: calc(100% - 26px);
-  overflow: visible;
+  overflow: hidden;
   filter: drop-shadow(0 5px 7px rgba(35, 157, 251, 0.05));
 }
 
@@ -382,6 +388,29 @@ html[data-theme='dark'] .quick-planner-activity-tooltip {
 
 html[data-theme='dark'] .quick-planner-activity-scale-label {
   fill: #a4b5c2;
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-plot-depth {
+  border-bottom-color: rgba(var(--planner-accent-rgb, 71, 124, 158), 0.14);
+  background:
+    linear-gradient(180deg, rgba(var(--planner-accent-rgb, 71, 124, 158), 0.025), rgba(var(--planner-accent-rgb, 71, 124, 158), 0.008) 62%, rgba(var(--planner-accent-rgb, 71, 124, 158), 0.035)),
+    linear-gradient(90deg, rgba(var(--planner-accent-rgb, 71, 124, 158), 0.01), transparent 14%, transparent 86%, rgba(var(--planner-accent-rgb, 71, 124, 158), 0.01));
+  box-shadow:
+    inset 0 -8px 14px -14px rgba(var(--planner-accent-rgb, 71, 124, 158), 0.38),
+    0 8px 16px -18px rgba(var(--planner-accent-rgb, 71, 124, 158), 0.22);
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-line-depth {
+  stroke: var(--planner-accent, #477c9e);
+  opacity: 0.16;
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-line {
+  filter: drop-shadow(0 1px 2px rgba(var(--planner-accent-rgb, 71, 124, 158), 0.16));
+}
+
+html:not([data-theme='dark']) .quick-planner-activity-line-glow {
+  opacity: 0.14;
 }
 
 html:not([data-theme='dark']) .quick-planner-activity-plot-depth {
@@ -680,20 +709,25 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
 
 .quick-planner-activity-views {
   display: flex;
-  width: calc(100% + 10px);
+  width: calc(100% + 16px);
   box-sizing: border-box;
   gap: 3px;
-  margin: 8px -5px 63px;
+  margin: 8px -8px 63px;
   padding: 3px;
   border: 1px solid rgba(105, 128, 145, 0.16);
   border-radius: 9px;
   background: rgba(105, 128, 145, 0.07);
 }
 
+html:not([data-theme='dark']) .quick-planner-activity-views {
+  border-color: rgba(105, 128, 145, 0.1);
+  background: linear-gradient(180deg, rgba(247, 250, 252, 0.7), rgba(238, 244, 247, 0.72));
+}
+
 .quick-planner-activity-lower {
   display: flex;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
   justify-content: flex-end;
   transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
@@ -806,23 +840,23 @@ html:not([data-theme='dark']) .quick-planner-activity-month-bar.is-peak {
 }
 
 html[data-theme='dark'] .quick-planner-activity-views {
-  border-color: rgba(110, 166, 202, 0.18);
-  background: linear-gradient(180deg, rgba(32, 40, 46, 0.76), rgba(28, 36, 42, 0.8));
+  border-color: rgba(110, 166, 202, 0.1);
+  background: linear-gradient(180deg, rgba(32, 40, 46, 0.32), rgba(28, 36, 42, 0.38));
 }
 
 html[data-theme='dark'] .quick-planner-activity-view {
-  color: #91a3b0;
+  color: #b0bec7;
 }
 
 html[data-theme='dark'] .quick-planner-activity-view:hover:not(.is-active) {
-  color: #a6dcff;
+  color: #e0e6ea;
 }
 
 html[data-theme='dark'] .quick-planner-activity-view.is-active {
-  border-color: #587181;
-  background: #304652;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-  color: #d7e3ea;
+  border-color: #74828b;
+  background: #354047;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.18);
+  color: #f0f4f6;
 }
 
 html[data-theme='dark'] .quick-planner-activity-highlight {

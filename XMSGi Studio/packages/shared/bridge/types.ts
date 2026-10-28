@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   Chat,
-  InlineKeyboardMarkup,
   NotificationType,
   RichTextEntity,
   SavedDraft,
@@ -26,9 +25,9 @@ export interface StudioSchedulePayload {
   attachments?: string[];
   attachmentGroups?: string[][];
   entities?: RichTextEntity[];
-  replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;
   effect?: string;
+  waitForConfirmation?: boolean;
   replaceMessage?: ScheduledMessage;
 }
 
@@ -48,7 +47,6 @@ export interface StudioSchedulerActions {
     text: string,
     attachments?: string[],
     entities?: RichTextEntity[],
-    replyMarkup?: InlineKeyboardMarkup,
     attachmentGroups?: string[][],
     onAttachmentGroupResult?: (groupIndex: number, sent: boolean) => void,
     effect?: string,

@@ -44,7 +44,6 @@ export type CreatePostInput = {
   body: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
-  replyMarkup?: unknown;
   effect?: string;
   scheduleId?: string;
 };
@@ -76,7 +75,6 @@ export function createPublishPost(input: CreatePostInput): Post {
     body: input.body,
     entities: input.entities ?? [],
     mediaIds: input.mediaIds ?? [],
-    replyMarkup: input.replyMarkup,
     effect: input.effect,
     scheduleId: input.scheduleId,
     createdAt: new Date().toISOString(),

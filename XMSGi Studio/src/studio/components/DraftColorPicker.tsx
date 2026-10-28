@@ -1,14 +1,7 @@
+import { useState } from 'react';
 import type { DraftColor } from '@studio/types';
 import { useLocale } from '@studio/lib/i18n';
-
-const draftColorOptions: Array<{ value: DraftColor; labelKey: 'studio.colorGray' | 'studio.colorCoral' | 'studio.colorAmber' | 'studio.colorGreen' | 'studio.colorTeal' | 'studio.colorBlue' }> = [
-  { value: 'gray', labelKey: 'studio.colorGray' },
-  { value: 'coral', labelKey: 'studio.colorCoral' },
-  { value: 'amber', labelKey: 'studio.colorAmber' },
-  { value: 'green', labelKey: 'studio.colorGreen' },
-  { value: 'teal', labelKey: 'studio.colorTeal' },
-  { value: 'blue', labelKey: 'studio.colorBlue' },
-];
+import { DRAFT_COLOR_OPTIONS } from './DraftColorOptions';
 
 interface Props {
   color: DraftColor;
@@ -18,13 +11,16 @@ interface Props {
 
 export function DraftColorPicker({ color, onChange, ariaLabel }: Props) {
   const { t } = useLocale();
-  const selectedColorLabel = t(draftColorOptions.find((option) => option.value === color)?.labelKey ?? 'studio.colorGray');
+  const [hoveredColor, setHoveredColor] = useState<DraftColor | null>(null);
+  const [focusedColor, setFocusedColor] = useState<DraftColor | null>(null);
+  const displayedColor = hoveredColor ?? focusedColor ?? color;
+  const displayedColorLabel = t(DRAFT_COLOR_OPTIONS.find((option) => option.value === displayedColor)?.labelKey ?? 'studio.colorGray');
 
   return (
     <div className="draft-color-control">
-      <span className="draft-color-selected-label" aria-live="polite">{selectedColorLabel}</span>
+      <span className="draft-color-selected-label" data-color={displayedColor} aria-live="polite">{displayedColorLabel}</span>
       <div className="draft-color-picker" role="radiogroup" aria-label={ariaLabel ?? t('studio.draftColor')}>
-        {draftColorOptions.map((option) => (
+        {DRAFT_COLOR_OPTIONS.map((option) => (
           <button
             key={option.value}
             type="button"
@@ -34,6 +30,10 @@ export function DraftColorPicker({ color, onChange, ariaLabel }: Props) {
             aria-label={t('studio.colorOption', { color: t(option.labelKey) })}
             aria-checked={color === option.value}
             title={t('studio.colorOption', { color: t(option.labelKey) })}
+            onMouseEnter={() => setHoveredColor(option.value)}
+            onMouseLeave={() => setHoveredColor(null)}
+            onFocus={() => setFocusedColor(option.value)}
+            onBlur={() => setFocusedColor(null)}
             onClick={() => onChange(option.value)}
           />
         ))}

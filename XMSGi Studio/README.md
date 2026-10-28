@@ -47,7 +47,6 @@ Studio is the main workspace for composing and organizing posts. Quick Planner h
 
 ### 🖋️ Message Composition
 - **Rich formatting**: Use bold, italic, links, and more.
-- **Inline buttons**: Add interactive buttons to your messages.
 - **Attachments**: Support for images, documents, and other media.
 
 ### 🗂️ Organization & History
@@ -111,13 +110,13 @@ Full control over every post in the queue — right up to the moment it's sent.
 
 | Platform | Format | Download |
 | --- | --- | --- |
-| Windows | Portable `.exe` | [XMSGi.Studio.1.3.1.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio.1.3.1.exe) — no installation required |
-| Linux | AppImage (x64) | [XMSGi.Studio-1.3.1.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1.AppImage) |
-| Linux | `.deb` (x64) | [xmsgi-studio_1.3.1_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/xmsgi-studio_1.3.1_amd64.deb) |
-| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.1.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1.dmg) |
-| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.1-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.1/XMSGi.Studio-1.3.1-arm64.dmg) |
+| Windows | Portable `.exe` | [XMSGi.Studio.1.3.5.exe](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio.1.3.5.exe) — no installation required |
+| Linux | AppImage (x64) | [XMSGi.Studio-1.3.5.AppImage](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5.AppImage) |
+| Linux | `.deb` (x64) | [xmsgi-studio_1.3.5_amd64.deb](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/xmsgi-studio_1.3.5_amd64.deb) |
+| macOS | `.dmg` (Intel, unsigned) | [XMSGi.Studio-1.3.5.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5.dmg) |
+| macOS | `.dmg` (Apple Silicon, unsigned) | [XMSGi.Studio-1.3.5-arm64.dmg](https://github.com/molodoy01/XMSGi-Studio/releases/download/v1.3.5/XMSGi.Studio-1.3.5-arm64.dmg) |
 
-The v1.3.1 download links will work after the release and its platform packages are published.
+The v1.3.5 download links will work after the release and its platform packages are published.
 
 ### First launch on macOS
 
@@ -157,7 +156,7 @@ Studio's internal feature structure lives under `src/studio/`:
 
 - `src/studio/App.tsx` composes the workspace and scheduler.
 - `src/studio/pages/WorkspacePage.tsx` owns the workspace page.
-- `src/studio/components/stages/` contains the chat, schedule, draft, template and inline-button stages.
+- `src/studio/components/stages/` contains the chat, schedule, draft and template stages.
 - `src/studio/services/` adapts publishing operations to the Telegram bridge.
 - `packages/shared/` provides types, translations and utilities shared across the application.
 - `telegram-errors.cjs` classifies Telegram errors; the account rate-limit interceptor waits and retries FloodWaits. IPC passes error category and retry metadata to Studio's operation-aware error handler.
@@ -195,7 +194,7 @@ Full documentation lives in the [`docs/`](docs/README.md) directory:
 
 ## 🧪 Automated tests
 
-The v1.3.1 release-candidate run passed **1,088 automated tests** — more than 1,000 checks across UI components, application logic, React hooks, storage, scheduling, Telegram/Electron integration, and packaging metadata.
+The v1.3.5 release-candidate run is verified with the project test suite before publication.
 
 Validated with `npm test`, `npm run typecheck`, and `git diff --check`.
 

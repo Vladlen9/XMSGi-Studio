@@ -26,10 +26,216 @@ const chatA: Chat = {
 let inMemoryDraftStore: PersistedDraftStore;
 let telegramStatusListener: ((status: unknown) => void) | null = null;
 const workspacePageStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'WorkspacePage.css'), 'utf8');
+const plannerNotificationStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../components/QuickPlanner.css'), 'utf8');
 const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../index.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/colorThemes.css'), 'utf8');
+const themeTokenStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../styles/tokens.css'), 'utf8');
 
+describe('WorkspacePage publish action colors', () => {
+  it('keeps the scheduled publish label on one line in compact layouts', () => {
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-main\.is-scheduled \.workspace-page-publish-trigger-main\s*\{[^}]*font-size:\s*10px;[^}]*letter-spacing:\s*0;[^}]*overflow-wrap:\s*normal;[^}]*white-space:\s*nowrap;/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /\.workspace-page-publish-main\.is-scheduled \.workspace-page-publish-trigger-main\.is-english\s*\{\s*font-size:\s*12px;/,
+    );
+  });
+
+  it('uses dark message notification surfaces for the dark chat wallpaper in light theme', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-window\.theme-telegram \.chat-preview-history-entry\s*\{[^}]*background:\s*rgba\(19, 30, 42, 0\.94\);[^}]*color:\s*#e7edf3;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-window\.theme-telegram \.chat-preview-history-entry\.is-outgoing\s*\{[^}]*background:\s*rgba\(31, 57, 78, 0\.96\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-window\.theme-custom \.chat-preview-history-entry\s*\{[^}]*background:\s*rgba\(19, 30, 42, 0\.94\);[^}]*color:\s*#e7edf3;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-window\.theme-custom \.chat-preview-history-entry\.is-outgoing\s*\{[^}]*background:\s*rgba\(31, 57, 78, 0\.96\);/);
+  });
+
+  it('uses a cohesive dark palette while retaining the blue publishing accent', () => {
+    expect(themeTokenStyles).toMatch(/:root\[data-theme='dark'\]\s*\{[\s\S]*?--void:\s*#0e1317;[\s\S]*?--surface-raised:\s*#182127;[\s\S]*?--surface-muted:\s*#202a31;[\s\S]*?--surface-hover:\s*#29363e;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.quick-planner-workbench\s*\{[^}]*linear-gradient\(155deg, #19232a, #141b20\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-editor-shell\s*\{[^}]*border-color:\s*#35434c;[^}]*linear-gradient\(155deg, #19232a, #141b20\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active\s*\{[^}]*rgba\(35, 157, 251, 0\.14\)/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-submit-actions \.workspace-page-publish-main:not\(:disabled\)\s*\{[^}]*background:\s*#239dfb !important;/);
+  });
+
+  it('retains the configured light and dark publish button palettes', () => {
+    expect(workspacePageStyles).toMatch(
+      /html\[data-theme='light'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):not\(:disabled\)\s*\{\s*border-color:\s*#d7dfe4 !important;\s*background:\s*#f0f2f4 !important;\s*color:\s*#3a4650 !important;/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /html\[data-theme='light'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{\s*border-color:\s*#239dfb !important;\s*background:\s*#239dfb !important;\s*color:\s*#ffffff !important;/,
+    );
+    expect(workspacePageStyles).toMatch(
+      /html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):not\(:disabled\)\s*\{\s*border-color:\s*#36414a !important;\s*background:\s*#1a2228 !important;/,
+    );
+  });
+
+  it('keeps light-theme editor action buttons on one tint and slightly widens Send', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.workspace-page \.workspace-page-action-row\.workspace-page-schedule-row > \.workspace-page-submit-actions > \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\),[\s\S]*?\{\s*border-color:\s*#c2d2db !important;\s*background:\s*#eaf1f5 !important;[\s\S]*?color:\s*#405a68 !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /\.workspace-page-action-row\.workspace-page-schedule-row > \.workspace-page-action-left-group > \.workspace-page-preview-toggle:is\(:hover, :focus-visible, :active, \.is-active, \[aria-pressed='true'\]\),[\s\S]*?\{\s*border-color:\s*#c2d2db !important;\s*background:\s*#eaf1f5 !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /\.workspace-page-submit-actions > \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):hover:not\(:disabled\),[\s\S]*?\{\s*border-color:\s*#c2d2db !important;\s*background:\s*#eaf1f5 !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /\.workspace-page-action-left-group > \.workspace-page-preview-toggle:is\(:hover, :focus-visible\):not\(:disabled\),[\s\S]*?\{\s*border-color:\s*#91afbf !important;\s*background:\s*#d7e6ed !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /workspace-page-submit-actions > \.workspace-page-publish-main\s*\{\s*flex:\s*0 0 120px !important;\s*width:\s*120px !important;\s*min-width:\s*120px !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /@media \(max-width:\s*480px\)\s*\{\s*html\[data-theme='light'\][\s\S]*?workspace-page-submit-actions > \.workspace-page-publish-main\s*\{\s*flex-basis:\s*96px !important;\s*width:\s*96px !important;\s*min-width:\s*96px !important;/,
+    );
+  });
+
+  it('highlights the full saved-draft row instead of the name button alone', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item:is\(:hover, :focus-within\)\s*\{\s*border-radius:\s*6px;\s*background:\s*#edf2f5 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item:is\(:hover, :focus-within\)\s*\{\s*border-radius:\s*6px;\s*background:\s*#20272c !important;/);
+    expect(workspacePageStyles).toMatch(/rich-text-template-stage\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item button:hover:not\(:disabled\):not\(\.is-selected\),[\s\S]*?button:focus-visible:not\(:disabled\):not\(\.is-selected\)\s*\{\s*border-color:\s*transparent !important;\s*background:\s*transparent !important;\s*background-color:\s*transparent !important;\s*background-image:\s*none !important;\s*box-shadow:\s*none !important;/);
+  });
+
+  it('uses the saved-draft row highlight for template items', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage:not\(\.workspace-page-rich-text-draft-stage\) \.workspace-page-template-stage-item:is\(:hover, :focus-within\)\s*\{\s*border-radius:\s*6px;\s*background:\s*#f5fafc !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage:not\(\.workspace-page-rich-text-draft-stage\) \.workspace-page-template-stage-item:is\(:hover, :focus-within\)\s*\{\s*border-radius:\s*6px;\s*background:\s*#20272c !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage:not\(\.workspace-page-rich-text-draft-stage\) \.workspace-page-template-stage-item:hover,[\s\S]*?background:\s*#f5fafc !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage:not\(\.workspace-page-rich-text-draft-stage\) \.workspace-page-template-stage-item:hover,[\s\S]*?background:\s*#20272c !important;/);
+    expect(workspacePageStyles).toMatch(/rich-text-template-stage:not\(\.workspace-page-rich-text-draft-stage\) \.workspace-page-template-stage-item button:hover:not\(:disabled\):not\(\.is-selected\),[\s\S]*?button:focus-visible:not\(:disabled\):not\(\.is-selected\)\s*\{\s*border-color:\s*transparent !important;\s*background:\s*transparent !important;\s*background-color:\s*transparent !important;\s*background-image:\s*none !important;\s*box-shadow:\s*none !important;/);
+  });
+
+  it('adapts template search colors and focus state to both themes', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input,[\s\S]*?background:\s*#151b20 !important;[\s\S]*?color:\s*#e2e7eb;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input:focus,[\s\S]*?border-color:\s*#239dfb;[\s\S]*?box-shadow:\s*0 0 0 2px rgba\(35, 157, 251, 0\.18\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input\s*\{[^}]*background:\s*#ffffff !important;[^}]*color:\s*#26343d !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input:focus\s*\{[^}]*border-color:\s*#8ab8cf !important;[^}]*box-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\) !important;/);
+  });
+
+  it('forces the template search field to a compact height', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input\s*\{[^}]*height:\s*24px !important;[^}]*min-height:\s*24px !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-template-stage-search\s*\{[^}]*flex:\s*0 1 180px;[^}]*max-width:\s*220px;[^}]*margin:\s*0 0 0 auto;/);
+  });
+
+  it('reduces the full template footer height with compact navigation buttons', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-template-stage > \.workspace-page-template-stage-footer\s*\{[^}]*min-height:\s*24px !important;[^}]*padding:\s*0 4px !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-template-stage \.workspace-page-template-stage-footer \.workspace-page-stage-secondary,[\s\S]*?\.workspace-page-stage-primary\s*\{[^}]*height:\s*22px;[^}]*min-height:\s*22px !important;/);
+  });
+
+  it('matches the chat selection footer height to the compact template footer', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-footer\s*\{[^}]*min-height:\s*24px !important;[^}]*padding:\s*0 4px !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-footer \.workspace-page-stage-secondary,[\s\S]*?\.workspace-page-stage-primary\s*\{[^}]*height:\s*22px;[^}]*min-height:\s*22px !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-add,[\s\S]*?\.workspace-page-chat-favorites-filter\s*\{[^}]*height:\s*22px;[^}]*min-height:\s*22px !important;/);
+  });
+
+  it('aligns the schedule back and done buttons with the chat selection footer', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-schedule-stage > \.workspace-page-schedule-footer\s*\{[^}]*align-items:\s*center;[^}]*min-height:\s*24px !important;[^}]*padding:\s*0 4px !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-footer \.workspace-page-stage-secondary,[\s\S]*?\.workspace-page-stage-primary\s*\{[^}]*height:\s*22px;[^}]*min-height:\s*22px !important;/);
+  });
+
+  it('improves light-theme contrast for compact template and chat footer controls', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage > \.workspace-page-template-stage-footer \.workspace-page-stage-secondary,[\s\S]*?\.workspace-page-rich-text-chat-stage > \.workspace-page-chat-stage-footer \.workspace-page-chat-favorites-filter\s*\{[^}]*border:\s*1px solid #bdcfd8 !important;[^}]*background:\s*#f1f6f8 !important;[^}]*color:\s*#35566a !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage > \.workspace-page-template-stage-footer \.workspace-page-stage-primary,[\s\S]*?\.workspace-page-rich-text-chat-stage > \.workspace-page-chat-stage-footer \.workspace-page-stage-primary\s*\{[^}]*background:\s*#dcecf4 !important;[^}]*color:\s*#294f65 !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage > \.workspace-page-template-stage-footer button:hover:not\(:disabled\),[\s\S]*?\.workspace-page-rich-text-chat-stage > \.workspace-page-chat-stage-footer button:focus-visible:not\(:disabled\)\s*\{[^}]*background:\s*#e2eff4 !important;[^}]*color:\s*#244b62 !important;/);
+  });
+
+  it('removes the light-theme wallpaper picker strip and scrollbar', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-wallpaper-quick-picker\s*\{[^}]*padding:\s*0;[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;[^}]*scrollbar-width:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-wallpaper-quick-picker::-webkit-scrollbar\s*\{\s*display:\s*none;/);
+  });
+
+  it('gives desktop live-preview menu buttons contrast against the light menu surface', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-web \.chat-preview-options-menu \.chat-preview-expand\s*\{[^}]*border:\s*1px solid #c8d3da;[^}]*background:\s*#e6ecef;[^}]*color:\s*#344854;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-web \.chat-preview-options-menu \.chat-preview-expand:hover,[\s\S]*?background:\s*#d3dfe5;[\s\S]*?color:\s*#243b49;/);
+  });
+
+  it('adapts mobile status and header controls to custom wallpapers in light theme', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-mobile-system-bar\s*\{[^}]*background:\s*rgba\(242, 246, 248, 0\.82\);[^}]*color:\s*#263b49;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-header\s*\{[^}]*background:\s*rgba\(242, 246, 248, 0\.9\);[^}]*color:\s*#36444d;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-header-copy strong\s*\{\s*color:\s*#26343d;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-mobile-back,[\s\S]*?\.chat-preview-header-actions > \.chat-preview-expand\s*\{[^}]*border:\s*1px solid transparent;[^}]*background:\s*transparent;[^}]*color:\s*#2d4554;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-mobile-back:hover,[\s\S]*?\.chat-preview-header-actions > \.chat-preview-expand:focus-visible\s*\{[^}]*background:\s*rgba\(38, 59, 73, 0\.08\);[^}]*color:\s*#1d3442;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-composer\s*\{[^}]*background:\s*rgba\(242, 246, 248, 0\.9\);[^}]*color:\s*#476170;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.chat-preview-stand\.is-mobile \.chat-preview-window\.theme-custom \.chat-preview-composer-input\s*\{[^}]*background:\s*rgba\(255, 255, 255, 0\.78\);[^}]*color:\s*#738590;/);
+  });
+
+  it('spaces the draft color swatches and flashes only the missing input on save', () => {
+    expect(workspacePageStyles).toMatch(/workspace-page-draft-color-field \.draft-color-control \.draft-color-picker\s*\{\s*transform:\s*translateX\(-8px\);/);
+    expect(workspacePageStyles).toMatch(/workspace-page-draft-field-attention :is\(input, textarea\)\s*\{\s*animation:\s*workspace-page-draft-focus-pulse 1\.1s ease-in-out 2;/);
+    expect(workspacePageStyles).toMatch(/--draft-focus-pulse-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\);/);
+    expect(workspacePageStyles).toMatch(/--draft-focus-pulse-shadow:\s*0 0 0 2px rgba\(35, 157, 251, 0\.18\);/);
+    expect(workspacePageStyles).toMatch(/@keyframes workspace-page-draft-focus-pulse\s*\{[\s\S]*?box-shadow:\s*var\(--draft-focus-pulse-shadow\);/);
+  });
+
+  it('keeps the send-footer draft color hover circular and inside the swatch', () => {
+    const hoverRule = colorThemeStyles.match(/html\[data-theme\] \.workspace-page \.workspace-page-draft-footer \.workspace-page-schedule-summary\.has-draft-color-picker \.draft-color-control \.draft-color-picker button\.draft-color-swatch:is\(:hover, :focus-visible\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(hoverRule).toMatch(/border-radius:\s*50% !important;/);
+    expect(hoverRule).toMatch(/background-color:\s*var\(--draft-swatch-color\) !important;/);
+    expect(hoverRule).toMatch(/box-shadow:\s*inset 0 0 0 2px rgba\(255, 255, 255, 0\.9\), 0 0 6px color-mix\(in srgb, var\(--draft-swatch-color\) 68%, transparent\) !important;/);
+    expect(hoverRule).toMatch(/outline:\s*none !important;/);
+    expect(hoverRule).toMatch(/transform:\s*none !important;/);
+  });
+
+  it('colors the selected draft color name to match its swatch', () => {
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='gray'\]\s*\{\s*color:\s*#8b929a;/);
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='coral'\]\s*\{\s*color:\s*#e56f68;/);
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='amber'\]\s*\{\s*color:\s*#d9a13c;/);
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='green'\]\s*\{\s*color:\s*#55a87c;/);
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='teal'\]\s*\{\s*color:\s*#269ca3;/);
+    expect(workspacePageStyles).toMatch(/\.draft-color-selected-label\[data-color='blue'\]\s*\{\s*color:\s*#548ed3;/);
+  });
+
+  it('reveals saved draft color names only when the color dot is hovered or focused', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-indicator\s*\{[^}]*position:\s*relative;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-indicator::after\s*\{[^}]*position:\s*absolute;[^}]*right:\s*calc\(100% \+ 6px\);[^}]*content:\s*attr\(data-color-label\);[^}]*opacity:\s*0;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-indicator:hover::after,[\s\S]*?\.workspace-page-draft-color-indicator:focus-visible::after\s*\{[^}]*opacity:\s*1;[^}]*transform:\s*translate\(0, -50%\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item strong\s*\{[^}]*overflow:\s*visible;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-template-stage-item > button:first-child\s*\{[^}]*overflow:\s*visible;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-indicator\s*\{[^}]*z-index:\s*1;[^}]*padding:\s*4px 0;/);
+  });
+
+  it('styles draft color filters like the editor swatches with counts', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filters\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filter \.workspace-page-draft-color-dot\s*\{[^}]*width:\s*15px;[^}]*height:\s*15px;[^}]*border:\s*1px solid rgba\(245, 247, 250, 0\.42\);[^}]*box-shadow:\s*inset 0 0 0 1px color-mix\(in srgb, var\(--draft-swatch-color\) 72%, transparent\);/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme\] \.workspace-page \.workspace-page-rich-text-template-stage\.workspace-page-rich-text-draft-stage \.workspace-page-draft-color-filters \.workspace-page-draft-color-filter:is\(:hover, :focus-visible\)\s*\{[^}]*background:\s*transparent !important;[^}]*background-color:\s*transparent !important;[^}]*box-shadow:\s*none !important;[^}]*outline:\s*none !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filter \.workspace-page-draft-color-dot\.is-selected\s*\{[^}]*border:\s*1px solid rgba\(255, 255, 255, 0\.9\);[^}]*box-shadow:\s*inset 0 0 0 2px color-mix\(in srgb, var\(--draft-swatch-color\) 72%, transparent\), 0 0 6px color-mix\(in srgb, var\(--draft-swatch-color\) 56%, transparent\) !important;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filter:hover \.workspace-page-draft-color-dot\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px rgba\(255, 255, 255, 0\.9\), 0 0 5px color-mix\(in srgb, var\(--draft-swatch-color\) 68%, transparent\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filters \.workspace-page-draft-color-dot\[data-color='coral'\]\s*\{[^}]*--draft-swatch-color:\s*#e56f68;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-list-header\s*\{[^}]*align-items:\s*center;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-draft-color-filters\s*\{[^}]*margin-left:\s*auto;/);
+  });
+
+  it('centers the remaining draft import actions after hiding export', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-draft-stage:not\(\.has-draft-editor\) \.workspace-page-draft-stage-tools\s*\{[^}]*grid-column:\s*2;[^}]*justify-self:\s*center;/);
+  });
+
+  it('aligns saved draft names at a consistent inset from the left edge', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-template-stage-item > button:first-child\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item strong\s*\{[^}]*position:\s*relative;[^}]*display:\s*block;[^}]*width:\s*100%;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item strong > \.workspace-page-draft-name\s*\{[^}]*width:\s*100%;[^}]*padding-left:\s*24px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item strong > \.workspace-page-draft-color-indicator\s*\{[^}]*left:\s*8px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-template-stage-item\s*\{[^}]*padding:\s*5px 6px;/);
+  });
+
+  it('keeps saved draft name and summary on one line with improved title typography', () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item > button:first-child\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item > button:first-child > strong\s*\{[^}]*font-size:\s*15px;[^}]*font-weight:\s*600;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item > button:first-child > \.workspace-page-draft-row-summary\s*\{[^}]*margin-left:\s*auto;[^}]*margin-right:\s*8px;[^}]*font-size:\s*11px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item > button:first-child > \.workspace-page-draft-attachment-summary\s*\{/);
+  });
+});
 describe('WorkspacePage feedback layout', () => {
+  it('uses shared semantic feedback colors in Studio and Planner', () => {
+    expect(themeTokenStyles).toMatch(/--feedback-error:\s*#b42318;/);
+    expect(themeTokenStyles).toMatch(/--feedback-warning:\s*#805500;/);
+    expect(themeTokenStyles).toMatch(/--feedback-success:\s*#267544;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-transient-feedback\.is-error\s*\{[^}]*color:\s*var\(--feedback-error\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-transient-feedback\.is-warning,[\s\S]*?color:\s*var\(--feedback-warning\);/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-publish-transient-feedback\.is-success\s*\{[^}]*color:\s*var\(--feedback-success\);/);
+    expect(workspacePageStyles).not.toMatch(/html\[data-theme='light'\] \.workspace-page-publish-transient-feedback\.is-error:not\(\.has-detail\),[^{]*\{[^}]*color:\s*inherit;/);
+    expect(plannerNotificationStyles).toMatch(/\.quick-planner \.quick-planner-action-feedback\.is-error\s*\{[^}]*color:\s*var\(--feedback-error\);/);
+    expect(plannerNotificationStyles).toMatch(/\.quick-planner \.quick-planner-action-feedback\.is-warning,[\s\S]*?color:\s*var\(--feedback-warning\);/);
+    expect(plannerNotificationStyles).toMatch(/\.quick-planner \.quick-planner-action-feedback\.is-success\s*\{[^}]*color:\s*var\(--feedback-success\);/);
+  });
+
   it('insets editor warnings and errors forty pixels from the footer edge', () => {
     expect(workspacePageStyles).toMatch(
       /\.workspace-page-publish-transient-feedback\s*\{[^}]*right:\s*40px;/,
@@ -71,7 +277,6 @@ function seedVersionHistoryDialogStore() {
       entities: [],
       attachments: [],
       selectedChat: chatA,
-      inlineButtons: [],
       date: '2026-10-20',
       time: '09:00',
       repeatMode: 'none' as const,
@@ -157,6 +362,43 @@ describe('WorkspacePage connection status', () => {
     expect(offlineStatus?.querySelector('.workspace-page-connection-spinner')).not.toBeInTheDocument();
     expect(offlineStatus).toHaveTextContent(/нет соединения|telegram is unavailable/i);
   });
+
+  it('restores editor focus when the empty-message warning appears from another stage', async () => {
+    const { unmount } = await renderWorkspacePage();
+
+    const templateButton = document.querySelector<HTMLButtonElement>('.workspace-page-mode-button-template');
+    expect(templateButton).toBeTruthy();
+
+    await act(async () => {
+      templateButton!.click();
+    });
+
+    const editor = document.querySelector<HTMLDivElement>('.workspace-page-rich-text-input');
+    expect(editor).toBeTruthy();
+
+    const otherField = document.querySelector<HTMLInputElement>('input') ?? editor;
+    expect(otherField).toBeTruthy();
+    await act(async () => {
+      otherField?.focus();
+    });
+
+    const sendButton = document.querySelector<HTMLButtonElement>('.workspace-page-publish-main');
+    expect(sendButton).toBeTruthy();
+
+    await act(async () => {
+      sendButton!.click();
+    });
+
+    await act(async () => {
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    });
+
+    expect(document.activeElement).toBe(editor);
+    const feedback = document.querySelector('.workspace-page-publish-transient-feedback');
+    expect(feedback).toHaveTextContent(/add a message|enter a message|enter message|введите текст|введите сообщение/i);
+
+    unmount();
+  });
 });
 
   async function openDraftsStage() {
@@ -206,6 +448,28 @@ describe('WorkspacePage connection status', () => {
   }
 
 describe('WorkspacePage main-screen flows', () => {
+  it('updates the live preview device clock at the start of each minute', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 3, 10, 30, 59));
+    const { unmount } = await renderWorkspacePage();
+    const previewClock = document.querySelector('.chat-preview-mobile-system-bar > span:first-child');
+    const formatPreviewTime = (date: Date) => date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    try {
+      expect(previewClock).toHaveTextContent(formatPreviewTime(new Date(2026, 9, 3, 10, 30, 59)));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_100);
+      });
+      expect(previewClock).toHaveTextContent(formatPreviewTime(new Date(2026, 9, 3, 10, 31, 0)));
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it('does not hydrate the Studio editor from the shared Planner active draft', () => {
     localStorage.setItem('xmsgi:active-draft:v1', JSON.stringify({
       id: 'quick-planner:active',
@@ -264,6 +528,22 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector('.workspace-page-publish-menu-toggle')?.getAttribute('aria-label'))
       .toBe('Другие действия с публикацией');
     unmount();
+  });
+
+  it('uses the larger scheduled action label only in English', async () => {
+    localStorage.setItem('awaitmsg_locale', 'en');
+    const english = await renderWorkspacePage();
+    await act(async () => fireEvent.click(document.querySelector('.workspace-page-publish-menu-toggle')!));
+    await act(async () => fireEvent.click(screen.getByRole('menuitemradio', { name: 'Schedule' })));
+    expect(document.querySelector('.workspace-page-publish-main.is-scheduled .workspace-page-publish-trigger-main')?.classList.contains('is-english')).toBe(true);
+    english.unmount();
+
+    localStorage.setItem('awaitmsg_locale', 'ru');
+    const russian = await renderWorkspacePage();
+    await act(async () => fireEvent.click(document.querySelector('.workspace-page-publish-menu-toggle')!));
+    await act(async () => fireEvent.click(screen.getByRole('menuitemradio', { name: 'Запланировать' })));
+    expect(document.querySelector('.workspace-page-publish-main.is-scheduled .workspace-page-publish-trigger-main')?.classList.contains('is-english')).toBe(false);
+    russian.unmount();
   });
 
   it('raises the publish menu above the editor toolbar and gives it an opaque background', async () => {
@@ -522,7 +802,6 @@ describe('WorkspacePage main-screen flows', () => {
       entities: [],
       attachments: [],
       selectedChat: chatA,
-      inlineButtons: [],
       createdAt: '2026-09-28T10:00:00.000Z',
       updatedAt: '2026-09-29T18:35:00.000Z',
     };
@@ -594,7 +873,6 @@ describe('WorkspacePage main-screen flows', () => {
       entities: [],
       attachments: [],
       selectedChat: chatA,
-      inlineButtons: [],
       createdAt: '2026-09-28T10:00:00.000Z',
       updatedAt: '2026-09-29T18:35:00.000Z',
     };
@@ -659,7 +937,7 @@ describe('WorkspacePage main-screen flows', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await act(async () => Promise.resolve());
     expect(handleSendDraftNow).toHaveBeenCalledTimes(2);
-    expect(handleSendDraftNow.mock.calls[1][8]).toBe(true);
+    expect(handleSendDraftNow.mock.calls[1][7]).toBe(true);
     expect(notify).not.toHaveBeenCalledWith('Message sent.', 'success', 'Studio', undefined, 3360);
     expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
       .toContain('Message sent.');
@@ -688,7 +966,6 @@ describe('WorkspacePage main-screen flows', () => {
       entities: [],
       attachments: [],
       selectedChat: chatA,
-      inlineButtons: [],
       createdAt: '2026-09-28T10:00:00.000Z',
       updatedAt: '2026-09-29T18:35:00.000Z',
     };
@@ -731,7 +1008,7 @@ describe('WorkspacePage main-screen flows', () => {
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(handleSendDraftNow).toHaveBeenCalledOnce();
-    expect(handleSendDraftNow.mock.calls[0][8]).toBe(true);
+    expect(handleSendDraftNow.mock.calls[0][7]).toBe(true);
     expect(notify).not.toHaveBeenCalledWith(
       'Telegram sent the message, but local history could not be saved. Do not resend this message.',
       'warning',
@@ -864,6 +1141,12 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-quick-date-panel,[\s\S]*?\.workspace-page-schedule-quick-time-panel\s*\{[^}]*display:\s*grid;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-stage:has\(\.workspace-page-rich-text-schedule-stage\.is-active\.is-repeat-focus\)\s*\{[^}]*min-height:\s*228px;[^}]*max-height:\s*228px;/);
     expect(workspacePageStyles).toMatch(/html\.electron-runtime \.workspace-page-rich-text-schedule-stage\.is-repeat-focus \.workspace-page-schedule-main\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/);
+  });
+
+  it('uses equal-width columns for Schedule time and quick actions on desktop', () => {
+    expect(workspacePageStyles).toMatch(/@media \(min-width: 701px\)\s*\{\s*\.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-main\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\);\s*grid-template-rows:\s*auto minmax\(0, 1fr\);\s*grid-template-areas:\s*'date-time date-time'\s*'quick-date quick-time';/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-quick-row\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\);\s*gap:\s*3px;\s*min-width:\s*0;\s*padding:\s*0;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-schedule-stage\.is-time-focus \.workspace-page-schedule-options-heading\s*\{\s*justify-self:\s*stretch;\s*text-align:\s*left;/);
   });
 
   it('keeps the default blue accent when custom action colors are written', async () => {
@@ -1072,6 +1355,42 @@ describe('WorkspacePage main-screen flows', () => {
     else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
   });
 
+  it('moves a manually selected schedule time forward after it expires', async () => {
+    vi.useFakeTimers();
+    const now = new Date(2026, 9, 3, 10, 30, 30);
+    vi.setSystemTime(now);
+    document.body.dataset.livePreview = 'true';
+    const todayValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const setTime = vi.fn<(value: string | ((current: string) => string)) => void>();
+    const { rerender, unmount } = await renderWorkspacePage({ date: todayValue, time: '10:31', setTime });
+
+    try {
+      const timeButton = document.querySelector<HTMLButtonElement>('.workspace-page-schedule-inline-time button')!;
+      await act(async () => timeButton.click());
+
+      const futureTime = Array.from(document.querySelectorAll<HTMLButtonElement>('.workspace-page-schedule-time-picker [role="option"]'))
+        .find((option) => option.textContent?.trim() === '10:45')!;
+      expect(futureTime.disabled).toBe(false);
+      await act(async () => futureTime.click());
+      expect(setTime).toHaveBeenLastCalledWith('10:45');
+      rerender({ time: '10:45' });
+
+      vi.setSystemTime(new Date(2026, 9, 3, 10, 46, 30));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_100);
+      });
+
+      expect(setTime).toHaveBeenLastCalledWith(expect.any(Function));
+      const updateTime = setTime.mock.lastCall?.[0];
+      expect(typeof updateTime).toBe('function');
+      if (typeof updateTime === 'function') expect(updateTime('10:45')).toBe('10:48');
+    } finally {
+      document.body.removeAttribute('data-live-preview');
+      unmount();
+      vi.useRealTimers();
+    }
+  });
+
   it('hides the drafts control while the composer is in schedule mode', async () => {
     document.body.dataset.livePreview = 'true';
     try {
@@ -1127,6 +1446,44 @@ describe('WorkspacePage main-screen flows', () => {
   it('aligns Studio editor and live preview heights on desktop', () => {
     expect(workspacePageStyles).toContain('height: min(535px, calc(100dvh - 172px));');
     expect(workspacePageStyles).toContain('height: min(535px, max(0px, calc(100dvh - 172px)));');
+  });
+
+  it('clamps preview drift on the first layout pass', async () => {
+    const { unmount } = await renderWorkspacePage();
+    const workspace = document.querySelector('.workspace-page') as HTMLElement;
+    const editor = workspace.querySelector('.workspace-page-editor-panel') as HTMLElement;
+    const previewPanel = workspace.querySelector('.workspace-page-preview-panel') as HTMLElement;
+    const previewWindow = previewPanel.querySelector('.chat-preview-window') as HTMLElement;
+    const workspaceMain = workspace.querySelector('.workspace-page-main') as HTMLElement;
+
+    Object.defineProperty(editor, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, right: 400, top: 0, bottom: 260, width: 400, height: 260 }),
+    });
+    Object.defineProperty(previewWindow, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 420, right: 680, top: 0, bottom: 260, width: 260, height: 260 }),
+    });
+    Object.defineProperty(previewPanel, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 420, right: 680, top: 0, bottom: 260, width: 260, height: 260 }),
+    });
+    Object.defineProperty(workspaceMain, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, right: 1100, top: 0, bottom: 260, width: 1100, height: 260 }),
+    });
+    Object.defineProperty(previewPanel, 'offsetWidth', { configurable: true, value: 260 });
+    Object.defineProperty(previewWindow, 'offsetWidth', { configurable: true, value: 260 });
+
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    const offset = Number.parseFloat(previewPanel.style.getPropertyValue('--workspace-page-preview-horizontal-offset') || '0');
+    expect(Math.abs(offset)).toBeLessThanOrEqual(12);
+    unmount();
   });
 
   it('registers the existing draft editor for History Drawer draft actions', async () => {
@@ -1312,7 +1669,6 @@ describe('WorkspacePage main-screen flows', () => {
         entities: [{ type: 'bold', offset: 0, length: 8 }],
         attachments: [{ name: 'original.pdf', path: 'C:/files/original.pdf' }],
         selectedChat: chatA,
-        inlineButtons: [],
         date: '2026-01-10',
         time: '09:00',
         repeatMode: 'none',
@@ -1395,7 +1751,6 @@ describe('WorkspacePage main-screen flows', () => {
       entities: [],
       attachments: [],
       selectedChat: chatA,
-      inlineButtons: [],
       date: '2026-01-10',
       time: '09:00',
       repeatMode: 'none' as const,
@@ -1518,7 +1873,6 @@ describe('WorkspacePage main-screen flows', () => {
         entities: [],
         attachments: [],
         selectedChat: chatA,
-        inlineButtons: [],
         date: '2026-01-10',
         time: '09:00',
         repeatMode: 'none',
@@ -1559,7 +1913,6 @@ describe('WorkspacePage main-screen flows', () => {
         entities: [],
         attachments: [],
         selectedChat: chatA,
-        inlineButtons: [],
         date: '',
         time: '',
         repeatMode: 'none',
@@ -1719,7 +2072,6 @@ describe('WorkspacePage main-screen flows', () => {
         { id: 'third', type: 'file', name: 'third.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 33, path: 'C:/files/third.docx', position: 5 },
       ],
       selectedChat: chatA,
-      inlineButtons: [[{ id: 'history-button', label: 'Read more', action: { type: 'url', value: 'https://example.com' } }]],
       date: '2035-01-15',
       time: '18:30',
       repeatMode: 'weekly',
@@ -1746,7 +2098,6 @@ describe('WorkspacePage main-screen flows', () => {
         entities: [],
         attachments: [],
         selectedChat: chatA,
-        inlineButtons: [],
         date: '2026-01-10',
         time: '09:00',
         repeatMode: 'none',
@@ -1788,7 +2139,6 @@ describe('WorkspacePage main-screen flows', () => {
         expect.objectContaining({ name: 'second.png', path: '/stored/second.png', position: 3 }),
         expect.objectContaining({ name: 'third.docx', path: '/stored/third.docx', position: 5 }),
       ],
-      inlineButtons: oldSnapshot.inlineButtons,
       date: '2035-01-15',
       time: '18:30',
       repeatMode: 'weekly',
@@ -1822,7 +2172,6 @@ describe('WorkspacePage main-screen flows', () => {
             entities: [],
             attachments: [],
             selectedChat: chatA,
-            inlineButtons: [],
             date: '2026-01-10',
             time: '09:00',
             repeatMode: 'none',
@@ -1882,7 +2231,6 @@ describe('WorkspacePage main-screen flows', () => {
             entities: [],
             attachments: [{ id: 'missing', type: 'file', name: 'missing.pdf', mimeType: 'application/pdf', size: 0, path: 'C:/gone/missing.pdf', position: 0 }],
             selectedChat: chatA,
-            inlineButtons: [],
             date: '2026-01-10',
             time: '09:00',
             repeatMode: 'none',
@@ -2179,7 +2527,6 @@ describe('WorkspacePage main-screen flows', () => {
       status: 'confirmed',
       attachments: ['C:\\files\\brief.pdf', 'C:\\files\\photo.png'],
       entities: [{ type: 'bold', offset: 10, length: 5 }],
-      replyMarkup: { inline_keyboard: [[{ text: 'Original button', url: 'https://example.com' }]] },
     };
     const { rerender, unmount } = await renderWorkspacePage({
       onRegisterHistoryRescheduleHandler: registerRescheduler,
@@ -2208,7 +2555,6 @@ describe('WorkspacePage main-screen flows', () => {
       expect(document.body.textContent).toContain('brief.pdf');
       expect(document.body.textContent).toContain('photo.png');
       expect(document.querySelector('.workspace-page-rich-text-input.is-active strong')?.textContent).toBe('exact');
-      expect(document.body.textContent).toContain('Original button');
       const timeButton = Array.from(document.querySelectorAll('.workspace-page-schedule-compact-button'))
         .find((button) => button.textContent?.trim() === 'Time') as HTMLButtonElement;
       await act(async () => {
@@ -2316,8 +2662,63 @@ describe('WorkspacePage main-screen flows', () => {
     expect(workspacePageStyles).toMatch(/\.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):active:not\(:disabled\)\s*\{[^}]*background:\s*#239dfb !important;[^}]*filter:\s*brightness\(0\.98\);/);
   });
 
-  it('removes publish button hover glow in the dark theme for every mode', () => {
-    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{\s*box-shadow:\s*none !important;/);
+  it('uses a consistent light Studio button tone and slightly larger controls', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page\s*\{[^}]*--studio-control-background:\s*#f1f6f8;[^}]*--studio-control-border:\s*#cfdee5;[^}]*--studio-control-foreground:\s*#456477;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-toolbar button\s*\{[^}]*width:\s*34px !important;[^}]*height:\s*34px !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-action-row \.workspace-page-attachment-toggle,[\s\S]*?height:\s*40px !important;[^}]*min-height:\s*40px !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-toolbar button:hover:not\(:disabled\)\s*\{\s*background:\s*#e4eef3 !important;/);
+  });
+
+  it('prevents light-theme section buttons from shrinking when changing Studio stages', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-action-left-group \.workspace-page-mode-button-template,[\s\S]*?\.workspace-page-mode-button-template\[aria-pressed='true'\]\s*\{\s*flex-shrink:\s*0 !important;/);
+  });
+
+  it('styles chat search and add-chat inputs for the light theme', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-search input,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-add-form input,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input\s*\{[^}]*background:\s*#ffffff !important;[^}]*color:\s*#26343d !important;[^}]*color-scheme:\s*light;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-search input:focus,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-add-form input:focus,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input:focus\s*\{[^}]*border-color:\s*#8ab8cf !important;[^}]*box-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\) !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-search input::placeholder,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-add-form input::placeholder,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input::placeholder\s*\{\s*color:\s*#7c8b95 !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-search input::selection,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-add-form input::selection,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-search input::selection,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-input::selection,[\s\S]*?html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-input \*::selection\s*\{\s*background:\s*#d9dde0 !important;\s*color:\s*#26343d !important;/);
+  });
+
+  it('keeps light Studio bottom buttons visually consistent across toggle states', () => {
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-submit-actions \.workspace-page-publish-main:is\(\.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{[^}]*border-color:\s*#239dfb !important;[^}]*background:\s*#239dfb !important;[^}]*color:\s*#ffffff !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-action-row\.workspace-page-schedule-row > \.workspace-page-submit-actions > \.workspace-page-publish-main:hover:not\(:disabled\),[\s\S]*?\.workspace-page-publish-main:focus-visible:not\(:disabled\)\s*\{\s*border-color:\s*#168de8 !important;\s*background:\s*#168de8 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option\.is-selected:not\(:hover\):not\(:focus-visible\)\s*\{[^}]*border-color:\s*#d7dfe4 !important;[^}]*background:\s*#f0f2f4 !important;[^}]*color:\s*#3a4650 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-publish-menu-compact \.workspace-page-publish-option:is\(\.is-selected, \.is-send, \.is-scheduled, \.is-draft\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{[^}]*background:\s*rgba\(35, 157, 251, 0\.12\) !important;[^}]*color:\s*#087acb !important;/);
+    expect(workspacePageStyles).toMatch(/workspace-page-publish-option:hover:not\(:disabled\)::before,[\s\S]*?workspace-page-publish-option:hover:not\(:disabled\)::after\s*\{\s*opacity:\s*0 !important;/);
+    expect(colorThemeStyles).not.toMatch(/\.workspace-page-action-left-group > button:hover:not\(:disabled\)\s*\{[^}]*background:\s*#6b9fb5 !important;/);
+    expect(colorThemeStyles).not.toMatch(/\.workspace-page-action-row\.workspace-page-schedule-row button\[aria-pressed='true'\],[\s\S]*?background:\s*var\(--studio-control-background\) !important;/);
+  });
+
+  it('uses brand blue only on hover or focus for light-theme schedule controls', () => {
+    expect(colorThemeStyles).toMatch(/--studio-control-hover:\s*rgba\(35, 157, 251, 0\.12\);[\s\S]*?--studio-control-selected:\s*#f0f2f4;/);
+    expect(colorThemeStyles).toMatch(/border-color:\s*rgba\(35, 157, 251, 0\.42\) !important;\s*background:\s*var\(--studio-control-hover\) !important;\s*color:\s*#087acb !important;/);
+    expect(colorThemeStyles).toMatch(/button\.is-selected:not\(:hover\):not\(:focus-visible\)\s*\{\s*border-color:\s*#d7dfe4 !important;\s*background:\s*var\(--studio-control-selected\) !important;\s*color:\s*#456477 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment:hover,[\s\S]*?border-color:\s*rgba\(35, 157, 251, 0\.52\) !important;\s*background:\s*rgba\(35, 157, 251, 0\.12\) !important;/);
+    expect(workspacePageStyles).toMatch(/button\.is-selected:not\(:hover\):not\(:focus-visible\)\s*\{\s*border-color:\s*#d7dfe4 !important;\s*background:\s*#f0f2f4 !important;\s*color:\s*#3a4650 !important;/);
+  });
+
+  it('uses a neutral highlight for dark-theme Studio buttons', () => {
+    const darkPublishHover = workspacePageStyles.slice(
+      workspacePageStyles.lastIndexOf("html[data-theme='dark'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-main:is("),
+    );
+    expect(darkPublishHover).toMatch(/border-color:\s*#59636b !important;[\s\S]*?linear-gradient\(135deg, #39434a, #2b343a 58%, #20272c\) !important;[\s\S]*?box-shadow:\s*0 4px 10px rgba\(0, 0, 0, 0\.22\), inset 0 1px 0 rgba\(255, 255, 255, 0\.12\) !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-schedule-menu-trigger:hover,[\s\S]*?box-shadow:\s*inset 0 0 0 1px rgba\(210, 218, 223, 0\.12\), 0 0 0 1px rgba\(210, 218, 223, 0\.05\) !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment:hover,[\s\S]*?box-shadow:\s*0 0 0 2px rgba\(210, 218, 223, 0\.12\) !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-quick-row button:hover:not\(:disabled\)[\s\S]*?\{\s*border-color:\s*#59636b !important;\s*background:\s*#252d32 !important;\s*color:\s*#e2e7eb !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-time-picker button:hover:not\(:disabled\),[\s\S]*?button:focus-visible:not\(:disabled\)\s*\{\s*border-color:\s*#59636b !important;\s*background:\s*#252d32 !important;\s*color:\s*#e2e7eb !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-time-picker button\.is-selected,[\s\S]*?\{\s*border-color:\s*#59636b !important;\s*background:\s*#293238 !important;\s*color:\s*#e2e7eb !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-repeat-menu button\.is-selected,[\s\S]*?\.workspace-page-weekday-list button\.is-selected\s*\{\s*border-color:\s*#59636b !important;\s*background:\s*#39434a !important;\s*color:\s*#f2f5f7 !important;\s*box-shadow:\s*inset 0 1px 0 rgba\(255, 255, 255, 0\.1\) !important;/);
+    const darkSelectedPublishOption = workspacePageStyles.slice(
+      workspacePageStyles.lastIndexOf("html[data-theme='dark'] .workspace-page .workspace-page-submit-actions .workspace-page-publish-menu-compact .workspace-page-publish-option.is-selected,"),
+    );
+    expect(darkSelectedPublishOption).toMatch(/border-color:\s*#59636b !important;\s*background:\s*#39434a !important;\s*color:\s*#f2f5f7 !important;[\s\S]*?transform:\s*none !important;/);
+    expect(darkSelectedPublishOption).toMatch(/\.workspace-page-publish-option\.is-selected::before,[\s\S]*?\.workspace-page-publish-option\.is-selected::after\s*\{\s*opacity:\s*0 !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-toolbar button:hover:not\(:disabled\):not\(\.is-selected\),[\s\S]*?\.workspace-page-rich-text-chat-stage button:focus-visible:not\(:disabled\):not\(\.is-selected\)\s*\{\s*border-color:\s*#59636b !important;\s*background-color:\s*#39434a !important;\s*color:\s*#f2f5f7 !important;\s*box-shadow:\s*inset 0 1px 0 rgba\(255, 255, 255, 0\.1\) !important;\s*transform:\s*none;/);
+    expect(workspacePageStyles).not.toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-action-left-group \.workspace-page-preview-toggle\[aria-pressed='true'\]/);
+    expect(colorThemeStyles).not.toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-action-left-group \.workspace-page-preview-toggle\[aria-pressed='true'\]/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-action-row\.workspace-page-schedule-row > \.workspace-page-submit-actions > \.workspace-page-publish-main\s*\{\s*flex:\s*0 0 120px !important;\s*width:\s*120px !important;\s*min-width:\s*120px !important;/);
+    expect(colorThemeStyles).toMatch(/@media \(max-width:\s*480px\)\s*\{[\s\S]*?html\[data-theme='dark'\] \.workspace-page[\s\S]*?workspace-page-submit-actions > \.workspace-page-publish-main\s*\{\s*flex-basis:\s*96px !important;\s*width:\s*96px !important;\s*min-width:\s*96px !important;/);
   });
 
   it('dims past calendar dates and schedule times in the dark theme', () => {
@@ -2331,7 +2732,7 @@ describe('WorkspacePage main-screen flows', () => {
   it('lightens selection and editing highlights in the light theme', () => {
     expect(colorThemeStyles).toMatch(/workspace-page-chat-stage-item\.is-selected,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\.is-selected:hover,[\s\S]*?background:\s*#edf6fa;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item\s*\{[^}]*margin-block:\s*-3px;[^}]*padding-block:\s*8px;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item:hover,[\s\S]*?background:\s*#f5fafc !important;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage\.workspace-page-rich-text-draft-stage \.workspace-page-template-stage-item:is\(:hover, :focus-within\)\s*\{[^}]*background:\s*#edf2f5 !important;/);
     expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor input,\s*html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea\s*\{[^}]*background:\s*#f8fbfd !important;/);
     expect(colorThemeStyles).toMatch(/workspace-page-template-stage-editor textarea:focus\s*\{[^}]*background:\s*#ffffff !important;[^}]*box-shadow:\s*0 0 0 3px rgba\(71, 124, 158, 0\.14\);/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-occurrences select\s*\{[^}]*background:\s*#ffffff;[^}]*color:\s*#29343d;[^}]*color-scheme:\s*light;/);
@@ -2347,12 +2748,13 @@ describe('WorkspacePage main-screen flows', () => {
   });
 
   it('uses dark surfaces for Studio selection and editing windows', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page ::selection,\s*html\[data-theme='dark'\] \.workspace-page ::-moz-selection\s*\{\s*background:\s*#c4c9cc !important;\s*color:\s*#20272c !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-input::selection,[\s\S]*?\.workspace-page-template-stage-editor textarea::selection\s*\{\s*background:\s*#c4c9cc !important;\s*color:\s*#20272c !important;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-template-stage \.workspace-page-template-stage-editor textarea,[\s\S]*?background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-chat-stage \.workspace-page-chat-stage-item\s*\{[^}]*background:\s*#151b20;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker\s*\{[\s\S]*?--planner-ink:\s*#e2e7eb;[\s\S]*?background:\s*#171e23;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker \.quick-planner-emoji-categories button\s*\{[^}]*background:\s*#10161a;[^}]*color:\s*#c5cfd6;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker \.quick-planner-emoji-categories button\[aria-selected='true'\],[\s\S]*?background:\s*#17364d;[^}]*color:\s*#73c3ff;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.inline-keyboard-builder\.is-embedded\s*\{[^}]*background:\s*#11171b !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-rich-text-emoji-picker \.quick-planner-emoji-categories button\[aria-selected='true'\]\s*\{[^}]*background:\s*#17364d;[^}]*color:\s*#73c3ff;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-input,[\s\S]*?\.workspace-page-rich-text-input:focus-visible\s*\{[^}]*background:\s*#151b20 !important;[^}]*color:\s*#e2e7eb !important;[^}]*color-scheme:\s*dark;/);
     expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-version-history-close,[\s\S]*?\.workspace-page-version-history-copy\s*\{[^}]*background:\s*#1a2228 !important;[^}]*color:\s*#d4dde3 !important;/);
     expect(workspacePageStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page-version-history-document-menu\s*\{[^}]*background:\s*#10161a !important;/);
@@ -2372,7 +2774,7 @@ describe('WorkspacePage main-screen flows', () => {
   it('keeps Studio date, time, and repeat controls readable in dark mode and on hover', () => {
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-inline-field\s*\{[^}]*background:\s*#151b20 !important;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-inline-field:hover\s*\{[^}]*opacity:\s*1 !important;/);
-    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment:hover,[\s\S]*?\.workspace-page-schedule-segment:focus\s*\{[^}]*background:\s*#1d2d38 !important;[^}]*color:\s*#e2f3ff !important;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment:hover,[\s\S]*?\.workspace-page-schedule-segment:focus\s*\{[^}]*background:\s*#252d32 !important;[^}]*color:\s*#e2e7eb !important;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-weekday-list button\s*\{[^}]*background:\s*#151b20 !important;[^}]*color:\s*#c5cfd6 !important;/);
     expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-occurrences select,[\s\S]*?\.workspace-page-schedule-occurrences select option\s*\{[^}]*background:\s*#10161a !important;[^}]*color-scheme:\s*dark;/);
     expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-schedule-stage \.workspace-page-schedule-segment\s*\{/);
@@ -2439,6 +2841,54 @@ describe('WorkspacePage main-screen flows', () => {
     expect(document.querySelector(scheduleStage)).toBeNull();
     rerender({ scheduling: false, lastAction: 'scheduled' });
     expect(document.querySelector(scheduleStage)).toBeNull();
+    unmount();
+  });
+
+  it('resets the repeat selection after a schedule succeeds', async () => {
+    const handleSchedule = vi.fn();
+    const { rerender, unmount } = await renderWorkspacePage({
+      date: '2035-01-15',
+      time: '18:30',
+      handleSchedule,
+    });
+    const menuToggle = document.querySelector<HTMLButtonElement>('.workspace-page-publish-menu-toggle')!;
+    await act(async () => menuToggle.click());
+    const scheduleOption = document.querySelector<HTMLButtonElement>('.workspace-page-publish-option.is-scheduled')!;
+    await act(async () => scheduleOption.click());
+
+    const repeatButton = Array.from(document.querySelectorAll<HTMLButtonElement>('.workspace-page-schedule-compact-button'))
+      .find((button) => button.textContent?.trim() === 'Repeat')!;
+    await act(async () => repeatButton.click());
+    const weeklyOption = Array.from(document.querySelectorAll<HTMLButtonElement>('.workspace-page-schedule-repeat-menu button'))
+      .find((button) => button.textContent?.trim() === 'Weekly')!;
+    await act(async () => weeklyOption.click());
+    const repeatOccurrences = document.querySelector<HTMLSelectElement>('[aria-label="Repeat occurrences"]')!;
+    await act(async () => fireEvent.change(repeatOccurrences, { target: { value: '3' } }));
+    await act(async () => {
+      (document.querySelector('.workspace-page-schedule-footer .workspace-page-stage-primary') as HTMLButtonElement).click();
+    });
+
+    await act(async () => {
+      (document.querySelector('.workspace-page-publish-main') as HTMLButtonElement).click();
+    });
+    expect(handleSchedule).toHaveBeenCalledOnce();
+    expect(handleSchedule.mock.calls[0][1]).toMatchObject({
+      mode: 'weekly',
+      occurrences: 3,
+    });
+
+    rerender({ scheduling: true });
+    rerender({ scheduling: false, lastAction: 'scheduled' });
+
+    const repeatButtonAfterSuccess = Array.from(document.querySelectorAll<HTMLButtonElement>('.workspace-page-schedule-compact-button'))
+      .find((button) => button.textContent?.trim() === 'Repeat')!;
+    await act(async () => repeatButtonAfterSuccess.click());
+    expect(document.querySelector('.workspace-page-schedule-repeat-menu button.is-selected'))
+      .toHaveTextContent(/repeat/i);
+    const resetWeeklyOption = Array.from(document.querySelectorAll<HTMLButtonElement>('.workspace-page-schedule-repeat-menu button'))
+      .find((button) => button.textContent?.trim() === 'Weekly')!;
+    await act(async () => resetWeeklyOption.click());
+    expect(document.querySelector<HTMLSelectElement>('[aria-label="Repeat occurrences"]')?.value).toBe('1');
     unmount();
   });
 
@@ -2673,11 +3123,43 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('shows external Studio warnings and errors in the publish footer as a single-line status', async () => {
+    const view = await renderWorkspacePage({
+      inlineNotification: {
+        message: 'Telegram could not schedule the message.',
+        title: 'Schedule failed',
+        type: 'error',
+        durationMs: 4500,
+        revision: 1,
+      },
+    });
+
+    const status = document.querySelector('.workspace-page-publish-transient-feedback');
+    expect(status).toHaveAttribute('role', 'alert');
+    expect(status).toHaveTextContent('Telegram could not schedule the message.');
+    expect(status).not.toHaveTextContent('Schedule failed');
+    expect(document.querySelector('.workspace-page-send-feedback')).toBeNull();
+
+    view.rerender({
+      inlineNotification: {
+        message: 'Some chats may not accept scheduled posts.',
+        title: 'Scheduling warning',
+        type: 'warning',
+        durationMs: 4500,
+        revision: 2,
+      },
+    });
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveAttribute('role', 'status');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).toHaveTextContent('Some chats may not accept scheduled posts.');
+    expect(document.querySelector('.workspace-page-publish-transient-feedback')).not.toHaveTextContent('Scheduling warning');
+    view.unmount();
+  });
+
   it('returns failed album attachments to the editor after partial send', async () => {
     const handleSendDraftNow = vi.fn().mockImplementation(async (
       ...args: Parameters<React.ComponentProps<typeof WorkspacePage>['handleSendDraftNow']>
     ) => {
-      const onAttachmentGroupResult = args[6];
+      const onAttachmentGroupResult = args[5];
       onAttachmentGroupResult?.(0, true);
       onAttachmentGroupResult?.(1, false);
       return false;
@@ -2924,7 +3406,6 @@ describe('WorkspacePage main-screen flows', () => {
       entities: [],
       attachments: [],
       selectedChat: { id: chatA.id, name: chatA.name },
-      inlineButtons: [],
       date: '2026-01-10',
       time: '09:00',
       repeatMode: 'none',
@@ -2999,7 +3480,7 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('uses one backup flow to export and import all drafts', async () => {
+  it('hides draft export and keeps the centered draft import flow available', async () => {
     const { unmount } = await renderWorkspacePage();
     await openDraftsStage();
     const footer = document.querySelector('.workspace-page-draft-stage-footer');
@@ -3008,20 +3489,9 @@ describe('WorkspacePage main-screen flows', () => {
     const importButton = Array.from(footer?.querySelectorAll('button') ?? [])
       .find((button) => button.getAttribute('aria-label') === 'Import drafts') as HTMLButtonElement;
 
-    expect(exportButton).toBeTruthy();
+    expect(exportButton).toBeUndefined();
     expect(importButton).toBeTruthy();
     expect(footer?.querySelector('[title="Export .txt"]')).toBeNull();
-    const editor = document.querySelector('[role="textbox"]') as HTMLDivElement;
-    await act(async () => {
-      editor.textContent = 'Latest unsaved text';
-      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
-    });
-    await act(async () => {
-      exportButton.click();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Backup exported.');
 
     vi.mocked(window.draftStorage.importBackup).mockResolvedValueOnce({
       success: true,
@@ -3032,9 +3502,8 @@ describe('WorkspacePage main-screen flows', () => {
       await Promise.resolve();
     });
 
-    expect(window.draftStorage.exportBackup).toHaveBeenCalledTimes(1);
+    expect(window.draftStorage.exportBackup).not.toHaveBeenCalled();
     expect(window.draftStorage.importBackup).toHaveBeenCalledTimes(1);
-    expect(getInMemoryWorkspaceDraft().body).toBe('Latest unsaved text');
     expect(document.querySelector('.workspace-page-publish-transient-feedback')?.textContent).toBe('Drafts imported.');
     unmount();
   });
@@ -3069,7 +3538,7 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('renames a saved draft inline and persists the updated name', async () => {
+  it('does not offer inline rename for saved drafts in the quick menu', async () => {
     const savedDraft = {
       id: 'renameable-draft',
       name: 'Original name',
@@ -3088,22 +3557,10 @@ describe('WorkspacePage main-screen flows', () => {
       .find((button) => button.textContent?.trim() === 'Draft') as HTMLButtonElement;
     await act(async () => draftModeButton.click());
 
-    await act(async () => {
-      (screen.getByRole('button', { name: 'Rename draft “Original name”' }) as HTMLButtonElement).click();
-    });
-    const nameInput = screen.getByRole('textbox', { name: 'New draft name' });
-    await act(async () => {
-      fireEvent.change(nameInput, { target: { value: 'Updated name' } });
-      (screen.getByRole('button', { name: 'Save draft name' }) as HTMLButtonElement).click();
-    });
-
-    await waitFor(() => expect(inMemoryDraftStore.savedDrafts[0]).toMatchObject({
-      name: 'Updated name',
-      body: 'Draft content stays unchanged',
-    }));
-    expect(window.draftStorage.save).toHaveBeenCalled();
-    expect(document.querySelector('.workspace-page-publish-transient-feedback.is-success')?.textContent)
-      .toBe('Draft name updated.');
+    expect(screen.queryByRole('button', { name: 'Rename draft “Original name”' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'New draft name' })).not.toBeInTheDocument();
     unmount();
   });
 
@@ -3449,6 +3906,32 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
+  it('keeps the link toolbar button in place and closes its popover on a second click', async () => {
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-link-controls\.is-open\s*\{\s*display:\s*block;\s*flex:\s*0 0 32px;\s*width:\s*32px;\s*height:\s*32px;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-link-controls \.workspace-page-rich-text-link-popover\s*\{[^}]*position:\s*absolute;[^}]*bottom:\s*calc\(100% \+ 8px\);/);
+    expect(workspacePageStyles).not.toMatch(/\.workspace-page-rich-text-link-controls \.workspace-page-rich-text-link-popover\s*\{[^}]*position:\s*static;/);
+    expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-link-popover\s*\{[^}]*position:\s*absolute !important;[^}]*bottom:\s*calc\(100% \+ 8px\) !important;/);
+    const { unmount } = await renderWorkspacePage();
+    const editor = document.querySelector('.workspace-page-rich-text-editor')!;
+    const linkButton = document.querySelector<HTMLButtonElement>('.workspace-page-rich-text-link-controls > button')!;
+    const wasToolbarActive = editor.classList.contains('is-toolbar-active');
+
+    await act(async () => {
+      linkButton.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      linkButton.click();
+    });
+    expect(editor.classList.contains('is-toolbar-active')).toBe(wasToolbarActive);
+    expect(linkButton).toHaveAttribute('aria-expanded', 'true');
+    expect(document.querySelector('[role="dialog"][aria-label="Insert link"]')).not.toBeNull();
+
+    await act(async () => {
+      linkButton.click();
+    });
+    expect(linkButton).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('[role="dialog"][aria-label="Insert link"]')).toBeNull();
+    unmount();
+  });
+
   it('opens the image-only multi-select picker from the photo album toolbar button', async () => {
     const { unmount } = await renderWorkspacePage();
     const albumInput = document.querySelector<HTMLInputElement>('input[accept*="image/png"][multiple]');
@@ -3463,7 +3946,7 @@ describe('WorkspacePage main-screen flows', () => {
     unmount();
   });
 
-  it('shows a compact album limits tooltip after a deliberate hover', async () => {
+  it('shows a photo album tooltip after a deliberate hover', async () => {
     const { unmount } = await renderWorkspacePage();
     const albumButton = document.querySelector<HTMLButtonElement>('[aria-label="Add photo album"]')!;
     const albumInfo = document.querySelector<HTMLElement>('#workspace-page-photo-album-limits')!;
@@ -3471,13 +3954,16 @@ describe('WorkspacePage main-screen flows', () => {
 
     expect(albumButton.getAttribute('aria-describedby')).toBe('workspace-page-photo-album-limits');
     expect(albumInfo.getAttribute('role')).toBe('tooltip');
-    expect(albumInfo.textContent).toContain('3 albums');
-    expect(albumInfo.textContent).toContain('10 photos in each');
-    expect(albumInfo.textContent).toContain('30 photos total');
-    expect(document.querySelector('[aria-label="Photo album limits"]')).toBeNull();
+    expect(albumInfo.querySelector('strong')?.textContent).toBe('Photo album');
+    expect(albumInfo.textContent).toContain('Up to 10 individual attachments');
+    expect(albumInfo.textContent).toContain('up to 3 albums');
+    expect(albumInfo.textContent).toContain('up to 10 photos in each');
+    expect(albumInfo.textContent).toContain('30 attachments total');
     expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar\s*\{[^}]*z-index:\s*20;[^}]*transform:\s*none;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-toolbar\.is-airy\s*\{[^}]*z-index:\s*30;/);
     expect(workspacePageStyles).toMatch(/\.workspace-page-rich-text-album-controls\.is-info-visible\s+\.workspace-page-rich-text-album-info/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-album-info\s*\{[^}]*background:\s*rgba\(255, 255, 255, 0\.98\);[^}]*color:\s*#52636d;/);
+    expect(workspacePageStyles).toMatch(/html\[data-theme='light'\] \.workspace-page \.workspace-page-rich-text-album-info strong\s*\{\s*color:\s*#263944;/);
 
     vi.useFakeTimers();
     try {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const mainSource = fs.readFileSync(path.join(projectRoot, 'main.cjs'), 'utf8');
+const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
 
 describe('Electron tray lifecycle contract', () => {
   it('creates one tray with Open and Exit actions', () => {
@@ -29,6 +30,18 @@ describe('Electron tray lifecycle contract', () => {
     expect(mainSource).toContain("if (!app.isPackaged) {");
     expect(mainSource).toContain("process.env.XMSGI_STUDIO_REMOTE_DEBUGGING_PORT || '9222'");
     expect(mainSource).toContain("app.commandLine.appendSwitch('remote-debugging-port', remoteDebuggingPort)");
+  });
+
+  it('keeps the Chromium sandbox enabled in both Electron launch scripts', () => {
+    expect(packageJson.scripts.electron).not.toContain('--no-sandbox');
+    expect(packageJson.scripts['electron:dev']).not.toContain('--no-sandbox');
+    expect(mainSource).toContain('sandbox: true');
+  });
+
+  it('blocks main-window navigation outside the trusted renderer URL', () => {
+    expect(mainSource).toContain("webContents.on('will-navigate'");
+    expect(mainSource).toContain("webContents.on('will-redirect'");
+    expect(mainSource).toContain('isTrustedRendererUrl(url, expectedRendererUrl)');
   });
 
   it('allows an isolated user data directory for a second development instance', () => {

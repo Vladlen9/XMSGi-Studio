@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SavedDraft, Template } from '@shared/types';
 import { setCurrentAccountId } from '../domain/accountContext';
 import {
   convertDomainDraftToLegacy,
@@ -52,14 +53,14 @@ describe('postStudioService', () => {
   });
 
   it('preserves postId across legacy and domain draft conversion', () => {
-    const legacyDraft = {
+    const legacyDraft: SavedDraft = {
       id: 'draft-1',
       name: 'Draft name',
       body: 'hello',
       postId: 'post-42',
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
-    } as any;
+    };
 
     const domainDraft = convertLegacyDraftToDomain(legacyDraft, 'account-1');
     const restored = convertDomainDraftToLegacy(domainDraft);
@@ -69,7 +70,7 @@ describe('postStudioService', () => {
   });
 
   it('preserves template formatting metadata across legacy and domain conversion', () => {
-    const legacyTemplate = {
+    const legacyTemplate: Template = {
       id: 'template-1',
       name: 'Greeting',
       body: 'Hello world',
@@ -80,7 +81,7 @@ describe('postStudioService', () => {
       tags: ['work', 'welcome'],
       createdAt: '2024-01-01T00:00:00.000Z',
       updatedAt: '2024-01-01T00:00:00.000Z',
-    } as any;
+    };
 
     const domainTemplate = convertLegacyTemplateToDomain(legacyTemplate, 'account-1');
     const roundTrippedTemplate = convertDomainTemplateToLegacy(domainTemplate);

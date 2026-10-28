@@ -62,8 +62,25 @@ const {
   validateScheduleReconciliationPayload,
   validateSendPayload,
   validateSendAttemptReconciliationPayload,
-  assertTrustedRenderer
+  assertTrustedRenderer: assertTrustedRendererBase,
+  isTrustedRendererUrl
 } = require('./ipc-security.cjs');
+
+function getTrustedRendererUrl(allowedFileUrl) {
+  if (!app.isPackaged && devServerEnabled && !shouldLoadProductionBuild()) {
+    return new URL(getAppUrl()).href;
+  }
+  return allowedFileUrl;
+}
+
+function assertTrustedRenderer(event, expectedWebContents, allowedFileUrl) {
+  return assertTrustedRendererBase(
+    event,
+    expectedWebContents,
+    getTrustedRendererUrl(allowedFileUrl),
+  );
+}
+
 const { readChats, writeChats, readJsonFile, writeJsonFile } = require('./chat-storage.cjs');
 const { resolveAppDataPath } = require('./app-data-path.cjs');
 const {
@@ -414,6 +431,15 @@ function createWindow() {
 
     return { action: 'deny' };
   });
+
+  const expectedRendererUrl = getTrustedRendererUrl(
+    pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href,
+  );
+  const preventUntrustedNavigation = (event, url) => {
+    if (!isTrustedRendererUrl(url, expectedRendererUrl)) event.preventDefault();
+  };
+  mainWindow.webContents.on('will-navigate', preventUntrustedNavigation);
+  mainWindow.webContents.on('will-redirect', preventUntrustedNavigation);
 
   mainWindow.webContents.session.setSpellCheckerLanguages(['ru-RU', 'en-US']);
   mainWindow.webContents.once('did-finish-load', () => sendHistoryWarningNotifier.flush());
@@ -1154,7 +1180,6 @@ ipcMain.handle('telegram-send', async (event, data) => {
       validated.message,
       validated.attachments,
       validated.entities,
-      validated.replyMarkup,
       validated.silent,
       validated.effect,
       validated.idempotencyKey
@@ -1270,7 +1295,6 @@ ipcMain.handle('telegram-schedule', async (event, data) => {
       validated.targetTimestamp,
       validated.attachments,
       validated.entities,
-      validated.replyMarkup,
       validated.silent,
       validated.effect
     );

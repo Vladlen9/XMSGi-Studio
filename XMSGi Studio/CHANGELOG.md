@@ -10,6 +10,14 @@
 
 - No changes yet.
 
+## 1.3.5 - 2026-10-27
+
+### Improvements
+
+- Added quick hashtag filters to Posts and adjustable text size in the post details view.
+- Fixed the light-theme full-post message card width to match the compact dark-theme layout.
+- Refined Planner, Studio, and Posts workflows and visual consistency.
+
 ## 1.3.1 - 2026-10-24
 
 ### Improvements
@@ -55,7 +63,7 @@ to XMSGi Studio, so the version was reset for the new product name. History unde
 ### Highlights
 
 - Renamed the desktop product to XMSGi Studio while keeping the in-app header brand as XMSGi.
-- Added rich-text composition with attachments, inline buttons, templates, and saved drafts.
+- Added rich-text composition with attachments, templates, and saved drafts.
 - Expanded scheduling and history workflows for queued posts, cancellation, and rescheduling.
 - Improved Telegram sign-in, reconnect, session storage, and account-data migration.
 - Migrated active app-data filenames to the XMSGi Studio name while retaining legacy data migration.

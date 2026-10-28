@@ -168,7 +168,8 @@ export function useEditorSelection(editorRef: MutableRefObject<HTMLDivElement | 
   const saveSelection = () => {
     const editor = editorRef.current;
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !editor?.contains(selection.anchorNode)) return;
+    if (!editor || !selection || selection.rangeCount === 0
+      || (!editor.contains(selection.anchorNode) && selection.anchorNode !== editor)) return;
     const range = selection.getRangeAt(0);
     savedRangeRef.current = range.cloneRange();
     const offsets = getEditorSelectionTextOffsets(editor, range);

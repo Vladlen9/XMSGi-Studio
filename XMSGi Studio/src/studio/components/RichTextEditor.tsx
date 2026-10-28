@@ -19,7 +19,7 @@ interface Props {
   onPasteImages?: (files: File[]) => void;
   inputRef?: MutableRefObject<HTMLDivElement | null>;
   stageContent?: ReactNode;
-  stageMode?: 'editor' | 'schedule' | 'template' | 'draft' | 'chat' | 'buttons';
+  stageMode?: 'editor' | 'schedule' | 'template' | 'draft' | 'chat';
   maxLength: number;
   onOpenAlbum?: (position: number) => void;
   albumDisabled?: boolean;
@@ -103,6 +103,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
   const [linkInput, setLinkInput] = useState('');
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const linkPopoverRef = useRef<HTMLFormElement | null>(null);
+  const suppressToolbarActivationRef = useRef(false);
   const isApplyingFormatRef = useRef(false);
   const [logoState, setLogoState] = useState<LogoIntroState>({
     hasPlayed: false,
@@ -288,7 +289,11 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     });
   };
 
-  const openLinkPopover = () => {
+  const toggleLinkPopover = () => {
+    if (linkPopoverOpen) {
+      closeLinkPopover();
+      return;
+    }
     const editor = editorRef.current;
     if (!editor) return;
     const selection = window.getSelection();
@@ -296,8 +301,18 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     if (range && (range.startContainer === editor || editor.contains(range.startContainer))) {
       saveSelection();
     } else {
-      editor.focus();
-      placeCaretAtStart();
+      suppressToolbarActivationRef.current = true;
+      try {
+        restoreSelection();
+        const restoredSelection = window.getSelection();
+        const restoredRange = restoredSelection && restoredSelection.rangeCount > 0 ? restoredSelection.getRangeAt(0) : null;
+        if (!restoredRange || (restoredRange.startContainer !== editor && !editor.contains(restoredRange.startContainer))) {
+          editor.focus();
+          placeCaretAtStart();
+        }
+      } finally {
+        suppressToolbarActivationRef.current = false;
+      }
       saveSelection();
     }
     setLinkInput('');
@@ -468,6 +483,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
   useEffect(() => {
     const updateHighlightFromPointerDown = (event: PointerEvent) => {
       if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.workspace-page-rich-text-link-controls')) return;
       const inWorkspace = event.target.closest('.workspace-page');
       const interactiveTarget = event.target.closest('button, a[href], input, textarea, select, [contenteditable="true"], [role="button"], [role="menuitem"], [role="option"], [role="tab"], [role="checkbox"], [role="switch"], [role="combobox"], [role="spinbutton"], [tabindex]:not([tabindex="-1"])');
       let scrollContainer = event.target instanceof HTMLElement ? event.target : event.target.parentElement;
@@ -496,6 +512,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
     };
     const activateHighlightFromWorkspaceClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.workspace-page-rich-text-link-controls')) return;
       if (event.target.closest('.workspace-page') && event.target.closest('button, a[href], input, textarea, select, [contenteditable="true"], [role="button"], [role="menuitem"], [role="option"], [role="tab"], [role="checkbox"], [role="switch"], [role="combobox"], [role="spinbutton"], [tabindex]:not([tabindex="-1"])')) {
         setToolbarActive(true);
       }
@@ -557,7 +574,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
           spellCheck={false}
           aria-hidden={stageMode !== 'editor'}
           onFocus={() => {
-            setToolbarActive(true);
+            if (!suppressToolbarActivationRef.current) setToolbarActive(true);
             setEditorFocused(true);
             if (!text.trim()) placeCaretAtStart();
           }}
@@ -654,7 +671,7 @@ export function RichTextEditor({ text, entities, onChange, onAddFiles, onPasteIm
         onSelectEffect={onEffectChange}
         onInsertEmoji={insertEmoji}
         onOpenAlbum={onOpenAlbum ? () => onOpenAlbum(getCaretOffset(text.length)) : undefined}
-        onToggleLink={openLinkPopover}
+        onToggleLink={toggleLinkPopover}
         onExportText={onExportText ? (format) => onExportText(text, format) : undefined}
         onOpenVersionHistory={onOpenVersionHistory}
       />

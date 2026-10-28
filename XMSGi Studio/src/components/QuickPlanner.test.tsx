@@ -18,6 +18,7 @@ import { QuickPlanner } from './QuickPlanner';
 import { QuickPlannerNavigationContext } from '../workspace/QuickPlannerNavigationContext';
 
 const quickPlannerStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlanner.css'), 'utf8');
+const activityStyles = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'QuickPlannerActivity.css'), 'utf8');
 const globalStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
 const colorThemeStyles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../styles/colorThemes.css'), 'utf8');
 
@@ -78,6 +79,27 @@ describe('QuickPlanner feedback', () => {
   it('hides the Activity panel at the narrow Planner breakpoint', () => {
     expect(quickPlannerStyles).toMatch(
       /@media \(max-width: 900px\)[\s\S]*?\.quick-planner-activity\s*\{\s*display:\s*none;\s*\}/,
+    );
+  });
+
+  it('wraps action-mode labels inside narrow workbench buttons', () => {
+    expect(quickPlannerStyles).toMatch(
+      /@container quick-planner-workbench \(max-width: 620px\)\s*\{\s*\.quick-planner-mode-switch button\s*\{\s*flex-direction:\s*column;[^}]*font-size:\s*9px;[^}]*white-space:\s*normal;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /@container quick-planner-workbench \(max-width: 620px\)[\s\S]*?\.quick-planner-mode-switch button > span\s*\{[^}]*overflow-wrap:\s*anywhere;[^}]*text-align:\s*center;/,
+    );
+  });
+
+  it('uses a gray text selection in the light Planner theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner::selection,\s*html\[data-theme='light'\] \.quick-planner ::selection\s*\{\s*background:\s*#d9dde0;\s*color:\s*#26343d;/,
+    );
+  });
+
+  it('uses a light gray text selection in the dark Planner theme', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message::selection\s*\{\s*background:\s*#c4c9cc;\s*color:\s*#20272c;/,
     );
   });
 
@@ -284,7 +306,7 @@ describe('QuickPlanner feedback', () => {
     expect(status).not.toHaveTextContent('Write a message');
   });
 
-  it('uses a white selected Planner action in light theme and a muted dark fill in dark theme', () => {
+  it('makes the selected action mode easy to distinguish in dark theme', () => {
     expect(quickPlannerStyles).toMatch(
       /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active\s*\{\s*color:\s*var\(--planner-accent\);\s*border:\s*1px solid #239dfb;\s*background:\s*#ffffff;/,
     );
@@ -295,11 +317,77 @@ describe('QuickPlanner feedback', () => {
       /html\[data-theme\] \.quick-planner \.quick-planner-mode-switch button\.is-active:active\s*\{\s*background:\s*#ffffff;/,
     );
     expect(quickPlannerStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-mode-switch button\.is-active,[\s\S]*?button\.is-active:active\s*\{\s*color:\s*#d7e3ea;\s*border-color:\s*#587181;\s*background:\s*#304652;/,
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-mode-switch button\.is-active,[\s\S]*?button\.is-active:active\s*\{\s*color:\s*#f0f4f6;\s*border-color:\s*#74828b;\s*background:\s*#354047;/,
     );
   });
 
-  it('uses the Studio blue hover and focus highlight for Planner time options in both themes', () => {
+  it('uses the editor hover tint on Planner controls and Activity buttons in light theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-workbench \.quick-planner-mode-switch button:is\(:hover, :focus-visible\),[\s\S]*?\.quick-planner-workbench \.quick-planner-tools button:is\(:hover, :focus-visible, \.is-active\),[\s\S]*?\.quick-planner-workbench \.quick-planner-clear-message:is\(:hover, :focus-visible\):not\(:disabled\),[\s\S]*?\.quick-planner-workbench \.quick-planner-schedule-row button:not\(\.quick-planner-submit\):not\(\.is-readonly\):is\(:hover, :focus-visible\):not\(:disabled\)\s*\{\s*border-color:\s*#91afbf !important;\s*background:\s*#d7e6ed !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-activity \.quick-planner-activity-period-option:hover:not\(\.is-active\),\s*html\[data-theme='light'\] \.quick-planner-activity \.quick-planner-activity-view:hover:not\(\.is-active\)\s*\{\s*border-color:\s*#91afbf !important;\s*background:\s*#d7e6ed !important;[^}]*box-shadow:\s*0 2px 6px rgba\(34, 47, 58, 0\.18\), inset 0 0 0 1px rgba\(71, 124, 158, 0\.12\) !important;/,
+    );
+  });
+
+  it('keeps the dark action switch background subtle when inactive', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-mode-switch\s*\{[^}]*border-color:\s*rgba\(110, 166, 202, 0\.1\);[^}]*background:\s*linear-gradient\(180deg, rgba\(32, 40, 46, 0\.32\), rgba\(28, 36, 42, 0\.38\)\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-mode-switch button:hover:not\(\.is-active\),[\s\S]*?focus-visible:not\(\.is-active\)\s*\{[^}]*background:\s*rgba\(180, 193, 201, 0\.08\);[^}]*color:\s*#e0e6ea;/,
+    );
+  });
+
+  it('uses a neutral selected background for dark Planner action modes', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-mode-switch button\.is-active\s*\{[^}]*border-color:\s*#74828b;[^}]*background:\s*#354047;[^}]*color:\s*#f0f4f6;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner-date-picker-grid button\.is-selected,\s*html\[data-theme='dark'\] \.quick-planner-time-list button\[aria-selected='true'\]\s*\{[^}]*background:\s*#1a4d73;[^}]*color:\s*#eaf7ff;/,
+    );
+  });
+
+  it('matches the light-theme publish button to the activity graph line', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner \.quick-planner-submit:not\(:disabled\)\s*\{\s*border-color:\s*var\(--planner-accent\);\s*background:\s*var\(--planner-accent\);\s*color:\s*#ffffff;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner \.quick-planner-submit:hover:not\(:disabled\),\s*html\[data-theme='light'\] \.quick-planner \.quick-planner-submit:focus-visible:not\(:disabled\)\s*\{\s*border-color:\s*#168de8;\s*background:\s*#168de8;\s*color:\s*#ffffff;/,
+    );
+    expect(activityStyles).toMatch(
+      /\.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*var\(--planner-accent,\s*#477c9e\);/,
+    );
+    expect(activityStyles).not.toMatch(
+      /html:not\(\[data-theme='dark'\]\) \.quick-planner-activity-chart\s*\{\s*--activity-chart-color:\s*#78aec4;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-mode-switch button\.is-active,[\s\S]*?background:\s*#354047;/,
+    );
+  });
+
+  it('uses the blue Planner accent for selected dates and times in light theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-date-picker-grid button\.is-selected,[\s\S]*?background:\s*var\(--planner-accent\) !important;[\s\S]*?color:\s*#ffffff !important;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-time-list button\[aria-selected='true'\],[\s\S]*?background:\s*var\(--planner-accent\);[\s\S]*?color:\s*#ffffff;/,
+    );
+  });
+
+  it('removes glossy highlights and shadows from the send button in every state', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-schedule-row \.quick-planner-submit,[\s\S]*?background:\s*var\(--planner-accent\);[\s\S]*?box-shadow:\s*none;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme\] \.quick-planner \.quick-planner-submit:hover:not\(:disabled\),[\s\S]*?box-shadow:\s*none;[\s\S]*?filter:\s*none;[\s\S]*?transform:\s*none;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner \.quick-planner-submit:hover:not\(:disabled\),[\s\S]*?box-shadow:\s*none;/,
+    );
+  });
+
+  it('uses the Planner accent for time-option hover and focus highlights', () => {
     expect(quickPlannerStyles).toMatch(
       /\.quick-planner-time-list button:hover:not\(:disabled\),\s*\.quick-planner-time-list button:focus-visible:not\(:disabled\)\s*\{\s*color:\s*#ffffff;\s*background:\s*#239dfb;/,
     );
@@ -348,7 +436,19 @@ describe('QuickPlanner feedback', () => {
     );
   });
 
-  it('keeps the message field blue on hover and removes the accent only while focused', () => {
+  it('uses filled neutral date and time buttons without a dark schedule strip in dark theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row::before\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;[^}]*backdrop-filter:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row button:not\(\.quick-planner-submit\)\s*\{[^}]*border-color:\s*#36414a;[^}]*background:\s*#1a2228;[^}]*color:\s*#d8e4eb;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-schedule-row button:not\(\.quick-planner-submit\):hover,[\s\S]*?button:not\(\.quick-planner-submit\):focus-visible\s*\{[^}]*border-color:\s*#59636b;[^}]*background:\s*#252d32;[^}]*color:\s*#f2f5f7;/,
+    );
+  });
+
+  it('uses a restrained dark Planner message field outline and removes it on focus', () => {
     expect(quickPlannerStyles).toMatch(
       /\.quick-planner-message\s*\{[^}]*transition:\s*background-color 180ms ease,\s*transform 180ms ease;/,
     );
@@ -359,10 +459,36 @@ describe('QuickPlanner feedback', () => {
       /\.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*var\(--planner-line\);[^}]*box-shadow:\s*none;/,
     );
     expect(quickPlannerStyles).toMatch(
-      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:focus\s*\{[^}]*border-color:\s*#46545e;[^}]*box-shadow:\s*none;/,
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:not\(:focus\):not\(:hover\)\s*\{\s*border-color:\s*#59636b;\s*box-shadow:\s*none;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:not\(:focus\):hover\s*\{\s*border-color:\s*#46545e;\s*box-shadow:\s*none;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:focus,\s*html\[data-theme='dark'\] \.quick-planner \.quick-planner-message:focus-visible\s*\{\s*border-color:\s*#46545e;\s*box-shadow:\s*none;\s*outline:\s*none;/,
     );
   });
 
+  it('removes the shadow from the New Message heading', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-heading h1\s*\{\s*filter:\s*none !important;\s*text-shadow:\s*none !important;/,
+    );
+    expect(quickPlannerStyles).toMatch(
+      /\.quick-planner-heading h1\s*\{[^}]*transform:\s*translateY\(80px\);/,
+    );
+  });
+
+  it('keeps the Planner heading clear of the card on narrow screens', () => {
+    expect(quickPlannerStyles).toMatch(
+      /@media \(max-width:\s*900px\)\s*\{[\s\S]*?\.quick-planner-heading\s*\{[^}]*min-height:\s*32px;[^}]*margin-bottom:\s*16px;[\s\S]*?\.quick-planner-heading h1\s*\{\s*transform:\s*none;/,
+    );
+  });
+
+  it('hides the workbench top highlight stripe in the light theme', () => {
+    expect(quickPlannerStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner-workbench::before\s*\{\s*display:\s*none;/,
+    );
+  });
   it('reserves enough width for the enlarged date and time labels with their icons', () => {
     expect(quickPlannerStyles).toMatch(
       /\.quick-planner-schedule-row > \.quick-planner-schedule-field\s*\{\s*width:\s*144px;\s*flex:\s*0 0 144px;/,
@@ -373,6 +499,7 @@ describe('QuickPlanner feedback', () => {
     expect(quickPlannerStyles).toMatch(
       /@media \(max-width:\s*560px\)\s*\{[\s\S]*?\.quick-planner-schedule-row \.quick-planner-time-value > \.quick-planner-schedule-field\s*\{\s*width:\s*124px;\s*flex-basis:\s*124px;/,
     );
+    expect(quickPlannerStyles).toMatch(/\.quick-planner-schedule-row \.quick-planner-presets\s*\{[^}]*margin-left:\s*12px;/);
   });
 
   it('reflows schedule controls inside a narrow Planner card instead of clipping them', () => {
@@ -756,6 +883,9 @@ describe('QuickPlanner feedback', () => {
     const modeGroup = screen.getByRole('group', { name: 'Planner actions' });
 
     expect(planner.style.getPropertyValue('--planner-accent')).toBe('#239dfb');
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.quick-planner\s*\{\s*--planner-accent:\s*#239dfb !important;\s*--planner-accent-rgb:\s*35,\s*157,\s*251 !important;/,
+    );
 
     act(() => {
       writeEditorAppearancePreferences({
@@ -1219,6 +1349,7 @@ describe('QuickPlanner feedback', () => {
   });
 
   it('keeps Planner content and warns when Telegram sent but history persistence failed', async () => {
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const chat: Chat = { id: 'chat-history-failure', name: 'History failure chat' };
     const onSendNow = vi.fn().mockResolvedValue('sent-history-failed');
     const { container } = render(
@@ -1228,6 +1359,9 @@ describe('QuickPlanner feedback', () => {
     const submit = () => container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!;
 
     fireEvent.change(editor, { target: { value: 'Keep confirmed message' } });
+    fireEvent.click(screen.getByRole('button', { name: 'NOW' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose time' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Schedule time picker' })).getByRole('option', { name: '10:45' }));
     fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
     await act(async () => { fireEvent.click(submit()); await Promise.resolve(); });
 
@@ -1236,6 +1370,7 @@ describe('QuickPlanner feedback', () => {
     expect(screen.getByRole('status')).toHaveClass('is-warning');
     expect(screen.getByRole('status')).toHaveTextContent('Message history could not be saved.');
     expect(screen.getByRole('status')).not.toHaveClass('is-success');
+    expect(screen.getByRole('button', { name: 'Choose time' })).toHaveTextContent('10:11');
   });
 
   it('uses the first chat-name letter in placeholder avatars', () => {
@@ -1297,6 +1432,49 @@ describe('QuickPlanner feedback', () => {
       entities: [],
     });
     expect(openStudio).not.toHaveBeenCalled();
+  });
+
+  it('returns to Studio when Escape is pressed in Quick Planner', () => {
+    const openStudio = vi.fn();
+    render(
+      <QuickPlannerNavigationContext.Provider value={{
+        currentSection: 'quick-plan',
+        openQuickPlan: vi.fn(),
+        openStudio,
+        openPosts: vi.fn(),
+        openSettings: vi.fn(),
+      }}>
+        <QuickPlanner />
+      </QuickPlannerNavigationContext.Provider>,
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(openStudio).toHaveBeenCalledOnce();
+  });
+
+  it('closes an open Planner picker before Escape returns to Studio', () => {
+    const openStudio = vi.fn();
+    render(
+      <QuickPlannerNavigationContext.Provider value={{
+        currentSection: 'quick-plan',
+        openQuickPlan: vi.fn(),
+        openStudio,
+        openPosts: vi.fn(),
+        openSettings: vi.fn(),
+      }}>
+        <QuickPlanner />
+      </QuickPlannerNavigationContext.Provider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Message effects' }));
+    expect(screen.getByRole('dialog', { name: 'Message effects' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Message effects' })).not.toBeInTheDocument();
+    expect(openStudio).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(openStudio).toHaveBeenCalledOnce();
   });
 
   it('passes selected attachment paths when opening Studio from Planner', () => {
@@ -1579,6 +1757,58 @@ describe('QuickPlanner feedback', () => {
       time: '10:11',
       entities: [],
     });
+  });
+
+  it('resets the schedule date and time after a successful schedule', async () => {
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
+    const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
+    const onSchedule = vi.fn().mockResolvedValue(true);
+    const { container } = render(<QuickPlanner chats={[chat]} onSchedule={onSchedule} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'NOW' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose time' }));
+    const timePicker = screen.getByRole('dialog', { name: 'Schedule time picker' });
+    fireEvent.click(within(timePicker).getByRole('option', { name: '10:45' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
+      target: { value: 'Schedule and reset the fields' },
+    });
+
+    await act(async () => {
+      fireEvent.click(container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!);
+      await Promise.resolve();
+    });
+
+    expect(onSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      date: '2026-10-19',
+      time: '10:45',
+    }));
+    expect(screen.getByRole('button', { name: 'Choose date' })).toHaveTextContent('Oct 19');
+    expect(screen.getByRole('button', { name: 'Choose time' })).toHaveTextContent('10:11');
+  });
+
+  it('resets the schedule date and time after a successful immediate send', async () => {
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
+    const chat: Chat = { id: 'chat-1', name: 'Studio channel', type: 'channel' };
+    const onSendNow = vi.fn().mockResolvedValue(true);
+    const { container } = render(<QuickPlanner chats={[chat]} onSendNow={onSendNow} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'NOW' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose time' }));
+    const timePicker = screen.getByRole('dialog', { name: 'Schedule time picker' });
+    fireEvent.click(within(timePicker).getByRole('option', { name: '10:45' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reminder text' }), {
+      target: { value: 'Send and reset the fields' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await act(async () => {
+      fireEvent.click(container.querySelector<HTMLButtonElement>('.quick-planner-schedule-row .quick-planner-submit')!);
+      await Promise.resolve();
+    });
+
+    expect(onSendNow).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Choose date' })).toHaveTextContent('Oct 19');
+    expect(screen.getByRole('button', { name: 'Choose time' })).toHaveTextContent('10:11');
   });
 
   it('opens the calendar and 15-minute time list above the schedule controls', () => {

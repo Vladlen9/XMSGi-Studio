@@ -76,11 +76,6 @@ export function DocumentHistoryDialog({
   const selectedChatName = typeof selectedChat?.name === 'string' ? selectedChat.name : '';
   const selectedDate = typeof selectedVersion?.snapshot.date === 'string' ? selectedVersion.snapshot.date : '';
   const selectedTime = typeof selectedVersion?.snapshot.time === 'string' ? selectedVersion.snapshot.time : '';
-  const selectedButtons = Array.isArray(selectedVersion?.snapshot.inlineButtons)
-    ? selectedVersion.snapshot.inlineButtons.flatMap((row) => Array.isArray(row)
-        ? row.flatMap((button) => (button && typeof button === 'object' && typeof button.label === 'string' ? [button.label] : []))
-        : [])
-    : [];
 
   const formatTime = (timestamp: string) => new Date(timestamp).toLocaleString(dateLocale, {
     dateStyle: 'medium',
@@ -280,11 +275,10 @@ export function DocumentHistoryDialog({
               <>
                 <time dateTime={selectedVersion.createdAt}>{formatTime(selectedVersion.createdAt)}</time>
                 <pre>{getVersionText(selectedVersion) || t('studio.historyEmptyText')}</pre>
-                {(selectedChatName || selectedDate || selectedTime || selectedButtons.length > 0) && (
+                {(selectedChatName || selectedDate || selectedTime) && (
                   <dl className="workspace-page-version-history-metadata">
                     {selectedChatName && <div><dt>{t('studio.historyChat')}</dt><dd>{selectedChatName}</dd></div>}
                     {(selectedDate || selectedTime) && <div><dt>{t('studio.historySchedule')}</dt><dd>{[selectedDate, selectedTime].filter(Boolean).join(' ')}</dd></div>}
-                    {selectedButtons.length > 0 && <div><dt>{t('studio.historyButtons')}</dt><dd>{selectedButtons.join(', ')}</dd></div>}
                   </dl>
                 )}
                 {getVersionAttachments(selectedVersion).length > 0 && (

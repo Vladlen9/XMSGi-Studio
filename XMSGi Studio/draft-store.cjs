@@ -96,6 +96,74 @@ function mergeDocumentHistories(existing = {}, incoming = {}) {
   return merged;
 }
 
+function sanitizeImportedAttachment(attachment, storeDirectory) {
+  const rawPath = typeof attachment === 'string'
+    ? attachment
+    : attachment && typeof attachment === 'object' && typeof attachment.path === 'string'
+      ? attachment.path
+      : '';
+
+  if (!rawPath || /^data:/i.test(rawPath)) {
+    if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) {
+      return {
+        name: path.basename(rawPath) || 'Imported attachment',
+        path: '',
+        unavailable: true,
+      };
+    }
+    return { ...attachment, path: '', sourcePath: undefined, previewUrl: undefined, unavailable: true };
+  }
+
+  try {
+    const root = fs.realpathSync(storeDirectory);
+    const resolvedPath = fs.realpathSync(path.resolve(rawPath));
+    const relativePath = path.relative(root, resolvedPath);
+    const isInsideStore = relativePath !== ''
+      && relativePath !== '..'
+      && !relativePath.startsWith(`..${path.sep}`)
+      && !path.isAbsolute(relativePath);
+    if (!isInsideStore || !fs.statSync(resolvedPath).isFile()) throw new Error('Invalid imported attachment path.');
+
+    if (typeof attachment === 'string') return resolvedPath;
+    const sourcePath = typeof attachment.sourcePath === 'string' ? attachment.sourcePath : '';
+    let safeSourcePath;
+    if (sourcePath) {
+      try {
+        const resolvedSourcePath = fs.realpathSync(path.resolve(sourcePath));
+        const relativeSourcePath = path.relative(root, resolvedSourcePath);
+        if (relativeSourcePath !== ''
+          && relativeSourcePath !== '..'
+          && !relativeSourcePath.startsWith(`..${path.sep}`)
+          && !path.isAbsolute(relativeSourcePath)
+          && fs.statSync(resolvedSourcePath).isFile()) {
+          safeSourcePath = resolvedSourcePath;
+        }
+      } catch {
+        safeSourcePath = undefined;
+      }
+    }
+    return { ...attachment, path: resolvedPath, sourcePath: safeSourcePath };
+  } catch {
+    if (typeof attachment === 'string') {
+      return { name: path.basename(rawPath), path: '', unavailable: true };
+    }
+    if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) return attachment;
+    return { ...attachment, path: '', sourcePath: undefined, previewUrl: undefined, unavailable: true };
+  }
+}
+
+function sanitizeImportedAttachmentPaths(value, storeDirectory) {
+  if (Array.isArray(value)) return value.map((item) => sanitizeImportedAttachmentPaths(item, storeDirectory));
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    key === 'attachments' && Array.isArray(item)
+      ? item.map((attachment) => sanitizeImportedAttachment(attachment, storeDirectory))
+      : sanitizeImportedAttachmentPaths(item, storeDirectory),
+  ]));
+}
+
 function ensureDirectory(directory) {
   const target = directory || path.join(process.cwd(), 'drafts');
   fs.mkdirSync(target, { recursive: true });
@@ -416,7 +484,7 @@ function createDraftStore({ directory, fileSystem = fs } = {}) {
 
     importFrom(filePath, mode = 'merge') {
       const raw = fs.readFileSync(filePath, 'utf8');
-      const incoming = normalizeStore(JSON.parse(raw));
+      const incoming = sanitizeImportedAttachmentPaths(normalizeStore(JSON.parse(raw)), storeDirectory);
       const current = readStore(storeDirectory, fileSystem);
       const merged = mode === 'replace'
         ? incoming

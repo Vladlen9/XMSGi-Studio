@@ -2,7 +2,7 @@
 
 Все каналы связи renderer ⇄ main-процесс.
 Источник истины: `main.cjs` (хендлеры), `preload.cjs` (API рендера),
-`ipc-security.cjs` (валидация). Соответствует версии **1.3.1**.
+`ipc-security.cjs` (валидация). Соответствует версии **1.3.5**.
 
 **Всего: 41 `ipcMain.handle` + 1 `ipcRenderer.sendSync`
 + 2 push-события.**
@@ -74,9 +74,9 @@ Push-статус Telegram: main шлёт рендереру событие
 
 | Канал | Payload | Ответ / заметки |
 |---|---|---|
-| `telegram-send` | `{ accountId?, chatId, message, attachments?, entities?, replyMarkup?, silent?, effect?, idempotencyKey? }` | мгновенная отправка |
+| `telegram-send` | `{ accountId?, chatId, message, attachments?, entities?, silent?, effect?, idempotencyKey? }` | мгновенная отправка |
 | `telegram-send-reconcile` | `{ idempotencyKey, attachmentCount? }` | сверка результата отправки с неопределённым ответом |
-| `telegram-schedule` | `{ chatId, message, date?, time?, targetTimestamp?, attachments?, entities?, replyMarkup?, silent?, effect?, ... }` | отложенная отправка на сервере Telegram; идемпотентна |
+| `telegram-schedule` | `{ chatId, message, date?, time?, targetTimestamp?, attachments?, entities?, silent?, effect?, ... }` | отложенная отправка на сервере Telegram; идемпотентна |
 | `telegram-schedule-identities` | `{ operations }` | сверка idempotency-ключей с уже запланированным |
 | `telegram-schedule-reconcile` | данные операции планирования | сверка незавершённой операции с очередью Telegram |
 | `telegram-cancel` | `{ chatId?, id/ids, ... }` | отмена запланированного |

@@ -40,7 +40,6 @@ function renderChatPreviewStand(
           previewFeedRef={previewFeedRef}
           draftText={nextDraftText}
           draftEntities={nextDraftEntities}
-          inlineButtons={[]}
           attachments={attachments}
           previewTime=""
           collapsed={false}
@@ -358,10 +357,24 @@ describe('ChatPreviewStand wallpaper picker', () => {
       act(() => {
         (container.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
       });
+      expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).toBeNull();
+      expect(container.querySelector('.chat-preview-options-menu')).toBeNull();
+
+      act(() => {
+        (container.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
+      });
+      expect(container.querySelector('.chat-preview-options-menu')).not.toBeNull();
+
       act(() => {
         (container.querySelector('button[aria-label="Choose chat background"]') as HTMLButtonElement).click();
       });
+      expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).not.toBeNull();
+
+      act(() => {
+        (container.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
+      });
       expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).toBeNull();
+      expect(container.querySelector('.chat-preview-options-menu')).toBeNull();
 
       act(() => {
         (container.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
@@ -479,9 +492,6 @@ describe('ChatPreviewStand wallpaper picker', () => {
       expect(container.querySelector('.chat-preview-wallpaper-quick-picker')?.classList.contains('is-inline')).toBe(false);
       act(() => {
         (container.querySelector('[aria-label="Preview settings"]') as HTMLButtonElement).click();
-      });
-      act(() => {
-        (container.querySelector('button[aria-label="Choose chat background"]') as HTMLButtonElement).click();
       });
       expect(container.querySelector('.chat-preview-wallpaper-quick-picker')).toBeNull();
     } finally {

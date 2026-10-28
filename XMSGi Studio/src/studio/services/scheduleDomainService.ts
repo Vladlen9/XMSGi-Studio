@@ -1,5 +1,4 @@
 import type { RichTextEntity } from '../types';
-import type { InlineKeyboardMarkup } from '../lib/inlineKeyboard';
 import { getScheduleOccurrences, type ScheduleRepeatOptions } from '../lib/scheduling';
 
 export type ScheduleDomainInput = {
@@ -10,7 +9,6 @@ export type ScheduleDomainInput = {
   time: string;
   attachments?: string[];
   entities?: RichTextEntity[];
-  replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;
   effect?: string;
   repeat?: ScheduleRepeatOptions;
@@ -26,7 +24,6 @@ export type ScheduleEntry = {
   status: 'scheduled' | 'pending' | 'sent' | 'failed';
   attachments?: string[];
   entities?: RichTextEntity[];
-  replyMarkup?: InlineKeyboardMarkup;
   silent?: boolean;
   effect?: string;
   operationId?: string;
@@ -57,7 +54,6 @@ export function createScheduledEntries(input: ScheduleDomainInput): ScheduleEntr
     status: 'scheduled',
     attachments: input.attachments?.filter(Boolean),
     entities: input.entities ?? [],
-    replyMarkup: input.replyMarkup,
     silent: input.silent,
     effect: input.effect,
     operationId: `${input.chatId}:${Date.now()}:${index}`,

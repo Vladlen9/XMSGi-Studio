@@ -397,13 +397,12 @@ function AppContent() {
   const studioBridgeScheduler = createStudioSchedulerRuntime(
     {
       ...studioScheduler,
-      handleSendDraftNow: (chat, text, attachments, entities, replyMarkup, attachmentGroups, onAttachmentGroupResult, effect, suppressNotifications) => (
+      handleSendDraftNow: (chat, text, attachments, entities, attachmentGroups, onAttachmentGroupResult, effect, suppressNotifications) => (
         studioScheduler.handleSendDraftNow(
           chat,
           text,
           attachments,
           entities,
-          replyMarkup,
           false,
           effect,
           { suppressNotifications },
@@ -1024,8 +1023,9 @@ function AppContent() {
           <StudioMount
             connected={studioConnected}
             connectionRecoveryStatus={connectionRecoveryStatus}
+            notification={notification}
             activeAccountId={activeAccountId}
-            chats={studioConnected ? chats : []}
+            chats={chats}
             selectedChat={selectedChat}
             onSelectChat={setSelectedChat}
             scheduler={studioBridgeScheduler}
@@ -1062,7 +1062,6 @@ function AppContent() {
                 text,
                 attachments ?? [],
                 entities ?? [],
-                undefined,
                 false,
                 effect,
                 { clearMessageOnSuccess: false },

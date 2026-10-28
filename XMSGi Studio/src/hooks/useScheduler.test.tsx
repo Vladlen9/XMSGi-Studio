@@ -15,7 +15,6 @@ function createScheduleIdentityResult(operations: Array<Record<string, unknown>>
       targetTimestamp: operation.targetTimestamp,
       attachmentHashes: operation.attachments ?? [],
       entities: operation.entities ?? [],
-      replyMarkup: operation.replyMarkup ?? null,
       silent: operation.silent === true,
       effect: operation.effect === undefined || operation.effect === null ? null : String(operation.effect),
     }) ?? ''),
@@ -697,6 +696,42 @@ describe('useScheduler native history', () => {
     });
   });
 
+  it('resets the schedule date and time after a fully confirmed schedule', async () => {
+    const chat = { id: 'chat-reset-date', name: 'Date reset chat' };
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    const date = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+    const time = `${String(future.getHours()).padStart(2, '0')}:${String(future.getMinutes()).padStart(2, '0')}`;
+    const schedule = vi.fn().mockResolvedValue({ success: true, confirmed: true, id: 'scheduled-reset-date' });
+    const { result } = renderWorkspaceHistory([], [], { schedule }, vi.fn(), 'workspace', chat);
+
+    await waitFor(() => expect(result.current.scheduling).toBe(false));
+    act(() => {
+      result.current.dateEditedRef.current = true;
+      result.current.timeEditedRef.current = true;
+      result.current.setDate('2035-01-15');
+      result.current.setTime('18:30');
+    });
+
+    let scheduleRequest!: Promise<boolean | void | 'sent-history-failed'>;
+    act(() => {
+      scheduleRequest = result.current.handleSchedule({
+        chatId: chat.id,
+        message: 'Schedule the next post',
+        date,
+        time,
+        waitForConfirmation: true,
+      });
+    });
+    await act(async () => {
+      expect(await scheduleRequest).toBe(true);
+    });
+
+    expect(result.current.date).toBe(getTodayStr());
+    expect(result.current.time).toBe(getCurrentTimeStr());
+    expect(result.current.dateEditedRef.current).toBe(false);
+    expect(result.current.timeEditedRef.current).toBe(false);
+  });
+
   it('marks schedule failure Failed and retries through the same confirmed schedule flow', async () => {
     const chat = { id: 'chat-1', name: 'Test chat' };
     const future = new Date(Date.now() + 60 * 60 * 1000);
@@ -971,7 +1006,6 @@ describe('useScheduler native history', () => {
       .mockResolvedValueOnce({ success: true, confirmed: true, telegramMessageId: 'telegram-album-1' })
       .mockResolvedValueOnce({ success: true, confirmed: true, telegramMessageId: 'telegram-album-2' });
     const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 7 }];
-    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
     const { result } = renderWorkspaceHistory([], [], { schedule }, vi.fn(), 'workspace', chat);
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
@@ -984,14 +1018,13 @@ describe('useScheduler native history', () => {
         attachments: ['one.png', 'two.png', 'three.png'],
         attachmentGroups: [['one.png', 'two.png'], ['three.png']],
         entities,
-        replyMarkup,
       });
     });
 
     await waitFor(() => expect(schedule).toHaveBeenCalledTimes(2), { timeout: 5000 });
     expect(schedule.mock.calls.map(([request]) => request)).toEqual([
-      expect.objectContaining({ message: 'Caption', attachments: ['one.png', 'two.png'], entities, replyMarkup }),
-      expect.objectContaining({ message: '', attachments: ['three.png'], entities: [], replyMarkup: undefined }),
+      expect.objectContaining({ message: 'Caption', attachments: ['one.png', 'two.png'], entities }),
+      expect.objectContaining({ message: '', attachments: ['three.png'], entities: [] }),
     ]);
     await waitFor(() => expect(result.current.upcoming.filter((item) => item.status === 'scheduled')).toHaveLength(2));
   });
@@ -1156,7 +1189,6 @@ describe('useScheduler native history', () => {
   it.each([
     ['entities', { entities: [{ type: 'bold', offset: 0, length: 4 }] }],
     ['silent', { silent: true }],
-    ['reply markup', { replyMarkup: { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] } }],
     ['effect', { effect: '123' }],
   ] as Array<[string, Partial<ScheduledMessage>]>)('does not dedupe schedules when %s differs', async (_difference, existingOptions) => {
     const chat = { id: 'chat-1', name: 'Test chat' };
@@ -1453,16 +1485,23 @@ describe('useScheduler native history', () => {
 
     await waitFor(() => expect(result.current.scheduling).toBe(false));
     await act(async () => {
+      result.current.dateEditedRef.current = true;
+      result.current.timeEditedRef.current = true;
+      result.current.setDate('2035-01-15');
+      result.current.setTime('18:30');
       const sent = await result.current.handleSendDraftNow(chat, '', ['C:/demo/demo.pdf']);
       expect(sent).toBe(true);
     });
 
+    expect(result.current.date).toBe(getTodayStr());
+    expect(result.current.time).toMatch(/^\d{2}:\d{2}$/);
+    expect(result.current.dateEditedRef.current).toBe(false);
+    expect(result.current.timeEditedRef.current).toBe(false);
     expect(send).toHaveBeenCalledWith(
       chat.id,
       '',
       ['C:/demo/demo.pdf'],
       [],
-      undefined,
       false,
       undefined,
       'account-1',
@@ -1483,7 +1522,6 @@ describe('useScheduler native history', () => {
         'Overlay draft',
         [],
         [],
-        undefined,
         false,
         undefined,
         { suppressNotifications: true },
@@ -1507,7 +1545,6 @@ describe('useScheduler native history', () => {
         'Rejected draft',
         [],
         [],
-        undefined,
         false,
         undefined,
         { suppressNotifications: true },
@@ -1530,7 +1567,6 @@ describe('useScheduler native history', () => {
         'Send text',
         [],
         [],
-        undefined,
         false,
         undefined,
         {},
@@ -1624,7 +1660,6 @@ describe('useScheduler native history', () => {
           'Grouped send',
           ['first-media', 'second-media'],
           [],
-          undefined,
           false,
           undefined,
           {},
@@ -1667,7 +1702,6 @@ describe('useScheduler native history', () => {
         'Caption',
         ['one.png', 'two.png', 'three.png'],
         [],
-        undefined,
         [['one.png', 'two.png'], ['three.png']],
         undefined,
         {},
@@ -1715,7 +1749,6 @@ describe('useScheduler native history', () => {
         'Caption',
         groups.flat(),
         [],
-        undefined,
         groups,
         undefined,
         {},
@@ -1741,7 +1774,6 @@ describe('useScheduler native history', () => {
       .mockResolvedValueOnce({ success: true, telegramMessageId: 1, telegramMessageIds: [1, 2] })
       .mockResolvedValueOnce({ success: true, telegramMessageId: 3 });
     const entities: RichTextEntity[] = [{ type: 'bold', offset: 0, length: 7 }];
-    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
     const setMessage = vi.fn();
     const { result } = renderWorkspaceHistory([], [], { send }, vi.fn(), 'workspace', chat, setMessage);
 
@@ -1752,7 +1784,6 @@ describe('useScheduler native history', () => {
         'Caption',
         ['one.png', 'two.png', 'three.png'],
         entities,
-        replyMarkup,
         [['one.png', 'two.png'], ['three.png']],
       );
       expect(sent).toBe(true);
@@ -1760,8 +1791,8 @@ describe('useScheduler native history', () => {
 
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls.map((call) => call.slice(0, 6))).toEqual([
-      [chat.id, 'Caption', ['one.png', 'two.png'], entities, replyMarkup, false],
-      [chat.id, '', ['three.png'], [], undefined, false],
+      [chat.id, 'Caption', ['one.png', 'two.png'], entities, false, undefined],
+      [chat.id, '', ['three.png'], [], false, undefined],
     ]);
     expect(setMessage).toHaveBeenCalledOnce();
     expect(setMessage).toHaveBeenCalledWith('');
@@ -1813,7 +1844,6 @@ describe('useScheduler native history', () => {
         'First draft',
         [],
         [],
-        undefined,
         false,
         undefined,
         { clearMessageOnSuccess: false },
@@ -2021,7 +2051,7 @@ describe('useScheduler native history', () => {
 
     expect(duplicateResult).toBe(false);
     expect(send).toHaveBeenCalledOnce();
-    const idempotencyKey = (send.mock.calls[0] as unknown[])[8];
+    const idempotencyKey = (send.mock.calls[0] as unknown[])[7];
     expect(idempotencyKey).toEqual(expect.stringMatching(/^\d+:[a-z0-9]+$/i));
 
     await act(async () => {
@@ -2497,11 +2527,21 @@ describe('useScheduler native history', () => {
     const { result } = renderWorkspaceHistory([message], [], { cancel, send, saveScheduleHistory }, showNotification);
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));
+    act(() => {
+      result.current.dateEditedRef.current = true;
+      result.current.timeEditedRef.current = true;
+      result.current.setDate('2035-01-15');
+      result.current.setTime('18:30');
+    });
     await act(async () => {
       await result.current.handleSendNow(message);
     });
 
     await waitFor(() => expect(result.current.sent).toHaveLength(1));
+    expect(result.current.date).toBe(getTodayStr());
+    expect(result.current.time).toMatch(/^\d{2}:\d{2}$/);
+    expect(result.current.dateEditedRef.current).toBe(false);
+    expect(result.current.timeEditedRef.current).toBe(false);
     expect(result.current.sent[0]).toMatchObject({ status: 'sent', sentAt: expect.any(String) });
     expect(result.current.upcoming).toHaveLength(0);
     expect(cancel).toHaveBeenCalledWith({
@@ -2515,7 +2555,6 @@ describe('useScheduler native history', () => {
       message.text,
       [],
       [],
-      undefined,
       true,
       '12345',
       'account-1',
@@ -2560,10 +2599,20 @@ describe('useScheduler native history', () => {
     );
 
     await waitFor(() => expect(result.current.upcoming).toEqual([message]));
+    act(() => {
+      result.current.dateEditedRef.current = true;
+      result.current.timeEditedRef.current = true;
+      result.current.setDate('2035-01-15');
+      result.current.setTime('18:30');
+    });
     await act(async () => {
       await result.current.handleSendNow(message);
     });
 
+    expect(result.current.date).toBe(getTodayStr());
+    expect(result.current.time).toMatch(/^\d{2}:\d{2}$/);
+    expect(result.current.dateEditedRef.current).toBe(false);
+    expect(result.current.timeEditedRef.current).toBe(false);
     expect(result.current.sent[0]).toMatchObject({
       id: message.id,
       status: 'sent',

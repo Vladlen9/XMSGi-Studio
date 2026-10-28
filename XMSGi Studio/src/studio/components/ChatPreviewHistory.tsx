@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import type { PreviewChatHistory } from '@studio/types';
-import { InlineKeyboardPreview } from '@studio/components/InlineKeyboardPreview';
 import { richTextToHtml } from '@studio/lib/richText';
 import type { HistoryGroup } from './chatPreviewHistoryUtils';
 import './ChatPreviewStand.css';
@@ -112,7 +111,6 @@ export const ChatPreviewHistory = memo(function ChatPreviewHistory({
                 dangerouslySetInnerHTML={{ __html: richTextToHtml(message.text, message.entities ?? []) }}
               />
             ))}
-            <InlineKeyboardPreview markup={group.messages.find((message) => message.replyMarkup)?.replyMarkup} />
             <div className="chat-preview-meta">
               <time>{new Date(firstMessage.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
               {firstMessage.outgoing && <span aria-label="Sent">✓✓</span>}

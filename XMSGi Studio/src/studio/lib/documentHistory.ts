@@ -18,8 +18,7 @@ export function hasWorkspaceDocumentContent(snapshot: WorkspaceDraft | null | un
   if (!snapshot) return false;
   return Boolean(
     snapshot.body.trim()
-    || snapshot.attachments.length
-    || snapshot.inlineButtons?.length,
+    || snapshot.attachments.length,
   );
 }
 
@@ -41,7 +40,6 @@ export function areWorkspaceSnapshotsEqual(left: WorkspaceDraft | null, right: W
       position: attachment.position,
     })),
     selectedChat: snapshot.selectedChat ?? null,
-    inlineButtons: snapshot.inlineButtons ?? [],
     date: snapshot.date ?? '',
     time: snapshot.time ?? '',
     repeatMode: snapshot.repeatMode ?? 'none',

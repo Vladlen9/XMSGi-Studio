@@ -79,6 +79,60 @@ describe('App-owned history mapping', () => {
     expect(record.original.kind === 'scheduled' && record.original.message.text).toBe(sourceMessage.text);
   });
 
+  it('keeps detailed message cards compact in both themes and provides text-size controls', () => {
+    window.localStorage.removeItem('xmsgi-history-filters');
+    window.localStorage.removeItem('xmsgi-history-text-size');
+    const { container } = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    const detailBody = container.querySelector('.history-detail-body')!;
+    const bubble = container.querySelector('.history-detail-body .history-post-bubble')!;
+    const [decrease, increase] = Array.from(container.querySelectorAll<HTMLButtonElement>('.history-detail-font-button'));
+
+    const readingControls = container.querySelector('.history-detail-reading-controls');
+    expect(readingControls?.parentElement).toBe(container.querySelector('.history-detail-topline'));
+    expect(container.querySelector('.history-detail-meta-line .history-detail-time')).toBeInTheDocument();
+    expect(readingControls?.parentElement).not.toBe(detailBody);
+    expect(container.querySelector('.history-detail-toolbar .history-detail-font-button')).toBeNull();
+    expect(globalStyles).toMatch(/\.history-detail-reading-controls\s*\{[^}]*margin-left:\s*auto;/);
+    expect(globalStyles).toMatch(/\.history-detail-reading-controls \.history-detail-font-button\s*\{[^}]*min-width:\s*28px;[^}]*height:\s*22px;/);
+    expect(globalStyles).toMatch(/\.history-detail-body\.is-details \.history-post-bubble\s*\{[^}]*width:\s*fit-content;[^}]*max-width:\s*100%;[^}]*margin:\s*0 auto;/);
+    expect(globalStyles).toMatch(/html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-details\[data-text-size='small'\] \.history-post-text\s*\{\s*font-size:\s*14px;/);
+    expect(globalStyles).toMatch(/html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-details\[data-text-size='large'\] \.history-post-text\s*\{\s*font-size:\s*18px;/);
+    expect(bubble).toHaveTextContent('Релиз нового набора шаблонов');
+    expect(detailBody).toHaveAttribute('data-text-size', 'default');
+    expect(decrease).toBeEnabled();
+    expect(increase).toBeEnabled();
+
+    fireEvent.click(decrease);
+    expect(detailBody).toHaveAttribute('data-text-size', 'small');
+    expect(decrease).toBeDisabled();
+    expect(increase).toBeEnabled();
+
+    fireEvent.click(increase);
+    expect(detailBody).toHaveAttribute('data-text-size', 'default');
+    expect(decrease).toBeEnabled();
+    expect(increase).toBeEnabled();
+
+    fireEvent.click(increase);
+    expect(detailBody).toHaveAttribute('data-text-size', 'large');
+    expect(increase).toBeDisabled();
+  });
+
+  it('remembers the selected text size when Posts is reopened', () => {
+    window.localStorage.removeItem('xmsgi-history-text-size');
+    const firstView = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(firstView.container.querySelector('.history-record-open')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Increase post text size' }));
+    expect(firstView.container.querySelector('.history-detail-body')).toHaveAttribute('data-text-size', 'large');
+    firstView.unmount();
+
+    const reopenedView = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(reopenedView.container.querySelector('.history-record-open')!);
+
+    expect(reopenedView.container.querySelector('.history-detail-body')).toHaveAttribute('data-text-size', 'large');
+  });
+
   it('renders loaded Markdown templates as formatted post history text', () => {
     const [record] = normalizeScheduledMessages([{
       ...scheduledMessage,
@@ -180,13 +234,38 @@ function searchHistory(query: string) {
   });
 }
 
-function openSourceMenu() {
-  fireEvent.click(document.querySelector('.history-source-select')!);
-  return within(document.querySelector('.history-source-menu')!);
+function selectHistorySource(label: string) {
+  const filter = label === 'Studio'
+    ? 'workspace'
+    : label === 'Planner'
+      ? 'personal'
+      : 'all';
+  const sourceMenuButton = document.querySelector<HTMLButtonElement>('.history-source-select');
+  if (sourceMenuButton) {
+    fireEvent.click(sourceMenuButton);
+    fireEvent.click(document.querySelector(`.history-source-menu [data-history-filter="${filter}"]`)!);
+    return;
+  }
+
+  fireEvent.click(document.querySelector(`.history-source-filters [data-history-filter="${filter}"]`)!);
 }
 
-function selectHistorySource(label: string) {
-  fireEvent.click(openSourceMenu().getByRole('menuitemradio', { name: label }));
+function openSourceMenu() {
+  fireEvent.click(document.querySelector('.history-source-select')!);
+  const menu = document.querySelector<HTMLElement>('.history-source-menu')!;
+  return { ...within(menu), container: menu };
+}
+
+function selectHistoryErrors() {
+  const drawerErrorFilter = document.querySelector<HTMLButtonElement>('.history-source-filters [data-history-filter="errors"]');
+  if (drawerErrorFilter) {
+    fireEvent.click(drawerErrorFilter);
+    return;
+  }
+
+  const sourceMenuButton = document.querySelector<HTMLButtonElement>('.history-source-select')!;
+  fireEvent.click(sourceMenuButton);
+  fireEvent.click(within(document.querySelector('.history-source-menu')!).getByRole('menuitemradio', { name: 'Ошибки' }));
 }
 
 describe('history drawer transient menus', () => {
@@ -227,6 +306,228 @@ describe('Posts page split view', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
   });
 
+  it('renders a text-only page title and one close control on the Posts page', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    const styles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
+
+    expect(screen.getByRole('heading', { name: 'Posts' })).toBeInTheDocument();
+    expect(container.querySelector('.history-drawer-header-icon')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.history-drawer-close')).toHaveLength(1);
+    expect(container.querySelector('.history-drawer-controls')).toBeNull();
+    expect(container.querySelector('.history-page-controls-close')).toBeNull();
+    expect(styles).toMatch(
+      /\.history-drawer-header\.is-page-header\s*\{[^}]*box-sizing:\s*border-box;[^}]*flex:\s*0 0 52px;[^}]*height:\s*52px;[^}]*min-height:\s*52px;/,
+    );
+    expect(styles).toMatch(/\.topbar\s*\{[^}]*flex:\s*0 0 var\(--app-topbar-height\);[^}]*height:\s*var\(--app-topbar-height\);/);
+  });
+
+  it('keeps the default selected post header compact on wide layouts', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    const detailHeader = container.querySelector('.history-detail-header')!;
+    expect(detailHeader.querySelector('.history-detail-topline h2')).toHaveTextContent(upcomingRecord.title);
+    expect(detailHeader.querySelector('.history-detail-topline .history-detail-category')).toBeInTheDocument();
+    expect(detailHeader.querySelector('.history-detail-topline .history-detail-status')).toBeInTheDocument();
+    expect(detailHeader.querySelector('.history-detail-topline time')).toBeInTheDocument();
+    expect(detailHeader.querySelector('.history-detail-topline .history-detail-meta')).toBeInTheDocument();
+
+    expect(globalStyles).toMatch(
+      /\.history-detail-topline\s*\{[^}]*gap:\s*14px;[^}]*min-width:\s*0;/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-detail-header h2\s*\{[^}]*font-size:\s*22px;[^}]*font-weight:\s*680;[^}]*letter-spacing:\s*-0\.035em;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
+    );
+    expect(globalStyles).toMatch(
+      /@media \(max-width:\s*1120px\)\s*\{\s*\.history-drawer\.is-page \.history-detail-topline\s*\{[^}]*grid-template-areas:\s*"title meta"\s*"heading controls";/,
+    );
+  });
+
+  it('keeps search no-results feedback in the left list only', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search history' }), {
+      target: { value: 'no matching post' },
+    });
+
+    expect(container.querySelector('.history-empty strong')).toHaveTextContent('No results found');
+    expect(container.querySelector('.history-detail-panel h2')).toHaveTextContent('Select a post');
+    expect(container.querySelector('.history-detail-panel')).not.toHaveTextContent('No results found');
+    expect(container.querySelector('.history-detail-panel')).not.toHaveTextContent('Sent');
+  });
+
+  it('keeps the detail pane empty when search and the selected category have no posts', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(container.querySelector('[data-history-filter="sent"]')!);
+    const search = screen.getByRole('textbox', { name: 'Search history' });
+
+    fireEvent.change(search, { target: { value: 'no matching post' } });
+    expect(container.querySelector('.history-empty strong')).toHaveTextContent('No results found');
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Nothing to review yet');
+
+    fireEvent.change(search, { target: { value: 'шаблонов' } });
+    expect(container.querySelector('.history-record-open')).toBeInTheDocument();
+    expect(container.querySelector('.history-detail-empty h2')).toHaveTextContent('Select a post');
+  });
+
+  it('uses a subtle neutral gray for the full dark Posts detail panel', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-panel\s*\{[^}]*border-color:\s*var\(--line\);[^}]*background:\s*var\(--surface-raised\);/);
+  });
+
+  it('uses the shared raised surface for dark Posts date bars and detail panels', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-date-heading,[\s\S]*?background:\s*var\(--surface-raised\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-panel\s*\{[^}]*background:\s*var\(--surface-raised\);/);
+  });
+
+  it('highlights the selected Posts status consistently with a subtle accent capsule', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:focus-visible\s*\{\s*border-color:\s*rgba\(40, 125, 163, 0\.24\);\s*background:\s*rgba\(40, 125, 163, 0\.08\);\s*color:\s*#287da3;\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:hover,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:focus-visible\s*\{\s*border-color:\s*rgba\(220, 226, 230, 0\.24\);\s*background:\s*rgba\(220, 226, 230, 0\.12\);\s*color:\s*var\(--accent\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab:focus-visible\s*\{\s*border-color:\s*transparent;\s*outline:\s*none;\s*box-shadow:\s*none;/);
+  });
+
+  it('keeps the light category header aligned with the light Posts detail header', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-header\s*\{[^}]*background:\s*#fbfcfd;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section\s*\{[^}]*background:\s*#fbfcfd;/);
+  });
+
+  it('keeps a soft highlight in the middle of the dark Posts category header gradient', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section\s*\{[^}]*background-color:\s*#191f23;[^}]*background-image:\s*linear-gradient\(110deg,\s*rgba\(55,\s*96,\s*112,\s*0\.26\),\s*rgba\(67,\s*107,\s*121,\s*0\.2\)\s*52%,\s*rgba\(18,\s*25,\s*32,\s*0\)\s*94%\);/,
+    );
+  });
+
+  it('uses the same compact Posts header layout in both themes', () => {
+    expect(colorThemeStyles).not.toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*82px;/);
+    expect(colorThemeStyles).not.toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*82px;/);
+    expect(globalStyles).toMatch(/@media \(min-width:\s*1121px\)\s*\{\s*\.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*65px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-topline\s*\{[^}]*grid-template-areas:\s*"title meta"\s*"heading controls";/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-heading\s*\{[^}]*grid-area:\s*heading;[^}]*width:\s*100%;/);
+    expect(globalStyles).toMatch(/\.history-detail-reading-controls \.history-detail-font-button\s*\{[^}]*min-width:\s*28px;[^}]*height:\s*22px;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body\.is-details \.history-post-bubble\s*\{\s*width:\s*fit-content;\s*max-width:\s*100%;/);
+  });
+
+  it('keeps the light Posts header compact with category pills under the title and controls under the date', () => {
+    expect(colorThemeStyles).not.toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*82px;/);
+    expect(globalStyles).toMatch(/@media \(min-width:\s*1121px\)\s*\{\s*\.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*65px;/);
+    expect(globalStyles).toMatch(/\.history-detail-reading-controls\s*\{[^}]*margin-left:\s*auto;/);
+  });
+
+  it('uses a graphite scrollbar thumb for the dark Posts text panel', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body\s*\{\s*scrollbar-color:\s*#59636b #191f23;\s*scrollbar-width:\s*thin;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body::-webkit-scrollbar-track\s*\{\s*background:\s*#191f23;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body::-webkit-scrollbar-thumb\s*\{\s*border:\s*2px solid #191f23;\s*background:\s*#59636b;\s*background-clip:\s*padding-box;/);
+  });
+
+  it('uses the search focus outline color for the dark Posts empty-state logo', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-empty-art-icon\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.62\);\s*color:\s*#eef1f5;\s*filter:\s*drop-shadow\(0 0 6px rgba\(35, 157, 251, 0\.2\)\);\s*box-shadow:\s*0 0 14px rgba\(35, 157, 251, 0\.1\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-empty-art-spark\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.62\);\s*box-shadow:\s*0 0 8px rgba\(154, 168, 184, 0\.18\);/);
+  });
+
+  it('uses more visible gray empty-state orbits without glow in the dark theme', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-empty-art-orbit\s*\{\s*border-color:\s*rgba\(238, 241, 245, 0\.68\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-empty-art-orbit--inner\s*\{\s*border-color:\s*rgba\(238, 241, 245, 0\.76\);\s*box-shadow:\s*none;/);
+  });
+
+  it('matches both dark Posts empty-state logos with a subtle blue glow', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-empty-art-orbit\s*\{\s*border-color:\s*rgba\(238, 241, 245, 0\.68\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-empty-art-orbit--inner\s*\{\s*border-color:\s*rgba\(238, 241, 245, 0\.76\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-empty-art-icon\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.62\);\s*color:\s*#eef1f5;\s*filter:\s*drop-shadow\(0 0 6px rgba\(35, 157, 251, 0\.2\)\);\s*box-shadow:\s*0 0 14px rgba\(35, 157, 251, 0\.1\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-empty-art-spark\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.62\);\s*box-shadow:\s*0 0 8px rgba\(154, 168, 184, 0\.18\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-empty-art-icon\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.62\);\s*color:\s*#eef1f5;\s*filter:\s*drop-shadow\(0 0 6px rgba\(35, 157, 251, 0\.2\)\);\s*box-shadow:\s*0 0 14px rgba\(35, 157, 251, 0\.1\);/);
+  });
+
+  it('uses the original gradient and shadow for the dark Posts message card', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*border-color:\s*rgba\(126, 169, 191, 0\.3\);[^}]*background:\s*linear-gradient\(145deg,\s*rgba\(39, 61, 73, 0\.94\),\s*rgba\(23, 36, 47, 0\.98\)\);[^}]*box-shadow:\s*inset 0 1px 0 rgba\(224, 240, 248, 0\.06\), 0 8px 22px rgba\(0, 0, 0, 0\.14\);/);
+  });
+
+  it('matches selected Posts records to the muted draft-row style', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*transparent;\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{\s*background:\s*#8b929a;\s*box-shadow:\s*none;\s*opacity:\s*0;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected:focus-within,[\s\S]*?background:\s*transparent;\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record\.is-selected::before\s*\{\s*background:\s*#8b929a;\s*box-shadow:\s*none;\s*opacity:\s*0;/);
+  });
+
+  it('does not apply hover gradients to Posts rows in either theme', () => {
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-content\.is-page \.history-record:hover,\s*\.history-drawer\.is-page \.history-content\.is-page \.history-record:focus-within\s*\{[^}]*background:\s*transparent;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-content\.is-page \.history-record:focus-within\s*\{[^}]*background:\s*transparent;/);
+  });
+
+  it('enlarges the selected dark category label without shifting tab widths', () => {
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active\s*\{\s*border-color:\s*transparent;\s*background:\s*transparent;\s*color:\s*var\(--accent\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\s*\{\s*font-size:\s*13px;\s*font-weight:\s*700;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-label,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-label-compact\s*\{\s*display:\s*inline-block;\s*transform:\s*scale\(0\.92\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-label-compact\s*\{\s*display:\s*none;/);
+    expect(colorThemeStyles).toMatch(/@media \(max-width:\s*760px\)\s*\{\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-label\s*\{\s*display:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-label-compact\s*\{\s*display:\s*inline-block;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active \.history-status-label,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active \.history-status-label-compact\s*\{\s*transform:\s*scale\(1\);/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:hover,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:focus-visible\s*\{\s*border-color:\s*transparent;\s*background-color:\s*transparent;\s*color:\s*var\(--accent\);\s*box-shadow:\s*none;/);
+    expect(colorThemeStyles).toMatch(/html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active \.history-filter-count\s*\{\s*border-color:\s*rgba\(35, 157, 251, 0\.24\);\s*background:\s*rgba\(35, 157, 251, 0\.12\);\s*color:\s*#a9ddff;/);
+  });
+
+  it('removes the dark backing panel behind category tabs', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-filters\s*\{\s*border-color:\s*transparent;\s*background:\s*transparent;\s*box-shadow:\s*none;/,
+    );
+  });
+
+  it('uses the category accent for the selected dark source filter', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-source-row \.history-source-select > span:first-child,[\s\S]*?html\[data-theme='dark'\] \.history-drawer\.is-page \.history-list-source-row \.history-source-select\[aria-expanded='true'\] > span:first-child\s*\{\s*color:\s*var\(--accent\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-source-menu \.history-source-option\[aria-checked='true'\]\s*\{\s*color:\s*var\(--accent\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-source-menu \.history-source-option\[aria-checked='true'\] \.history-filter-count\s*\{\s*border-color:\s*rgba\(35, 157, 251, 0\.24\);\s*background:\s*rgba\(35, 157, 251, 0\.12\);\s*color:\s*#a9ddff;/,
+    );
+  });
+
+  it('uses the selected category accent for the light source selector', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-source-row \.history-source-select > span:first-child,[\s\S]*?html\[data-theme='light'\] \.history-source-menu \.history-source-option\[aria-checked='true'\]\s*\{\s*color:\s*#287da3;\s*font-weight:\s*700;/,
+    );
+  });
+
+  it('keeps scrolling date and month separators white in the light theme', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-date-heading,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-date-sticky,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-month-heading,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-date-heading::before\s*\{\s*border-bottom-color:\s*#dce5e9;\s*background:\s*#ffffff;/,
+    );
+  });
+
+  it('rebuilds mode tabs without shadows, filters, or decorative pseudo-elements', () => {
+    const finalTabStyles = colorThemeStyles.slice(colorThemeStyles.lastIndexOf('html[data-theme] .history-drawer.is-page .history-list-status-section .history-status-filters'));
+    expect(finalTabStyles).toMatch(/\.history-status-filters,[\s\S]*?\.history-status-tab \.history-filter-count\s*\{\s*box-shadow:\s*none;\s*filter:\s*none;\s*-webkit-filter:\s*none;/);
+    expect(finalTabStyles).toMatch(/\.history-status-tab::before,[\s\S]*?\.history-status-tab::after\s*\{\s*display:\s*none;/);
+    expect(finalTabStyles).toMatch(/html\[data-theme='dark'\][\s\S]*?\.history-status-tab\.is-active\s*\{\s*border-color:\s*transparent;\s*background:\s*transparent;/);
+  });
+
+  it('makes Posts section tabs slightly larger', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\s*\{\s*min-height:\s*38px;\s*padding-right:\s*11px;\s*padding-left:\s*11px;/,
+    );
+  });
+
+  it('keeps Posts mode tabs free of shadows while highlighting the dark selection minimally', () => {
+    const finalTabStyles = colorThemeStyles.slice(colorThemeStyles.lastIndexOf('html[data-theme] .history-drawer.is-page .history-list-status-section .history-status-filters'));
+    expect(finalTabStyles).toMatch(/html\[data-theme='dark'\][\s\S]*?\.history-status-tab\.is-active\s*\{\s*border-color:\s*transparent;/);
+    expect(finalTabStyles).toMatch(/html\[data-theme='light'\][\s\S]*?\.history-status-tab\.is-active:focus-visible\s*\{\s*border-color:\s*rgba\(103, 125, 139, 0\.2\);/);
+    expect(finalTabStyles).toMatch(/box-shadow:\s*none;/);
+  });
+
+  it('anchors the empty-state logo independently from changing detail text', () => {
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-empty\s*\{[^}]*display:\s*block;[^}]*position:\s*absolute;[^}]*inset:\s*0;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-empty-art\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(50% - 105px\);[^}]*left:\s*50%;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-empty h2\s*\{[^}]*top:\s*calc\(50% \+ 58px\);/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-empty p\s*\{[^}]*top:\s*calc\(50% \+ 86px\);/);
+  });
+
+  it('closes the standalone Posts page when Escape is pressed', () => {
+    const { container, onClose } = renderHistoryPage([upcomingRecord]);
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   describe('Posts preview modes', () => {
     beforeEach(() => {
       vi.mocked(telegramGetChatHistory).mockReset();
@@ -253,10 +554,150 @@ describe('Posts page split view', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
       expect(container.querySelector('.history-detail-body')).toHaveClass('is-preview');
       expect(container.querySelector('.history-post-text strong')).toHaveTextContent('Bold');
-      expect(container.querySelector('.history-detail-preview-label')).toHaveTextContent('Live preview');
+      expect(container.querySelector('.history-detail-header')).toHaveClass('is-preview-open');
+      expect(container.querySelector('.history-detail-preview-label')).toBeNull();
+      expect(container.querySelector('.history-detail-preview-badge')).toHaveTextContent('Preview');
+      expect(container.querySelector('.history-detail-preview-badge svg')).toHaveAttribute('aria-hidden', 'true');
+      expect(container.querySelector('.history-detail-topline h2')?.nextElementSibling)
+        .toBe(container.querySelector('.history-detail-preview-badge'));
+      expect(container.querySelector('.history-detail-header')?.nextElementSibling)
+        .toBe(container.querySelector('.history-detail-body'));
+      expect(container.querySelector('.history-detail-actions')).toHaveClass('is-preview-open');
+      expect(globalStyles).toMatch(/\.history-detail-header\.is-preview-open\s*\{\s*border-bottom:\s*0;/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-actions\.is-preview-open\s*\{\s*border-top:\s*0;/);
+      expect(globalStyles).toMatch(
+        /@media \(min-width:\s*1121px\)\s*\{\s*\.history-drawer\.is-page \.history-detail-header\s*\{[^}]*min-height:\s*65px;[^}]*justify-content:\s*center;/,
+      );
+      expect(container.querySelector('.history-detail-preview-current')).toBeInTheDocument();
+      expect(container.querySelector('.history-detail-preview-current .history-post-bubble'))
+        .toHaveTextContent('Bold line');
+      expect(container.querySelector('.history-detail-preview-current .history-post-text br'))
+        .toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+      expect(container.querySelector('.history-detail-body')).toHaveClass('is-details');
+      expect(container.querySelector('.history-detail-plain-post')).toBeInTheDocument();
+      expect(container.querySelector('.history-post-text strong')).toBeNull();
+      expect(container.querySelector('.history-detail-preview-label')).toBeNull();
+      expect(container.querySelector('.history-detail-preview-badge')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Preview' })).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('loads a limited anchored chat history when Preview is requested', async () => {
+    it('opens the post preview without chat history or an empty spacer above the post', () => {
+      const { container } = renderHistoryPage([anchoredSentRecord]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+      const detailBody = container.querySelector('.history-detail-body') as HTMLDivElement;
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      expect(detailBody).toHaveClass('is-preview');
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+      expect(detailBody.scrollTop).toBe(0);
+      expect(container.querySelector('.history-chat-preview')).not.toBeInTheDocument();
+      expect(container.querySelector('.history-detail-preview-spacer')).not.toBeInTheDocument();
+      expect(container.querySelector('.history-detail-preview-label')).not.toBeInTheDocument();
+      expect(container.querySelector('.history-detail-reading-controls')?.parentElement)
+        .toBe(container.querySelector('.history-detail-topline'));
+      expect(container.querySelector('.history-detail-reading-controls')).toBeVisible();
+      expect(container.querySelector('.history-detail-preview-badge')).toHaveTextContent('Preview');
+      expect(container.querySelector('.history-detail-preview-badge svg')).toHaveAttribute('aria-hidden', 'true');
+      expect(container.querySelector('.history-detail-preview-badge')?.compareDocumentPosition(
+        container.querySelector('.history-detail-heading')!,
+      )).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(container.querySelector('.history-detail-preview-current .history-post-bubble'))
+        .toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
+
+      const [decrease, increase] = Array.from(container.querySelectorAll<HTMLButtonElement>('.history-detail-font-button'));
+      fireEvent.click(increase);
+      expect(detailBody).toHaveAttribute('data-text-size', 'large');
+      expect(increase).toBeDisabled();
+      fireEvent.click(decrease);
+      expect(detailBody).toHaveAttribute('data-text-size', 'default');
+    });
+
+    it('keeps draft previews independent from selected chat history', () => {
+      const draft = normalizeSavedDraft({
+        id: 'draft-with-chat',
+        name: 'Draft with selected chat',
+        body: 'Saved Studio draft post',
+        selectedChat: channel,
+        attachments: [],
+        createdAt: '2026-09-29T16:00:00.000Z',
+        updatedAt: '2026-09-29T16:30:00.000Z',
+      });
+      const { container } = renderHistoryPage([draft]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+      expect(container.querySelector('.history-detail-body')).toHaveClass('is-preview');
+      expect(container.querySelector('.history-detail-preview-current .history-post-bubble'))
+        .toHaveTextContent('Saved Studio draft post');
+    });
+
+    it('keeps saved and active Planner draft previews free of chat history', () => {
+      const savedDraft = normalizeSavedPlannerDraft({
+        id: 'planner-draft-with-chat',
+        message: 'Saved Planner draft post',
+        attachments: [],
+        entities: [],
+        reminderType: null,
+        savedAt: '2026-09-29T16:30:00.000Z',
+      });
+      const savedView = renderHistoryPage([savedDraft]);
+      fireEvent.click(savedView.container.querySelector('.history-record-open')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+      expect(savedView.container.querySelector('.history-detail-preview-current .history-post-bubble'))
+        .toHaveTextContent('Saved Planner draft post');
+      savedView.unmount();
+
+      const activeDraft = normalizePlannerDraft('Active Planner draft post', channel, '2026-09-29T16:30:00.000Z');
+      expect(activeDraft).not.toBeNull();
+      const activeView = renderHistoryPage([activeDraft!]);
+      fireEvent.click(activeView.container.querySelector('.history-record-open')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+      expect(telegramGetChatHistory).not.toHaveBeenCalled();
+      expect(activeView.container.querySelector('.history-detail-preview-current .history-post-bubble'))
+        .toHaveTextContent('Active Planner draft post');
+    });
+
+    it('keeps Telegram preview typography by default and supports text-size controls', () => {
+      expect(globalStyles).toMatch(/html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-preview \.history-post-text\s*\{[^}]*font-family:\s*Roboto,[^}]*font-size:\s*16px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*pre-wrap;/);
+      expect(globalStyles).toMatch(/html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-preview\[data-text-size='small'\] \.history-post-text,\s*html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-details\[data-text-size='small'\] \.history-post-text\s*\{\s*font-size:\s*14px;/);
+      expect(globalStyles).toMatch(/html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-preview\[data-text-size='large'\] \.history-post-text,\s*html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-details\[data-text-size='large'\] \.history-post-text\s*\{\s*font-size:\s*18px;/);
+      expect(globalStyles).not.toContain('.history-detail-preview-spacer');
+      expect(globalStyles).toMatch(/\.history-detail-preview-current\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*justify-content:\s*flex-end;[^}]*margin-top:\s*auto;/);
+      expect(globalStyles).toMatch(/\.history-detail-preview-current \.history-post-bubble\s*\{[^}]*max-width:\s*min\(78%, 340px\);/);
+    });
+
+    it('anchors long previews at the bottom and keeps the selected text size in sync', () => {
+      const { container } = renderHistoryPage([anchoredSentRecord]);
+      fireEvent.click(container.querySelector('.history-record-open')!);
+
+      const detailBody = container.querySelector('.history-detail-body') as HTMLDivElement;
+      Object.defineProperties(detailBody, {
+        clientHeight: { configurable: true, value: 300 },
+        scrollHeight: { configurable: true, value: 520 },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+      expect(detailBody.scrollTop).toBe(220);
+      expect(detailBody).toHaveAttribute('data-text-size', 'default');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Increase post text size' }));
+      expect(detailBody.scrollTop).toBe(220);
+      expect(detailBody).toHaveAttribute('data-text-size', 'large');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Decrease post text size' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Decrease post text size' }));
+      expect(detailBody.scrollTop).toBe(220);
+      expect(detailBody).toHaveAttribute('data-text-size', 'small');
+    });
+
+    it('loads limited chat context for scheduled records with Telegram message anchors', async () => {
       vi.mocked(telegramGetChatHistory).mockResolvedValueOnce({
         success: true,
         history: {
@@ -271,9 +712,9 @@ describe('Posts page split view', () => {
       });
       const { container } = renderHistoryPage([anchoredSentRecord]);
       fireEvent.click(container.querySelector('.history-record-open')!);
-      expect(telegramGetChatHistory).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+      fireEvent.click(screen.getByRole('button', { name: 'More' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Chat Preview' }));
 
       await waitFor(() => expect(screen.getByText('Предыдущая реальная публикация')).toBeInTheDocument());
       expect(telegramGetChatHistory).toHaveBeenCalledWith({
@@ -284,7 +725,6 @@ describe('Posts page split view', () => {
       expect(container.querySelector('.history-detail-body')).toHaveClass('is-chat');
       expect(container.querySelector('.history-chat-preview-current'))
         .toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
-      expect(screen.getAllByText('Sent').length).toBeGreaterThan(0);
     });
   });
 
@@ -320,38 +760,46 @@ describe('Posts page split view', () => {
     expect(screen.queryByRole('menuitem', { name: 'Use draft' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Use in Studio' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Open in Planner' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Open in Planner' })).not.toBeInTheDocument();
     expect(onOpenDraft).not.toHaveBeenCalled();
   });
 
-  it('right-aligns the detail toolbar and restores a gradient preview card', () => {
+  it('right-aligns the detail toolbar and preserves themed message-card surfaces', () => {
     expect(globalStyles).toMatch(
       /\.history-drawer\.is-page \.history-detail-actions\s*\{[^}]*padding-top:\s*6px;[^}]*padding-bottom:\s*4px;[^}]*justify-content:\s*flex-end;/,
     );
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder,\s*\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*36px;/);
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-delete-placeholder\s*\{[^}]*width:\s*44px;[^}]*flex-basis:\s*44px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button,\s*\.history-drawer\.is-page \.history-export-button\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*2px;[^}]*transform:\s*translate\(10px,\s*3px\);/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-delete-button\s*\{[^}]*width:\s*44px;[^}]*flex-basis:\s*44px;/);
     expect(globalStyles).toMatch(
-      /\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:focus-visible,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button\[aria-expanded='true'\]\s*\{\s*transform:\s*translateX\(10px\);/,
-    );
-    expect(globalStyles).toMatch(
-      /\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button:hover\s*\{\s*transform:\s*translateX\(10px\)\s*!important;/,
+      /\.history-drawer\.is-page \.history-delete-action\.is-page-action\s*\{[^}]*flex-direction:\s*column;[^}]*margin-left:\s*36px;[^}]*transform:\s*translateY\(3px\);/,
     );
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;[^}]*justify-content:\s*center;[^}]*padding:\s*0;/);
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button > span\s*\{\s*display:\s*none;/);
+    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-action-label\s*\{[^}]*font-size:\s*10px;[^}]*line-height:\s*12px;[^}]*white-space:\s*nowrap;/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-button::before\s*\{\s*left:\s*50%;\s*transform:\s*translate\(-50%,\s*-50%\);/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools \.history-delete-button > svg,\s*\.history-drawer\.is-page \.history-drawer-tools \.history-export-button > svg\s*\{\s*transform:\s*translateY\(-1px\);/);
     expect(readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), './HistoryDrawer.tsx'), 'utf8'))
-      .toMatch(/<Trash2 size=\{25\}[\s\S]*?<Download size=\{24\}/);
+      .toMatch(/<Download size=\{24\}[\s\S]*?<Trash2 size=\{25\}/);
     expect(readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), './HistoryDrawer.tsx'), 'utf8'))
       .toMatch(/<Eye size=\{26\}[\s\S]*?<Copy size=\{23\}[\s\S]*?<Ellipsis size=\{24\}/);
-    expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-panel\s*\{[^}]*margin-bottom:\s*-76px;/);
     expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-detail-toolbar\s*\{[^}]*transform:\s*translateY\(0\);/);
     expect(globalStyles).toMatch(/\.history-detail-tool-button\s*\{[^}]*min-height:\s*64px;/);
     expect(globalStyles).toMatch(/\.history-detail-tool-button > span:last-child\s*\{\s*transform:\s*translateY\(-3px\);/);
     expect(globalStyles).toMatch(/\.history-detail-tool-icon\s*\{[^}]*border-radius:\s*10px;/);
+    expect(globalStyles).toMatch(
+      /\.history-detail-body\.is-details\s*\{\s*padding:\s*14px;\s*white-space:\s*normal;/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-detail-body\.is-details \.history-post-bubble\s*\{\s*width:\s*fit-content;\s*max-width:\s*100%;\s*margin:\s*0 auto;/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-detail-body\.is-details \.history-post-attachments img\s*\{\s*max-width:\s*min\(100%,\s*360px\);\s*max-height:\s*min\(280px,\s*35vh\);/,
+    );
+    expect(globalStyles).toMatch(
+      /html\[data-theme\] \.history-drawer\.is-page \.history-detail-body\.is-details \.history-post-text\s*\{\s*padding:\s*8px 10px;\s*font-size:\s*16px;\s*line-height:\s*1\.5;/,
+    );
     expect(colorThemeStyles).toMatch(
-      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*background:\s*linear-gradient\(145deg,\s*rgba\(39,\s*61,\s*73,\s*0\.94\),\s*rgba\(23,\s*36,\s*47,\s*0\.98\)\);/,
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-detail-body \.history-post-bubble\s*\{[^}]*border-color:\s*rgba\(126, 169, 191, 0\.3\);[^}]*background:\s*linear-gradient\(145deg, rgba\(39, 61, 73, 0\.94\), rgba\(23, 36, 47, 0\.98\)\);/,
     );
     expect(colorThemeStyles).toMatch(
       /html\[data-theme='light'\] \.history-drawer\.is-page \.history-detail-tool-icon\s*\{[^}]*background:\s*linear-gradient\(155deg,\s*#ffffff,\s*#f0f4f6\);/,
@@ -399,7 +847,6 @@ describe('Posts page split view', () => {
       entities: [],
       attachments: [],
       selectedChat: null,
-      inlineButtons: [],
       createdAt: '2026-10-25T10:00:00.000Z',
       updatedAt: '2026-10-25T10:00:00.000Z',
     });
@@ -418,10 +865,44 @@ describe('Posts page split view', () => {
     });
 
     fireEvent.click(statusFilters.querySelector('[data-history-filter="scheduled"]')!);
-    const sourceMenu = openSourceMenu();
-    fireEvent.click(sourceMenu.getByRole('menuitemradio', { name: 'Studio' }));
+    selectHistorySource('Studio');
     expect(statusFilters.querySelector('[data-history-filter="drafts"]')).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('article')).toHaveTextContent('Studio draft');
+  });
+
+  it('shows both Studio and Planner drafts in All and separates them by source', () => {
+    const studioDraft = normalizeSavedDraft({
+      id: 'all-studio-draft',
+      name: 'Studio-only draft',
+      body: 'Studio draft content',
+      entities: [],
+      attachments: [],
+      selectedChat: null,
+      createdAt: '2026-10-25T10:00:00.000Z',
+      updatedAt: '2026-10-25T10:00:00.000Z',
+    });
+    const plannerDraft = normalizePlannerDraft(
+      'Planner-only draft',
+      null,
+      '2026-10-25T11:00:00.000Z',
+    )!;
+    const { container } = renderHistoryPage([studioDraft, plannerDraft]);
+
+    fireEvent.click(container.querySelector('[data-history-filter="drafts"]')!);
+
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getByText('Studio-only draft')).toBeInTheDocument();
+    expect(screen.getByText('Planner-only draft')).toBeInTheDocument();
+
+    selectHistorySource('Studio');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Studio-only draft')).toBeInTheDocument();
+    expect(screen.queryByText('Planner-only draft')).not.toBeInTheDocument();
+
+    selectHistorySource('Planner');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Planner-only draft')).toBeInTheDocument();
+    expect(screen.queryByText('Studio-only draft')).not.toBeInTheDocument();
   });
 
   it('keeps the scheduled category selected when the chosen source has no records', async () => {
@@ -431,6 +912,15 @@ describe('Posts page split view', () => {
       expect(statusFilters.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
     });
     expect(screen.getByText('Nothing in this category yet')).toBeInTheDocument();
+  });
+
+  it('anchors Posts below the topbar and preserves bottom dock alignment', () => {
+    expect(globalStyles).toMatch(
+      /\.product-shell-content\.is-posts\s*\{[^}]*height:\s*calc\(100dvh - var\(--app-topbar-height\)\);[^}]*min-height:\s*0;[^}]*flex:\s*0\s*0\s*calc\(100dvh - var\(--app-topbar-height\)\);/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*position:\s*sticky;[^}]*inset-block-end:\s*0;[^}]*bottom:\s*0;[^}]*align-self:\s*end;/,
+    );
   });
 
   it('offers product-specific create actions for an empty category, but not empty search results', () => {
@@ -491,7 +981,7 @@ describe('Posts page split view', () => {
     vi.setSystemTime(new Date('2026-09-28T12:00:00.000Z'));
     try {
       const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
-      const controls = container.querySelector<HTMLDivElement>('.history-drawer-controls')!;
+      const header = container.querySelector<HTMLDivElement>('.history-drawer-header')!;
       const listPane = container.querySelector<HTMLDivElement>('.history-list-pane')!;
       const statusFilters = listPane.querySelector<HTMLDivElement>('.history-status-filters')!;
       const statusSection = listPane.querySelector<HTMLDivElement>('.history-list-status-section')!;
@@ -505,8 +995,8 @@ describe('Posts page split view', () => {
       const footer = tools.querySelector<HTMLDivElement>('.history-drawer-footer')!;
       const searchDock = tools.querySelector<HTMLDivElement>('.history-search-dock')!;
 
-      expect(controls).toContainElement(container.querySelector('.history-page-controls-close'));
-      expect(controls.querySelector('.history-status-filters')).toBeNull();
+      expect(header).toContainElement(container.querySelector('.history-page-close'));
+      expect(container.querySelector('.history-drawer-controls')).toBeNull();
       expect(listPane).toContainElement(statusFilters);
       expect(statusSection).toContainElement(statusFilters);
       expect(globalStyles).toMatch(
@@ -522,31 +1012,50 @@ describe('Posts page split view', () => {
         /\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{[^}]*padding:\s*0 10px 0 12px;/,
       );
       expect(colorThemeStyles).toMatch(
-        /@media \(min-width:\s*1121px\)\s*\{\s*\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{\s*justify-content:\s*space-between;\s*padding:\s*0 10px 0 12px;/,
+        /\.history-drawer\.is-page \.history-list-source-label\s*\{\s*font-size:\s*12px;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-heading \.history-page-filter-label,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-source-label\s*\{\s*color:\s*#5b7079;\s*font-size:\s*12px;\s*font-weight:\s*600;\s*letter-spacing:\s*0\.07em;/,
+      );
+      expect(colorThemeStyles).toMatch(
+        /\.history-drawer\.is-page \.history-list-source-row \.history-source-select\s*\{\s*min-height:\s*38px;[^}]*padding:\s*0 12px;[^}]*font-size:\s*12px;/,
+      );
+      expect(colorThemeStyles).toMatch(/\.history-source-option\s*\{\s*min-height:\s*44px;\s*font-size:\s*13px;/);
+      expect(globalStyles).toMatch(/\.history-source-menu\s*\{\s*position:\s*absolute;[^}]*width:\s*208px;[^}]*border:\s*0;[^}]*box-shadow:\s*0 6px 14px rgba\(0, 0, 0, 0\.24\);/);
+      expect(globalStyles).toMatch(/\.history-source-menu\s*\{[^}]*transform-origin:\s*top right;[^}]*animation:\s*history-source-menu-drop-in 180ms cubic-bezier\(0\.2, 0\.8, 0\.2, 1\) both;/);
+      expect(globalStyles).toMatch(/@media \(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.history-source-menu\s*\{\s*animation:\s*none;/);
+      expect(colorThemeStyles).toMatch(
+        /@media \(min-width:\s*1121px\)\s*\{[\s\S]*?\.history-drawer\.is-page \.history-list-source-row \.history-page-filter-section\.is-source-section\s*\{\s*justify-content:\s*space-between;\s*padding:\s*0 10px 0 12px;/,
       );
       expect(globalStyles).not.toMatch(/\.history-list-status-section \.history-status-tab::before/);
       expect(colorThemeStyles).not.toMatch(/\.history-list-status-section \.history-status-tab(?::not\(\.is-active\))?:(?:hover|focus-visible)::before/);
       expect(statusSection.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(controls.compareDocumentPosition(recordList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(recordList.compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(tools).toContainElement(searchDock);
       expect(searchDock.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*width:\s*calc\(45% - 17\.2px\);[^}]*margin-right:\s*0;[^}]*margin-left:\s*10px;[^}]*padding:\s*11px 8px;[^}]*transform:\s*translateY\(-18px\);/);
-      expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*margin-bottom:\s*12px;/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*width:\s*calc\(45% - 17\.2px\);[^}]*margin-right:\s*0;[^}]*margin-left:\s*10px;[^}]*padding:\s*11px 8px;[^}]*transform:\s*translateY\(-17px\);/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-drawer-tools\s*\{[^}]*border-top-left-radius:\s*0;[^}]*border-top-right-radius:\s*0;/);
+      expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*border-radius:\s*12px 12px 0 0;/);
+      expect(globalStyles).not.toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*top:\s*-2px;/);
+      expect(globalStyles).toMatch(/@media \(min-width:\s*761px\)\s*\{\s*\.history-drawer\.is-page \.history-drawer-tools\s*\{\s*padding-top:\s*5px;[^}]*position:\s*sticky;[^}]*inset-block-end:\s*0;[^}]*left:\s*4px;[^}]*transform:\s*translateY\(-11px\);/);
+      expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-export-control\s*\{[^}]*gap:\s*2px;[^}]*transform:\s*translate\(10px,\s*3px\);/);
+      expect(globalStyles).toMatch(/\.history-content\.is-page \.history-list-pane\s*\{[^}]*margin-bottom:\s*2px;/);
       expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-search-dock\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
       expect(globalStyles).toMatch(/\.history-drawer\.is-page \.history-result-count\s*\{[^}]*padding-left:\s*0;[^}]*text-align:\s*center;/);
       expect(footer).not.toContainElement(statusFilters);
       expect(footer).toContainElement(container.querySelector('.history-export-button'));
-      expect(footer).toContainElement(container.querySelector('.history-delete-button, .history-delete-placeholder'));
+      expect(footer).toContainElement(container.querySelector('.history-delete-button'));
+      const exportControl = footer.querySelector('.history-export-control')!;
+      const deleteAction = footer.querySelector('.history-delete-action')!;
+      expect(exportControl.compareDocumentPosition(deleteAction) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(screen.getByRole('search')).toBeInTheDocument();
       expect(screen.getByRole('tablist', { name: 'Post status' })).toBeInTheDocument();
-      expect(controls.querySelectorAll('.history-page-filter-section')).toHaveLength(0);
       expect(statusHeading).toContainElement(statusFilters);
       expect(sourceSection).toContainElement(sourceFilters);
       expect(sourceRow).toContainElement(sourceSection);
       expect(statusHeading.compareDocumentPosition(sourceRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(detailPanel).not.toContainElement(sourceFilters);
-      expect(container.querySelector('.history-drawer-header')).toBeNull();
+      expect(header).toBeInTheDocument();
       expect(sourceSection.querySelector('.history-list-source-label')).toHaveTextContent('Section');
       expect(sourceSection.querySelector('.history-source-select')).toHaveTextContent('All');
       expect(statusHeading).toHaveTextContent('Category');
@@ -564,6 +1073,7 @@ describe('Posts page split view', () => {
   });
 
   it('keeps the full list visible while showing the selected post details separately', async () => {
+    vi.mocked(telegramGetChatHistory).mockClear();
     const secondRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'scheduled-studio-2',
@@ -591,16 +1101,11 @@ describe('Posts page split view', () => {
     expect(container.querySelector('.history-detail-category')).toHaveTextContent('Category: Scheduled');
     expect(container.querySelector('.history-record-open')).toHaveAttribute('aria-pressed', 'true');
 
-    vi.mocked(telegramGetChatHistory).mockResolvedValueOnce({
-      success: true,
-      history: {
-        chat: { id: 'chat-1', title: 'XMSGi Updates', type: 'channel' },
-        messages: [],
-      },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
-    await waitFor(() => expect(container.querySelector('.history-detail-body')).toHaveClass('is-chat'));
-    expect(container.querySelector('.history-chat-preview-current')).toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
+    expect(container.querySelector('.history-detail-body')).toHaveClass('is-preview');
+    expect(telegramGetChatHistory).not.toHaveBeenCalled();
+    expect(container.querySelector('.history-detail-preview-spacer')).not.toBeInTheDocument();
+    expect(container.querySelector('.history-detail-preview-current')).toHaveTextContent('Релиз нового набора шаблонов для Telegram-канала');
   });
 
   it('closes the selected post when its row is clicked again', () => {
@@ -724,7 +1229,7 @@ describe('Posts page split view', () => {
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     expect(screen.queryByRole('menuitem', { name: 'Use in Studio' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Edit' })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Open in Planner' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Open in Planner' })).not.toBeInTheDocument();
   });
 
   it('returns the post list to the top when source, category, or search changes', () => {
@@ -759,7 +1264,6 @@ describe('Posts page split view', () => {
     expect(sentTab).toHaveFocus();
     expect(sentTab).toHaveAttribute('aria-selected', 'true');
     expect(sentTab).toHaveAttribute('tabindex', '0');
-
     fireEvent.keyDown(sentTab, { key: 'End' });
     expect(draftsTab).toHaveFocus();
     expect(draftsTab).toHaveAttribute('aria-selected', 'true');
@@ -767,10 +1271,8 @@ describe('Posts page split view', () => {
     fireEvent.keyDown(draftsTab, { key: 'ArrowRight' });
     expect(scheduledTab).toHaveFocus();
     expect(scheduledTab).toHaveAttribute('aria-selected', 'true');
-
     fireEvent.keyDown(scheduledTab, { key: 'Home' });
     expect(scheduledTab).toHaveFocus();
-    expect(scheduledTab).toHaveAttribute('aria-selected', 'true');
   });
 
   it('focuses and selects the history query with Ctrl+F or Cmd+F', () => {
@@ -827,7 +1329,7 @@ describe('history filter selected states', () => {
     expect(scheduledTab.querySelector('.history-status-label')?.textContent).toBe('План');
   });
 
-  it('keeps source selection in its compact menu and status selection on its tab', () => {
+  it('shows All, Studio, Planner, and Errors in the source dropdown', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     window.localStorage.setItem('awaitmsg_locale', 'en');
     const { container } = renderHistoryPage([upcomingRecord, workspaceSentRecord]);
@@ -836,22 +1338,80 @@ describe('history filter selected states', () => {
     const activeStatus = statusFilters.querySelector<HTMLButtonElement>('[aria-selected="true"]')!;
 
     expect(sourceFilters.querySelector('.history-source-select')).toHaveTextContent('All');
-    expect(sourceFilters.querySelector('.history-source-menu')).toBeNull();
     expect(activeStatus).toHaveAttribute('data-history-filter', 'scheduled');
     expect(activeStatus).toHaveClass('is-active');
     expect(container.querySelector('.history-glass-indicator')).toBeNull();
 
     const sourceMenu = openSourceMenu();
-    const sourceMenuElement = document.querySelector<HTMLElement>('.history-source-menu')!;
-    expect(sourceMenuElement.parentElement).toBe(document.body);
-    expect(container.querySelector('.history-list-pane')).not.toContainElement(sourceMenuElement);
-    fireEvent.click(sourceMenu.getByRole('menuitemradio', { name: 'Studio' }));
+    expect(sourceMenu.container.querySelectorAll('[role="menuitemradio"]')).toHaveLength(4);
+    expect(sourceMenu.container.querySelector('[data-history-filter="all"]')).toBeInTheDocument();
+    expect(sourceMenu.container.querySelector('[data-history-filter="workspace"]')).toBeInTheDocument();
+    expect(sourceMenu.container.querySelector('[data-history-filter="personal"]')).toBeInTheDocument();
+    expect(sourceMenu.container.querySelector('[data-history-filter="errors"]')).toBeInTheDocument();
+    fireEvent.click(sourceMenu.container.querySelector('[data-history-filter="workspace"]')!);
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
 
     expect(sourceFilters.querySelector('.history-source-select')).toHaveTextContent('Studio');
     expect(statusFilters.querySelector('[data-history-filter="sent"]')).toHaveClass('is-active');
   });
 
+  it('keeps light category tabs borderless except for the selected accent capsule', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab:hover,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab:focus-visible\s*\{\s*border-color:\s*transparent;\s*outline:\s*none;\s*box-shadow:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active:focus-visible\s*\{\s*background:\s*rgba\(40, 125, 163, 0\.08\);/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active,[\s\S]*?border-color:\s*rgba\(40, 125, 163, 0\.24\);[\s\S]*?background:\s*rgba\(40, 125, 163, 0\.08\);[\s\S]*?color:\s*#287da3;[\s\S]*?box-shadow:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab \.history-filter-count,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-list-status-section \.history-status-tab\.is-active \.history-filter-count\s*\{\s*border-color:\s*transparent;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-source-menu \.history-filter-count,[\s\S]*?html\[data-theme='light'\] \.history-source-menu \.history-source-option\[aria-checked='true'\] \.history-filter-count\s*\{\s*border-color:\s*transparent;\s*box-shadow:\s*none;/,
+    );
+    expect(globalStyles).toMatch(
+      /\.history-list-status-section \.history-status-tab\s*\{[^}]*transition:\s*color 160ms ease;/,
+    );
+  });
+
+  it('keeps Posts search borderless and matching the detail panel in both states', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-search,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-search:not\(:focus-within\)\s*\{\s*border-color:\s*transparent;\s*background:\s*#edf1f3;\s*box-shadow:\s*none;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-search,\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-search:not\(:focus-within\),\s*html\[data-theme='dark'\] \.history-drawer\.is-page \.history-search:focus-within\s*\{\s*border-color:\s*transparent;\s*background:\s*rgba\(16,\s*23,\s*29,\s*0\.72\);\s*box-shadow:\s*none;/,
+    );
+  });
+
+  it('uses a subtle neutral gray outline for the focused Posts search in both themes', () => {
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='dark'\] \.history-drawer\.is-page \.history-search:focus-within,\s*html\[data-theme='light'\] \.history-drawer\.is-page \.history-search:focus-within\s*\{\s*border-color:\s*rgba\(154, 168, 184, 0\.36\);\s*box-shadow:\s*none;/,
+    );
+  });
+
+  it('uses a larger search icon in both themes', () => {
+    expect(globalStyles).toMatch(/\.history-search > svg\s*\{\s*width:\s*21px;\s*height:\s*21px;\s*flex:\s*0 0 auto;/);
+  });
+
+  it('shortens the search placeholder and ellipsizes it when the Posts dock is narrow', () => {
+    expect(globalStyles).toMatch(/\.history-search input\s*\{[^}]*text-overflow:\s*ellipsis;/);
+    window.localStorage.removeItem('xmsgi-history-filters');
+    window.localStorage.setItem('awaitmsg_locale', 'ru');
+    renderHistoryPage([upcomingRecord]);
+
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Поиск по истории...');
+  });
+
+  it('wraps long error previews within narrow Posts records', () => {
+    expect(globalStyles).toMatch(
+      /\.history-record-error-preview\s*\{[^}]*max-width:\s*100%;[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/,
+    );
+    expect(colorThemeStyles).toMatch(
+      /html\[data-theme='light'\] \.history-drawer\.is-page \.history-record-error-preview\s*\{\s*color:\s*#8f211b;\s*font-size:\s*13px;\s*font-weight:\s*600;/,
+    );
+  });
   it('keeps the global search hint while changing categories', () => {
     window.localStorage.removeItem('xmsgi-history-filters');
     window.localStorage.setItem('awaitmsg_locale', 'ru');
@@ -859,13 +1419,13 @@ describe('history filter selected states', () => {
     const search = screen.getByRole('textbox', { name: 'Поиск по истории' });
     const statusFilters = container.querySelector('.history-status-filters')!;
 
-    expect(search).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+    expect(search).toHaveAttribute('placeholder', 'Поиск по истории...');
 
     fireEvent.click(statusFilters.querySelector('[data-history-filter="sent"]')!);
-    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Поиск по истории...');
 
     fireEvent.click(statusFilters.querySelector('[data-history-filter="drafts"]')!);
-    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Все категории: текст, чаты, даты...');
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveAttribute('placeholder', 'Поиск по истории...');
   });
 
   it('searches across categories while respecting the selected source', () => {
@@ -893,18 +1453,46 @@ describe('history filter selected states', () => {
     expect(container.querySelector('[data-history-filter="scheduled"]')).toBeInTheDocument();
   });
 
-  it('keeps source totals inclusive of sent records while Scheduled is selected', () => {
+  it('includes errors in All, excludes them from Studio and Planner, and isolates the Errors section', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-source-total',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Telegram is temporarily unavailable.',
+    }], 'workspace', 'upcoming', [channel])[0];
     window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
       sourceFilter: 'all',
-      statusFilter: 'scheduled',
+      statusFilter: 'sent',
     }));
-    renderHistoryPage([completedRecord, workspaceSentRecord]);
-    openSourceMenu();
-    const sourceMenu = document.querySelector('.history-source-menu')!;
+    const { container } = renderHistoryPage([completedRecord, workspaceSentRecord, failedRecord]);
+    expect(screen.getAllByRole('article')).toHaveLength(3);
+    expect(screen.getByText('Telegram is temporarily unavailable.')).toBeInTheDocument();
+    let sourceMenu = openSourceMenu();
+    expect(sourceMenu.container.querySelector('[data-history-filter="all"]')).toHaveTextContent('3');
+    expect(sourceMenu.container.querySelector('[data-history-filter="workspace"]')).toHaveTextContent('1');
+    expect(sourceMenu.container.querySelector('[data-history-filter="personal"]')).toHaveTextContent('1');
+    expect(sourceMenu.container.querySelector('[data-history-filter="errors"]')).toHaveTextContent('1');
 
-    expect(sourceMenu.querySelector('[data-history-filter="all"] .history-filter-count')).toHaveTextContent('2');
-    expect(sourceMenu.querySelector('[data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1');
-    expect(sourceMenu.querySelector('[data-history-filter="personal"] .history-filter-count')).toHaveTextContent('1');
+    fireEvent.click(sourceMenu.container.querySelector('[data-history-filter="errors"]')!);
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Telegram is temporarily unavailable.')).toBeInTheDocument();
+    expect(container.querySelector('.history-source-select')).toHaveTextContent(/^(Errors|Ошибки)/);
+    expect(container.querySelectorAll('.history-status-tab .history-filter-count')).toHaveLength(0);
+
+    sourceMenu = openSourceMenu();
+    expect(sourceMenu.container.querySelector('[data-history-filter="all"]')).toHaveTextContent('3');
+    expect(sourceMenu.container.querySelector('[data-history-filter="workspace"]')).toHaveTextContent('1');
+    expect(sourceMenu.container.querySelector('[data-history-filter="personal"]')).toHaveTextContent('1');
+    fireEvent.click(sourceMenu.container.querySelector('[data-history-filter="workspace"]')!);
+    expect(screen.queryByText('Telegram is temporarily unavailable.')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
+
+    fireEvent.click(container.querySelector('[data-history-filter="scheduled"]')!);
+    sourceMenu = openSourceMenu();
+    expect(sourceMenu.container.querySelector('[data-history-filter="all"]')).toHaveTextContent('3');
+    expect(sourceMenu.container.querySelector('[data-history-filter="workspace"]')).toHaveTextContent('1');
+    expect(sourceMenu.container.querySelector('[data-history-filter="personal"]')).toHaveTextContent('1');
   });
 
   it('formats source, status, and result counters correctly at one thousand', () => {
@@ -918,9 +1506,9 @@ describe('history filter selected states', () => {
     expect(container.querySelector('[data-history-filter="scheduled"] .history-filter-count')).toHaveTextContent('1,000');
     expect(container.querySelector('.history-result-count')).toHaveTextContent('Showing 1,000 of 1,000');
 
-    openSourceMenu();
-    expect(document.querySelector('.history-source-menu [data-history-filter="all"] .history-filter-count')).toHaveTextContent('1,000');
-    expect(document.querySelector('.history-source-menu [data-history-filter="workspace"] .history-filter-count')).toHaveTextContent('1,000');
+    const sourceMenu = openSourceMenu();
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'All' })).toHaveTextContent('1,000');
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'Studio' })).toHaveTextContent('1,000');
 
     unmount();
     const recordWithManyAttachments = {
@@ -1119,7 +1707,7 @@ describe('HistoryDrawer search', () => {
 
     expect(screen.getByRole('dialog', { name: 'Posts' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Search history' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Search history' })).toHaveAttribute('placeholder', 'All categories: text, chats, dates...');
+    expect(screen.getByRole('textbox', { name: 'Search history' })).toHaveAttribute('placeholder', 'Search history...');
     expect(screen.getByRole('tab', { name: 'Scheduled' })).toBeInTheDocument();
   });
 
@@ -1224,7 +1812,7 @@ describe('HistoryDrawer search', () => {
     ], 'scheduled').map((record) => record.status)).toEqual(['scheduled', 'cancelled', 'failed']);
   });
 
-  it('hides failed retry attempts from scheduled history', () => {
+  it('shows failed retry attempts in All and hides them from Studio', () => {
     const retryFailure = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-attempt-1',
@@ -1237,6 +1825,8 @@ describe('HistoryDrawer search', () => {
     renderHistory([upcomingRecord, retryFailure]);
 
     expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
+    expect(screen.getByText('Неудачная повторная отправка')).toBeInTheDocument();
+    selectHistorySource('Studio');
     expect(screen.queryByText('Неудачная повторная отправка')).not.toBeInTheDocument();
     expect(screen.queryByText('Telegram rejected the previous attempt.')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Повторить отправку' })).not.toBeInTheDocument();
@@ -1493,6 +2083,47 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(1);
   });
 
+  it('shows frequent hashtags as quick filters and searches by clicking one', () => {
+    const taggedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'tagged-record',
+      text: 'Запуск #studio #release',
+    }], 'workspace', 'sent', [channel])[0];
+    const repeatedTagRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'repeated-tag-record',
+      text: 'План #release',
+      attachments: [],
+    }], 'personal', 'sent', [])[0];
+    const { container } = renderHistory([taggedRecord, repeatedTagRecord]);
+
+    const tagGroup = within(screen.getByRole('group', { name: 'Фильтр по хэштегам' }));
+    expect(tagGroup.getByRole('button', { name: '#release' })).toHaveAttribute('title', '#release (2)');
+    expect(tagGroup.getByRole('button', { name: '#studio' })).toBeInTheDocument();
+
+    fireEvent.click(tagGroup.getByRole('button', { name: '#release' }));
+
+    expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getByRole('textbox', { name: 'Поиск по истории' })).toHaveValue('#release');
+    expect(container.querySelector('.history-search-tags')).not.toBeInTheDocument();
+  });
+
+  it('matches hashtags without case sensitivity and supports Cyrillic hashtags', () => {
+    const taggedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'cyrillic-tagged-record',
+      text: 'Обновление #РелизКанала',
+    }], 'workspace', 'sent', [channel])[0];
+
+    renderHistory([taggedRecord]);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Поиск по истории' }), {
+      target: { value: '#релизканала' },
+    });
+
+    expect(screen.getByText('XMSGi Updates')).toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
   it('finds Planner drafts by reminder type', () => {
     const plannerDraft = normalizePlannerDraft(
       'Собрать материалы',
@@ -1566,13 +2197,148 @@ describe('HistoryDrawer search', () => {
     expect(screen.getAllByRole('article')).toHaveLength(2);
   });
 
-  it('hides failed retry rows while keeping successful attachments and cancelled entries visible', () => {
+  it('keeps one date strip pinned and updates its label while scrolling Posts', () => {
+    const styles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({ statusFilter: 'drafts' }));
+    const firstDraft = normalizeSavedDraft({
+      id: 'posts-first-day',
+      name: 'First draft',
+      body: 'First',
+      createdAt: '2026-09-29T10:00:00.000Z',
+      updatedAt: '2026-09-29T10:00:00.000Z',
+    });
+    const secondDraft = normalizeSavedDraft({
+      id: 'posts-next-day',
+      name: 'Second draft',
+      body: 'Second',
+      createdAt: '2026-09-30T10:00:00.000Z',
+      updatedAt: '2026-09-30T10:00:00.000Z',
+    });
+    const { container } = renderHistoryPage([firstDraft, secondDraft]);
+    const list = container.querySelector<HTMLDivElement>('.history-record-list')!;
+    const stickyDate = container.querySelector<HTMLDivElement>('.history-date-sticky')!;
+    const [firstRecord, secondRecord] = Array.from(list.querySelectorAll<HTMLElement>('.history-record'));
+
+    expect(list.querySelectorAll('.history-date-heading')).toHaveLength(0);
+    expect(container.querySelector('.history-list-pane')).toContainElement(stickyDate);
+    expect(container.querySelector('.history-list-pane')).toContainElement(list);
+    expect(stickyDate.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(stickyDate).toHaveTextContent(firstRecord.dataset.historyDayLabel!);
+    expect(styles).toMatch(
+      /\.history-date-sticky\s*\{[^}]*display:\s*block;[^}]*flex:\s*0 0 auto;[^}]*width:\s*100%;[^}]*box-sizing:\s*border-box;/,
+    );
+    Object.defineProperty(list, 'clientTop', { configurable: true, value: 0 });
+    Object.defineProperty(list, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(0, 0, 400, 300),
+    });
+    Object.defineProperty(firstRecord, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(0, -120, 400, 100),
+    });
+    Object.defineProperty(secondRecord, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => new DOMRect(0, 20, 400, 100),
+    });
+
+    fireEvent.scroll(list);
+    expect(stickyDate).toHaveTextContent(secondRecord.dataset.historyDayLabel!);
+  });
+
+  it('renders a month heading inside the scrolling list for each scheduled and sent month', () => {
+    const scheduledStudioRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'scheduled-studio-september',
+      when: '2026-09-30T17:30:00.000Z',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const scheduledPlannerRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'scheduled-planner-october',
+      when: '2026-10-01T17:30:00.000Z',
+    }], 'personal', 'upcoming', [])[0];
+    const sentStudioRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'sent-studio-september',
+      sentAt: '2026-09-30T18:00:00.000Z',
+      status: 'sent',
+    }], 'workspace', 'sent', [channel])[0];
+    const sentPlannerRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'sent-planner-october',
+      sentAt: '2026-10-01T18:00:00.000Z',
+      status: 'sent',
+    }], 'personal', 'sent', [])[0];
+    const { container } = renderHistoryPage([
+      scheduledStudioRecord,
+      scheduledPlannerRecord,
+      sentStudioRecord,
+      sentPlannerRecord,
+    ]);
+    const styles = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.css'), 'utf8');
+    const list = container.querySelector<HTMLDivElement>('.history-record-list')!;
+    const scheduledRows = Array.from(list.querySelectorAll<HTMLElement>('.history-record'));
+    const monthHeadings = Array.from(list.querySelectorAll<HTMLElement>('.history-month-heading'));
+
+    expect(container.querySelector('.history-date-sticky')).toBeInTheDocument();
+    expect(list).toContainElement(monthHeadings[0]);
+    expect(monthHeadings).toHaveLength(2);
+    expect(monthHeadings[0]).toHaveTextContent(scheduledRows[0].dataset.historyMonthLabel!);
+    expect(styles).toMatch(
+      /\.history-month-heading\s*\{[^}]*width:\s*calc\(100% \+ 32px\);[^}]*margin:\s*0 -16px;/,
+    );
+    expect(scheduledRows).toHaveLength(2);
+    expect(scheduledRows[0].dataset.historyMonthLabel).not.toBe(scheduledRows[1].dataset.historyMonthLabel);
+
+    fireEvent.click(container.querySelector('[data-history-filter="sent"]')!);
+    const sentRows = Array.from(container.querySelectorAll<HTMLElement>('.history-record'));
+    const sentHeadings = Array.from(container.querySelectorAll<HTMLElement>('.history-month-heading'));
+    expect(container.querySelector('.history-date-sticky')).toBeInTheDocument();
+    expect(sentRows).toHaveLength(2);
+    expect(sentHeadings).toHaveLength(2);
+    expect(sentHeadings[0]).toHaveTextContent(sentRows[0].dataset.historyMonthLabel!);
+  });
+
+  it('orders scheduled Posts by their planned date instead of their update time', () => {
+    const records = normalizeScheduledMessages([
+      {
+        ...scheduledMessage,
+        id: 'scheduled-sooner',
+        when: '2026-09-29T17:30:00.000Z',
+        lastAttemptAt: '2026-09-30T17:30:00.000Z',
+      },
+      {
+        ...scheduledMessage,
+        id: 'scheduled-later',
+        when: '2026-09-30T17:30:00.000Z',
+        lastAttemptAt: '2026-09-29T17:30:00.000Z',
+      },
+    ], 'workspace', 'upcoming', [channel]);
+    const { container } = renderHistoryPage(records);
+    const recordIds = Array.from(container.querySelectorAll<HTMLElement>('[data-history-record-id]'))
+      .map((record) => record.dataset.historyRecordId);
+
+    expect(recordIds).toEqual([
+      'workspace:message:scheduled-sooner',
+      'workspace:message:scheduled-later',
+    ]);
+  });
+
+  it('shows failed retry rows in the dedicated Errors category', () => {
+
     const failedRecord = normalizeScheduledMessages([{
       ...scheduledMessage,
       id: 'failed-compact-row',
       attachments: [],
       status: 'failed' as ScheduledMessage['status'],
       lastError: 'Telegram не подтвердил отправку.',
+      lastErrorDetails: {
+        operation: 'publish',
+        category: 'flood',
+        retryable: true,
+        message: 'Telegram не подтвердил отправку.',
+        code: 'FLOOD_WAIT_45',
+        waitSeconds: 45,
+      },
       retryAction: 'send',
     }], 'workspace', 'upcoming', [channel])[0];
     const cancelledRecord = normalizeScheduledMessages([{
@@ -1584,7 +2350,7 @@ describe('HistoryDrawer search', () => {
     }], 'personal', 'upcoming', [])[0];
     const imageRecord = { ...upcomingRecord, attachments: ['C:\\files\\launch-image.png'] };
 
-    renderHistory([imageRecord, failedRecord, cancelledRecord]);
+    const { container } = renderHistoryPage([imageRecord, failedRecord, cancelledRecord]);
 
     const attachmentPreview = screen.getByLabelText('1 вложение');
     expect(attachmentPreview).toBeInTheDocument();
@@ -1592,10 +2358,325 @@ describe('HistoryDrawer search', () => {
     fireEvent.error(attachmentPreview.querySelector('img') as HTMLImageElement);
     expect(attachmentPreview.querySelector('.history-record-attachment-image')).toHaveClass('is-unavailable');
     expect(screen.getAllByText(/Запланировано ·/)[0].parentElement).toHaveClass('history-record-meta');
-    expect(screen.queryByText('Telegram не подтвердил отправку.')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Повторить отправку' })).not.toBeInTheDocument();
     expect(screen.getByText('Cancelled entry remains visible')).toBeInTheDocument();
+    expect(screen.getByText('Telegram не подтвердил отправку.')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Ошибки' })).not.toBeInTheDocument();
+    const errorFilter = openSourceMenu().container.querySelector<HTMLButtonElement>('[data-history-filter="errors"]')!;
+    expect(errorFilter).toHaveTextContent('1');
+    fireEvent.click(errorFilter);
+    expect(screen.getByText('Telegram не подтвердил отправку.')).toBeInTheDocument();
+    fireEvent.click(container.querySelector('.history-record-open')!);
+    expect(screen.getByRole('button', { name: 'Открыть в редакторе' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Повторить отправку' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('switches from Errors to the selected source without showing its errors', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-source-switch',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Telegram is temporarily unavailable.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const plannerFailedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-planner-source-switch',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Planner error should stay hidden for Studio.',
+    }], 'personal', 'upcoming', [channel])[0];
+    const { container } = renderHistoryPage([failedRecord, plannerFailedRecord, upcomingRecord]);
+
+    selectHistoryErrors();
+    expect(screen.getByText('Telegram is temporarily unavailable.')).toBeInTheDocument();
+
+    selectHistorySource('Studio');
+
+    expect(container.querySelector('.history-source-select')).toHaveTextContent(/Studio/);
+    expect(screen.queryByText('Telegram is temporarily unavailable.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Planner error should stay hidden for Studio.')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
+  });
+
+  it('shows all sources with errors in All, but keeps Studio and Planner free of errors', () => {
+    const studioError = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-studio-section',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Studio section error.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const plannerError = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-planner-section',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Planner section error.',
+    }], 'personal', 'upcoming', [channel])[0];
+
+    renderHistoryPage([upcomingRecord, personalUpcomingRecord, studioError, plannerError]);
+    expect(screen.getAllByRole('article')).toHaveLength(4);
+    expect(screen.getByText('Studio section error.')).toBeInTheDocument();
+    expect(screen.getByText('Planner section error.')).toBeInTheDocument();
+
+    selectHistorySource('Studio');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
+    expect(screen.queryByText('Studio section error.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Planner section error.')).not.toBeInTheDocument();
+
+    selectHistorySource('Planner');
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Подтвердить встречу')).toBeInTheDocument();
+    expect(screen.queryByText('Studio section error.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Planner section error.')).not.toBeInTheDocument();
+
+    selectHistoryErrors();
     expect(screen.getAllByRole('article')).toHaveLength(2);
+    expect(screen.getByText('Studio section error.')).toBeInTheDocument();
+    expect(screen.getByText('Planner section error.')).toBeInTheDocument();
+    expect(screen.queryByText('Подтвердить встречу')).not.toBeInTheDocument();
+  });
+
+  it('keeps failed records out of Drafts even when All is selected', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-excluded-from-drafts',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'This error must not appear in Drafts.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const plannerDraft = normalizePlannerDraft('Actual Planner draft', null, '2026-10-25T11:00:00.000Z');
+    const { container } = renderHistoryPage(plannerDraft ? [failedRecord, plannerDraft] : [failedRecord]);
+
+    fireEvent.click(container.querySelector('[data-history-filter="drafts"]')!);
+
+    expect(screen.getByText('Actual Planner draft')).toBeInTheDocument();
+    expect(screen.queryByText('This error must not appear in Drafts.')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(container.querySelector('[data-history-filter="drafts"] .history-filter-count')).toHaveTextContent('1');
+  });
+
+  it('does not restore Errors as the active category from saved filters', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-saved-errors-filter',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Saved Errors should not remain selected.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
+      sourceFilter: 'all',
+      statusFilter: 'errors',
+    }));
+
+    const { container } = renderHistoryPage([failedRecord]);
+
+    expect(screen.getByText('Saved Errors should not remain selected.')).toBeInTheDocument();
+    expect(container.querySelector('[data-history-filter="scheduled"]')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('selects Errors as its own source section without offering a second source menu', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-exclusive-menu-selection',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Exclusive Errors category.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const { container } = renderHistoryPage([failedRecord]);
+
+    selectHistoryErrors();
+    expect(container.querySelector('.history-source-select')).toHaveTextContent(/^(Errors|Ошибки)/);
+    const sourceMenu = openSourceMenu();
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'Ошибки' })).toHaveAttribute('aria-checked', 'true');
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'Studio' })).toHaveAttribute('aria-checked', 'false');
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'Все' })).toHaveAttribute('aria-checked', 'false');
+    expect(sourceMenu.getByRole('menuitemradio', { name: 'Планер' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('switches from Errors to the All source when a regular category is selected', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-switch-to-all-source',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'The error is not part of the Sent list.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    window.localStorage.setItem('xmsgi-history-filters', JSON.stringify({
+      sourceFilter: 'workspace',
+      statusFilter: 'scheduled',
+    }));
+    const { container } = renderHistoryPage([failedRecord, completedRecord, workspaceSentRecord]);
+
+    selectHistoryErrors();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('The error is not part of the Sent list.')).toBeInTheDocument();
+
+    fireEvent.click(container.querySelector('[data-history-filter="sent"]')!);
+
+    expect(container.querySelector('.history-source-select')).toHaveTextContent(/All|Все/);
+    expect(container.querySelector('[data-history-filter="sent"]')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getAllByRole('article')).toHaveLength(3);
+    expect(screen.getByText('Подтвердить встречу')).toBeInTheDocument();
+    expect(screen.getByText('The error is not part of the Sent list.')).toBeInTheDocument();
+  });
+
+  it('switches from compact Errors to Studio records without filtering the Errors list by source', () => {
+    const plannerFailedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-planner-compact-source-switch',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Planner compact error.',
+    }], 'personal', 'upcoming', [channel])[0];
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-compact-source-switch',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Telegram is temporarily unavailable.',
+    }], 'workspace', 'upcoming', [channel])[0];
+    renderHistory([failedRecord, plannerFailedRecord, upcomingRecord]);
+
+    selectHistoryErrors();
+    expect(screen.getByText('Telegram is temporarily unavailable.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Studio' }));
+
+    expect(screen.getByRole('button', { name: 'Ошибки' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('Telegram is temporarily unavailable.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Planner compact error.')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+    expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
+  });
+
+  it('opens a failed post in Studio and puts deletion in its overflow menu', async () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-open-editor',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'Telegram is temporarily unavailable.',
+      retryAction: 'send',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const onUseDraft = vi.fn().mockResolvedValue(true);
+    const { container } = renderHistory(
+      [failedRecord],
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(true),
+      onUseDraft,
+    );
+    selectHistoryErrors();
+
+    expect(screen.queryByRole('button', { name: 'Повторить отправку' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть в редакторе' }));
+    await waitFor(() => expect(onUseDraft).toHaveBeenCalledWith(failedRecord, 'studio'));
+
+    const overflowButton = container.querySelector<HTMLButtonElement>('.history-record-action.is-more')!;
+    fireEvent.click(overflowButton);
+    expect(screen.getByRole('menuitem', { name: 'Удалить' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Повторить отправку' })).not.toBeInTheDocument();
+  });
+
+  it('explains why a failed post did not go through in the Errors details panel', () => {
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-reason-details',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: 'A wait of 45 seconds is required.',
+      lastErrorDetails: {
+        operation: 'publish',
+        category: 'flood',
+        retryable: true,
+        message: 'A wait of 45 seconds is required.',
+        code: 'FLOOD_WAIT_45',
+        waitSeconds: 45,
+      },
+      retryAction: 'send',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const { container } = renderHistoryPage([failedRecord], vi.fn());
+    selectHistoryErrors();
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    const toolbar = container.querySelector<HTMLDivElement>('.history-detail-toolbar')!;
+    expect(within(toolbar).getAllByRole('button')).toHaveLength(2);
+    expect(within(toolbar).getByRole('button', { name: 'Открыть в редакторе' })).toBeInTheDocument();
+    expect(within(toolbar).getByRole('button', { name: 'Ещё' })).toBeInTheDocument();
+    expect(within(toolbar).queryByRole('button', { name: 'Просмотр' })).not.toBeInTheDocument();
+    expect(within(toolbar).queryByRole('button', { name: 'Копировать' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('Telegram временно ограничил частоту публикаций.');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).not.toHaveTextContent('A wait of 45 seconds is required.');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('Отправка публикации');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('Можно попробовать ещё раз.');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('Дождитесь окончания ограничения и попробуйте снова.');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('45 сек.');
+    expect(screen.getByRole('region', { name: 'Почему произошла ошибка' })).toHaveTextContent('FLOOD_WAIT_45');
+  });
+
+  const commonTelegramErrors: Array<[string, string, string]> = [
+    ['CHAT_WRITE_FORBIDDEN', 'Telegram не разрешает этому аккаунту публиковать такой материал в чате.', 'Попросите администратора чата разрешить публикации или выберите другой чат.'],
+    ['PEER_ID_INVALID', 'Telegram не смог открыть этот чат.', 'Проверьте, открывается ли чат и есть ли у аккаунта к нему доступ.'],
+    ['FILE_PART_2_MISSING', 'Telegram не смог обработать одно из вложений.', 'Проверьте файл и попробуйте прикрепить его заново.'],
+    ['MESSAGE_TOO_LONG', 'Сообщение превышает допустимую длину Telegram.', 'Сократите сообщение и попробуйте снова.'],
+    ['SCHEDULE_DATE_TOO_LATE', 'Telegram не принял выбранное время планирования.', 'Выберите более позднее время и запланируйте публикацию снова.'],
+  ];
+
+  it.each(commonTelegramErrors)('shows a clear explanation and next step for %s', (code, cause, nextStep) => {
+    const rawError = `Telegram error: ${code}`;
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: `failed-${code}`,
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: rawError,
+      lastErrorDetails: {
+        operation: 'publish',
+        category: 'unknown',
+        retryable: false,
+        message: rawError,
+        code,
+      },
+      retryAction: 'send',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const { container, unmount } = renderHistoryPage([failedRecord]);
+    selectHistoryErrors();
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    const explanation = screen.getByRole('region', { name: 'Почему произошла ошибка' });
+    expect(explanation).toHaveTextContent(cause);
+    expect(explanation).toHaveTextContent(nextStep);
+    expect(explanation).not.toHaveTextContent(rawError);
+    expect(explanation).toHaveTextContent(code);
+    unmount();
+  });
+
+  it('shows a concise actionable description when Telegram sent a scheduled post immediately', () => {
+    const rawError = 'Telegram sent the message immediately instead of scheduling it.';
+    const failedRecord = normalizeScheduledMessages([{
+      ...scheduledMessage,
+      id: 'failed-immediate-schedule',
+      status: 'failed' as ScheduledMessage['status'],
+      lastError: rawError,
+      lastErrorDetails: {
+        operation: 'publish',
+        category: 'unknown',
+        retryable: false,
+        message: rawError,
+        code: 'TELEGRAM_SCHEDULE_SENT_IMMEDIATELY',
+      },
+      retryAction: 'schedule',
+    }], 'workspace', 'upcoming', [channel])[0];
+    const { container } = renderHistoryPage([failedRecord]);
+    selectHistoryErrors();
+    fireEvent.click(container.querySelector('.history-record-open')!);
+
+    const explanation = container.querySelector<HTMLElement>('.history-detail-error-explanation')!;
+    expect(explanation).toHaveAttribute('aria-label', 'Что произошло');
+    expect(explanation).toHaveTextContent('Что произошло');
+    expect(explanation).toHaveTextContent(
+      'Telegram отправил публикацию сразу, не запланировав её. Проверьте чат перед повторной отправкой.',
+    );
+    expect(explanation).not.toHaveTextContent(rawError);
+    expect(explanation).not.toHaveTextContent('Автоматически повторить действие нельзя.');
+    expect(explanation).not.toHaveTextContent('Планирование публикации');
+    expect(explanation).not.toHaveTextContent('TELEGRAM_SCHEDULE_SENT_IMMEDIATELY');
   });
 
   it('filters the single Posts list across All, Studio, and Planner sources', () => {
@@ -2019,6 +3100,7 @@ describe('HistoryDrawer search', () => {
     const onCancelQueue = vi.fn().mockResolvedValue(true);
 
     renderHistory([localFailure], undefined, onDelete, undefined, undefined, undefined, undefined, undefined, onCancelQueue);
+    selectHistorySource('Studio');
 
     expect(screen.queryByText("Error invoking remote method 'telegram-schedule': Invalid IPC input: message is required")).not.toBeInTheDocument();
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
@@ -2044,6 +3126,7 @@ describe('HistoryDrawer search', () => {
     const onCancelQueue = vi.fn().mockResolvedValue(true);
 
     renderHistory([queueRecord, localFailure], undefined, onDelete, undefined, undefined, undefined, undefined, undefined, onCancelQueue);
+    selectHistorySource('Studio');
 
     expect(screen.getByText('Релиз нового набора шаблонов для Telegram-канала')).toBeInTheDocument();
     expect(screen.queryByText('Failed schedule that can be retried')).not.toBeInTheDocument();
@@ -2082,7 +3165,16 @@ describe('HistoryDrawer search', () => {
     expect(screen.queryByRole('button', { name: 'Отменить все запланированные' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Удалить историю отправленных' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Удалить черновики' })).not.toBeInTheDocument();
-    expect(container.querySelector('.history-delete-placeholder')).toBeInTheDocument();
+    expect(container.querySelector<HTMLButtonElement>('.history-delete-button')).toBeDisabled();
+  });
+
+  it('labels the Posts delete and export icons without changing other drawer actions', () => {
+    const { container } = renderHistoryPage([upcomingRecord]);
+
+    expect(container.querySelector('.history-delete-action .history-action-label')).toHaveTextContent('Удалить');
+    expect(container.querySelector('.history-export-control .history-action-label')).toHaveTextContent('Экспорт');
+    expect(container.querySelector('.history-delete-button')).toHaveAttribute('aria-label');
+    expect(container.querySelector('.history-export-button')).toHaveAttribute('aria-label');
   });
 
   it('hides failed retry attempts but keeps cancelled entries in scheduled history', () => {
@@ -2102,6 +3194,7 @@ describe('HistoryDrawer search', () => {
     const onSendNow = vi.fn();
 
     renderHistory([failedRecord, cancelledRecord], vi.fn(), vi.fn(), onSendNow);
+    selectHistorySource('Planner');
 
     expect(screen.queryByRole('tab', { name: 'Ошибки' })).not.toBeInTheDocument();
     expect(screen.queryByText('Failed entry for retry')).not.toBeInTheDocument();
@@ -2372,6 +3465,7 @@ describe('HistoryDrawer search', () => {
     const onDelete = vi.fn();
 
     renderHistory([failedRecord], vi.fn(), onDelete);
+    selectHistorySource('Studio');
 
     expect(screen.queryByRole('article')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ещё' })).not.toBeInTheDocument();
@@ -2561,7 +3655,6 @@ describe('HistoryDrawer search', () => {
         ...scheduledMessage,
         text: 'A caption below the photo',
         attachments: ['C:\\files\\launch-image.png'],
-        replyMarkup: { inline_keyboard: [[{ text: 'Open details', url: 'https://example.com' }]] },
       },
     ], 'workspace', 'upcoming', [channel])[0];
     const view = renderHistory([imageRecord]);
@@ -2572,7 +3665,6 @@ describe('HistoryDrawer search', () => {
     const bubble = view.container.querySelector('.history-post-bubble');
     expect(bubble?.firstElementChild).toHaveClass('history-post-attachments');
     expect(bubble?.querySelector('.history-post-text')).toHaveTextContent('A caption below the photo');
-    expect(screen.getByLabelText('Inline keyboard preview')).toContainElement(screen.getByRole('button', { name: 'Open details' }));
   });
 
   it('does not repeat a chat name below an identical message title', () => {

@@ -23,7 +23,6 @@ export type TelegramSendPayload = {
   text: string;
   entities?: unknown[];
   attachments?: string[];
-  inlineButtons?: unknown[];
 };
 
 export type TelegramSchedulePayload = {
@@ -31,7 +30,6 @@ export type TelegramSchedulePayload = {
   text: string;
   entities?: unknown[];
   attachments?: string[];
-  inlineButtons?: unknown[];
   scheduledAt: string;
   repeatMode?: string;
 };

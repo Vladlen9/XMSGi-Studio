@@ -1,11 +1,9 @@
 import type { PreviewChatHistory, PreviewHistoryMessage } from '@studio/types';
-import type { InlineKeyboardMarkup } from './inlineKeyboard';
 
 export function appendPreviewMessage(
   history: PreviewChatHistory,
   chatId: string,
   text: string,
-  replyMarkup?: InlineKeyboardMarkup,
 ): PreviewChatHistory {
   if (history.chat.id !== chatId) return history;
 
@@ -14,7 +12,6 @@ export function appendPreviewMessage(
     text,
     date: new Date().toISOString(),
     outgoing: true,
-    replyMarkup,
   };
 
   return { ...history, messages: [...history.messages, message] };

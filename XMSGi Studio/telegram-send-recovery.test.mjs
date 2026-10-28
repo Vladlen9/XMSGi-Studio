@@ -192,7 +192,6 @@ describe('immediate Telegram send recovery', () => {
       getTelegramRequestTimeout: () => 1000,
       logTelegramOperation: vi.fn(),
       normalizeTelegramMessage: (message, entities) => ({ message, entities }),
-      prepareInlineKeyboard: vi.fn(),
       trackSendAttempt: () => {
         const error = new Error('Telegram random_id conflicts with another tracked send attempt.');
         error.code = 'RANDOM_ID_COLLISION';
@@ -204,7 +203,7 @@ describe('immediate Telegram send recovery', () => {
       withTimeout: (operation) => operation,
     });
 
-    await expect(sender('chat-1', 'Text', [], [], undefined, false, undefined, 'attempt-1'))
+    await expect(sender('chat-1', 'Text', [], [], false, undefined, 'attempt-1'))
       .rejects.toMatchObject({ code: 'RANDOM_ID_COLLISION' });
     expect(client.sendMessage).not.toHaveBeenCalled();
   });
@@ -224,7 +223,6 @@ describe('immediate Telegram send recovery', () => {
       getTelegramRequestTimeout: () => 1000,
       logTelegramOperation: vi.fn(),
       normalizeTelegramMessage: (message, entities) => ({ message, entities }),
-      prepareInlineKeyboard: vi.fn(),
       telegramRequest: (operation) => operation(),
       toTelegramFormattingEntities: vi.fn(),
       withTelegramInvokeDiagnostics: (_client, _label, operation) => operation(),
@@ -312,14 +310,13 @@ describe('immediate Telegram send recovery', () => {
       getTelegramRequestTimeout: () => 1000,
       logTelegramOperation: vi.fn(),
       normalizeTelegramMessage: (message, entities) => ({ message, entities }),
-      prepareInlineKeyboard: vi.fn(),
       telegramRequest: (operation) => operation(),
       toTelegramFormattingEntities: vi.fn(),
       withTelegramInvokeDiagnostics: (_client, _label, operation) => operation(),
       withTimeout: (operation) => operation,
     });
 
-    const result = await sender('chat-1', 'Sent text', [], [], undefined, false, undefined, 'attempt-key');
+    const result = await sender('chat-1', 'Sent text', [], [], false, undefined, 'attempt-key');
 
     expect(client.sendMessage).toHaveBeenCalledWith('chat-1', { message: 'Sent text' });
     expect(result).toEqual({
@@ -373,7 +370,6 @@ describe('immediate Telegram send recovery', () => {
       logTelegramOperation: vi.fn(),
       normalizeTelegramMessage: (message, entities) => ({ message, entities }),
       observeTelegramResponse: recovery.observeResponse,
-      prepareInlineKeyboard: vi.fn(),
       telegramRequest: (operation) => operation(),
       trackSendAttempt: recovery.trackSendAttempt,
       toTelegramFormattingEntities: vi.fn(),
@@ -381,7 +377,7 @@ describe('immediate Telegram send recovery', () => {
       withTimeout: (operation) => operation,
     });
 
-    const result = await sender('chat-1', 'Integrated message', [], [], undefined, false, undefined, key);
+    const result = await sender('chat-1', 'Integrated message', [], [], false, undefined, key);
 
     expect(result).toMatchObject({
       success: true,

@@ -3,7 +3,6 @@ const { TelegramClient, Api } = require('teleproto');
 const { Raw } = require('teleproto/events');
 const { StringSession } = require('teleproto/sessions');
 const { normalizeTelegramMessage } = require('./packages/shared/telegramText.cjs');
-const { prepareInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
 const {
   classifyTelegramError,
   createTelegramRateLimitInterceptor,
@@ -1101,7 +1100,6 @@ const sendMessageInternal = createTelegramSender({
   getTelegramRequestTimeout,
   logTelegramOperation,
   normalizeTelegramMessage,
-  prepareInlineKeyboard,
   observeTelegramResponse: telegramSendRecovery.observeResponse,
   telegramRequest,
   trackSendAttempt: telegramSendRecovery.trackSendAttempt,
@@ -1110,13 +1108,12 @@ const sendMessageInternal = createTelegramSender({
   withTimeout,
 });
 
-function sendMessage(chatId, message, attachments, entities, replyMarkup, silent, effect, idempotencyKey) {
+function sendMessage(chatId, message, attachments, entities, silent, effect, idempotencyKey) {
   return enqueueTelegramPublish('send', () => sendMessageInternal(
     chatId,
     message,
     attachments,
     entities,
-    replyMarkup,
     silent,
     effect,
     idempotencyKey,
@@ -1169,7 +1166,7 @@ const {
   withTimeout,
 });
 
-function scheduleMessage(chatId, message, date, time, targetTimestamp, attachments, entities, replyMarkup, silent, effect) {
+function scheduleMessage(chatId, message, date, time, targetTimestamp, attachments, entities, silent, effect) {
   return enqueueTelegramPublish('schedule', () => scheduleMessageInternal(
     chatId,
     message,
@@ -1178,7 +1175,6 @@ function scheduleMessage(chatId, message, date, time, targetTimestamp, attachmen
     targetTimestamp,
     attachments,
     entities,
-    replyMarkup,
     silent,
     effect,
   ));

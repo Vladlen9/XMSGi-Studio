@@ -4,7 +4,6 @@ function createTelegramSender({
   getTelegramRequestTimeout,
   logTelegramOperation,
   normalizeTelegramMessage,
-  prepareInlineKeyboard,
   telegramRequest,
   toTelegramFormattingEntities,
   observeTelegramResponse,
@@ -17,7 +16,6 @@ function createTelegramSender({
     message,
     attachments = [],
     entities = [],
-    replyMarkup,
     silent = false,
     effect,
     idempotencyKey
@@ -54,13 +52,9 @@ function createTelegramSender({
         sendOptions.file = attachments.length === 1 ? attachments[0] : attachments;
       }
 
-      const preparedMarkup = prepareInlineKeyboard(replyMarkup);
-
-      if (preparedMarkup) sendOptions.buttons = preparedMarkup;
-
       const sendOperation = () => clientAtStart.sendMessage(target, sendOptions);
 
-      logTelegramOperation('send', message, attachments, replyMarkup);
+      logTelegramOperation('send', message, attachments);
 
       const result = await withTelegramInvokeDiagnostics(clientAtStart, 'send', () => telegramRequest(() => withTimeout(
         sendOperation(),

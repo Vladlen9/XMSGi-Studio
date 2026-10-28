@@ -19,7 +19,6 @@ import {
 import type { WorkspaceDraft } from '@studio/lib/draftStore';
 import { useLocale } from '@studio/lib/i18n';
 import { loadSavedDrafts } from '@studio/lib/storage';
-import type { InlineButtonRow } from '@studio/lib/inlineKeyboard';
 import type { ScheduleRepeatOptions } from '@studio/lib/scheduling';
 import {
   appendWorkspaceDocumentVersion,
@@ -35,7 +34,6 @@ type WorkspaceDraftState = {
   entities: WorkspaceDraft['entities'];
   attachments: DraftAttachment[];
   selectedChat: Chat | null;
-  inlineButtons: InlineButtonRow[];
   date: string;
   time: string;
   repeatMode: ScheduleRepeatOptions['mode'];
@@ -177,7 +175,7 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
 
   const createWorkspaceDraftSnapshot = () => {
     const workspace = optionsRef.current.workspace;
-    if (!hasDraftContent(workspace.body, workspace.attachments) && !workspace.inlineButtons.length) return null;
+    if (!hasDraftContent(workspace.body, workspace.attachments)) return null;
     return {
       ...workspace,
       attachments: workspace.attachments
@@ -197,12 +195,6 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
       ...snapshot,
       attachments: snapshot.attachments.map((attachment) => ({ ...attachment })),
       entities: snapshot.entities ? [...snapshot.entities] : [],
-      inlineButtons: snapshot.inlineButtons
-        ? snapshot.inlineButtons.map((row) => row.map((button) => ({
-            ...button,
-            action: { ...button.action },
-          })))
-        : [],
       repeatDays: snapshot.repeatDays ? [...snapshot.repeatDays] : [],
       selectedChat: snapshot.selectedChat ? { ...snapshot.selectedChat } : null,
     } satisfies WorkspaceDraft;
@@ -228,7 +220,6 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
           attachments: normalizeAttachments(appliedWorkspace.attachments),
           selectedChat: appliedWorkspace.selectedChat ?? null,
           savedAt: workspaceDraft.savedAt ?? '',
-          inlineButtons: appliedWorkspace.inlineButtons ?? [],
           date: appliedWorkspace.date ?? '',
           time: appliedWorkspace.time ?? '',
           repeatMode: appliedWorkspace.repeatMode ?? 'none',
@@ -581,7 +572,6 @@ export function useStudioDrafts(options: WorkspaceDraftLifecycleOptions) {
     options.workspace.body,
     options.workspace.date,
     options.workspace.entities,
-    options.workspace.inlineButtons,
     options.workspace.repeatDays,
     options.workspace.repeatMode,
     options.workspace.repeatOccurrences,

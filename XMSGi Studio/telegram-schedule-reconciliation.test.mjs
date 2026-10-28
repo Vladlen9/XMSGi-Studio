@@ -32,7 +32,6 @@ describe('Telegram pending schedule reconciliation', () => {
         message: 'Pending message',
         date: new Date(2052547200 * 1000),
         entities: [],
-        replyMarkup: undefined,
         silent: false,
       }]),
       getMessages: vi.fn(),

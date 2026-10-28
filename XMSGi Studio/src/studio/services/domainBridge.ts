@@ -86,7 +86,6 @@ export function convertLegacyDraftToDomain(draft: SavedDraft, authorAccountId?: 
       repeatDays: draft.repeatDays,
       repeatOccurrences: draft.repeatOccurrences,
       selectedChat: draft.selectedChat,
-      inlineButtons: draft.inlineButtons,
     },
     lastSavedAt: draft.updatedAt,
   };
@@ -102,7 +101,6 @@ export function convertDomainDraftToLegacy(draft: DomainDraft): SavedDraft {
     entities: [],
     attachments: draft.attachments ?? [],
     selectedChat: (draft.metadata?.selectedChat as SavedDraft['selectedChat']) ?? null,
-    inlineButtons: (draft.metadata?.inlineButtons as SavedDraft['inlineButtons']) ?? [],
     date: (draft.metadata?.date as string | undefined) ?? '',
     time: (draft.metadata?.time as string | undefined) ?? '',
     repeatMode: (draft.metadata?.repeatMode as SavedDraft['repeatMode']) ?? 'none',

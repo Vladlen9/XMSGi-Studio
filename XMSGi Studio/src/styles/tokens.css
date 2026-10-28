@@ -9,6 +9,9 @@
   --signal: #667887;
   --ok: #43865b;
   --danger: #b42318;
+  --feedback-error: #b42318;
+  --feedback-warning: #805500;
+  --feedback-success: #267544;
   --surface-raised: #ffffff;
   --surface-muted: #f0f2f4;
   --surface-hover: #e9edf0;
@@ -22,21 +25,24 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --void: #0d1115;
-  --ink: #151a1f;
-  --text: #e2e7eb;
-  --dim: #a5afb8;
-  --faint: #515c66;
-  --line: #2a3239;
-  --signal: #93a9b9;
+  --void: #0e1317;
+  --ink: #141b20;
+  --text: #e4ebef;
+  --dim: #a7b3bb;
+  --faint: #687680;
+  --line: #2d3941;
+  --signal: #9aafbd;
   --ok: #73ad83;
   --danger: #ff938b;
-  --surface-raised: #171d22;
-  --surface-muted: #1e252b;
-  --surface-hover: #252e35;
+  --feedback-error: #ff938b;
+  --feedback-warning: #f0c75e;
+  --feedback-success: #70c995;
+  --surface-raised: #182127;
+  --surface-muted: #202a31;
+  --surface-hover: #29363e;
   --accent: #239dfb;
   --accent-soft: #17364d;
-  --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.32);
+  --shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.28);
 }
 
 html.is-theme-transitioning,

@@ -1,3 +1,4 @@
+/* global console */
 import { Buffer } from 'node:buffer';
 import { describe, expect, it, vi } from 'vitest';
 import { getPreviewMedia, toPreviewNumber } from './telegram-media-preview.cjs';
@@ -57,5 +58,65 @@ describe('Telegram history media previews', () => {
     expect(downloadMedia).toHaveBeenCalledOnce();
     expect(result.duration).toBe(2.5);
     expect(result.dataUrl).toBe(`data:audio/ogg;base64,${Buffer.from([1, 2, 3]).toString('base64')}`);
+  });
+
+  it('does not download oversized audio and keeps its metadata available', async () => {
+    const downloadMedia = vi.fn();
+    const result = await getPreviewMedia({
+      audio: true,
+      file: { mimeType: 'audio/ogg', name: 'voice.ogg', size: 2 * 1024 * 1024, duration: 12 },
+      downloadMedia,
+    });
+
+    expect(result).toMatchObject({ kind: 'audio', name: 'voice.ogg', duration: 12 });
+    expect(result.dataUrl).toBeUndefined();
+    expect(downloadMedia).not.toHaveBeenCalled();
+  });
+
+  it('does not start a media download when the history preview budget is exhausted', async () => {
+    const downloadMedia = vi.fn();
+    const result = await getPreviewMedia({
+      video: true,
+      file: { name: 'clip.mp4', size: 4096 },
+      downloadMedia,
+    }, false, 0);
+
+    expect(result).toMatchObject({ kind: 'video', name: 'clip.mp4' });
+    expect(downloadMedia).not.toHaveBeenCalled();
+  });
+
+  it('continues preview normalization when Teleproto file metadata getters throw', async () => {
+    const downloadMedia = vi.fn();
+    const file = {
+      name: 'video.mp4',
+      mimeType: 'video/mp4',
+      size: 1024,
+      get duration() {
+        throw new TypeError("Right-hand side of 'instanceof' is not callable");
+      },
+      get width() {
+        throw new TypeError("Right-hand side of 'instanceof' is not callable");
+      },
+      get height() {
+        throw new TypeError("Right-hand side of 'instanceof' is not callable");
+      },
+    };
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const result = await getPreviewMedia({
+        video: true,
+        file,
+        downloadMedia,
+      });
+
+      expect(result).toMatchObject({ kind: 'video', name: 'video.mp4', mimeType: 'video/mp4', size: 1024 });
+      expect(result.duration).toBeUndefined();
+      expect(result.width).toBeUndefined();
+      expect(result.height).toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledTimes(3);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

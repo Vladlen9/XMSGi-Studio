@@ -1,5 +1,4 @@
 const { normalizeTelegramMessage } = require('./packages/shared/telegramText.cjs');
-const { prepareInlineKeyboard } = require('./telegram-inline-keyboard.cjs');
 const { isInvalidMediaAlbumError } = require('./telegram-errors.cjs');
 const { toTelegramFormattingEntities } = require('./telegram-message-entities.cjs');
 const {
@@ -32,7 +31,6 @@ function createTelegramScheduler({
     targetTimestamp,
     attachments = [],
     entities = [],
-    replyMarkup,
     silent = false,
     effect
   ) {
@@ -58,7 +56,6 @@ function createTelegramScheduler({
       targetTimestamp: scheduledDate,
       attachments,
       entities,
-      replyMarkup,
       silent: silent === true,
       effect,
     };
@@ -95,8 +92,6 @@ function createTelegramScheduler({
       sendOptions.file = attachments.length === 1 ? attachments[0] : attachments;
     }
 
-    const preparedMarkup = prepareInlineKeyboard(replyMarkup);
-    sendOptions.buttons = attachments.length > 0 ? preparedMarkup : undefined;
 
     const useDirectSchedule = attachments.length === 0
       && typeof getClient().getInputEntity === 'function'
@@ -109,7 +104,6 @@ function createTelegramScheduler({
           peer,
           message,
           entities: sendOptions.formattingEntities,
-          replyMarkup: preparedMarkup,
           scheduleDate: scheduledDate,
           silent: sendOptions.silent === true,
           ...(sendOptions.effect !== undefined ? { effect: sendOptions.effect } : {}),
@@ -117,7 +111,7 @@ function createTelegramScheduler({
         return getClient().invoke(request);
       };
 
-    logTelegramOperation('schedule', message, attachments, replyMarkup);
+    logTelegramOperation('schedule', message, attachments);
 
     const scheduleRequestTimeout = getTelegramRequestTimeout(attachments);
     let telegramMessageIds = [];
@@ -131,6 +125,12 @@ function createTelegramScheduler({
           : [response];
       const responseIds = updates.flatMap((update) => {
         if (update?.className === 'UpdateNewScheduledMessage' && update.message?.id != null) {
+          return [update.message.id];
+        }
+        if (
+          (update?.className === 'UpdateNewMessage' || update?.className === 'UpdateNewChannelMessage')
+          && update.message?.id != null
+        ) {
           return [update.message.id];
         }
         return update?.className === 'UpdateMessageID' && update.id != null ? [update.id] : [];
@@ -170,7 +170,6 @@ function createTelegramScheduler({
             message: index === 0 ? message : '',
             formattingEntities: index === 0 ? sendOptions.formattingEntities : undefined,
             file: attachment,
-            buttons: index === 0 ? preparedMarkup : undefined,
           };
           const attachmentIdempotencyKey = `${scheduleIdempotencyKey}:attachment:${index}`;
           const result = await withTelegramInvokeDiagnostics(getClient(), 'schedule', () => telegramRequest(() => withTimeout(
@@ -246,10 +245,6 @@ function createTelegramScheduler({
       ).values()];
     }
 
-    if (sentImmediatelyByResponse && !scheduleConfirmedByResponse) {
-      throw new Error('Telegram sent the message immediately instead of scheduling it.');
-    }
-
     let confirmedMessage = scheduleConfirmedByResponse && telegramMessageIds.length > 0
       ? { id: telegramMessageIds[0] }
       : null;
@@ -277,6 +272,11 @@ function createTelegramScheduler({
     }
 
     if (!confirmedMessage) {
+      if (sentImmediatelyByResponse) {
+        const error = new Error('Telegram sent the message immediately instead of scheduling it.');
+        error.code = 'TELEGRAM_SCHEDULE_SENT_IMMEDIATELY';
+        throw error;
+      }
       console.error('Telegram did not confirm the scheduled message.');
       throw new Error('Telegram did not confirm that the reminder was saved.');
     }
@@ -298,7 +298,6 @@ function createTelegramScheduler({
     targetTimestamp,
     attachments = [],
     entities = [],
-    replyMarkup,
     silent = false,
     effect,
     telegramMessageIds = [],
@@ -314,7 +313,6 @@ function createTelegramScheduler({
       targetTimestamp,
       attachments,
       entities,
-      replyMarkup,
       silent: silent === true,
       effect,
     };

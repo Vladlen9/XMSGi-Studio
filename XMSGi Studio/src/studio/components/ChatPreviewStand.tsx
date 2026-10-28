@@ -6,11 +6,9 @@ import { ChatAvatar } from './ChatAvatar';
 import carbonDarkWallpaper from '../assets/carbon-dark-wallpaper.jpg';
 import carbonLightWallpaper from '../assets/carbon-light-wallpaper.png';
 import type { Chat, PreviewChatHistory, RichTextEntity } from '@studio/types';
-import { toInlineKeyboardMarkup, type InlineButtonRow } from '@studio/lib/inlineKeyboard';
 import { ChatPreviewHistory } from '@studio/components/ChatPreviewHistory';
 import { groupHistory } from '@studio/components/chatPreviewHistoryUtils';
 import { useLocale } from '@studio/lib/i18n';
-import { InlineKeyboardPreview } from '@studio/components/InlineKeyboardPreview';
 import { normalizeTelegramMessage } from '@shared/telegramText.cjs';
 import { richTextToHtml } from '@studio/lib/richText';
 import './ChatPreviewStand.css';
@@ -46,7 +44,6 @@ type ChatPreviewStandProps = {
   previewFeedRef: MutableRefObject<HTMLDivElement | null>;
   draftText: string;
   draftEntities: RichTextEntity[];
-  inlineButtons: InlineButtonRow[];
   attachments: PreviewAttachment[];
   previewTime: string;
   collapsed: boolean;
@@ -158,6 +155,18 @@ function getEntityText(text: string, entity: RichTextEntity) {
   return text.slice(entity.offset, entity.offset + entity.length).trim() || 'Open link';
 }
 
+function scrollPreviewFeedToDraft(feed: HTMLDivElement) {
+  const draftBubble = feed.querySelector<HTMLElement>('.chat-preview-draft-bubble');
+  if (!draftBubble || draftBubble.getBoundingClientRect().height <= feed.clientHeight) {
+    feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight);
+    return;
+  }
+
+  const feedBounds = feed.getBoundingClientRect();
+  const draftBounds = draftBubble.getBoundingClientRect();
+  feed.scrollTop = Math.max(0, feed.scrollTop + draftBounds.top - feedBounds.top);
+}
+
 export function ChatPreviewStand({
   selectedChat,
   chats,
@@ -166,7 +175,6 @@ export function ChatPreviewStand({
   previewFeedRef,
   draftText,
   draftEntities,
-  inlineButtons,
   attachments,
   previewTime,
   collapsed,
@@ -359,10 +367,18 @@ export function ChatPreviewStand({
 
   useLayoutEffect(() => {
     const feed = previewFeedRef.current;
-    if (collapsed || previewHistoryLoading || !activePreviewHistory || !feed) return;
+    if (collapsed || previewHistoryLoading || !feed) return;
 
-    feed.scrollTop = Math.max(0, feed.scrollHeight - feed.clientHeight);
-  }, [activePreviewHistory, collapsed, previewFeedRef, previewHistoryLoading]);
+    scrollPreviewFeedToDraft(feed);
+  }, [
+    activePreviewHistory,
+    attachments,
+    collapsed,
+    draftEntities,
+    draftText,
+    previewFeedRef,
+    previewHistoryLoading,
+  ]);
 
   const imageAttachments = attachments.filter(isImageAttachment);
   const documentAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
@@ -601,7 +617,7 @@ export function ChatPreviewStand({
       <div className="chat-preview-window-shell">
       <div className={`chat-preview-window theme-${effectiveWallpaperTheme} ${chatListOpen ? 'is-chat-list-open' : ''}`} style={wallpaperStyle}>
         <div className="chat-preview-mobile-system-bar" aria-hidden="true">
-          <span>9:41</span>
+        <span>{previewTime}</span>
           <span className="chat-preview-mobile-system-icons">
             <Signal size={12} strokeWidth={2} />
             <Wifi size={13} strokeWidth={2} />
@@ -683,6 +699,10 @@ export function ChatPreviewStand({
               type="button"
               className="chat-preview-expand"
               onClick={() => {
+                if (wallpaperPickerOpen) {
+                  setWallpaperPickerOpen(false);
+                  return;
+                }
                 if (previewDevice === 'web' && chatListOpen && !previewOptionsOpen) {
                   onToggleChatList();
                   return;
@@ -798,9 +818,8 @@ export function ChatPreviewStand({
                     <div className="chat-preview-message" dangerouslySetInnerHTML={{ __html: richTextToHtml(normalizedDraft.message, normalizedDraft.entities) }} />
                   )}
                   <div className="chat-preview-meta"><time>{previewTime}</time><span aria-label="Sent">✓✓</span></div>
-                  <InlineKeyboardPreview markup={toInlineKeyboardMarkup(inlineButtons)} />
                   {linkEntities.length > 0 && (
-                    <div className="chat-preview-inline-keyboard">
+                    <div className="chat-preview-link-preview">
                       {linkEntities.map((entity, index) => <a href={entity.url} target="_blank" rel="noreferrer" key={`${entity.url}-${index}`}>{getEntityText(normalizedDraft.message, entity)}</a>)}
                     </div>
                   )}

@@ -83,9 +83,12 @@ describe('useStudioScheduler bridge errors', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('persists the send attempt before publishing and forwards its idempotency key', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const events: string[] = [];
     const historyRef: { current: { upcoming: Array<Record<string, unknown>>; sent: Array<Record<string, unknown>> } | null } = { current: null };
     const scheduler = renderScheduler(vi.fn(), {
@@ -118,9 +121,13 @@ describe('useStudioScheduler bridge errors', () => {
     });
 
     await act(async () => {
+      scheduler.result.setDate('2099-01-15');
+      scheduler.result.setTime('17:42');
       await expect(scheduler.result.handleSendDraftNow(chat, 'Persist first')).resolves.toBe(true);
     });
 
+    expect(scheduler.result.date).toBe('2026-10-19');
+    expect(scheduler.result.time).toBe('10:11');
     expect(events).toEqual(['preflight-save', 'telegram-send']);
     expect(publishToChannel).toHaveBeenCalledOnce();
     expect(publishToChannel.mock.calls[0][0]).toMatchObject({
@@ -151,6 +158,8 @@ describe('useStudioScheduler bridge errors', () => {
   });
 
   it('does not retry after Telegram confirms but final history persistence fails', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     const showNotification = vi.fn();
     const scheduler = renderScheduler(showNotification);
     publishToChannel.mockResolvedValueOnce({
@@ -164,9 +173,13 @@ describe('useStudioScheduler bridge errors', () => {
     });
 
     await act(async () => {
+      scheduler.result.setDate('2099-01-15');
+      scheduler.result.setTime('17:42');
       await expect(scheduler.result.handleSendDraftNow(chat, 'Send once')).resolves.toBe('sent-history-failed');
     });
 
+    expect(scheduler.result.date).toBe('2026-10-19');
+    expect(scheduler.result.time).toBe('10:11');
     expect(publishToChannel).toHaveBeenCalledOnce();
     expect(scheduler.history.upcoming).toHaveLength(1);
     expect(scheduler.history.upcoming[0]).toMatchObject({ status: 'sending' });
@@ -236,7 +249,6 @@ describe('useStudioScheduler bridge errors', () => {
     publishToChannel
       .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '201', historyPersisted: true } })
       .mockResolvedValueOnce({ publishResult: { ok: true, provider: 'telegram', messageId: '202', historyPersisted: true } });
-    const replyMarkup = { inline_keyboard: [[{ text: 'Open', url: 'https://example.com' }]] };
     const entities = [{ type: 'bold', offset: 0, length: 11 }];
     const scheduler = renderScheduler();
 
@@ -246,7 +258,6 @@ describe('useStudioScheduler bridge errors', () => {
         'Album caption',
         ['a1', 'a2', 'b1', 'b2'],
         entities,
-        replyMarkup,
         [['a1', 'a2'], ['b1', 'b2']],
       )).toBe(true);
     });
@@ -255,7 +266,6 @@ describe('useStudioScheduler bridge errors', () => {
     expect(publishToChannel.mock.calls.map(([input]) => input.mediaIds)).toEqual([['a1', 'a2'], ['b1', 'b2']]);
     expect(publishToChannel.mock.calls.map(([input]) => input.body)).toEqual(['Album caption', '']);
     expect(publishToChannel.mock.calls.map(([input]) => input.entities)).toEqual([entities, []]);
-    expect(publishToChannel.mock.calls.map(([input]) => input.replyMarkup)).toEqual([replyMarkup, undefined]);
     expect(scheduler.result.sent).toHaveLength(2);
     scheduler.unmount();
   });
@@ -272,7 +282,6 @@ describe('useStudioScheduler bridge errors', () => {
         'Effect caption',
         [],
         [],
-        undefined,
         undefined,
         undefined,
         '123456789',
@@ -310,6 +319,8 @@ describe('useStudioScheduler bridge errors', () => {
   });
 
   it('schedules each photo album separately at the same time', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
     scheduleToChannel
       .mockResolvedValueOnce({ publishResult: { ok: true, confirmed: true, messageId: '101' } })
       .mockResolvedValueOnce({ publishResult: { ok: true, confirmed: true, messageId: '102' } })
@@ -317,6 +328,8 @@ describe('useStudioScheduler bridge errors', () => {
     const scheduler = renderScheduler();
 
     await act(async () => {
+      scheduler.result.setDate('2099-01-15');
+      scheduler.result.setTime('17:42');
       await scheduler.result.handleSchedule({
         chatId: chat.id,
         message: 'Album post',
@@ -328,6 +341,8 @@ describe('useStudioScheduler bridge errors', () => {
       });
     });
 
+    expect(scheduler.result.date).toBe('2026-10-19');
+    expect(scheduler.result.time).toBe('10:11');
     expect(scheduleToChannel).toHaveBeenCalledTimes(3);
     expect(scheduleToChannel.mock.calls.map(([input]) => input.mediaIds)).toEqual([
       ['a1', 'a2'],
@@ -360,6 +375,34 @@ describe('useStudioScheduler bridge errors', () => {
     expect(scheduleToChannel).toHaveBeenCalledOnce();
     expect(scheduleToChannel.mock.calls[0][0].mediaIds).toEqual([]);
     expect(scheduler.result.upcoming).toHaveLength(1);
+    scheduler.unmount();
+  });
+
+  it('resets the schedule date and time after sending a scheduled item immediately', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 19, 10, 10, 0));
+    publishToChannel.mockResolvedValueOnce({
+      publishResult: { ok: true, confirmed: true, messageId: '105', historyPersisted: true },
+    });
+    const scheduler = renderScheduler();
+
+    await act(async () => {
+      scheduler.result.setDate('2099-01-15');
+      scheduler.result.setTime('17:42');
+      await scheduler.result.handleSendNow({
+        id: 'scheduled-now',
+        chatId: chat.id,
+        chatName: chat.name,
+        text: 'Send this scheduled item now',
+        when: '2099-01-15T17:42:00.000Z',
+        createdAt: '2026-10-19T10:00:00.000Z',
+        status: 'scheduled',
+      });
+    });
+
+    expect(scheduler.result.date).toBe('2026-10-19');
+    expect(scheduler.result.time).toBe('10:11');
+    expect(scheduler.result.sent).toMatchObject([{ id: 'scheduled-now', status: 'sent' }]);
     scheduler.unmount();
   });
 

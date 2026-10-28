@@ -1,7 +1,7 @@
 # Архитектура XMSGi Studio
 
 Техническое описание приложения для разработчиков.
-Соответствует версии **1.3.1**.
+Соответствует версии **1.3.5**.
 
 ---
 
@@ -150,7 +150,7 @@ XMSGi Studio — настольное приложение на **Electron**.
 - `src/hooks/` — `useTelegramAuth`, `useChats`, `useScheduler`,
   `useNotifications`.
 - `src/components/` — `QuickPlanner`, `ChatPicker`,
-  `SettingsView`, `Notification`, `InlineKeyboardPreview` и др.
+  `SettingsView`, `Notification` и др.
 - `src/workspace/` — общий shell и связь страниц: `StudioMount.tsx`,
   `HistoryDrawer.tsx` (единая история), `historyModel.ts`.
 
@@ -169,7 +169,7 @@ Planner-черновиками и сохранёнными Studio-докумен
 - `src/studio/pages/WorkspacePage.tsx` — рабочая страница (редактор,
   черновики, шаблоны, выбор чата, расписание);
 - `src/studio/components/` — стадии чата, расписания, черновика,
-  шаблонов, inline-кнопок, `RichTextEditor`, `ChatPreviewStand`;
+  шаблонов, `RichTextEditor`, `ChatPreviewStand`;
 - `src/studio/hooks/useStudioScheduler.ts` — fallback-планировщик;
 - `src/studio/repositories/`, `src/studio/services/` — доступ к данным
   и адаптация publishing-операций к Telegram-мосту.
@@ -199,7 +199,7 @@ React-props контракт:
   `handleSchedule`, `handleSendNow`, `handleSendDraftNow`,
   `handleCancelMessage(s)`, `handleDeleteMessage`, `handleClearSent`;
 - `StudioSchedulePayload` — чат, текст, дата/время, вложения,
-  entities, replyMarkup, silent, effect;
+  entities, silent, effect;
 - ошибки — `BridgeErrorDetails` (`bridge/errors.ts`),
   категория и retry-метаданные FloodWait передаются из
   `telegram-errors.cjs` в operation-aware обработчик Studio.

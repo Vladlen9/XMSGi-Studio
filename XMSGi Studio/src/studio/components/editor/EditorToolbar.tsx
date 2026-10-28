@@ -327,7 +327,7 @@ export function EditorToolbar({ stageMode, activeFormats, linkPopoverOpen, linkP
               <ImagePlus size={17} strokeWidth={1.8} aria-hidden="true" />
             </button>
             <div className="workspace-page-rich-text-album-info" id="workspace-page-photo-album-limits" role="tooltip">
-              <strong>{t('studio.photoAlbumLimits')}</strong>
+              <strong>{t('studio.photoAlbum')}</strong>
               <span>{t('studio.photoAlbumLimitInfo', { albums: 3, perAlbum: 10, total: 30 })}</span>
             </div>
           </div>

@@ -102,14 +102,12 @@ export interface NormalizedMessage {
   text: string;
   entities?: Array<{ type: string; offset: number; length: number; url?: string }>;
   mediaIds?: string[];
-  replyMarkup?: unknown;
 }
 
 export interface ChannelCapabilities {
   supportsRichText: boolean;
   supportsMedia: boolean;
   supportsScheduling: boolean;
-  supportsInlineKeyboard: boolean;
 }
 
 export interface ChannelAdapter {
