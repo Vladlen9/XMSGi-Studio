@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Schedule recurring Telegram messages with daily, weekly, biweekly, or monthly intervals. Prepare a post, choose a chat, and manage its schedule in XMSGi Studio." />
+  <meta name="description" content="Schedule recurring Telegram messages with selected weekdays, intervals, and up to 15 sends. XMSGi Studio supports daily, weekly, biweekly, and monthly schedules." />
   <meta name="theme-color" content="#050506" />
-  <title>Schedule recurring Telegram messages — XMSGi Studio</title>
+  <title>Recurring Telegram messages: schedule and limits — XMSGi Studio</title>
   <link rel="canonical" href="https://molodoy01.github.io/XMSGi-Studio/en/telegram-recurring-messages/" />
   <link rel="alternate" hreflang="ru" href="https://molodoy01.github.io/XMSGi-Studio/ru/telegram-recurring-messages/" />
   <link rel="alternate" hreflang="en" href="https://molodoy01.github.io/XMSGi-Studio/en/telegram-recurring-messages/" />
   <link rel="alternate" hreflang="x-default" href="https://molodoy01.github.io/XMSGi-Studio/en/telegram-recurring-messages/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Schedule recurring Telegram messages — XMSGi Studio" />
-  <meta property="og:description" content="Plan regular Telegram posts with a recurring schedule." />
+  <meta property="og:description" content="Choose weekdays, a repeat interval, and the number of scheduled sends." />
   <meta property="og:url" content="https://molodoy01.github.io/XMSGi-Studio/en/telegram-recurring-messages/" />
   <meta property="og:image" content="https://molodoy01.github.io/XMSGi-Studio/screenshots/studio-post-composer.webp" />
   <style>
@@ -36,9 +36,7 @@
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 40px; }
     .button { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; padding: 10px 18px; border: 1px solid #b8a4ff; border-radius: 8px; color: #fff; font-weight: 700; text-decoration: none; }
     .button.primary { border-color: #fff; background: #fff; color: #08080b; }
-    figure { margin: 36px 0; }
-    figure img { display: block; width: 100%; height: auto; border: 1px solid rgba(184,164,255,.3); border-radius: 12px; }
-    figcaption, .note { color: #9999a5; font-size: .9rem; }
+    .note { color: #9999a5; font-size: .9rem; }
     .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; padding: 0; list-style: none; }
     .steps li, .faq { padding: 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: #0a0a0d; }
     .steps strong { display: block; margin-bottom: 6px; color: #fff; }
@@ -61,58 +59,54 @@
     </nav>
   </header>
   <main class="wrap">
-    <p class="eyebrow">Recurring posts</p>
+    <p class="eyebrow">Message scheduling</p>
     <h1>Schedule recurring Telegram messages</h1>
-    <p class="lead">For messages you send regularly, set a repeat schedule instead of creating each post from scratch. XMSGi Studio lets you prepare a message, choose a chat, and schedule it to repeat.</p>
+    <p class="lead">XMSGi Studio can schedule a message for multiple sends: choose its cadence, weekdays, and number of occurrences. Recurrence is finite, with a maximum of 15 sends.</p>
     <div class="actions">
       <a class="button primary" href="https://github.com/molodoy01/XMSGi-Studio/releases/latest">Download XMSGi Studio</a>
-      <a class="button" href="../telegram-post-scheduler/">About the post scheduler</a>
+      <a class="button" href="../telegram-post-scheduler/">All scheduler features</a>
     </div>
-    <figure>
-      <img src="../../screenshots/studio-post-composer.webp" alt="XMSGi Studio message composer with a Telegram post preview" width="1486" height="768" />
-      <figcaption>Prepare your message and review it before adding it to a schedule.</figcaption>
-    </figure>
 
     <section aria-labelledby="interval-title">
-      <h2 id="interval-title">Choose a repeat interval</h2>
-      <p>XMSGi Studio supports four intervals for recurring messages:</p>
+      <h2 id="interval-title">Choose an interval and send days</h2>
+      <p>Set the date and time for the first send, then choose a repeat interval:</p>
       <ul>
-        <li>daily;</li>
-        <li>weekly;</li>
-        <li>every two weeks;</li>
-        <li>monthly.</li>
+        <li><strong>Daily</strong> — repeat the message each day.</li>
+        <li><strong>Weekly</strong> — choose one or more weekdays.</li>
+        <li><strong>Every two weeks</strong> — choose weekdays to repeat every other week.</li>
+        <li><strong>Monthly</strong> — repeat on the same calendar date. If a month has no such date, the schedule uses that month's last day.</li>
       </ul>
-      <p>Choose the cadence that fits the message, then review the scheduled post in the queue. One-time scheduling remains available for announcements that do not repeat.</p>
+      <p>The occurrence count includes the first send. Choose 1, 3, 5, 10, or 15; for weekly and biweekly schedules, this is the total number of posts, not the number of weeks.</p>
     </section>
 
     <section aria-labelledby="setup-title">
-      <h2 id="setup-title">How to schedule a recurring message</h2>
+      <h2 id="setup-title">Set up a recurring schedule</h2>
       <ol class="steps">
-        <li><strong>1. Choose a chat</strong>Connect your Telegram account and select an available chat, group, or channel.</li>
-        <li><strong>2. Prepare the message</strong>Add text and media, then review the post in the preview.</li>
-        <li><strong>3. Set the schedule</strong>Choose a repeat interval and check the post in the queue.</li>
+        <li><strong>1. Prepare the message</strong>Choose a chat, group, or channel available to your account, then review the text and media in the preview.</li>
+        <li><strong>2. Set the first date and time</strong>Choose when the first message should be sent. The app displays your device's time zone.</li>
+        <li><strong>3. Configure the repeat</strong>Select an interval, weekdays if needed, and the number of sends. Review the schedule in the queue.</li>
       </ol>
     </section>
 
     <section aria-labelledby="control-title">
-      <h2 id="control-title">Review and manage your queue</h2>
-      <p>If plans change, a scheduled message can be edited, rescheduled, or canceled before it is sent. The queue and publishing history help you review message status.</p>
-      <p>XMSGi Studio is a desktop app for Windows, Linux, and macOS. Posts are sent through your Telegram account, with no separate bot.</p>
+      <h2 id="control-title">Manage posts after scheduling</h2>
+      <p>Before a message is sent, you can edit, reschedule, or cancel it from the queue. Scheduled messages are stored on Telegram's servers, so your computer does not need to stay on.</p>
+      <p class="note">XMSGi Studio uses your Telegram account rather than a separate bot. It is a desktop app for Windows, Linux, and macOS.</p>
     </section>
 
     <section aria-labelledby="faq-title">
       <h2 id="faq-title">Frequently asked questions</h2>
       <div class="faq">
-        <h3>How often can a message repeat?</h3>
-        <p>Available intervals are daily, weekly, every two weeks, and monthly.</p>
+        <h3>Can I repeat a message indefinitely?</h3>
+        <p>No. Each schedule has a finite number of sends: 1, 3, 5, 10, or a maximum of 15.</p>
       </div>
       <div class="faq">
-        <h3>Can I change a recurring post?</h3>
-        <p>You can edit, reschedule, or cancel a scheduled message before it is sent.</p>
+        <h3>Can I choose multiple weekdays?</h3>
+        <p>Yes. Weekly and biweekly schedules can use one or more selected weekdays.</p>
       </div>
       <div class="faq">
-        <h3>Do recurring Telegram messages need a bot?</h3>
-        <p>No. XMSGi Studio uses your Telegram account.</p>
+        <h3>Can I cancel future sends?</h3>
+        <p>You can edit or cancel a scheduled message from the queue before it is sent.</p>
       </div>
     </section>
 
